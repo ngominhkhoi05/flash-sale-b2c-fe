@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
@@ -13,6 +13,7 @@ import {
   type LoginInput,
 } from '@/features/auth';
 import { ROUTES } from '@/lib/constants';
+import { sanitizeRedirectPath } from '@/lib/auth/require-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ export function LoginForm() {
   const t = useTranslations('auth.login');
   const tErr = useTranslations('auth.errors');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [apiError, setApiError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -50,7 +52,9 @@ export function LoginForm() {
     login.mutate(data, {
       onSuccess: () => {
         toast.success(t('title'));
-        router.push(ROUTES.HOME);
+        // Đọc ?redirect= từ URL (sanitize để chống open redirect attack)
+        const redirect = sanitizeRedirectPath(searchParams.get('redirect'));
+        router.push(redirect);
       },
       onError: () => {
         setApiError(tErr('invalidCredentials'));
