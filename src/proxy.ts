@@ -128,6 +128,47 @@ function handleAdmin(ctx: GuardContext): NextResponse | null {
 }
 
 /**
+ * Quyết định điều hướng cho Storefront protected routes (cần auth).
+ *
+ * Áp dụng cho:
+ *  - /gio-hang        (Giỏ hàng)
+ *  - /kho-voucher     (Kho voucher cá nhân)
+ *  - /tai-khoan       (Tài khoản)
+ *  - /don-hang        (Đơn hàng của tôi)
+ *
+ * Nếu CHƯA đăng nhập → /dang-nhap?redirect=<path hiện tại>.
+ * Nếu đã đăng nhập → cho qua (AuthGuard ở client sẽ check lại role nếu cần).
+ *
+ * Lý do cần kết hợp với AuthGuard (client):
+ *  - Proxy: chặn ở edge, tránh render nội dung nhạy cảm qua URL trực tiếp.
+ *  - AuthGuard: check lại sau khi hydration (phòng trường hợp token bị xoá
+ *    sau khi page load xong).
+ *
+ * @see src/components/auth/AuthGuard.tsx – bảo vệ client-side
+ * @see .cursor/rules/routing-guards.mdc – quy ước auth-guard
+ */
+const STOREFRONT_PROTECTED_PREFIXES = [
+  "/gio-hang",
+  "/kho-voucher",
+  "/tai-khoan",
+  "/don-hang",
+] as const;
+
+function isStorefrontProtected(pathname: string): boolean {
+  return STOREFRONT_PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+function handleStorefrontProtected(ctx: GuardContext): NextResponse | null {
+  const { req, role, pathname } = ctx;
+  if (!isStorefrontProtected(pathname)) return null;
+  if (!role) return redirect(buildLoginRedirect(req), req);
+  // Đã đăng nhập → cho qua. AuthGuard ở client sẽ check lại role nếu cần.
+  return null;
+}
+
+/**
  * Next 16 đã đổi tên `middleware` → `proxy` (function export phải tên `proxy`).
  * Xem https://nextjs.org/docs/messages/middleware-to-proxy
  */
@@ -146,6 +187,7 @@ export function proxy(req: NextRequest): NextResponse {
   return (
     handleAdmin(ctx) ??
     handleSeller(ctx) ??
+    handleStorefrontProtected(ctx) ??
     handleAuthPages(ctx) ??
     NextResponse.next()
   );
