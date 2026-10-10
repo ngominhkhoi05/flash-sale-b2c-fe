@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -63,9 +64,12 @@ export function StorefrontHeader({
       >
         <div className="mx-auto flex h-12 max-w-[1240px] items-center gap-3 px-4">
           <Link href={ROUTES.HOME} className="flex items-center gap-2 shrink-0">
-            <img
+            <Image
               alt="Vibe Mart"
               src="/storefront/logo.png"
+              width={128}
+              height={36}
+              priority
               className="h-9 w-auto object-contain"
             />
           </Link>
@@ -158,9 +162,12 @@ export function StorefrontHeader({
               className="flex items-center gap-2 shrink-0"
               data-path="trang-chu"
             >
-              <img
+              <Image
                 alt="Vibe Mart"
                 src="/storefront/logo.png"
+                width={128}
+                height={36}
+                priority
                 className="h-9 w-auto object-contain"
               />
             </Link>
@@ -221,9 +228,11 @@ export function StorefrontHeader({
                       {user?.fullName || t("greeting")}
                     </div>
                   </div>
-                  <img
+                  <Image
                     alt="Ảnh đại diện mặc định"
                     src="/storefront/default-avatar.svg"
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
                   />
                 </div>

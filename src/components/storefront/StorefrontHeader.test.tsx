@@ -229,6 +229,25 @@ describe("StorefrontHeader – user area", () => {
     expect(src).toMatch(/\/storefront\/default-avatar(\.png|\.svg)/);
     expect(src).not.toMatch(/googleusercontent\.com/);
   });
+
+  it("uses next/image (with explicit width/height) instead of raw <img>", () => {
+    // next/image luôn render <img> với width và height attributes ngay cả
+    // khi trong jsdom. Raw <img> chỉ có width/height nếu pass explicit prop.
+    // Trong StorefrontHeader, raw <img> không có width/height → dấu hiệu phân
+    // biệt rõ ràng.
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
+    expect(logoImg).toBeDefined();
+    // next/image set width/height; raw <img> ở code cũ KHÔNG có
+    expect(logoImg?.getAttribute("width")).toBe("128");
+    expect(logoImg?.getAttribute("height")).toBe("36");
+  });
 });
 
 // ── Cart count badge ──────────────────────────────────────────────────────
