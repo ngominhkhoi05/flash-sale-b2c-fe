@@ -65,7 +65,7 @@ export function StorefrontHeader({
           <Link href={ROUTES.HOME} className="flex items-center gap-2 shrink-0">
             <img
               alt="Vibe Mart"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBy79OcQcBJqBYuWsbyxBHYG_KNTVmWUtuHm6cTWSUHMBCklMREHkj1lZP61HP8UyknE3FygOx0-qIyt6jxOYDQsHbaurQZv4jMriUjeg8sqWiHGF8PtKwlT7eZUFIHvua7B0g0cH6uZtuUaE5GAYl6H6MOtdER8sYZ481KAE3Wc8k07ggWk2b8lR5VRRTqyRtEXbvHt-m0IIpNDkY_5V_O6G9qr1YeQr4Dx_mU3jzZXLWoXq_7bgv4im9x5rhOCKEOPgU"
+              src="/storefront/logo.png"
               className="h-9 w-auto object-contain"
             />
           </Link>
@@ -160,7 +160,7 @@ export function StorefrontHeader({
             >
               <img
                 alt="Vibe Mart"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBy79OcQcBJqBYuWsbyxBHYG_KNTVmWUtuHm6cTWSUHMBCklMREHkj1lZP61HP8UyknE3FygOx0-qIyt6jxOYDQsHbaurQZv4jMriUjeg8sqWiHGF8PtKwlT7eZUFIHvua7B0g0cH6uZtuUaE5GAYl6H6MOtdER8sYZ481KAE3Wc8k07ggWk2b8lR5VRRTqyRtEXbvHt-m0IIpNDkY_5V_O6G9qr1YeQr4Dx_mU3jzZXLWoXq_7bgv4im9x5rhOCKEOPgU"
+                src="/storefront/logo.png"
                 className="h-9 w-auto object-contain"
               />
             </Link>
@@ -222,8 +222,8 @@ export function StorefrontHeader({
                     </div>
                   </div>
                   <img
-                    alt="Profile"
-                    src="https://lh3.googleusercontent.com/aida/AEtjO1Wwf88_26XJ-0gblbzI6RDeUiMvKdTX2axTaCcfQvZC-MwX_A0uVbQKucYlUzuCxZZ8UrEAucYloaJ47EeT80zyw0pcoJtkZQIOAmGKxe0NO5gZM2iYPPolRMJ-WJNHF6zS4kWi-BMTQivIRo40cTJU9VCijXF0JOgKuu063WUtxUr9q169kG4-TaBxMUxz_vF0y1m6iye_Ijswg2fAL3ug4t02pjtwhmfI9C2RaXpFjkE-voV2T8BTY90W"
+                    alt="Ảnh đại diện mặc định"
+                    src="/storefront/default-avatar.svg"
                     className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
                   />
                 </div>

@@ -195,6 +195,40 @@ describe("StorefrontHeader – user area", () => {
       .filter((l) => l.getAttribute("href") === "/dang-nhap");
     expect(loginLinks).toHaveLength(0);
   });
+
+  it("uses local /storefront/logo.png (not Google CDN URL) for the brand logo", () => {
+    // Asset dùng cho logo header phải nằm local trong public/, không phụ thuộc
+    // vào CDN ngoài (tránh link chết, vi phạm docs/CLAUDE.md mục 10).
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
+    expect(logoImg).toBeDefined();
+    const src = logoImg?.getAttribute("src") ?? "";
+    expect(src).toMatch(/\/storefront\/logo(\.png|\.svg)/);
+    expect(src).not.toMatch(/googleusercontent\.com/);
+  });
+
+  it("uses local /storefront/default-avatar.* for the default avatar when authenticated", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: { id: "1", email: "u@e.com", fullName: "Minh Thư", role: "BUYER" },
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    const avatarImg = imgs.find(
+      (img) => img.getAttribute("alt") === "Ảnh đại diện mặc định",
+    );
+    expect(avatarImg).toBeDefined();
+    const src = avatarImg?.getAttribute("src") ?? "";
+    expect(src).toMatch(/\/storefront\/default-avatar(\.png|\.svg)/);
+    expect(src).not.toMatch(/googleusercontent\.com/);
+  });
 });
 
 // ── Cart count badge ──────────────────────────────────────────────────────
