@@ -183,6 +183,29 @@
         "account": "Account"
       }
     },
+    "cart": {
+      "title": "My Cart",
+      "loading": "Loading cart…",
+      "empty": "Your cart is empty",
+      "emptyDescription": "Browse products and add them to your cart to continue shopping.",
+      "continueShopping": "Continue Shopping"
+    },
+    "voucher": {
+      "title": "My Vouchers",
+      "loading": "Loading vouchers…",
+      "empty": "You haven't saved any vouchers yet",
+      "emptyDescription": "Collect vouchers from the homepage or during checkout to save more.",
+      "browseVouchers": "Browse Vouchers"
+    },
+    "account": {
+      "title": "My Account",
+      "loading": "Loading account…",
+      "empty": "Account information not found",
+      "emptyDescription": "Please sign in again to continue.",
+      "profile": "Profile",
+      "orders": "Orders",
+      "logout": "Sign Out"
+    },
     "home": {
       "hero": {
         "badge": "Tech & Fashion Mega Sale",

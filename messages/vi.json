@@ -183,6 +183,29 @@
         "account": "Tài khoản"
       }
     },
+    "cart": {
+      "title": "Giỏ hàng của tôi",
+      "loading": "Đang tải giỏ hàng…",
+      "empty": "Giỏ hàng của bạn đang trống",
+      "emptyDescription": "Khám phá thêm sản phẩm và thêm vào giỏ để tiếp tục mua sắm.",
+      "continueShopping": "Tiếp tục mua sắm"
+    },
+    "voucher": {
+      "title": "Kho voucher của tôi",
+      "loading": "Đang tải voucher…",
+      "empty": "Bạn chưa lưu voucher nào",
+      "emptyDescription": "Thu thập voucher từ trang chủ hoặc trong quá trình thanh toán để tiết kiệm hơn.",
+      "browseVouchers": "Xem voucher"
+    },
+    "account": {
+      "title": "Tài khoản của tôi",
+      "loading": "Đang tải tài khoản…",
+      "empty": "Không tìm thấy thông tin tài khoản",
+      "emptyDescription": "Vui lòng đăng nhập lại để tiếp tục.",
+      "profile": "Hồ sơ",
+      "orders": "Đơn hàng",
+      "logout": "Đăng xuất"
+    },
     "home": {
       "hero": {
         "badge": "Đại tiệc công nghệ & thời trang",

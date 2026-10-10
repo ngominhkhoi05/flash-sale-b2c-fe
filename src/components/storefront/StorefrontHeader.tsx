@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
+import { useAuth } from "@/hooks/useAuth";
+import { useCartCount } from "@/features/cart";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 
 export type StorefrontNavKey =
@@ -38,6 +40,9 @@ export function StorefrontHeader({
 }: StorefrontHeaderProps) {
   const pathname = usePathname() ?? "";
   const t = useTranslations("storefront.header");
+  const { isAuthenticated } = useAuth();
+  // Cart count chỉ fetch khi đã đăng nhập (tránh 401 spam khi user chưa login)
+  const { data: cartCount = 0 } = useCartCount(isAuthenticated);
 
   const detected: StorefrontNavKey = (() => {
     if (pathname.startsWith(ROUTES.FLASH_SALE)) return "flash-sale";
@@ -78,9 +83,14 @@ export function StorefrontHeader({
               className="relative p-2 text-on-surface-variant hover:text-primary transition-colors"
             >
               <MaterialSymbol name="shopping_cart" size="2xl" />
-              <span className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary font-label-sm text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                3
-              </span>
+              {cartCount > 0 && (
+                <span
+                  data-testid="cart-count-badge"
+                  className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary font-label-sm text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                >
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>
@@ -193,9 +203,14 @@ export function StorefrontHeader({
                 aria-label={t("nav.cart")}
               >
                 <MaterialSymbol name="shopping_cart" size="2xl" />
-                <span className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary font-label-sm text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  3
-                </span>
+                {cartCount > 0 && (
+                  <span
+                    data-testid="cart-count-badge"
+                    className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary font-label-sm text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                  >
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
               </Link>
 
               {/* User avatar + name */}
