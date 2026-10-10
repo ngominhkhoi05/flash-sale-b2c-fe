@@ -143,7 +143,18 @@ describe("StorefrontHeader – user area", () => {
     });
     withProviders(<StorefrontHeader />);
     expect(screen.getByText(/minh thư/i)).toBeInTheDocument();
-    expect(screen.getByText(/thành viên vip/i)).toBeInTheDocument();
+  });
+
+  it("does NOT render 'Thành viên VIP' badge even when authenticated", () => {
+    // Badge 'Thành viên VIP' đã được loại bỏ khỏi header.
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: { id: "1", email: "u@e.com", fullName: "Minh Thư", role: "BUYER" },
+    });
+    withProviders(<StorefrontHeader />);
+    expect(screen.queryByText(/thành viên vip/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vip member/i)).not.toBeInTheDocument();
   });
 
   it("does NOT render greeting when NOT authenticated (shows login link instead)", () => {
@@ -153,8 +164,9 @@ describe("StorefrontHeader – user area", () => {
       user: null,
     });
     withProviders(<StorefrontHeader />);
-    // Greeting + VIP badge phải bị ẩn
+    // Greeting phải bị ẩn
     expect(screen.queryByText(/minh thư/i)).not.toBeInTheDocument();
+    // VIP badge cũng phải ẩn (vì chưa auth)
     expect(screen.queryByText(/thành viên vip/i)).not.toBeInTheDocument();
   });
 

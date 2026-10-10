@@ -220,9 +220,6 @@ export function StorefrontHeader({
                     <div className="font-label-lg text-label-lg text-on-surface leading-tight font-semibold">
                       {user?.fullName || t("greeting")}
                     </div>
-                    <div className="font-label-sm text-label-sm text-secondary font-medium">
-                      {t("vipBadge")}
-                    </div>
                   </div>
                   <img
                     alt="Profile"
