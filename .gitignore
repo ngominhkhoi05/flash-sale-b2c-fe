@@ -71,3 +71,6 @@ test-results/
 
 # agent scratch downloads (Stitch/Figma reference assets, MCP tool dumps)
 agent-tools/
+
+# Stitch reference assets (downloaded HTML/PNG for design system, not source)
+tmp/

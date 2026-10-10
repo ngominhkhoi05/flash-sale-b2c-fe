@@ -150,12 +150,143 @@
   },
   "error": {
     "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
-    "FORBIDDEN": "Bạn không có quyền truy cập khu vực này.",
+    "FORBIDDEN": "Bạn không có quyền truyểt cập khu vực này.",
     "NOT_FOUND": "Không tìm thấy dữ liệu.",
     "NETWORK_ERROR": "Mất kết nối mạng, vui lòng thử lại.",
     "SERVER_ERROR": "Hệ thống đang bận, vui lòng thử lại sau.",
     "OUT_OF_STOCK": "Sản phẩm đã hết hàng.",
     "PURCHASE_LIMIT": "Bạn đã đạt giới hạn mua cho sản phẩm này.",
     "SLOT_NOT_ACTIVE": "Phiên Flash Sale chưa bắt đầu hoặc đã kết thúc."
+  },
+  "storefront": {
+    "header": {
+      "sellerChannel": "Kênh Người Bán",
+      "becomeSeller": "Trở thành Người bán Vibe Mart",
+      "downloadApp": "Tải ứng dụng",
+      "connectLabel": "Kết nối:",
+      "facebook": "Facebook",
+      "zalo": "Zalo",
+      "supportPhone": "Hỗ trợ 1900 8888",
+      "language": "Tiếng Việt / VND",
+      "searchPlaceholder": "Tìm sản phẩm, thương hiệu hoặc deal hot...",
+      "greeting": "Minh Thư",
+      "vipBadge": "Thành viên VIP",
+      "nav": {
+        "home": "Trang chủ",
+        "flashSale": "Flash Sale",
+        "newArrivals": "Hàng mới về",
+        "featuredBrands": "Thương hiệu nổi bật",
+        "bestSellers": "Bán chạy",
+        "voucherPromo": "Voucher & Khuyến mãi",
+        "cart": "Giỏ hàng",
+        "orders": "Đơn hàng",
+        "account": "Tài khoản"
+      }
+    },
+    "home": {
+      "hero": {
+        "badge": "Đại tiệc công nghệ & thời trang",
+        "headline": "Siêu hội 10.10 – Giảm đến 50%",
+        "subtext": "Hàng triệu deal sốc từ các thương hiệu chính hãng hàng đầu, tặng ngàn voucher vận chuyển 0đ.",
+        "cta": "Khám phá ngay"
+      },
+      "sideBanners": {
+        "freeshipTag": "Hỏa Tốc",
+        "freeshipTitle": "Freeship đơn từ 0₫",
+        "freeshipDesc": "Tặng thêm mã vận chuyển nhanh hỏa tốc toàn quốc",
+        "freeshipCta": "Lấy mã",
+        "voucherTag": "Độc Quyền",
+        "voucherTitle": "Voucher shop mới",
+        "voucherDesc": "Giảm ngay 30.000₫ cho đơn đặt hàng đầu tiên",
+        "voucherCta": "Thu thập ngay"
+      },
+      "quickActions": {
+        "flashSale": "Flash Sale",
+        "voucher": "Voucher Giảm Giá",
+        "authentic": "Hàng Chính Hãng",
+        "freeship": "Freeship Đơn 0₫",
+        "newShop": "Shop Mới Lên Sàn",
+        "tech": "Điện Tử - Tech"
+      },
+      "categoryGrid": {
+        "title": "DANH MỤC NỔI BẬT",
+        "seeAll": "Xem tất cả",
+        "items": {
+          "mensFashion": "Thời trang nam",
+          "womensFashion": "Thời trang nữ",
+          "phone": "Điện thoại",
+          "laptop": "Laptop",
+          "headphones": "Tai nghe",
+          "furniture": "Nội thất",
+          "beauty": "Sắc đẹp",
+          "momBaby": "Mẹ & Bé",
+          "sports": "Thể thao",
+          "books": "Sách",
+          "grocery": "Bách hoá",
+          "toys": "Đồ chơi",
+          "watches": "Đồng hồ",
+          "auto": "Xe cộ",
+          "fashion": "Thời trang",
+          "bags": "Túi xách"
+        }
+      },
+      "flashSale": {
+        "title": "FLASH SALE",
+        "endsIn": "Kết thúc sau",
+        "seeAll": "Xem tất cả",
+        "soldBadge": "FLASH SALE",
+        "sold": "ĐÃ BÁN",
+        "limitPerBuyer": "Giới hạn 2/khách"
+      },
+      "voucher": {
+        "title": "MÃ GIẢM GIÁ CHO BẠN",
+        "voucherCount": "Kho voucher (12)",
+        "saveAction": "Lưu",
+        "savedAction": "Đã lưu",
+        "expiresAt": "HSD",
+        "tickets": {
+          "discount50k": "GIẢM NGAY",
+          "discount100k": "GIẢM ĐẬM",
+          "freeship": "FREESHIP",
+          "techCode": "TECH CODE"
+        }
+      },
+      "stores": {
+        "mallBadge": "MALL",
+        "title": "SHOP NỔI BẬT CHÍNH HÃNG",
+        "seeAll": "Xem tất cả shop",
+        "viewShop": "Xem shop",
+        "ratingPrefix": "★",
+        "followersSuffix": "theo dõi"
+      },
+      "recommended": {
+        "tabForYou": "Dành cho bạn",
+        "tabBestSellers": "Bán chạy",
+        "tabHotDeals": "Ưu đãi sốc"
+      }
+    },
+    "footer": {
+      "tagline": "Hệ sinh thái thương mại điện tử công nghệ cao, kiến tạo trải nghiệm mua sắm trực tuyến vượt trội, minh bạch và an tâm tuyệt đối cho hàng triệu người dùng Việt.",
+      "address": "Trụ sở: Tầng 8, Tòa nhà Vincom, 191 Bà Triệu, Hai Bà Trưng, Hà Nội",
+      "businessLicense": "GPĐKKD: 0108234567 cấp ngày 15/03/2026 tại Sở KH&ĐT Hà Nội",
+      "colCustomerCare": "CHĂM SÓC KHÁCH HÀNG",
+      "colAboutUs": "VỀ VIBE MART",
+      "colPayment": "THANH TOÁN",
+      "colFollowUs": "KẾT NỐI VỚI CHÚNG TÔI",
+      "links": {
+        "helpCenter": "Trung tâm trợ giúp",
+        "shoppingGuide": "Hướng dẫn mua hàng",
+        "shippingPolicy": "Chính sách vận chuyển",
+        "returnPolicy": "Chính sách đổi trả",
+        "paymentGuide": "Hướng dẫn thanh toán",
+        "termsOfUse": "Điều khoản sử dụng",
+        "privacyPolicy": "Chính sách bảo mật",
+        "aboutUs": "Giới thiệu Vibe Mart",
+        "careers": "Tuyển dụng",
+        "press": "Tin tức & Báo chí"
+      },
+      "certification": "Đã đăng ký Bộ Công Thương",
+      "copyright": "© 2026 - Bản quyền thuộc về Công ty TNHH Vibe Mart Việt Nam"
+    }
   }
 }

@@ -157,5 +157,136 @@
     "OUT_OF_STOCK": "Product is out of stock.",
     "PURCHASE_LIMIT": "You've reached the purchase limit for this product.",
     "SLOT_NOT_ACTIVE": "Flash sale slot is not active."
+  },
+  "storefront": {
+    "header": {
+      "sellerChannel": "Seller Channel",
+      "becomeSeller": "Become a Vibe Mart Seller",
+      "downloadApp": "Download App",
+      "connectLabel": "Connect:",
+      "facebook": "Facebook",
+      "zalo": "Zalo",
+      "supportPhone": "Support 1900 8888",
+      "language": "Vietnamese / VND",
+      "searchPlaceholder": "Search products, brands, or hot deals...",
+      "greeting": "Minh Thu",
+      "vipBadge": "VIP Member",
+      "nav": {
+        "home": "Home",
+        "flashSale": "Flash Sale",
+        "newArrivals": "New Arrivals",
+        "featuredBrands": "Featured Brands",
+        "bestSellers": "Best Sellers",
+        "voucherPromo": "Vouchers & Deals",
+        "cart": "Cart",
+        "orders": "Orders",
+        "account": "Account"
+      }
+    },
+    "home": {
+      "hero": {
+        "badge": "Tech & Fashion Mega Sale",
+        "headline": "Super 10.10 Sale – Up to 50% Off",
+        "subtext": "Millions of hot deals from top authentic brands, plus thousands of free-shipping vouchers.",
+        "cta": "Explore Now"
+      },
+      "sideBanners": {
+        "freeshipTag": "Express",
+        "freeshipTitle": "Free shipping from 0₫",
+        "freeshipDesc": "Extra express delivery vouchers for the whole country",
+        "freeshipCta": "Get Code",
+        "voucherTag": "Exclusive",
+        "voucherTitle": "New Shop Voucher",
+        "voucherDesc": "30,000₫ off your first order",
+        "voucherCta": "Collect Now"
+      },
+      "quickActions": {
+        "flashSale": "Flash Sale",
+        "voucher": "Discount Vouchers",
+        "authentic": "Authentic Products",
+        "freeship": "Free Shipping 0₫",
+        "newShop": "New Shops",
+        "tech": "Electronics - Tech"
+      },
+      "categoryGrid": {
+        "title": "FEATURED CATEGORIES",
+        "seeAll": "See all",
+        "items": {
+          "mensFashion": "Men's Fashion",
+          "womensFashion": "Women's Fashion",
+          "phone": "Phones",
+          "laptop": "Laptops",
+          "headphones": "Headphones",
+          "furniture": "Home & Furniture",
+          "beauty": "Beauty",
+          "momBaby": "Mom & Baby",
+          "sports": "Sports",
+          "books": "Books",
+          "grocery": "Grocery",
+          "toys": "Toys",
+          "watches": "Watches",
+          "auto": "Automotive",
+          "fashion": "Fashion",
+          "bags": "Bags"
+        }
+      },
+      "flashSale": {
+        "title": "FLASH SALE",
+        "endsIn": "Ends in",
+        "seeAll": "See all",
+        "soldBadge": "FLASH SALE",
+        "sold": "SOLD",
+        "limitPerBuyer": "Limit 2/customer"
+      },
+      "voucher": {
+        "title": "DISCOUNT CODES FOR YOU",
+        "voucherCount": "Voucher wallet (12)",
+        "saveAction": "Save",
+        "savedAction": "Saved",
+        "expiresAt": "Exp",
+        "tickets": {
+          "discount50k": "OFF",
+          "discount100k": "DEEP OFF",
+          "freeship": "FREESHIP",
+          "techCode": "TECH CODE"
+        }
+      },
+      "stores": {
+        "mallBadge": "MALL",
+        "title": "FEATURED AUTHENTIC STORES",
+        "seeAll": "See all stores",
+        "viewShop": "View shop",
+        "ratingPrefix": "★",
+        "followersSuffix": "followers"
+      },
+      "recommended": {
+        "tabForYou": "For You",
+        "tabBestSellers": "Best Sellers",
+        "tabHotDeals": "Hot Deals"
+      }
+    },
+    "footer": {
+      "tagline": "Vietnam's leading high-tech e-commerce ecosystem, delivering superior online shopping experiences with transparency and peace of mind for millions of users.",
+      "address": "Headquarters: 8th Floor, Vincom Tower, 191 Ba Trieu, Hai Ba Trung, Hanoi",
+      "businessLicense": "Business License: 0108234567 issued 15/03/2026 by Hanoi DoIT",
+      "colCustomerCare": "CUSTOMER CARE",
+      "colAboutUs": "ABOUT VIBE MART",
+      "colPayment": "PAYMENT",
+      "colFollowUs": "FOLLOW US",
+      "links": {
+        "helpCenter": "Help Center",
+        "shoppingGuide": "Shopping Guide",
+        "shippingPolicy": "Shipping Policy",
+        "returnPolicy": "Return Policy",
+        "paymentGuide": "Payment Guide",
+        "termsOfUse": "Terms of Use",
+        "privacyPolicy": "Privacy Policy",
+        "aboutUs": "About Vibe Mart",
+        "careers": "Careers",
+        "press": "News & Press"
+      },
+      "certification": "Registered with Ministry of Industry and Trade",
+      "copyright": "© 2026 - All rights reserved by Vibe Mart Vietnam Co., Ltd."
+    }
   }
 }
