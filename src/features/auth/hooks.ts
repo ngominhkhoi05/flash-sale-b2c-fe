@@ -42,14 +42,20 @@ const POST_LOGIN_INVALIDATE_KEYS = [KEYS.me, KEYS.cart, KEYS.myVouchers, KEYS.re
 /**
  * Map UserResponse (backend) + JWT authorities → AuthUser (FE store).
  * Backend không trả role trong user DTO — role lấy từ JWT `authorities`.
+ * avatarUrl: chỉ truyền xuống store khi backend trả non-null, để header
+ * dùng `undefined` làm tín hiệu fallback về default avatar.
  */
 function toAuthUser(u: UserResponse, accessToken: string): AuthUser {
-  return {
+  const base: AuthUser = {
     id: String(u.id),
     email: u.email,
     fullName: u.fullName,
     role: decodeJwtPrimaryRole(accessToken),
   };
+  if (u.avatarUrl) {
+    base.avatarUrl = u.avatarUrl;
+  }
+  return base;
 }
 
 /** useLoginMutation – lưu token + user, điều hướng theo role. */

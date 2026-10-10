@@ -147,6 +147,74 @@ describe("useLoginMutation - post-login invalidation", () => {
       }),
     );
   });
+
+  it("maps UserResponse.avatarUrl to AuthUser.avatarUrl when backend returns one", async () => {
+    // Backend UserResponse có avatarUrl: string | null. toAuthUser phải map
+    // field này sang AuthUser để header có thể render avatar thật của user.
+    const AVATAR = "https://cdn.vibemart.vn/users/7/avatar.png";
+    mockLoginRequest.mockResolvedValue({
+      accessToken: "at_xyz",
+      refreshToken: "rt_xyz",
+      tokenType: "Bearer",
+      expiresIn: 900,
+      user: {
+        id: 7,
+        email: "buyer@example.com",
+        fullName: "B",
+        phone: "0912345678",
+        avatarUrl: AVATAR,
+        status: "ACTIVE",
+        createdAt: "2026-10-10T00:00:00Z",
+      },
+    });
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useLoginMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "buyer@example.com", password: "password123" });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockSetUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        avatarUrl: AVATAR,
+      }),
+    );
+  });
+
+  it("maps avatarUrl as undefined when backend returns null (fallback to default avatar)", async () => {
+    mockLoginRequest.mockResolvedValue({
+      accessToken: "at_xyz",
+      refreshToken: "rt_xyz",
+      tokenType: "Bearer",
+      expiresIn: 900,
+      user: {
+        id: 7,
+        email: "buyer@example.com",
+        fullName: "B",
+        phone: "0912345678",
+        avatarUrl: null,
+        status: "ACTIVE",
+        createdAt: "2026-10-10T00:00:00Z",
+      },
+    });
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useLoginMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "buyer@example.com", password: "password123" });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    // avatarUrl phải là undefined (không truyền xuống store) để header
+    // biết dùng default fallback.
+    const setUserCall = mockSetUser.mock.calls[0][0] as Record<string, unknown>;
+    expect(setUserCall).not.toHaveProperty("avatarUrl");
+  });
 });
 
 describe("useRegisterMutation - post-register invalidation", () => {

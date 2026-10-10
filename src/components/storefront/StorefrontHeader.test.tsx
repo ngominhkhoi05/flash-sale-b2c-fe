@@ -248,6 +248,62 @@ describe("StorefrontHeader – user area", () => {
     expect(logoImg?.getAttribute("width")).toBe("128");
     expect(logoImg?.getAttribute("height")).toBe("36");
   });
+
+  it("renders user.avatarUrl (when present) instead of the default avatar", () => {
+    // Khi user đã upload avatar (backend trả avatarUrl), header phải hiển thị
+    // ảnh đó thay vì fallback default. Alt phải là tên user (a11y tốt hơn).
+    const AVATAR = "https://cdn.vibemart.vn/users/1/avatar.png";
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: {
+        id: "1",
+        email: "u@e.com",
+        fullName: "Minh Thư",
+        role: "BUYER",
+        avatarUrl: AVATAR,
+      },
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    // Tìm avatar: có alt là tên user, src là URL backend
+    const userAvatarImg = imgs.find(
+      (img) => img.getAttribute("alt") === "Minh Thư",
+    );
+    expect(userAvatarImg).toBeDefined();
+    const src = userAvatarImg?.getAttribute("src") ?? "";
+    expect(src).toBe(AVATAR);
+    // KHÔNG hiển thị default fallback khi có avatar thật
+    const defaultAvatarImg = imgs.find(
+      (img) => img.getAttribute("alt") === "Ảnh đại diện mặc định",
+    );
+    expect(defaultAvatarImg).toBeUndefined();
+  });
+
+  it("falls back to default avatar when user.avatarUrl is undefined", () => {
+    // Khi user chưa upload avatar (avatarUrl undefined), header dùng
+    // default SVG local. Trường hợp này đã cover ở test trên nhưng gom
+    // rõ ràng để dễ đọc.
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: {
+        id: "1",
+        email: "u@e.com",
+        fullName: "Minh Thư",
+        role: "BUYER",
+        // avatarUrl: undefined
+      },
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    const defaultAvatarImg = imgs.find(
+      (img) => img.getAttribute("alt") === "Ảnh đại diện mặc định",
+    );
+    expect(defaultAvatarImg).toBeDefined();
+    const src = defaultAvatarImg?.getAttribute("src") ?? "";
+    expect(src).toMatch(/\/storefront\/default-avatar/);
+  });
 });
 
 // ── Cart count badge ──────────────────────────────────────────────────────

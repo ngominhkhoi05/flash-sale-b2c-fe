@@ -14,6 +14,9 @@ export interface AuthUser {
   id: string;
   email: string;
   fullName?: string;
+  /** URL ảnh đại diện user từ backend (UserResponse.avatarUrl).
+   *  Optional – nếu user chưa upload avatar hoặc backend trả null. */
+  avatarUrl?: string;
   role: Role;
   permissions?: string[]; // code quyền (vd: "product:update")
   storeStatus?: "PENDING" | "APPROVED" | "BANNED";

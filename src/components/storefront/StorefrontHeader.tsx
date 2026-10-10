@@ -228,13 +228,23 @@ export function StorefrontHeader({
                       {user?.fullName || t("greeting")}
                     </div>
                   </div>
-                  <Image
-                    alt="Ảnh đại diện mặc định"
-                    src="/storefront/default-avatar.svg"
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
-                  />
+                  {user?.avatarUrl ? (
+                    <Image
+                      alt={user.fullName || t("greeting")}
+                      src={user.avatarUrl}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                    />
+                  ) : (
+                    <Image
+                      alt="Ảnh đại diện mặc định"
+                      src="/storefront/default-avatar.svg"
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                    />
+                  )}
                 </div>
               ) : (
                 <Link
