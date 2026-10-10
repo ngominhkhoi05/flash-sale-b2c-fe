@@ -180,7 +180,8 @@
         "voucherPromo": "Voucher & Khuyến mãi",
         "cart": "Giỏ hàng",
         "orders": "Đơn hàng",
-        "account": "Tài khoản"
+        "account": "Tài khoản",
+        "login": "Đăng nhập"
       }
     },
     "cart": {

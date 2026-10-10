@@ -40,7 +40,7 @@ export function StorefrontHeader({
 }: StorefrontHeaderProps) {
   const pathname = usePathname() ?? "";
   const t = useTranslations("storefront.header");
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // Cart count chỉ fetch khi đã đăng nhập (tránh 401 spam khi user chưa login)
   const { data: cartCount = 0 } = useCartCount(isAuthenticated);
 
@@ -213,22 +213,35 @@ export function StorefrontHeader({
                 )}
               </Link>
 
-              {/* User avatar + name */}
-              <div className="flex items-center gap-2 pl-2">
-                <div className="text-right hidden sm:block">
-                  <div className="font-label-lg text-label-lg text-on-surface leading-tight font-semibold">
-                    {t("greeting")}
+              {/* User area: avatar + greeting khi auth, nút "Đăng nhập" khi chưa auth */}
+              {isAuthenticated ? (
+                <div className="flex items-center gap-2 pl-2">
+                  <div className="text-right hidden sm:block">
+                    <div className="font-label-lg text-label-lg text-on-surface leading-tight font-semibold">
+                      {user?.fullName || t("greeting")}
+                    </div>
+                    <div className="font-label-sm text-label-sm text-secondary font-medium">
+                      {t("vipBadge")}
+                    </div>
                   </div>
-                  <div className="font-label-sm text-label-sm text-secondary font-medium">
-                    {t("vipBadge")}
-                  </div>
+                  <img
+                    alt="Profile"
+                    src="https://lh3.googleusercontent.com/aida/AEtjO1Wwf88_26XJ-0gblbzI6RDeUiMvKdTX2axTaCcfQvZC-MwX_A0uVbQKucYlUzuCxZZ8UrEAucYloaJ47EeT80zyw0pcoJtkZQIOAmGKxe0NO5gZM2iYPPolRMJ-WJNHF6zS4kWi-BMTQivIRo40cTJU9VCijXF0JOgKuu063WUtxUr9q169kG4-TaBxMUxz_vF0y1m6iye_Ijswg2fAL3ug4t02pjtwhmfI9C2RaXpFjkE-voV2T8BTY90W"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                  />
                 </div>
-                <img
-                  alt="Profile"
-                  src="https://lh3.googleusercontent.com/aida/AEtjO1Wwf88_26XJ-0gblbzI6RDeUiMvKdTX2axTaCcfQvZC-MwX_A0uVbQKucYlUzuCxZZ8UrEAucYloaJ47EeT80zyw0pcoJtkZQIOAmGKxe0NO5gZM2iYPPolRMJ-WJNHF6zS4kWi-BMTQivIRo40cTJU9VCijXF0JOgKuu063WUtxUr9q169kG4-TaBxMUxz_vF0y1m6iye_Ijswg2fAL3ug4t02pjtwhmfI9C2RaXpFjkE-voV2T8BTY90W"
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
-                />
-              </div>
+              ) : (
+                <Link
+                  href={ROUTES.LOGIN}
+                  className="ml-2 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-on-primary transition-colors hover:bg-primary-hover"
+                  data-testid="header-login-link"
+                >
+                  <MaterialSymbol name="person" size="base" />
+                  <span className="font-label-lg text-label-lg font-semibold">
+                    {t("nav.login")}
+                  </span>
+                </Link>
+              )}
             </div>
           </div>
 

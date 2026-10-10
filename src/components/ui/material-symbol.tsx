@@ -69,7 +69,9 @@ export type MaterialSymbolName =
   | "card_giftcard"
   | "favorite"
   | "favorite_border"
-  | "share";
+  | "share"
+  | "person"
+  | "lock";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;

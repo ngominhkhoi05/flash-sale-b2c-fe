@@ -180,7 +180,8 @@
         "voucherPromo": "Vouchers & Deals",
         "cart": "Cart",
         "orders": "Orders",
-        "account": "Account"
+        "account": "Account",
+        "login": "Log in"
       }
     },
     "cart": {

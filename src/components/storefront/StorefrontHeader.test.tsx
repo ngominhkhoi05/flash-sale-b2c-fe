@@ -127,10 +127,61 @@ describe("StorefrontHeader – renders all sections", () => {
     const pills = screen.getAllByRole("link");
     expect(pills.length).toBeGreaterThanOrEqual(5);
   });
+});
 
-  it("renders the user greeting text", () => {
+// ── User avatar / login button ──────────────────────────────────────────
+describe("StorefrontHeader – user area", () => {
+  beforeEach(() => {
+    mockUsePathname.mockReturnValue("/trang-chu");
+  });
+
+  it("renders the user greeting text when authenticated", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: { id: "1", email: "u@e.com", fullName: "Minh Thư", role: "BUYER" },
+    });
     withProviders(<StorefrontHeader />);
     expect(screen.getByText(/minh thư/i)).toBeInTheDocument();
+    expect(screen.getByText(/thành viên vip/i)).toBeInTheDocument();
+  });
+
+  it("does NOT render greeting when NOT authenticated (shows login link instead)", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    withProviders(<StorefrontHeader />);
+    // Greeting + VIP badge phải bị ẩn
+    expect(screen.queryByText(/minh thư/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thành viên vip/i)).not.toBeInTheDocument();
+  });
+
+  it("renders Đăng nhập link when NOT authenticated (linking to /dang-nhap)", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    withProviders(<StorefrontHeader />);
+    const loginLinks = screen
+      .getAllByRole("link")
+      .filter((l) => l.getAttribute("href") === "/dang-nhap");
+    expect(loginLinks.length).toBeGreaterThan(0);
+  });
+
+  it("does NOT render Đăng nhập link when authenticated", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: { id: "1", email: "u@e.com", fullName: "Minh Thư", role: "BUYER" },
+    });
+    withProviders(<StorefrontHeader />);
+    const loginLinks = screen
+      .getAllByRole("link")
+      .filter((l) => l.getAttribute("href") === "/dang-nhap");
+    expect(loginLinks).toHaveLength(0);
   });
 });
 
