@@ -50,13 +50,13 @@ export function VoucherGridSection() {
       <div className="flex items-center justify-between pb-5 border-b border-surface-container">
         <div className="flex items-center gap-2">
           <MaterialSymbol name="confirmation_number" size="2xl" className="text-primary" />
-          <h2 className="font-headline-md text-headline-md text-on-surface font-bold">
+          <h2 className="text-headline-md text-on-surface font-bold">
             {t("voucher.title")}
           </h2>
         </div>
         <Link
           href="/kho-voucher"
-          className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
+          className="text-label-md text-primary hover:underline flex items-center gap-1"
         >
           {t("voucher.voucherCount")}
           <MaterialSymbol name="chevron_right" size="sm" />
@@ -95,7 +95,7 @@ export function VoucherGridSection() {
                   </>
                 ) : (
                   <>
-                    <span className="font-headline-sm text-headline-sm font-bold leading-none">
+                    <span className="text-headline-sm font-bold leading-none">
                       {ticket.amount}
                     </span>
                     <span className="text-[10px] mt-1 font-medium">{t(ticketLabelKey)}</span>
@@ -108,10 +108,10 @@ export function VoucherGridSection() {
               {/* Right content */}
               <div className="flex-1 p-3 flex flex-col justify-between">
                 <div>
-                  <h4 className="font-label-lg text-label-lg text-on-surface font-bold">
+                  <h4 className="text-label-lg text-on-surface font-bold">
                     {ticket.label}
                   </h4>
-                  <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  <p className="text-body-sm text-on-surface-variant">
                     {ticket.subtitle}
                   </p>
                 </div>
@@ -122,7 +122,7 @@ export function VoucherGridSection() {
                   <button
                     onClick={() => toggleSaved(ticket.id)}
                     className={cn(
-                      "px-3 py-1 rounded font-label-sm text-label-sm transition-colors",
+                      "px-3 py-1 rounded text-label-sm transition-colors",
                       isSaved
                         ? "bg-surface-container-high text-outline"
                         : cn(

@@ -19,16 +19,16 @@ export function FeaturedStoresSection() {
       {/* Header */}
       <div className="flex items-center justify-between pb-5 border-b border-surface-container">
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded bg-primary text-on-primary font-label-sm text-label-sm font-bold">
+          <span className="px-2 py-0.5 rounded bg-primary text-on-primary text-label-sm font-bold">
             {t("stores.mallBadge")}
           </span>
-          <h2 className="font-headline-md text-headline-md text-on-surface font-bold">
+          <h2 className="text-headline-md text-on-surface font-bold">
             {t("stores.title")}
           </h2>
         </div>
         <Link
           href="/danh-muc/shop-chinh-hang"
-          className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
+          className="text-label-md text-primary hover:underline flex items-center gap-1"
         >
           {t("stores.seeAll")}
           <MaterialSymbol name="chevron_right" size="sm" />
@@ -55,7 +55,7 @@ export function FeaturedStoresSection() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <h4 className="font-label-lg text-label-lg text-on-surface font-bold truncate">
+                    <h4 className="text-label-lg text-on-surface font-bold truncate">
                       {store.name}
                     </h4>
                     {store.verified && (
@@ -97,7 +97,7 @@ export function FeaturedStoresSection() {
             <div className="pt-4">
               <Link
                 href={`/shop/${store.id}`}
-                className="block w-full py-1.5 rounded-lg bg-surface-container-lowest text-primary font-label-md text-label-md hover:bg-primary hover:text-on-primary transition-colors text-center shadow-sm"
+                className="block w-full py-1.5 rounded-lg bg-surface-container-lowest text-primary text-label-md hover:bg-primary hover:text-on-primary transition-colors text-center shadow-sm"
               >
                 {t("stores.viewShop")}
               </Link>

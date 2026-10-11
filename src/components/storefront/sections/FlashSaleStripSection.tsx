@@ -34,18 +34,18 @@ export function FlashSaleStripSection() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-surface-container">
         <div className="flex items-center gap-4">
-          <h2 className="flex items-center gap-1.5 text-tertiary font-headline-lg text-headline-lg font-bold">
+          <h2 className="flex items-center gap-1.5 text-tertiary text-headline-lg font-bold">
             <MaterialSymbol name="bolt" size="3xl" fill />
             FLASH SALE
           </h2>
-          <div className="flex items-center gap-1.5 text-on-surface font-label-md text-label-md">
+          <div className="flex items-center gap-1.5 text-on-surface text-label-md">
             <span className="text-on-surface-variant hidden sm:inline">{t("flashSale.endsIn")}</span>
             <Countdown endsAt={endsAt} variant="compact" />
           </div>
         </div>
         <Link
           href="/flash-sale"
-          className="font-label-lg text-label-lg text-tertiary hover:underline flex items-center gap-1"
+          className="text-label-lg text-tertiary hover:underline flex items-center gap-1"
         >
           {t("flashSale.seeAll")}
           <MaterialSymbol name="chevron_right" size="sm" />

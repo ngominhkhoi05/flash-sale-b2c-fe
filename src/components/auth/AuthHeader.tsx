@@ -41,7 +41,7 @@ export function AuthHeader() {
           >
             |
           </span>
-          <span className="hidden font-label-lg text-on-surface-variant sm:inline-block">
+          <span className="hidden text-label-lg text-on-surface-variant sm:inline-block">
             {t("authLabel")}
           </span>
         </div>

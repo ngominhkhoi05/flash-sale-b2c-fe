@@ -39,7 +39,7 @@ export function RecommendedTabs({ activeTab, onTabChange, t }: RecommendedTabsPr
           data-testid={`tab-${tab.key}`}
           onClick={() => onTabChange(tab.key)}
           className={cn(
-            "px-5 py-2.5 rounded-lg font-label-lg text-label-lg transition-colors flex items-center gap-1.5",
+            "px-5 py-2.5 rounded-lg text-label-lg transition-colors flex items-center gap-1.5",
             activeTab === tab.key
               ? "bg-primary text-on-primary font-bold shadow-sm"
               : "bg-transparent text-on-surface-variant hover:text-primary hover:bg-surface-container-low"

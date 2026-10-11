@@ -36,12 +36,12 @@ export function CategoryGridSection() {
     <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
       {/* Header row */}
       <div className="flex items-center justify-between pb-5 border-b border-surface-container">
-        <h2 className="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">
+        <h2 className="text-headline-md text-on-surface font-bold tracking-tight">
           {t("categoryGrid.title")}
         </h2>
         <Link
           href="/danh-muc"
-          className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
+          className="text-label-md text-primary hover:underline flex items-center gap-1"
         >
           {t("categoryGrid.seeAll")}
           <MaterialSymbol name="chevron_right" size="sm" />
@@ -62,7 +62,7 @@ export function CategoryGridSection() {
                 className="text-primary"
               />
             </div>
-            <span className="mt-2 font-label-md text-label-md text-on-surface leading-tight">
+            <span className="mt-2 text-label-md text-on-surface leading-tight">
               {t(cat.labelKey)}
             </span>
           </Link>

@@ -90,7 +90,7 @@ export function QuickActionsSection() {
                 fill={item.icon === "bolt" || item.icon === "confirmation_number" || item.icon === "verified"}
               />
             </div>
-            <span className="mt-2 font-label-md text-label-md text-on-surface group-hover:text-primary transition-colors">
+            <span className="mt-2 text-label-md text-on-surface group-hover:text-primary transition-colors">
               {t(item.labelKey)}
             </span>
           </Link>

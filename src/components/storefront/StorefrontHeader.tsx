@@ -90,7 +90,7 @@ export function StorefrontHeader({
               {cartCount > 0 && (
                 <span
                   data-testid="cart-count-badge"
-                  className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary font-label-sm text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                  className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold"
                 >
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
@@ -111,7 +111,7 @@ export function StorefrontHeader({
     >
       {/* ── Top Bar ──────────────────────────────────────────────── */}
       <div className="hidden sm:block border-b border-outline-variant bg-surface-container-low text-[11px] text-on-surface-variant py-1.5">
-        <div className="max-w-[1240px] mx-auto px-4 lg:px-5 flex items-center justify-between font-label-md">
+        <div className="max-w-[1240px] mx-auto px-4 lg:px-5 flex items-center justify-between text-label-md">
           {/* Left links */}
           <div className="flex items-center gap-3">
             <Link href="/seller" className="hover:text-primary transition-colors">
@@ -176,7 +176,7 @@ export function StorefrontHeader({
             <div className="flex-1 max-w-2xl mx-2 lg:mx-0">
               <div className="relative flex items-center">
                 <input
-                  className="w-full h-10 pl-4 pr-12 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary font-body-md text-body-md"
+                  className="w-full h-10 pl-4 pr-12 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary text-body-md"
                   placeholder={t("searchPlaceholder")}
                   type="text"
                   aria-label={t("searchPlaceholder")}
@@ -213,7 +213,7 @@ export function StorefrontHeader({
                 {cartCount > 0 && (
                   <span
                     data-testid="cart-count-badge"
-                    className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary font-label-sm text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                    className="absolute -top-0.5 -right-0.5 bg-tertiary text-on-tertiary text-label-sm w-4 h-4 rounded-full flex items-center justify-center font-bold"
                   >
                     {cartCount > 99 ? "99+" : cartCount}
                   </span>
@@ -224,7 +224,7 @@ export function StorefrontHeader({
               {isAuthenticated ? (
                 <div className="flex items-center gap-2 pl-2">
                   <div className="text-right hidden sm:block">
-                    <div className="font-label-lg text-label-lg text-on-surface leading-tight font-semibold">
+                    <div className="text-label-lg text-on-surface leading-tight font-semibold">
                       {user?.fullName || t("greeting")}
                     </div>
                   </div>
@@ -253,7 +253,7 @@ export function StorefrontHeader({
                   data-testid="header-login-link"
                 >
                   <MaterialSymbol name="person" size="base" />
-                  <span className="font-label-lg text-label-lg font-semibold">
+                  <span className="text-label-lg font-semibold">
                     {t("nav.login")}
                   </span>
                 </Link>
@@ -267,7 +267,7 @@ export function StorefrontHeader({
               <Link
                 aria-current={active === "home" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all font-label-lg text-label-lg",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
                   active === "home"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
@@ -279,7 +279,7 @@ export function StorefrontHeader({
               <Link
                 aria-current={active === "flash-sale" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all font-label-lg text-label-lg inline-flex items-center gap-1 font-bold",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg inline-flex items-center gap-1 font-bold",
                   active === "flash-sale"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-tertiary hover:text-rose-700 hover:bg-surface-container"
@@ -292,7 +292,7 @@ export function StorefrontHeader({
               <Link
                 aria-current={active === "category" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all font-label-lg text-label-lg",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
                   active === "category"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
@@ -303,13 +303,13 @@ export function StorefrontHeader({
               </Link>
               <Link
                 href="#"
-                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-label-lg text-label-lg transition-all"
+                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg transition-all"
               >
                 {t("nav.featuredBrands")}
               </Link>
               <Link
                 href="#"
-                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container font-label-lg text-label-lg transition-all"
+                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg transition-all"
               >
                 {t("nav.bestSellers")}
               </Link>
@@ -317,7 +317,7 @@ export function StorefrontHeader({
                 href={ROUTES.VOUCHERS}
                 aria-current={active === "voucher" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all font-label-lg text-label-lg",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
                   active === "voucher"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
