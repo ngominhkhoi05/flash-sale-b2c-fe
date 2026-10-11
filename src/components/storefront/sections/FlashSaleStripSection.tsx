@@ -45,7 +45,7 @@ export function FlashSaleStripSection() {
         </div>
         <Link
           href="/flash-sale"
-          className="text-label-lg text-tertiary hover:underline flex items-center gap-1"
+          className="text-label-md text-tertiary hover:underline flex items-center gap-1"
         >
           {t("flashSale.seeAll")}
           <MaterialSymbol name="chevron_right" size="sm" />
