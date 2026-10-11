@@ -267,7 +267,7 @@ export function StorefrontHeader({
               <Link
                 aria-current={active === "home" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg font-semibold",
                   active === "home"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
@@ -279,7 +279,7 @@ export function StorefrontHeader({
               <Link
                 aria-current={active === "flash-sale" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg inline-flex items-center gap-1 font-bold",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg font-semibold inline-flex items-center gap-1",
                   active === "flash-sale"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-tertiary hover:text-rose-700 hover:bg-surface-container"
@@ -292,7 +292,7 @@ export function StorefrontHeader({
               <Link
                 aria-current={active === "category" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg font-semibold",
                   active === "category"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
@@ -303,13 +303,13 @@ export function StorefrontHeader({
               </Link>
               <Link
                 href="#"
-                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg transition-all"
+                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg font-semibold transition-all"
               >
                 {t("nav.featuredBrands")}
               </Link>
               <Link
                 href="#"
-                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg transition-all"
+                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg font-semibold transition-all"
               >
                 {t("nav.bestSellers")}
               </Link>
@@ -317,7 +317,7 @@ export function StorefrontHeader({
                 href={ROUTES.VOUCHERS}
                 aria-current={active === "voucher" ? "page" : undefined}
                 className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg font-semibold",
                   active === "voucher"
                     ? "bg-primary text-on-primary"
                     : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"

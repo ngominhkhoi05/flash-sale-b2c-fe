@@ -127,6 +127,38 @@ describe("StorefrontHeader – renders all sections", () => {
     const pills = screen.getAllByRole("link");
     expect(pills.length).toBeGreaterThanOrEqual(5);
   });
+
+  it("renders 6 nav pills with CONSISTENT font-weight (label-lg = 14px/600)", () => {
+    // docs/CLAUDE.md §3 spec: label-lg = 14px/600.
+    // Trước đây 5 items dùng text-label-lg (no weight) + 1 item Flash Sale có
+    // font-bold (700) → visual không đều. Sau fix, tất cả 6 items phải dùng
+    // font-semibold (600) để đồng nhất theo spec.
+    withProviders(<StorefrontHeader />);
+    const navTextLabels = [
+      "Trang chủ",
+      "Flash Sale",
+      "Hàng mới về",
+      "Thương hiệu nổi bật",
+      "Bán chạy",
+      "Voucher & Khuyến mãi",
+    ];
+    const pills = navTextLabels
+      .map((label) =>
+        screen.getAllByRole("link").find((l) => l.textContent?.includes(label))
+      )
+      .filter((p): p is HTMLElement => p !== undefined);
+    expect(pills).toHaveLength(6);
+    const classes = pills.map((p) => p.className);
+    // Mỗi pill phải có font-semibold
+    pills.forEach((p, i) => {
+      expect(classes[i]).toMatch(/font-semibold/);
+    });
+    // Không được có font-bold hoặc font-medium (giữ nguyên semantic spec)
+    pills.forEach((p) => {
+      expect(p.className).not.toMatch(/font-bold/);
+      expect(p.className).not.toMatch(/font-medium/);
+    });
+  });
 });
 
 // ── User avatar / login button ──────────────────────────────────────────
