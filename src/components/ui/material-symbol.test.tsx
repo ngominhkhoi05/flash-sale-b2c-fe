@@ -60,4 +60,17 @@ describe("MaterialSymbol", () => {
     expect(el).toHaveAttribute("aria-label", "Tìm kiếm");
     expect(el).not.toHaveAttribute("aria-hidden");
   });
+
+  it("accepts the footer-specific icon names: verified_user, mail, phone_iphone, android", () => {
+    // These are added to the allowlist in 2026-10-11 for StorefrontFooter.
+    // Rendering must succeed for each (type check + data-testid + content).
+    const names = ["verified_user", "mail", "phone_iphone", "android"] as const;
+    for (const name of names) {
+      const { unmount } = render(<MaterialSymbol name={name} />);
+      const el = screen.getByTestId(`material-symbol-${name}`);
+      expect(el.textContent).toBe(name);
+      expect(el.className).toContain("material-symbols-outlined");
+      unmount();
+    }
+  });
 });
