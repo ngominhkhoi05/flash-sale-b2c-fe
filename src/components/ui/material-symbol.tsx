@@ -75,7 +75,13 @@ export type MaterialSymbolName =
   | "favorite_border"
   | "share"
   | "person"
-  | "lock";
+  | "lock"
+  // Security / auth (added for Forbidden 403 page)
+  | "shield_lock"
+  | "home"
+  | "switch_account"
+  | "support_agent"
+  | "account_circle";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
