@@ -45,10 +45,10 @@ export function StorefrontFooter() {
           <div className="flex flex-col gap-2">
             <div className="mb-2 flex items-center gap-2">
               <Image
-                src="/images/vibe-mart-logo.png"
+                src="/images/vibe-mart-logo-lockup-light.png"
                 alt="Vibe Mart"
-                width={32}
-                height={32}
+                width={128}
+                height={36}
                 className="h-8 w-auto object-contain"
               />
             </div>
