@@ -128,11 +128,16 @@ describe("StorefrontHeader – renders all sections", () => {
     expect(pills.length).toBeGreaterThanOrEqual(5);
   });
 
-  it("renders 6 nav pills with CONSISTENT font-weight (label-lg = 14px/600)", () => {
+  it("renders 6 nav pills with CONSISTENT text-label-lg + font-semibold", () => {
     // docs/CLAUDE.md §3 spec: label-lg = 14px/600.
     // Trước đây 5 items dùng text-label-lg (no weight) + 1 item Flash Sale có
     // font-bold (700) → visual không đều. Sau fix, tất cả 6 items phải dùng
-    // font-semibold (600) để đồng nhất theo spec.
+    // text-label-lg (font-size 14px) + font-semibold (600) để đồng nhất
+    // theo design system spec.
+    //
+    // Test này cũng guard chống ai đó vô tình bỏ class text-label-lg
+    // (font-size) khỏi 1 nav-pill nào đó — bug mà user đã report qua
+    // DevTools (có thể do browser cache CSS cũ hoặc thật sự thiếu).
     withProviders(<StorefrontHeader />);
     const navTextLabels = [
       "Trang chủ",
@@ -143,20 +148,30 @@ describe("StorefrontHeader – renders all sections", () => {
       "Voucher & Khuyến mãi",
     ];
     const pills = navTextLabels
-      .map((label) =>
-        screen.getAllByRole("link").find((l) => l.textContent?.includes(label))
-      )
+      .map((label) => {
+        const matches = screen.getAllByRole("link").filter((l) =>
+          l.textContent?.includes(label)
+        );
+        return matches[0];
+      })
       .filter((p): p is HTMLElement => p !== undefined);
     expect(pills).toHaveLength(6);
-    const classes = pills.map((p) => p.className);
-    // Mỗi pill phải có font-semibold
     pills.forEach((p, i) => {
-      expect(classes[i]).toMatch(/font-semibold/);
-    });
-    // Không được có font-bold hoặc font-medium (giữ nguyên semantic spec)
-    pills.forEach((p) => {
-      expect(p.className).not.toMatch(/font-bold/);
-      expect(p.className).not.toMatch(/font-medium/);
+      // Mỗi pill PHẢI có text-label-lg (font-size 14px theo design token)
+      expect(p.className, `pill[${i}] (${navTextLabels[i]}) missing text-label-lg`).toMatch(
+        /text-label-lg/
+      );
+      // Mỗi pill PHẢI có font-semibold (weight 600 theo design token)
+      expect(p.className, `pill[${i}] (${navTextLabels[i]}) missing font-semibold`).toMatch(
+        /font-semibold/
+      );
+      // Không được có font-bold hoặc font-medium (giữ nguyên semantic spec)
+      expect(p.className, `pill[${i}] (${navTextLabels[i]}) has font-bold`).not.toMatch(
+        /font-bold/
+      );
+      expect(p.className, `pill[${i}] (${navTextLabels[i]}) has font-medium`).not.toMatch(
+        /font-medium/
+      );
     });
   });
 });
