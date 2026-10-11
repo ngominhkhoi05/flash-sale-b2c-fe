@@ -290,26 +290,30 @@
     },
     "footer": {
       "tagline": "Hệ sinh thái thương mại điện tử công nghệ cao, kiến tạo trải nghiệm mua sắm trực tuyến vượt trội, minh bạch và an tâm tuyệt đối cho hàng triệu người dùng Việt.",
-      "address": "Trụ sở: Tầng 8, Tòa nhà Vincom, 191 Bà Triệu, Hai Bà Trưng, Hà Nội",
-      "businessLicense": "GPĐKKD: 0108234567 cấp ngày 15/03/2026 tại Sở KH&ĐT Hà Nội",
-      "colCustomerCare": "CHĂM SÓC KHÁCH HÀNG",
-      "colAboutUs": "VỀ VIBE MART",
-      "colPayment": "THANH TOÁN",
-      "colFollowUs": "KẾT NỐI VỚI CHÚNG TÔI",
+      "trustBadge": "100% Hàng Chính Hãng • Đổi Trả Dễ Dàng",
+      "colCustomerCare": "Hỗ trợ khách hàng",
+      "colPaymentShipping": "Thanh toán & Vận chuyển",
+      "colAppDownload": "Theo dõi & Tải ứng dụng",
+      "hotlineLabel": "Hotline 24/7",
+      "hotlineNumber": "1900 8888",
+      "supportEmail": "cskh@vibemart.vn",
+      "paymentGatewaysLabel": "Cổng thanh toán bảo mật:",
+      "shippingPartnersLabel": "Đối tác vận chuyển tin cậy:",
+      "qrAppDesc": "Quét mã QR để tải app Vibe Mart ngay:",
+      "qrPlaceholder": "QR Code Vibe App",
+      "appStore": "App Store",
+      "googlePlay": "Google Play",
+      "ministryCert": "Đã đăng ký Bộ Công Thương",
       "links": {
-        "helpCenter": "Trung tâm trợ giúp",
-        "shoppingGuide": "Hướng dẫn mua hàng",
-        "shippingPolicy": "Chính sách vận chuyển",
-        "returnPolicy": "Chính sách đổi trả",
-        "paymentGuide": "Hướng dẫn thanh toán",
-        "termsOfUse": "Điều khoản sử dụng",
-        "privacyPolicy": "Chính sách bảo mật",
-        "aboutUs": "Giới thiệu Vibe Mart",
-        "careers": "Tuyển dụng",
-        "press": "Tin tức & Báo chí"
+        "helpCenter": "Trung tâm trợ giúp & FAQ",
+        "shoppingGuide": "Hướng dẫn đặt hàng & Thanh toán",
+        "shippingPolicy": "Chính sách vận chuyển & Giao nhận",
+        "returnPolicy": "Chính sách bảo hành & Đổi trả",
+        "terms": "Điều khoản sử dụng",
+        "privacy": "Chính sách bảo mật",
+        "operationRules": "Quy chế hoạt động"
       },
-      "certification": "Đã đăng ký Bộ Công Thương",
-      "copyright": "© 2026 - Bản quyền thuộc về Công ty TNHH Vibe Mart Việt Nam"
+      "copyright": "© 2026 Vibe Mart. Tất cả quyền được bảo lưu."
     }
   }
 }

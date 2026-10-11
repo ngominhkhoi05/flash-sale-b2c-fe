@@ -290,26 +290,30 @@
     },
     "footer": {
       "tagline": "Vietnam's leading high-tech e-commerce ecosystem, delivering superior online shopping experiences with transparency and peace of mind for millions of users.",
-      "address": "Headquarters: 8th Floor, Vincom Tower, 191 Ba Trieu, Hai Ba Trung, Hanoi",
-      "businessLicense": "Business License: 0108234567 issued 15/03/2026 by Hanoi DoIT",
-      "colCustomerCare": "CUSTOMER CARE",
-      "colAboutUs": "ABOUT VIBE MART",
-      "colPayment": "PAYMENT",
-      "colFollowUs": "FOLLOW US",
+      "trustBadge": "100% Authentic • Easy Returns",
+      "colCustomerCare": "Customer Care",
+      "colPaymentShipping": "Payment & Shipping",
+      "colAppDownload": "Follow & Download App",
+      "hotlineLabel": "24/7 Hotline",
+      "hotlineNumber": "1900 8888",
+      "supportEmail": "cskh@vibemart.vn",
+      "paymentGatewaysLabel": "Secure payment gateways:",
+      "shippingPartnersLabel": "Trusted shipping partners:",
+      "qrAppDesc": "Scan QR code to download the Vibe Mart app now:",
+      "qrPlaceholder": "Vibe App QR Code",
+      "appStore": "App Store",
+      "googlePlay": "Google Play",
+      "ministryCert": "Registered with the Ministry of Industry and Trade",
       "links": {
-        "helpCenter": "Help Center",
-        "shoppingGuide": "Shopping Guide",
-        "shippingPolicy": "Shipping Policy",
-        "returnPolicy": "Return Policy",
-        "paymentGuide": "Payment Guide",
-        "termsOfUse": "Terms of Use",
-        "privacyPolicy": "Privacy Policy",
-        "aboutUs": "About Vibe Mart",
-        "careers": "Careers",
-        "press": "News & Press"
+        "helpCenter": "Help Center & FAQ",
+        "shoppingGuide": "Ordering & Payment Guide",
+        "shippingPolicy": "Shipping & Delivery Policy",
+        "returnPolicy": "Warranty & Return Policy",
+        "terms": "Terms of Use",
+        "privacy": "Privacy Policy",
+        "operationRules": "Operation Rules"
       },
-      "certification": "Registered with Ministry of Industry and Trade",
-      "copyright": "© 2026 - All rights reserved by Vibe Mart Vietnam Co., Ltd."
+      "copyright": "© 2026 Vibe Mart. All rights reserved."
     }
   }
 }
