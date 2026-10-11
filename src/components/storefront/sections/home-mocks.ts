@@ -8,78 +8,41 @@
 
 export interface HeroSlide {
   id: string;
-  /** i18n key under storefront.home.hero.slides.N */
-  badgeKey: string;
-  headlineKey: string;
-  subtextKey: string;
-  ctaKey: string;
+  /** Click anywhere on the slide navigates to this href. */
   ctaHref: string;
-  ctaIcon:
-    | "arrow_forward"
-    | "bolt"
-    | "redeem"
-    | "local_shipping"
-    | "trending_up"
-    | "card_giftcard";
   imageUrl: string;
   imageAlt: string;
-  /** Tailwind gradient classes for the slide background. */
-  accentClass: string;
 }
 
 export const HERO_SLIDES: HeroSlide[] = [
   {
     id: "10-10-tech-fashion",
-    badgeKey: "slides.0.badge",
-    headlineKey: "slides.0.headline",
-    subtextKey: "slides.0.subtext",
-    ctaKey: "slides.0.cta",
     ctaHref: "/flash-sale",
-    ctaIcon: "arrow_forward",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
     imageAlt:
-      "Render 3D cao cấp rực rỡ các thiết bị công nghệ hiện đại, tai nghe bluetooth không dây, hộp quà phát sáng",
-    accentClass: "from-primary via-primary-container to-secondary",
+      "Siêu hội 10.10 – công nghệ & thời trang giảm đến 50%",
   },
   {
     id: "flash-sale-live",
-    badgeKey: "slides.1.badge",
-    headlineKey: "slides.1.headline",
-    subtextKey: "slides.1.subtext",
-    ctaKey: "slides.1.cta",
     ctaHref: "/flash-sale",
-    ctaIcon: "bolt",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
-    imageAlt: "Đồng hồ đếm ngược flash sale với hiệu ứng lóe sáng đỏ",
-    accentClass: "from-tertiary via-tertiary-container to-primary",
+    imageAlt: "Flash Sale đang diễn ra – săn deal 0đ mỗi giờ",
   },
   {
     id: "voucher-freeship",
-    badgeKey: "slides.2.badge",
-    headlineKey: "slides.2.headline",
-    subtextKey: "slides.2.subtext",
-    ctaKey: "slides.2.cta",
     ctaHref: "/kho-voucher",
-    ctaIcon: "redeem",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
-    imageAlt: "Voucher giảm giá và freeship xếp chồng nhiều mệnh giá",
-    accentClass: "from-secondary via-secondary-container to-primary",
+    imageAlt: "Voucher & Freeship Xtra – giảm đến 200K đơn đầu tiên",
   },
   {
     id: "new-arrivals",
-    badgeKey: "slides.3.badge",
-    headlineKey: "slides.3.headline",
-    subtextKey: "slides.3.subtext",
-    ctaKey: "slides.3.cta",
     ctaHref: "/san-pham?sort=newest",
-    ctaIcon: "trending_up",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
-    imageAlt: "Bộ sưu tập hàng mới về với sản phẩm công nghệ và thời trang",
-    accentClass: "from-primary via-secondary to-primary-container",
+    imageAlt: "Hàng mới về mỗi ngày – cập nhật xu hướng",
   },
 ];
 

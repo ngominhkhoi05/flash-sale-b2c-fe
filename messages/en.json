@@ -246,37 +246,7 @@
     },
     "home": {
       "hero": {
-        "ariaLabel": "Featured promotion banner",
-        "badge": "Tech & Fashion Mega Sale",
-        "headline": "Super 10.10 Sale – Up to 50% Off",
-        "subtext": "Millions of hot deals from top authentic brands, plus thousands of free-shipping vouchers.",
-        "cta": "Explore Now",
-        "slides": {
-          "0": {
-            "badge": "Tech & Fashion Mega Sale",
-            "headline": "Super 10.10 Sale – Up to 50% Off",
-            "subtext": "Millions of hot deals from top authentic brands, plus thousands of free-shipping vouchers.",
-            "cta": "Explore Now"
-          },
-          "1": {
-            "badge": "Flash Sale Live",
-            "headline": "Zero-dollar deals every hour – limited stock",
-            "subtext": "Over 200 Flash Sale sessions daily, prices from 9,000₫, express delivery in 2 hours.",
-            "cta": "Enter Flash Sale"
-          },
-          "2": {
-            "badge": "Vouchers & Free Shipping",
-            "headline": "Save up to 200K on your first order",
-            "subtext": "Collect new-shop vouchers, free-shipping deals and 15% off platform-wide codes – while they last.",
-            "cta": "Get Vouchers"
-          },
-          "3": {
-            "badge": "New Arrivals Every Day",
-            "headline": "Fresh trends – Hot deals from your favorite brands",
-            "subtext": "Over 50,000 new products weekly, flat-rate 15K shipping nationwide.",
-            "cta": "Explore Now"
-          }
-        }
+        "ariaLabel": "Featured promotion banner"
       },
       "sideBanners": {
         "freeshipTag": "Express",

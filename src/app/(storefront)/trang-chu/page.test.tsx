@@ -18,9 +18,7 @@ describe("HomepageView – snapshot pixel-match", () => {
   it("renders all 7 sections with expected headings", () => {
     const { container } = render(<HomepageView />, { wrapper: TestWrapper });
 
-    // Hero: h1 (case-insensitive match)
-    expect(container.querySelector("h1")?.textContent).toMatch(/siêu hội|10\.10/i);
-    // 4 sub section h2 (case-insensitive)
+    // Hero: h1 is gone (banner is image-only). 4 sub section h2 remain.
     const headings = Array.from(container.querySelectorAll("h2")).map(
       (h) => h.textContent?.toLowerCase() ?? ""
     );
