@@ -34,7 +34,7 @@ export function AuthBrandPanel() {
       {/* Top: logo + wordmark */}
       <div className="relative z-10 flex items-center gap-2">
         <Image
-          src="/brand/logo/vibe-mart-logo-lockup-light-transparent.png"
+          src="/brand/logo/vibe-mart-logo-lockup-light.png"
           alt="Vibe Mart"
           width={0}
           height={0}

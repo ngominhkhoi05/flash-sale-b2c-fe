@@ -17,11 +17,8 @@ Thư mục chứa logo chính của **Vibe Mart** dùng cho header, footer, auth
 | File                                  | Kích thước gốc | Trạng thái     | Nguồn                |
 |---------------------------------------|----------------|----------------|----------------------|
 | `vibe-mart-logo-lockup-light.png`         | 1024×307 (104 KB) | có nền gradient  | Designer upload 2026-10-09 |
-| `vibe-mart-logo-lockup-light-transparent.png` | 1024×307 (118 KB) | đã xoá nền (u2net) | rembg pipeline 2026-10-09 |
 | `vibe-mart-logo-mark-light.png`           | 439×439 (51 KB)  | có nền trắng  | Designer upload 2026-10-09 |
-| `vibe-mart-logo-mark-light-transparent.png`  | 439×439 (54 KB)  | đã xoá nền (u2net) | rembg pipeline 2026-10-09 |
 | `vibe-mart-logo-lockup-dark.png`          | 751×410 (69 KB)  | có nền đen     | Designer upload 2026-10-09 |
-| `vibe-mart-logo-lockup-dark-transparent.png` | 751×410 (43 KB)  | đã xoá nền (u2net) | rembg pipeline 2026-10-09 |
 
 > **File app-icon (`vibe-mart-logo-mark-on-square.png`)** ở `../favicon/` vì nó đã có nền vuông xanh, dùng làm favicon — KHÔNG xoá nền.
 
