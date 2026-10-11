@@ -25,19 +25,37 @@ import { decodeJwtPrimaryRole } from "./jwt";
 /** Key theo mảng (rule api-data). */
 const KEYS = {
   me: ["auth", "me"] as const,
+  cart: ["cart"] as const,
+  myVouchers: ["vouchers", "mine"] as const,
+  recommended: ["products", "recommended"] as const,
 };
+
+/**
+ * Query keys cần invalidate sau khi đăng nhập/đăng ký thành công.
+ * Mục đích: trang chủ (cart count, voucher cá nhân, recommended) tự refetch
+ * với data của user mới.
+ *
+ * @see docs/superpowers/plans/2026-10-10-auth-guard-and-post-login-refresh.md
+ */
+const POST_LOGIN_INVALIDATE_KEYS = [KEYS.me, KEYS.cart, KEYS.myVouchers, KEYS.recommended] as const;
 
 /**
  * Map UserResponse (backend) + JWT authorities → AuthUser (FE store).
  * Backend không trả role trong user DTO — role lấy từ JWT `authorities`.
+ * avatarUrl: chỉ truyền xuống store khi backend trả non-null, để header
+ * dùng `undefined` làm tín hiệu fallback về default avatar.
  */
 function toAuthUser(u: UserResponse, accessToken: string): AuthUser {
-  return {
+  const base: AuthUser = {
     id: String(u.id),
     email: u.email,
     fullName: u.fullName,
     role: decodeJwtPrimaryRole(accessToken),
   };
+  if (u.avatarUrl) {
+    base.avatarUrl = u.avatarUrl;
+  }
+  return base;
 }
 
 /** useLoginMutation – lưu token + user, điều hướng theo role. */
@@ -52,7 +70,12 @@ export function useLoginMutation() {
       const user = toAuthUser(res.user, res.accessToken);
       setUser(user);
       toast.success("Đăng nhập thành công");
-      qc.invalidateQueries({ queryKey: KEYS.me });
+      // Invalidate auth + 3 nhóm data trên trang chủ (cart, voucher cá nhân, recommended)
+      await Promise.all(
+        POST_LOGIN_INVALIDATE_KEYS.map((key) =>
+          qc.invalidateQueries({ queryKey: key }),
+        ),
+      );
       // Component chủ động router.push theo role.
     },
     onError: (err: Error) => {
@@ -84,7 +107,12 @@ export function useRegisterMutation() {
       const user = toAuthUser(res.user, res.accessToken);
       setUser(user);
       toast.success("Đăng ký thành công");
-      qc.invalidateQueries({ queryKey: KEYS.me });
+      // Invalidate auth + 3 nhóm data trên trang chủ
+      await Promise.all(
+        POST_LOGIN_INVALIDATE_KEYS.map((key) =>
+          qc.invalidateQueries({ queryKey: key }),
+        ),
+      );
     },
     onError: (err: Error) => {
       toast.error(err.message || "Đăng ký thất bại");

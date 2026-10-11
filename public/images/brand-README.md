@@ -20,7 +20,7 @@ Thư mục chứa logo chính của **Vibe Mart** dùng cho header, footer, auth
 | `vibe-mart-logo-mark-light.png`           | 439×439 (51 KB)  | có nền trắng  | Designer upload 2026-10-09 |
 | `vibe-mart-logo-lockup-dark.png`          | 751×410 (69 KB)  | có nền đen     | Designer upload 2026-10-09 |
 
-> **File app-icon (`vibe-mart-logo-mark-on-square.png`)** ở `../favicon/` vì nó đã có nền vuông xanh, dùng làm favicon — KHÔNG xoá nền.
+> **File app-icon (`vibe-mart-logo-mark-on-square.png`)** ở cùng thư mục `images/` (đã có nền vuông xanh, dùng làm favicon — KHÔNG xoá nền).
 
 ## File cần tạo thêm (tối thiểu) — _chưa có_
 
@@ -36,5 +36,5 @@ Thư mục chứa logo chính của **Vibe Mart** dùng cho header, footer, auth
   - Lưu ý: Stitch mẫu dùng `#006194` (xanh biển đậm hơn) — chỉ dùng trong `AuthHeader` / `AuthFooter` nếu cần match bản Stitch, **không** dùng cho storefront chính.
 - ViewBox chuẩn: 1 tỉ lệ duy nhất cho mỗi biến thể, **không** hard-code `width`/`height` trong SVG (để CSS Tailwind `w-*`/`h-*` điều khiển).
 - Tên thương hiệu trong file phải chính xác **"Vibe Mart"** (có khoảng trắng, viết hoa chữ cái đầu mỗi từ).
-- Khi import vào Next.js: dùng `<Image src="/brand/logo/..." />` (KHÔNG `<img>` thường) — xem `component-pattern.mdc` mục 10.
+- Khi import vào Next.js: dùng `<Image src="/images/..." />` (KHÔNG `<img>` thường) — xem `component-pattern.mdc` mục 10.
 - File `.gitignore`: thư mục này **KHÔNG** nằm trong `.gitignore` — logo là asset production, phải track.

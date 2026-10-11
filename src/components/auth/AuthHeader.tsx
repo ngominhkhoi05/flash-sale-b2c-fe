@@ -25,7 +25,7 @@ export function AuthHeader() {
             aria-label="Vibe Mart – Trang chủ"
           >
             <Image
-              src="/brand/logo/vibe-mart-logo-lockup-light.png"
+              src="/images/vibe-mart-logo-lockup-light.png"
               alt="Vibe Mart"
               width={0}
               height={0}
@@ -41,7 +41,7 @@ export function AuthHeader() {
           >
             |
           </span>
-          <span className="hidden font-label-lg text-on-surface-variant sm:inline-block">
+          <span className="hidden text-label-lg text-on-surface-variant sm:inline-block">
             {t("authLabel")}
           </span>
         </div>

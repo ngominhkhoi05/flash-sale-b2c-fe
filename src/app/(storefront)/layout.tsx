@@ -6,17 +6,21 @@ import { StorefrontShell } from "./_shell";
 
 /**
  * Layout Storefront (rule §2).
- * - Header/Footer + Container.
- * - Header và BottomNav tự đọc pathname (client) để tô active.
+ * - Header sticky (Stitch 2-tầng)
+ * - MobileBottomNav fixed bottom
+ * - Footer bên dưới content từng trang
+ *
+ * Lưu ý: Trang chủ (HomepageView) tự wrap <main> + padding.
+ * Trang khác (vd /flash-sale, /san-pham/[slug]) sử dụng default centered max-w-[1200px].
  */
 export default function StorefrontLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <StorefrontShell>
         <StorefrontHeader />
-        <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 pb-24 pt-6 md:pb-10">
+        <div className="flex-1 mx-auto w-full max-w-[1200px] px-4 pb-24 pt-4 md:pb-10">
           {children}
-        </main>
+        </div>
         <StorefrontFooter />
       </StorefrontShell>
       <MobileBottomNav />
