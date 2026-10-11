@@ -74,3 +74,6 @@ agent-tools/
 
 # Stitch reference assets (downloaded HTML/PNG for design system, not source)
 tmp/
+
+# Stitch design refs (raw HTML, large files used for pixel-match, not source)
+docs/stitch-refs/

@@ -112,8 +112,18 @@ export function StorefrontHeader({
       )}
     >
       {/* ── Top Bar ──────────────────────────────────────────────── */}
-      <div className="hidden sm:block border-b border-outline-variant bg-surface-container-low text-[11px] text-on-surface-variant py-1.5">
-        <div className="max-w-[1240px] mx-auto px-4 lg:px-5 flex items-center justify-between text-label-md">
+      {/*
+        Stitch `33db6dd8` "Trang chủ Storefront - Vibe Mart":
+        - outer: bg-surface-container-low, text-[11px] (size 11), py-1.5
+        - inner: font-label-md (chỉ set weight=600, KHÔNG set size)
+        - icons: 14px (download/headset_mic/language) + 12px (expand_more)
+        - border-b border-surface-container
+        Bug trước: inner có `text-label-md` (size 12px) ghi đè outer `text-[11px]`
+        → text topbar hiển thị 12px, lệch so với design. Fix: bỏ `text-label-md`
+        ở inner, dùng `font-label-md` (chỉ weight, theo Stitch).
+      */}
+      <div className="hidden sm:block border-b border-surface-container bg-surface-container-low text-[11px] text-on-surface-variant py-1.5">
+        <div className="max-w-[1240px] mx-auto px-4 lg:px-5 flex items-center justify-between font-label-md">
           {/* Left links */}
           <div className="flex items-center gap-3">
             <Link href="/seller" className="hover:text-primary transition-colors">

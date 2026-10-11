@@ -194,7 +194,31 @@
     "SERVER_ERROR": "Server is busy. Please try again later.",
     "OUT_OF_STOCK": "Product is out of stock.",
     "PURCHASE_LIMIT": "You've reached the purchase limit for this product.",
-    "SLOT_NOT_ACTIVE": "Flash sale slot is not active."
+    "SLOT_NOT_ACTIVE": "Flash sale slot is not active.",
+    "forbidden": {
+      "brandTag": "Vibe Mart Security",
+      "idBadge": "ID: 403-FORBIDDEN",
+      "restrictedZone": "Restricted zone",
+      "title": "You don't have access",
+      "description": "Your current account has not been granted permission to view this area. Please verify with an administrator account or contact store support.",
+      "primaryAction": "Back to home",
+      "secondaryAction": "Sign in with another account",
+      "sessionLabel": "Current session",
+      "sessionRole": "Customer",
+      "sessionEmail": "user_guest_8924@vibemart.local",
+      "requiredRole": "STORE_ADMIN",
+      "requiredRolePrefix": "Requires role",
+      "supportLabel": "Technical support:",
+      "supportEmail": "hotro@vibemart.vn",
+      "hotlineLabel": "24/7 Hotline:",
+      "hotlineNumber": "1900 8888",
+      "notLoggedIn": "Not signed in",
+      "role": {
+        "BUYER": "Customer",
+        "SELLER": "Seller",
+        "ADMIN": "Administrator"
+      }
+    }
   },
   "storefront": {
     "header": {

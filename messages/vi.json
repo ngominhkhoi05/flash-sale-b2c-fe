@@ -194,7 +194,31 @@
     "SERVER_ERROR": "Hệ thống đang bận, vui lòng thử lại sau.",
     "OUT_OF_STOCK": "Sản phẩm đã hết hàng.",
     "PURCHASE_LIMIT": "Bạn đã đạt giới hạn mua cho sản phẩm này.",
-    "SLOT_NOT_ACTIVE": "Phiên Flash Sale chưa bắt đầu hoặc đã kết thúc."
+    "SLOT_NOT_ACTIVE": "Phiên Flash Sale chưa bắt đầu hoặc đã kết thúc.",
+    "forbidden": {
+      "brandTag": "Vibe Mart Security",
+      "idBadge": "ID: 403-FORBIDDEN",
+      "restrictedZone": "Khu vực giới hạn",
+      "title": "Bạn không có quyền truy cập",
+      "description": "Tài khoản hiện tại của bạn chưa được cấp thẩm quyền xem phân hệ này. Vui lòng xác thực bằng tài khoản quản trị hoặc liên hệ bộ phận hỗ trợ chủ gian hàng.",
+      "primaryAction": "Về trang chủ",
+      "secondaryAction": "Đăng nhập tài khoản khác",
+      "sessionLabel": "Phiên đăng nhập hiện tại",
+      "sessionRole": "Khách mua hàng",
+      "sessionEmail": "user_guest_8924@vibemart.local",
+      "requiredRole": "STORE_ADMIN",
+      "requiredRolePrefix": "Cần quyền",
+      "supportLabel": "Hỗ trợ kỹ thuật:",
+      "supportEmail": "hotro@vibemart.vn",
+      "hotlineLabel": "Hotline 24/7:",
+      "hotlineNumber": "1900 8888",
+      "notLoggedIn": "Chưa đăng nhập",
+      "role": {
+        "BUYER": "Khách mua hàng",
+        "SELLER": "Người bán",
+        "ADMIN": "Quản trị viên"
+      }
+    }
   },
   "storefront": {
     "header": {
