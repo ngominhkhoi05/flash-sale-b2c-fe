@@ -96,6 +96,7 @@ export interface MaterialSymbolProps {
     | "xl"
     | "2xl"
     | "3xl"
+    | "[10px]"
     | "[12px]"
     | "[14px]"
     | "[16px]"
@@ -121,9 +122,25 @@ export function MaterialSymbol({
   label,
 }: MaterialSymbolProps) {
   const sizeClass = size.startsWith("[") ? `text-${size}` : `text-${size}`;
+  // Parse numeric size from "size" prop to apply as inline style.
+  // This ensures the size wins over the Material Symbols base CSS
+  // (which sets `font-size: 24px` with the same specificity as a Tailwind
+  // utility class, so the load order would otherwise be ambiguous).
+  const numericMatch = size.match(/^\[(\d+)px\]$/);
+  const legacyMap: Record<string, number> = {
+    xs: 12,
+    sm: 14,
+    base: 16,
+    lg: 18,
+    xl: 20,
+    "2xl": 24,
+    "3xl": 30,
+  };
+  const resolvedPx = numericMatch ? Number(numericMatch[1]) : legacyMap[size];
+  const sizeStyle = resolvedPx ? { fontSize: `${resolvedPx}px` } : undefined;
   const style = fill
-    ? { fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }
-    : undefined;
+    ? { fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24", ...sizeStyle }
+    : sizeStyle;
 
   return (
     <span
