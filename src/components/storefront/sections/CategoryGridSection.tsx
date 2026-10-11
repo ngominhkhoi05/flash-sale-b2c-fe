@@ -62,7 +62,7 @@ export function CategoryGridSection() {
                 className="text-primary"
               />
             </div>
-            <span className="mt-2 text-label-md text-on-surface leading-tight">
+            <span className="mt-2 text-label-lg text-on-surface leading-tight">
               {t(cat.labelKey)}
             </span>
           </Link>
