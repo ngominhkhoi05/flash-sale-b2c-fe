@@ -154,14 +154,22 @@ describe("HeroBannerSection (image-bg click-through)", () => {
     expect(headings.length).toBe(0);
   });
 
-  it("uses the imageUrl as a full-bleed background image on each slide", () => {
+  it("uses a full-bleed background image on each slide (https URL)", () => {
     const { container } = renderWithIntl(<HeroBannerSection />);
     const slide0 = container.querySelector(
       '[data-testid="hero-slide-0"]'
     ) as HTMLElement;
-    // Each slide has a <img> as the background, taking the whole slide area
     const img = slide0.querySelector("img");
     expect(img).toBeTruthy();
-    expect(img?.getAttribute("src")).toMatch(/^https:\/\/lh3\.googleusercontent\.com/);
+    expect(img?.getAttribute("src")).toMatch(/^https:\/\//);
+  });
+
+  it("renders 4 DISTINCT images (no copy-paste URL bug)", () => {
+    const { container } = renderWithIntl(<HeroBannerSection />);
+    const imgs = container.querySelectorAll('[data-testid^="hero-slide-"] img');
+    expect(imgs.length).toBe(4);
+    const srcs = Array.from(imgs).map((img) => img.getAttribute("src") ?? "");
+    const uniqueSrcs = new Set(srcs);
+    expect(uniqueSrcs.size).toBe(4);
   });
 });
