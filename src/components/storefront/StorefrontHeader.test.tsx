@@ -196,7 +196,7 @@ describe("StorefrontHeader – user area", () => {
     expect(loginLinks).toHaveLength(0);
   });
 
-  it("uses local /storefront/logo.png (not Google CDN URL) for the brand logo", () => {
+  it("uses local /images/vibe-mart-logo-lockup-light.png (not Google CDN URL) for the brand logo", () => {
     // Asset dùng cho logo header phải nằm local trong public/, không phụ thuộc
     // vào CDN ngoài (tránh link chết, vi phạm docs/CLAUDE.md mục 10).
     mockUseAuth.mockReturnValue({
@@ -209,11 +209,11 @@ describe("StorefrontHeader – user area", () => {
     const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
     expect(logoImg).toBeDefined();
     const src = logoImg?.getAttribute("src") ?? "";
-    expect(src).toMatch(/\/storefront\/logo(\.png|\.svg)/);
+    expect(src).toMatch(/\/images\/vibe-mart-logo-lockup-light(\.png|\.svg)/);
     expect(src).not.toMatch(/googleusercontent\.com/);
   });
 
-  it("uses local /storefront/default-avatar.* for the default avatar when authenticated", () => {
+  it("uses local /images/default-avatar.* for the default avatar when authenticated", () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       isHydrated: true,
@@ -226,7 +226,7 @@ describe("StorefrontHeader – user area", () => {
     );
     expect(avatarImg).toBeDefined();
     const src = avatarImg?.getAttribute("src") ?? "";
-    expect(src).toMatch(/\/storefront\/default-avatar(\.png|\.svg)/);
+    expect(src).toMatch(/\/images\/default-avatar(\.png|\.svg)/);
     expect(src).not.toMatch(/googleusercontent\.com/);
   });
 
@@ -302,7 +302,7 @@ describe("StorefrontHeader – user area", () => {
     );
     expect(defaultAvatarImg).toBeDefined();
     const src = defaultAvatarImg?.getAttribute("src") ?? "";
-    expect(src).toMatch(/\/storefront\/default-avatar/);
+    expect(src).toMatch(/\/images\/default-avatar/);
   });
 });
 

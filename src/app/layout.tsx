@@ -30,6 +30,9 @@ export const metadata: Metadata = {
   },
   description:
     "Vibe Mart – sàn thương mại điện tử B2C với Flash Sale chống bán vượt kho.",
+  icons: {
+    icon: "/images/vibe-mart-logo-mark-light.png",
+  },
   // Không set metadataBase cố định: Next.js tự suy ra từ request URL ở runtime.
   // Trước đây set new URL(NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000")
   // → throw "Invalid URL" khi path metadata chứa ký tự lạ và base trỏ localhost.

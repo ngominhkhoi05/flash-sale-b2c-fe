@@ -66,7 +66,7 @@ export function StorefrontHeader({
           <Link href={ROUTES.HOME} className="flex items-center gap-2 shrink-0">
             <Image
               alt="Vibe Mart"
-              src="/storefront/logo.png"
+              src="/images/vibe-mart-logo-lockup-light.png"
               width={128}
               height={36}
               priority
@@ -164,7 +164,7 @@ export function StorefrontHeader({
             >
               <Image
                 alt="Vibe Mart"
-                src="/storefront/logo.png"
+                src="/images/vibe-mart-logo-lockup-light.png"
                 width={128}
                 height={36}
                 priority
@@ -239,7 +239,7 @@ export function StorefrontHeader({
                   ) : (
                     <Image
                       alt="Ảnh đại diện mặc định"
-                      src="/storefront/default-avatar.svg"
+                      src="/images/default-avatar.svg"
                       width={32}
                       height={32}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"

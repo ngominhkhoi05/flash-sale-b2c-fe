@@ -42,12 +42,12 @@ Thư mục chứa favicon cho Vibe Mart (icon hiển thị trên tab trình duy�
 - Background phải **đặc** (không trong suốt) để hiển thị tốt trên tab sáng + tab tối.
 - Màu nền: brand chính `#0284C7` (theo `docs/CLAUDE.md` mục 3 token `brand`).
 - File `.ico` đa kích thước: có thể gộp 16/32/48 vào 1 file `.ico` duy nhất (tùy tool xuất).
-- Khi copy ra `public/favicon.ico`, Next.js App Router 16 sẽ tự động nhận và serve ở `/favicon.ico` — không cần khai báo trong metadata.
+- Khi copy ra `public/favicon.ico`, Next.js App Router 16 sẽ tự động nhận và serve ở `/favicon.ico` — không cần khai báo trong metadata. Tab icon mặc định được khai báo trong `src/app/layout.tsx` (`metadata.icons.icon = "/images/vibe-mart-logo-mark-light.png"`).
 - Nếu muốn dùng icon riêng cho Apple touch, khai báo trong `src/app/layout.tsx`:
   ```ts
   icons: {
-    icon: '/brand/favicon/vibe-mart-favicon-32.ico',
-    apple: '/brand/favicon/vibe-mart-favicon-180.png',
+    icon: '/images/vibe-mart-favicon-32.ico',
+    apple: '/images/vibe-mart-favicon-180.png',
   }
   ```
 - File `.gitignore`: thư mục này **KHÔNG** nằm trong `.gitignore` — favicon là asset production.
