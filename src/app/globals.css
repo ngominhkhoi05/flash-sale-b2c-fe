@@ -15,10 +15,15 @@
   /* === Primary (Storefront) – Material 3 primary scale === */
   --color-primary: #006194;
   --color-primary-hover: #004b73;
+  --color-primary-fixed: #cce5ff;
+  --color-primary-fixed-dim: #93ccff;
   --color-primary-soft: #cce5ff;
   --color-primary-container: #007bb9;
   --color-on-primary: #ffffff;
   --color-on-primary-container: #fdfcff;
+  --color-on-primary-fixed: #001d31;
+  --color-on-primary-fixed-variant: #004b73;
+  --color-on-primary-soft: #003d5c;
 
   /* Semantic alias (cho code cũ dùng brand) – sẽ bỏ khi migrate xong */
   --color-brand: #006194;
@@ -28,10 +33,14 @@
   /* === Secondary (Seller Center accent) – Material 3 === */
   --color-secondary: #006c49;
   --color-secondary-hover: #005236;
+  --color-secondary-fixed: #6ffbbe;
+  --color-secondary-fixed-dim: #4edea3;
   --color-secondary-soft: #6cf8bb;
   --color-secondary-container: #6cf8bb;
   --color-on-secondary: #ffffff;
   --color-on-secondary-container: #00714d;
+  --color-on-secondary-fixed: #002113;
+  --color-on-secondary-fixed-variant: #005236;
 
   /* Semantic alias (cho code cũ dùng seller) */
   --color-seller: #10b981;
@@ -41,10 +50,14 @@
   /* === Tertiary (Flash Sale / urgency) – Material 3 === */
   --color-tertiary: #ba0035;
   --color-tertiary-hover: #920028;
+  --color-tertiary-fixed: #ffdada;
+  --color-tertiary-fixed-dim: #ffb3b6;
   --color-tertiary-soft: #ffdada;
   --color-tertiary-container: #e21e49;
   --color-on-tertiary: #ffffff;
   --color-on-tertiary-container: #fffbff;
+  --color-on-tertiary-fixed: #40000c;
+  --color-on-tertiary-fixed-variant: #920028;
 
   /* Semantic alias (cho code cũ dùng sale) */
   --color-sale: #ba0035;
