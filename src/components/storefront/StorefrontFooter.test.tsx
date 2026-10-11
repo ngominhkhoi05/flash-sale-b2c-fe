@@ -57,13 +57,12 @@ describe("StorefrontFooter – 4-column Stitch structure", () => {
 });
 
 describe("StorefrontFooter – column 1 (Brand)", () => {
-  it("renders the brand name 'Vibe Mart' as a heading-style text", () => {
+  it("renders the brand logo image with accessible alt text", () => {
     renderFooter();
-    // The brand appears in logo (col 1), QR description (col 4), and copyright
-    // (bottom bar). Scope to the first <footer> role to count one match.
+    // Logo is now an <img> with alt="Vibe Mart" (not a text span).
     const footer = screen.getByRole("contentinfo");
-    const brandText = within(footer).getAllByText("Vibe Mart");
-    expect(brandText.length).toBeGreaterThanOrEqual(1);
+    const logo = within(footer).getByRole("img", { name: /Vibe Mart/i });
+    expect(logo).toBeInTheDocument();
   });
 
   it("renders the brand tagline", () => {

@@ -22,6 +22,7 @@
  * - §6 labels (no English enum leaked to user)
  * - §10 a11y: <footer role="contentinfo"> + <h3> column headings + aria-label for icon-only links
  */
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 
@@ -43,15 +44,13 @@ export function StorefrontFooter() {
           {/* ── Col 1: Brand ────────────────────────────────────── */}
           <div className="flex flex-col gap-2">
             <div className="mb-2 flex items-center gap-2">
-              <MaterialSymbol
-                name="shopping_bag"
-                size="2xl"
-                className="text-primary"
-                label={t("common.appName")}
+              <Image
+                src="/images/vibe-mart-logo.png"
+                alt="Vibe Mart"
+                width={32}
+                height={32}
+                className="h-8 w-auto object-contain"
               />
-              <span className="text-headline-md text-on-surface font-bold">
-                {t("common.appName")}
-              </span>
             </div>
             <p className="text-body-sm text-on-surface-variant">
               {tf("tagline")}
