@@ -246,10 +246,7 @@
     },
     "home": {
       "hero": {
-        "badge": "Tech & Fashion Mega Sale",
-        "headline": "Super 10.10 Sale – Up to 50% Off",
-        "subtext": "Millions of hot deals from top authentic brands, plus thousands of free-shipping vouchers.",
-        "cta": "Explore Now"
+        "ariaLabel": "Featured promotion banner"
       },
       "sideBanners": {
         "freeshipTag": "Express",

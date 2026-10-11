@@ -4,6 +4,48 @@
  * TODO(api): thay thế bằng hook thật khi backend cung cấp data.
  */
 
+// ─── Hero slides ─────────────────────────────────────────────────────────────
+
+export interface HeroSlide {
+  id: string;
+  /** Click anywhere on the slide navigates to this href. */
+  ctaHref: string;
+  imageUrl: string;
+  imageAlt: string;
+}
+
+export const HERO_SLIDES: HeroSlide[] = [
+  {
+    id: "10-10-tech-fashion",
+    ctaHref: "/flash-sale",
+    imageUrl:
+      "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1600&q=80",
+    imageAlt:
+      "Siêu hội 10.10 – công nghệ & thời trang giảm đến 50%",
+  },
+  {
+    id: "flash-sale-live",
+    ctaHref: "/flash-sale",
+    imageUrl:
+      "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&w=1600&q=80",
+    imageAlt: "Flash Sale đang diễn ra – săn deal 0đ mỗi giờ",
+  },
+  {
+    id: "voucher-freeship",
+    ctaHref: "/kho-voucher",
+    imageUrl:
+      "https://images.unsplash.com/photo-1556742208-999815fca738?auto=format&fit=crop&w=1600&q=80",
+    imageAlt: "Voucher & Freeship Xtra – giảm đến 200K đơn đầu tiên",
+  },
+  {
+    id: "new-arrivals",
+    ctaHref: "/san-pham?sort=newest",
+    imageUrl:
+      "https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?auto=format&fit=crop&w=1600&q=80",
+    imageAlt: "Hàng mới về mỗi ngày – cập nhật xu hướng",
+  },
+];
+
 // ─── Category grid ────────────────────────────────────────────────────────────
 
 export const CATEGORIES = [

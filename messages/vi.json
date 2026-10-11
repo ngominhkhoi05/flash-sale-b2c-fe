@@ -246,10 +246,7 @@
     },
     "home": {
       "hero": {
-        "badge": "Đại tiệc công nghệ & thời trang",
-        "headline": "Siêu hội 10.10 – Giảm đến 50%",
-        "subtext": "Hàng triệu deal sốc từ các thương hiệu chính hãng hàng đầu, tặng ngàn voucher vận chuyển 0đ.",
-        "cta": "Khám phá ngay"
+        "ariaLabel": "Banner khuyến mãi nổi bật"
       },
       "sideBanners": {
         "freeshipTag": "Hỏa Tốc",

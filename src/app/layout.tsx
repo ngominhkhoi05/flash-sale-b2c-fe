@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { Providers } from "@/providers/Providers";
+import { defaultSeo } from "@/config/seo.config";
 import I18nProvider from "./I18nProvider";
 import "./globals.css";
 
@@ -25,11 +26,32 @@ const beVietnam = Be_Vietnam_Pro({
 
 export const metadata: Metadata = {
   title: {
-    default: "Vibe Mart – Mua sắm Flash Sale",
-    template: "%s | Vibe Mart",
+    default: defaultSeo.title,
+    template: `%s | ${defaultSeo.siteName}`,
   },
-  description:
-    "Vibe Mart – sàn thương mại điện tử B2C với Flash Sale chống bán vượt kho.",
+  description: defaultSeo.description,
+  keywords: defaultSeo.keywords,
+  openGraph: {
+    title: defaultSeo.title,
+    description: defaultSeo.description,
+    siteName: defaultSeo.siteName,
+    locale: defaultSeo.locale,
+    images: [
+      {
+        url: defaultSeo.ogImage,
+        alt: defaultSeo.ogImageAlt,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultSeo.title,
+    description: defaultSeo.description,
+    images: [defaultSeo.ogImage],
+    ...(defaultSeo.twitterHandle
+      ? { creator: defaultSeo.twitterHandle }
+      : {}),
+  },
   icons: {
     icon: "/images/vibe-mart-logo-mark-light.png",
   },
@@ -42,7 +64,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0284c7",
+  themeColor: defaultSeo.themeColor,
 };
 
 export default function RootLayout({
