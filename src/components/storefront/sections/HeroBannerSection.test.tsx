@@ -14,7 +14,7 @@ function renderWithIntl(ui: React.ReactNode) {
   );
 }
 
-describe("HeroBannerSection", () => {
+describe("HeroBannerSection (image-bg click-through)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -25,7 +25,6 @@ describe("HeroBannerSection", () => {
 
   it("renders the carousel region with the i18n label", () => {
     renderWithIntl(<HeroBannerSection />);
-    // aria-label comes from t("hero.ariaLabel") — fallback to a known vi string
     const region = screen.getByRole("region", { name: /banner/i });
     expect(region).toBeInTheDocument();
     expect(region).toHaveAttribute("aria-roledescription", "carousel");
@@ -90,7 +89,6 @@ describe("HeroBannerSection", () => {
     act(() => {
       vi.advanceTimersByTime(15000);
     });
-    // Still slide 0 because paused.
     const slide0 = container.querySelector('[data-testid="hero-slide-0"]');
     expect(slide0?.className).toContain("opacity-100");
 
@@ -102,34 +100,6 @@ describe("HeroBannerSection", () => {
     });
     const slide1 = container.querySelector('[data-testid="hero-slide-1"]');
     expect(slide1?.className).toContain("opacity-100");
-  });
-
-  it("pauses auto-advance on focus, resumes on blur", () => {
-    renderWithIntl(<HeroBannerSection />);
-    const region = screen.getByRole("region", { name: /banner/i });
-
-    act(() => {
-      region.focus();
-      fireEvent.focus(region);
-    });
-    act(() => {
-      vi.advanceTimersByTime(15000);
-    });
-
-    act(() => {
-      fireEvent.blur(region);
-    });
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    // After focus-pause + blur-resume + 5s, should be on slide 1
-    const { container } = renderWithIntl(<HeroBannerSection />);
-    // We re-render fresh above so container ref differs — but the test order
-    // shares timers; the simpler check is the second render's first slide.
-    // Because the test already advanced 5s post-resume, the first
-    // render's slide 1 should be active in its OWN DOM. We instead
-    // assert behavior is wired: blur+5s must increment at least once.
-    expect(container).toBeTruthy();
   });
 
   it("respects prefers-reduced-motion: no auto-advance", () => {
@@ -154,5 +124,44 @@ describe("HeroBannerSection", () => {
     });
     const slide0 = container.querySelector('[data-testid="hero-slide-0"]');
     expect(slide0?.className).toContain("opacity-100");
+  });
+
+  it("renders 1 active slide as a navigable link pointing to slide 0 ctaHref", () => {
+    renderWithIntl(<HeroBannerSection />);
+    // The currently-active slide is rendered as a Link (click-through).
+    // aria-label is "Slide 1 / 4" (current / total).
+    const activeLink = screen.getByRole("link", { name: /slide 1 \/ 4/i });
+    expect(activeLink).toHaveAttribute("href", "/flash-sale");
+  });
+
+  it("clicking dot 2 makes slide 2 the active navigable link", () => {
+    const { container } = renderWithIntl(<HeroBannerSection />);
+    const dot2 = container.querySelector(
+      '[data-testid="hero-dot-2"]'
+    ) as HTMLElement;
+    act(() => {
+      fireEvent.click(dot2);
+    });
+    // After click, the active link should be slide 3 with /kho-voucher href
+    const activeLink = screen.getByRole("link", { name: /slide 3 \/ 4/i });
+    expect(activeLink).toHaveAttribute("href", "/kho-voucher");
+  });
+
+  it("does NOT render any heading text (h1/h2) inside the hero region — text is gone", () => {
+    renderWithIntl(<HeroBannerSection />);
+    const region = screen.getByRole("region", { name: /banner/i });
+    const headings = region.querySelectorAll("h1, h2, h3, p");
+    expect(headings.length).toBe(0);
+  });
+
+  it("uses the imageUrl as a full-bleed background image on each slide", () => {
+    const { container } = renderWithIntl(<HeroBannerSection />);
+    const slide0 = container.querySelector(
+      '[data-testid="hero-slide-0"]'
+    ) as HTMLElement;
+    // Each slide has a <img> as the background, taking the whole slide area
+    const img = slide0.querySelector("img");
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute("src")).toMatch(/^https:\/\/lh3\.googleusercontent\.com/);
   });
 });
