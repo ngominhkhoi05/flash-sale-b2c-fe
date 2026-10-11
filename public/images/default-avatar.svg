@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Default avatar placeholder dùng khi user ch°a ng nh­p ho·c ch°a có avatarUrl.
+
+  - Màu primary `#006194` khÛp token `primary` trong docs/CLAUDE.md måc 3.
+  - Icon person l¥y c£m héng të Material Symbols "account_circle".
+  - ViewBox 80x80, khi render ß <Image width=32 height=32 /> v«n giï tÉ lÇ.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="¢nh ¡i diÇn m·c Ënh">
+  <circle cx="40" cy="40" r="40" fill="#006194"/>
+  <path
+    fill="#FFFFFF"
+    d="M40 22a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm0 38c-9.94 0-18 4.84-18 10.81V72h36v-1.19C58 64.84 49.94 60 40 60z"
+  />
+</svg>
