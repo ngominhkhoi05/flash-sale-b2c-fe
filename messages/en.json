@@ -55,6 +55,44 @@
       "ENDED": "Ended"
     }
   },
+  "static": {
+    "help": {
+      "title": "Help",
+      "subtitle": "We are here to help",
+      "comingSoon": "Help center is under development.",
+      "backToHome": "Back to home"
+    },
+    "helpCenter": {
+      "title": "Help center",
+      "subtitle": "FAQs and user guides",
+      "comingSoon": "Help center is under development.",
+      "backToHome": "Back to home"
+    },
+    "about": {
+      "title": "About Vibe Mart",
+      "subtitle": "B2C marketplace with Flash Sale",
+      "comingSoon": "About page is being updated.",
+      "backToHome": "Back to home"
+    },
+    "terms": {
+      "title": "Terms of service",
+      "subtitle": "Vibe Mart terms of use",
+      "comingSoon": "Terms content is being finalized.",
+      "backToHome": "Back to home"
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "subtitle": "How Vibe Mart protects your data",
+      "comingSoon": "Privacy content is being finalized.",
+      "backToHome": "Back to home"
+    },
+    "contact": {
+      "title": "Contact",
+      "subtitle": "Get in touch with Vibe Mart",
+      "comingSoon": "Contact page is being updated.",
+      "backToHome": "Back to home"
+    }
+  },
   "auth": {
     "login": {
       "title": "Sign in",

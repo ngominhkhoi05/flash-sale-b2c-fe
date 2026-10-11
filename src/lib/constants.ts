@@ -297,6 +297,14 @@ export const ROUTES = {
   SELLER_HOME: "/seller/tong-quan",
   ADMIN_HOME: "/admin/tong-quan",
 
+  // Static / info pages
+  HELP: "/tro-giup",
+  HELP_CENTER: "/ho-tro",
+  ABOUT: "/gioi-thieu",
+  TERMS: "/dieu-khoan",
+  PRIVACY: "/chinh-sach-bao-mat",
+  CONTACT: "/lien-he",
+
   MAINTENANCE: (feature?: string) =>
     feature ? `/bao-tri?feature=${feature}` : "/bao-tri",
 } as const;

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AuthHeader } from './AuthHeader';
 import { TestWrapper } from '@/__tests__/test-wrapper';
+import { ROUTES } from '@/lib/constants';
 
 describe('AuthHeader', () => {
   it('renders the brand logo with Vibe Mart wordmark', () => {
@@ -30,7 +31,7 @@ describe('AuthHeader', () => {
       </TestWrapper>
     );
     const helpLink = screen.getByRole('link', { name: /Trợ giúp/i });
-    expect(helpLink).toHaveAttribute('href', '/tro-giup');
+    expect(helpLink).toHaveAttribute('href', ROUTES.HELP);
   });
 
   it('renders the "Về trang chủ" nav link', () => {
@@ -40,6 +41,6 @@ describe('AuthHeader', () => {
       </TestWrapper>
     );
     const homeLink = screen.getByRole('link', { name: /Về trang chủ/i });
-    expect(homeLink).toHaveAttribute('href', '/trang-chu');
+    expect(homeLink).toHaveAttribute('href', ROUTES.HOME);
   });
 });

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AuthFooter } from './AuthFooter';
 import { TestWrapper } from '@/__tests__/test-wrapper';
+import { ROUTES } from '@/lib/constants';
 
 describe('AuthFooter', () => {
   it('renders the copyright text', () => {
@@ -23,13 +24,13 @@ describe('AuthFooter', () => {
     );
     expect(
       screen.getByRole('link', { name: /Điều khoản dịch vụ/i })
-    ).toHaveAttribute('href', '/dieu-khoan');
+    ).toHaveAttribute('href', ROUTES.TERMS);
     expect(
       screen.getByRole('link', { name: /Chính sách bảo mật/i })
-    ).toHaveAttribute('href', '/chinh-sach-bao-mat');
+    ).toHaveAttribute('href', ROUTES.PRIVACY);
     expect(screen.getByRole('link', { name: /Liên hệ/i })).toHaveAttribute(
       'href',
-      '/lien-he'
+      ROUTES.CONTACT
     );
   });
 });

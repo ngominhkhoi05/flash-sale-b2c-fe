@@ -87,14 +87,24 @@ interface BackendEnvelope<T> {
   [k: string]: unknown;
 }
 
-/** Lấy base URL – chuẩn hoá không có dấu "/" ở cuối. */
+/** Lấy base URL – chấp nhận cả absolute (http://...) và relative (/api/v1).
+ *
+ * - Absolute (vd `http://localhost:8080`, `https://api.example.com`):
+ *   dev mode hoặc khi FE cùng origin với backend, gọi thẳng tới backend.
+ * - Relative (vd `/api/v1`, `""`):
+ *   production với Nginx reverse proxy: buildUrl() tự ghép với
+ *   `window.location.origin` để tạo absolute URL.
+ *   Khi không có `window` (SSR/Node), trả về `""` và để buildUrl()
+ *   ném lỗi có thông báo rõ ràng.
+ */
 function getBaseUrl(): string {
-  // Default cho backend local: http://localhost:8080 (KHÔNG có /api – version
-  // prefix sẽ được buildUrl() thêm vào). Production: set NEXT_PUBLIC_API_URL
-  // tới domain backend (vd: http://180.93.137.28).
-  const raw =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+  const raw = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
   return raw.replace(/\/$/, "");
+}
+
+/** True nếu chuỗi là absolute URL (có scheme http:// hoặc https://). */
+function isAbsoluteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
 }
 
 function buildUrl(path: string, query?: ApiFetchOptions["query"]): string {
@@ -105,7 +115,25 @@ function buildUrl(path: string, query?: ApiFetchOptions["query"]): string {
   const withVersion = cleanPath.startsWith("/api/") || cleanPath.startsWith("/api/v")
     ? cleanPath
     : `/api/v1${cleanPath}`;
-  const url = new URL(`${base}${withVersion}`);
+
+  // Nếu base rỗng hoặc relative (vd "/api/v1", ""), ghép với
+  // window.location.origin để tạo absolute URL. Yêu cầu môi trường
+  // client (window có sẵn). Nếu gọi từ server, ném lỗi rõ ràng.
+  let fullBase: string;
+  if (!base || !isAbsoluteUrl(base)) {
+    if (typeof window === "undefined") {
+      throw new Error(
+        "buildUrl: NEXT_PUBLIC_API_URL is relative but called from a " +
+          "server context. Use an absolute URL (e.g. https://api.example.com) " +
+          "for SSR, or call apiFetch from a Client Component."
+      );
+    }
+    fullBase = window.location.origin;
+  } else {
+    fullBase = base;
+  }
+
+  const url = new URL(`${fullBase}${withVersion}`);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined || v === null) continue;

@@ -48,7 +48,7 @@ export function AuthHeader() {
 
         <nav className="flex items-center gap-4 text-sm">
           <Link
-            href="/tro-giup"
+            href={ROUTES.HELP}
             className="rounded-md px-2 py-1 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {t("navHelp")}

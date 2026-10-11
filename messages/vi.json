@@ -55,6 +55,44 @@
       "ENDED": "Đã kết thúc"
     }
   },
+  "static": {
+    "help": {
+      "title": "Trợ giúp",
+      "subtitle": "Chúng tôi sẵn sàng hỗ trợ bạn",
+      "comingSoon": "Trung tâm trợ giúp đang được phát triển.",
+      "backToHome": "Về trang chủ"
+    },
+    "helpCenter": {
+      "title": "Trung tâm trợ giúp",
+      "subtitle": "Câu hỏi thường gặp và hướng dẫn sử dụng",
+      "comingSoon": "Trung tâm trợ giúp đang được phát triển.",
+      "backToHome": "Về trang chủ"
+    },
+    "about": {
+      "title": "Giới thiệu Vibe Mart",
+      "subtitle": "Sàn thương mại điện tử B2C với Flash Sale",
+      "comingSoon": "Trang giới thiệu đang được cập nhật.",
+      "backToHome": "Về trang chủ"
+    },
+    "terms": {
+      "title": "Điều khoản dịch vụ",
+      "subtitle": "Điều khoản sử dụng Vibe Mart",
+      "comingSoon": "Nội dung điều khoản đang được hoàn thiện.",
+      "backToHome": "Về trang chủ"
+    },
+    "privacy": {
+      "title": "Chính sách bảo mật",
+      "subtitle": "Cách Vibe Mart bảo vệ dữ liệu của bạn",
+      "comingSoon": "Nội dung chính sách đang được hoàn thiện.",
+      "backToHome": "Về trang chủ"
+    },
+    "contact": {
+      "title": "Liên hệ",
+      "subtitle": "Kết nối với Vibe Mart",
+      "comingSoon": "Trang liên hệ đang được cập nhật.",
+      "backToHome": "Về trang chủ"
+    }
+  },
   "auth": {
     "login": {
       "title": "Đăng nhập",

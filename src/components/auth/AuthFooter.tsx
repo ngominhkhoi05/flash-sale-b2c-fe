@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ROUTES } from "@/lib/constants";
 
 /**
  * AuthFooter – footer riêng cho trang xác thực.
@@ -22,7 +23,7 @@ export function AuthFooter() {
           aria-label="Footer"
         >
           <Link
-            href="/dieu-khoan"
+            href={ROUTES.TERMS}
             className="hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
           >
             {t("terms")}
@@ -31,7 +32,7 @@ export function AuthFooter() {
             •
           </span>
           <Link
-            href="/chinh-sach-bao-mat"
+            href={ROUTES.PRIVACY}
             className="hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
           >
             {t("privacy")}
@@ -40,7 +41,7 @@ export function AuthFooter() {
             •
           </span>
           <Link
-            href="/lien-he"
+            href={ROUTES.CONTACT}
             className="hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
           >
             {t("contact")}
