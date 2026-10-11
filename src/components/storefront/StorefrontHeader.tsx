@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
@@ -264,67 +266,73 @@ export function StorefrontHeader({
           {/* ── Nav Pills ────────────────────────────────────────── */}
           <div className="h-11 flex items-center overflow-x-auto border-t border-outline-variant mt-2 pt-1 scrollbar-hide">
             <nav className="flex items-center gap-1 shrink-0">
-              <Link
-                aria-current={active === "home" ? "page" : undefined}
-                className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
-                  active === "home"
+              {[
+                {
+                  key: "home" as const,
+                  href: ROUTES.HOME,
+                  label: t("nav.home"),
+                },
+                {
+                  key: "flash-sale" as const,
+                  href: ROUTES.FLASH_SALE,
+                  label: t("nav.flashSale"),
+                  icon: <MaterialSymbol name="bolt" size="[16px]" fill />,
+                },
+                {
+                  key: "category" as const,
+                  href: "/danh-muc",
+                  label: t("nav.newArrivals"),
+                },
+                {
+                  key: null,
+                  href: "#",
+                  label: t("nav.featuredBrands"),
+                },
+                {
+                  key: null,
+                  href: "#",
+                  label: t("nav.bestSellers"),
+                },
+                {
+                  key: "voucher" as const,
+                  href: ROUTES.VOUCHERS,
+                  label: t("nav.voucherPromo"),
+                },
+              ].map((item) => {
+                const isActive = active === item.key;
+                // Tách base classes (chứa text-label-lg cho font-size) ra
+                // NGOÀI cn(twMerge) để tailwind-merge không strip text-label-lg
+                // khi color branch dùng text-on-primary/text-tertiary. tailwind-merge
+                // group tất cả class "text-*" cùng prefix → conflict resolution sẽ
+                // giữ class text-* cuối, làm mất font-size token.
+                // (Lỗi này đã được user báo qua DevTools: "có thẻ a không có font-size"
+                // khi active state được apply.)
+                const baseClasses = clsx(
+                  "px-4 py-1.5 rounded-full transition-all text-label-lg font-semibold",
+                  item.icon && "inline-flex items-center gap-1"
+                );
+                // tailwind-merge chỉ áp dụng cho color/state branch
+                const colorClasses = twMerge(
+                  isActive
                     ? "bg-primary text-on-primary"
-                    : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                )}
-                href={ROUTES.HOME}
-              >
-                {t("nav.home")}
-              </Link>
-              <Link
-                aria-current={active === "flash-sale" ? "page" : undefined}
-                className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg inline-flex items-center gap-1 font-bold",
-                  active === "flash-sale"
-                    ? "bg-primary text-on-primary"
-                    : "bg-transparent text-tertiary hover:text-rose-700 hover:bg-surface-container"
-                )}
-                href={ROUTES.FLASH_SALE}
-              >
-                <MaterialSymbol name="bolt" size="[16px]" fill />
-                {t("nav.flashSale")}
-              </Link>
-              <Link
-                aria-current={active === "category" ? "page" : undefined}
-                className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
-                  active === "category"
-                    ? "bg-primary text-on-primary"
-                    : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                )}
-                href="/danh-muc"
-              >
-                {t("nav.newArrivals")}
-              </Link>
-              <Link
-                href="#"
-                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg transition-all"
-              >
-                {t("nav.featuredBrands")}
-              </Link>
-              <Link
-                href="#"
-                className="px-4 py-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-label-lg transition-all"
-              >
-                {t("nav.bestSellers")}
-              </Link>
-              <Link
-                href={ROUTES.VOUCHERS}
-                aria-current={active === "voucher" ? "page" : undefined}
-                className={cn(
-                  "px-4 py-1.5 rounded-full transition-all text-label-lg",
-                  active === "voucher"
-                    ? "bg-primary text-on-primary"
-                    : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
-                )}
-              >
-                {t("nav.voucherPromo")}
-              </Link>
+                    : item.key === "flash-sale"
+                      ? "bg-transparent text-tertiary hover:text-rose-700 hover:bg-surface-container"
+                      : "bg-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                );
+                return (
+                  <Link
+                    key={item.href + item.label}
+                    aria-current={isActive ? "page" : undefined}
+                    // Concat thủ công: base (clsx-only) + color (twMerge-only)
+                    // để text-label-lg KHÔNG bị tailwind-merge strip.
+                    className={`${baseClasses} ${colorClasses}`}
+                    href={item.href}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         </div>

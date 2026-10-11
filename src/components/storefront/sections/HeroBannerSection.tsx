@@ -133,7 +133,7 @@ export function HeroBannerSection() {
         <div className="flex-1 rounded-xl p-5 bg-gradient-to-br from-primary-fixed to-secondary-fixed/50 flex flex-col justify-between shadow-sm relative overflow-hidden">
           <div className="flex items-start justify-between relative z-10">
             <div>
-              <span className="inline-flex items-center gap-1 text-label-sm uppercase px-2 py-0.5 rounded bg-secondary text-on-secondary mb-1.5">
+              <span className="inline-flex items-center justify-center gap-1 text-label-sm uppercase px-2 py-0.5 rounded bg-secondary text-on-secondary mb-1.5">
                 {t("sideBanners.freeshipTag")}
               </span>
               <h3 className="text-headline-sm text-on-surface font-bold leading-snug">
@@ -160,7 +160,7 @@ export function HeroBannerSection() {
         <div className="flex-1 rounded-xl p-5 bg-gradient-to-br from-tertiary-soft to-pink-100 flex flex-col justify-between shadow-sm relative overflow-hidden">
           <div className="flex items-start justify-between relative z-10">
             <div>
-              <span className="inline-flex items-center gap-1 text-label-sm uppercase px-2 py-0.5 rounded bg-tertiary text-on-tertiary mb-1.5">
+              <span className="inline-flex items-center justify-center gap-1 text-label-sm uppercase px-2 py-0.5 rounded bg-tertiary text-on-tertiary mb-1.5">
                 {t("sideBanners.voucherTag")}
               </span>
               <h3 className="text-headline-sm text-on-surface font-bold leading-snug">
