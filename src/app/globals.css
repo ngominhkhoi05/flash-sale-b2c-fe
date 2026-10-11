@@ -92,6 +92,44 @@
   /* === Font (Be Vietnam Pro – load qua next/font, gán vào --font-be-vietnam) === */
   --font-sans: var(--font-be-vietnam), "Inter", system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+  /* === Typography (Stitch design system, project 15206106541998912100) ===
+   * Tailwind 4 syntax: --text-{name} + --text-{name}--line-height tự generate
+   * class `text-{name}` với size + line-height. Font-weight áp dụng riêng qua
+   * utility font-bold/font-semibold/font-medium tại component (idiomatic
+   * Tailwind 4 — không dùng --text-{name}--font-weight vì không phải
+   * cú pháp chính thức của Tailwind 4).
+   *
+   * Spec: 13 token (display-lg, display-lg-mobile, headline-lg/md/sm,
+   * body-lg/md/sm, label-lg/md/sm, price-lg/md).
+   * Reference: docs/CLAUDE.md §3 + Stitch designMd.
+   */
+  --text-display-lg: 36px;
+  --text-display-lg--line-height: 44px;
+  --text-display-lg-mobile: 28px;
+  --text-display-lg-mobile--line-height: 36px;
+  --text-headline-lg: 24px;
+  --text-headline-lg--line-height: 32px;
+  --text-headline-md: 20px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 24px;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-label-lg: 14px;
+  --text-label-lg--line-height: 20px;
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-sm: 10px;
+  --text-label-sm--line-height: 14px;
+  --text-price-lg: 20px;
+  --text-price-lg--line-height: 24px;
+  --text-price-md: 16px;
+  --text-price-md--line-height: 20px;
 }
 
 /* Base */

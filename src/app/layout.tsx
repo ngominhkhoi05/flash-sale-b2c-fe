@@ -11,7 +11,7 @@ import "./globals.css";
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
   subsets: ["vietnamese"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -60,7 +60,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="bg-page text-ink min-h-full flex flex-col">
+      <body className="bg-background text-on-surface font-sans min-h-screen flex flex-col">
         <Providers>
           <I18nProvider>{children}</I18nProvider>
         </Providers>
