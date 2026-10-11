@@ -19,7 +19,7 @@ export const HERO_SLIDES: HeroSlide[] = [
     id: "10-10-tech-fashion",
     ctaHref: "/flash-sale",
     imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
+      "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1600&q=80",
     imageAlt:
       "Siêu hội 10.10 – công nghệ & thời trang giảm đến 50%",
   },
@@ -27,21 +27,21 @@ export const HERO_SLIDES: HeroSlide[] = [
     id: "flash-sale-live",
     ctaHref: "/flash-sale",
     imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
+      "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&w=1600&q=80",
     imageAlt: "Flash Sale đang diễn ra – săn deal 0đ mỗi giờ",
   },
   {
     id: "voucher-freeship",
     ctaHref: "/kho-voucher",
     imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
+      "https://images.unsplash.com/photo-1556742208-999815fca738?auto=format&fit=crop&w=1600&q=80",
     imageAlt: "Voucher & Freeship Xtra – giảm đến 200K đơn đầu tiên",
   },
   {
     id: "new-arrivals",
     ctaHref: "/san-pham?sort=newest",
     imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDrHfWtQYEzPPPIF2PpWnqlTR7Knr9s-M06kKdrgt53cXmqUIdz8C8uP7GjjZNMID2Gp2hlaWHALiHnPjcpTQpIfvlHsWoiHbSfu0Qnm4OyaQLAUPXdlEZusT4sBYElOkUJiXm4YK3csfry3pgy8vwmCSCAY3L6CnwP6R2XCVhK65fmMvs2C421T3RmLQlYjCognVQ5tTDrqRc5rkE5wmy5-F0f3ZL3yfac51herdXm3rY0ZpGGWnTmkA",
+      "https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?auto=format&fit=crop&w=1600&q=80",
     imageAlt: "Hàng mới về mỗi ngày – cập nhật xu hướng",
   },
 ];
