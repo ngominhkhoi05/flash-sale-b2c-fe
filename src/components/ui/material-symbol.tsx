@@ -88,7 +88,26 @@ export interface MaterialSymbolProps {
   /** true → `FILL=1` (filled), false (default) → outlined */
   fill?: boolean;
   /** Tailwind text-size class suffix (e.g. "sm", "lg", "2xl", "[14px]") */
-  size?: "xs" | "sm" | "base" | "lg" | "xl" | "2xl" | "3xl" | "[12px]" | "[14px]" | "[16px]" | "[18px]";
+  size?:
+    | "xs"
+    | "sm"
+    | "base"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "[12px]"
+    | "[14px]"
+    | "[16px]"
+    | "[18px]"
+    | "[20px]"
+    | "[24px]"
+    | "[28px]"
+    | "[40px]"
+    | "[56px]"
+    | "[80px]"
+    | "[100px]"
+    | "[120px]";
   className?: string;
   /** Optional accessible label; renders as aria-label. If absent, icon is decorative. */
   label?: string;

@@ -211,7 +211,13 @@
       "supportLabel": "Technical support:",
       "supportEmail": "hotro@vibemart.vn",
       "hotlineLabel": "24/7 Hotline:",
-      "hotlineNumber": "1900 8888"
+      "hotlineNumber": "1900 8888",
+      "notLoggedIn": "Not signed in",
+      "role": {
+        "BUYER": "Customer",
+        "SELLER": "Seller",
+        "ADMIN": "Administrator"
+      }
     }
   },
   "storefront": {

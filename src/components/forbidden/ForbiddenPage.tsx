@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { useAuth } from "@/hooks/useAuth";
+import { ROLES, type Role } from "@/lib/constants";
 
 /**
  * ForbiddenPage — 403 screen
@@ -8,6 +13,18 @@ import { MaterialSymbol } from "@/components/ui/material-symbol";
  * Pixel-perfect re-implementation of Stitch design system screen
  * `8bea7c520e7f4d2c8896e7771210450a` ("Màn hình Lỗi 403 - Vibe Mart")
  * from project `15206106541998912100` (Vibe Mart Marketplace UI/UX).
+ *
+ * Data sources (verified against backend Swagger 2026-10-12):
+ *   - `useAuth().user` → email, role (from `useAuthStore`, hydrated from
+ *     `AuthResponse.user` on login). No API call needed.
+ *   - `?required=ROLE` URL query → which role the route demanded.
+ *     The proxy/middleware that redirects to /forbidden is expected to
+ *     append this query so the user can see exactly which role is
+ *     missing. If absent, fall back to the legacy `requiredRole` i18n
+ *     key (currently "STORE_ADMIN") for backward compatibility.
+ *   - Role labels: `error.forbidden.role.{BUYER|SELLER|ADMIN}` i18n
+ *     keys. Mapping from JWT `ROLE_*` claim to plain role is in
+ *     `features/auth/jwt.ts` (decodeJwtPrimaryRole) and constants.ROLES.
  *
  * Layout (top → bottom):
  *   1. Page-level watermark ("shopping_bag VIBE MART" at 3% opacity).
@@ -19,34 +36,38 @@ import { MaterialSymbol } from "@/components/ui/material-symbol";
  *   6. H1 heading.
  *   7. Explanatory paragraph.
  *   8. Two action buttons (primary → /trang-chu, ghost → /dang-nhap?ref=forbidden_retry).
- *   9. Role diagnostic capsule (session label + role badge + email + required role).
+ *   9. Role diagnostic capsule: session label, current role badge, real
+ *      user email (or "Chưa đăng nhập" for guests), required role.
  *  10. Support footer (mailto + tel).
- *
- * Deviations from Stitch (with rationale):
- *   - href "/"   → /trang-chu   (CLAUDE.md § 2: URL tiếng Việt không dấu)
- *   - href "/login" → /dang-nhap?ref=forbidden_retry (same reason)
- *   - Inline JS onclick → semantic <a> link (Next App Router RSC; no client JS needed)
- *
- * Tailwind-class notes:
- *   - We rely on the standard `font-sans` (set globally in layout.tsx to
- *     Be Vietnam Pro) instead of custom `font-display-lg`/`font-body-lg`/
- *     `font-headline-sm`/`font-label-*` tokens — those token class names
- *     are only generated when `--font-{name}` is declared in `@theme`,
- *     which the project has not yet done.
- *   - Custom `text-display-lg`/`text-body-lg`/`text-body-sm` (fontSize)
- *     ARE generated correctly via `--text-{name}` in `@theme`.
- *   - We use standard Tailwind spacing utilities (`gap-1`, `gap-2`, etc.)
- *     instead of custom `space-xs`/`space-sm`/`space-md` tokens for the
- *     same reason.
- *   - We use the `MaterialSymbol` helper for all icons so the
- *     `material-symbols-outlined` class is guaranteed to be referenced
- *     (and thus kept by Tailwind's JIT scan) via a centralised component.
- *   - We use inline `style` for the `bg-primary-fixed-dim/20` and
- *     `bg-secondary-container/30` glow blobs because Tailwind 4 opacity
- *     modifiers on custom-token colors require extra safelisting.
  */
 export function ForbiddenPage() {
   const t = useTranslations("error.forbidden");
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+
+  // ----- Resolve role labels (i18n) -----
+  const roleLabel = (role: Role): string => {
+    try {
+      return t(`role.${role}`);
+    } catch {
+      return t("sessionRole"); // legacy fallback
+    }
+  };
+
+  // ----- Current user display -----
+  const currentRole: Role = (user?.role as Role) ?? ROLES.BUYER;
+  const currentRoleLabel = roleLabel(currentRole);
+  const currentEmail = user?.email ?? t("notLoggedIn");
+
+  // ----- Required role (from ?required=ROLE query, else legacy fallback) -----
+  const requiredParam = searchParams.get("required");
+  const requiredRoleText = (() => {
+    if (requiredParam && (requiredParam === ROLES.BUYER || requiredParam === ROLES.SELLER || requiredParam === ROLES.ADMIN)) {
+      return roleLabel(requiredParam as Role);
+    }
+    // Legacy fallback (matches old hardcoded "STORE_ADMIN" via i18n key).
+    return t("requiredRole");
+  })();
 
   return (
     <>
@@ -181,8 +202,11 @@ export function ForbiddenPage() {
               </Link>
             </div>
 
-            {/* Quick Role Diagnostic Capsule */}
-            <div className="w-full max-w-md bg-surface-container-low rounded-xl p-4 shadow-sm mb-8 text-left">
+            {/* Quick Role Diagnostic Capsule (real data from useAuth + URL query) */}
+            <div
+              className="w-full max-w-md bg-surface-container-low rounded-xl p-4 shadow-sm mb-8 text-left"
+              data-testid="role-diagnostic-capsule"
+            >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-label-md text-on-surface-variant flex items-center gap-1">
                   <MaterialSymbol
@@ -192,16 +216,22 @@ export function ForbiddenPage() {
                   />
                   {t("sessionLabel")}
                 </span>
-                <span className="text-label-sm px-2 py-0.5 rounded bg-surface-container text-outline font-semibold uppercase">
-                  {t("sessionRole")}
+                <span
+                  className="text-label-sm px-2 py-0.5 rounded bg-surface-container text-outline font-semibold uppercase"
+                  data-testid="current-role-badge"
+                >
+                  {currentRoleLabel}
                 </span>
               </div>
-              <p className="text-body-sm text-outline truncate">
-                {t("sessionEmail")}
+              <p
+                className="text-body-sm text-outline truncate"
+                data-testid="session-detail"
+              >
+                <span data-testid="session-email">{currentEmail}</span>
                 {" • "}
                 {t("requiredRolePrefix")}{" "}
-                <span className="text-tertiary font-semibold">
-                  {t("requiredRole")}
+                <span className="text-tertiary font-semibold" data-testid="required-role">
+                  {requiredRoleText}
                 </span>
               </p>
             </div>
