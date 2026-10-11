@@ -82,7 +82,7 @@ export function FlashSaleStripSection() {
                 {/* Info */}
                 <div className="p-3 space-y-2">
                   <h3
-                    className="text-[14px] font-normal text-on-surface line-clamp-2 min-h-[40px] leading-tight group-hover:text-primary transition-colors"
+                    className="text-[14px] font-normal text-on-surface line-clamp-2 min-h-[40px] leading-tight text-clip group-hover:text-primary transition-colors"
                     title={deal.name}
                   >
                     {deal.name}
