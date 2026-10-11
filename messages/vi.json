@@ -246,10 +246,37 @@
     },
     "home": {
       "hero": {
+        "ariaLabel": "Banner khuyến mãi nổi bật",
         "badge": "Đại tiệc công nghệ & thời trang",
         "headline": "Siêu hội 10.10 – Giảm đến 50%",
         "subtext": "Hàng triệu deal sốc từ các thương hiệu chính hãng hàng đầu, tặng ngàn voucher vận chuyển 0đ.",
-        "cta": "Khám phá ngay"
+        "cta": "Khám phá ngay",
+        "slides": {
+          "0": {
+            "badge": "Đại tiệc công nghệ & thời trang",
+            "headline": "Siêu hội 10.10 – Giảm đến 50%",
+            "subtext": "Hàng triệu deal sốc từ các thương hiệu chính hãng hàng đầu, tặng ngàn voucher vận chuyển 0đ.",
+            "cta": "Khám phá ngay"
+          },
+          "1": {
+            "badge": "Flash Sale đang diễn ra",
+            "headline": "Săn deal 0đ mỗi giờ – Số lượng có hạn",
+            "subtext": "Hơn 200 phiên Flash Sale trong ngày, giá chỉ từ 9.000₫, giao nhanh trong 2 giờ.",
+            "cta": "Vào Flash Sale"
+          },
+          "2": {
+            "badge": "Voucher & Freeship Xtra",
+            "headline": "Giảm thêm đến 200K cho đơn đầu tiên",
+            "subtext": "Thu thập ngay voucher shop mới, freeship 0đ và mã giảm 15% toàn sàn – có hạn.",
+            "cta": "Lấy voucher"
+          },
+          "3": {
+            "badge": "Hàng mới về mỗi ngày",
+            "headline": "Cập nhật xu hướng – Deal hot từ brand yêu thích",
+            "subtext": "Hơn 50.000 sản phẩm mới mỗi tuần, freeship đồng giá 15K toàn quốc.",
+            "cta": "Khám phá ngay"
+          }
+        }
       },
       "sideBanners": {
         "freeshipTag": "Hỏa Tốc",
