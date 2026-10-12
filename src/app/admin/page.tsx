@@ -1,5 +1,9 @@
 import { EmptyState } from "@/components/common/EmptyState";
 
+/**
+ * Admin Console – Trang tổng quan.
+ * Render tại "/admin" (root của admin portal).
+ */
 export default function AdminOverviewPage() {
   return (
     <div className="space-y-4">
