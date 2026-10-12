@@ -391,3 +391,110 @@ describe("StorefrontHeader – cart count badge", () => {
     expect(badge).toHaveTextContent("99+");
   });
 });
+
+// ── Placeholder links: tất cả href="#" phải được gắn vào /bao-tri ─────
+//
+// Sau khi gắn các placeholder UI (Tải app, Facebook, Zalo, Ngôn ngữ,
+// Thông báo, Hãng nổi bật, Bán chạy, Trở thành người bán, search submit,
+// account dropdown, danh mục) vào /bao-tri?feature=<code>, MỌI link
+// trong header KHÔNG được có href="#". Test này chống regression nếu
+// ai đó vô tình thêm lại href="#" vào code mới.
+describe("StorefrontHeader – placeholder links (no href='#')", () => {
+  beforeEach(() => {
+    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    mockUseCartCount.mockReturnValue({ data: 0, isSuccess: true });
+  });
+
+  it("không có link nào có href='#' (unauthenticated)", () => {
+    withProviders(<StorefrontHeader />);
+    const links = screen.getAllByRole("link");
+    const deadLinks = links.filter((l) => l.getAttribute("href") === "#");
+    expect(deadLinks, `Found dead links: ${deadLinks.length}`).toHaveLength(0);
+  });
+
+  it("không có link nào có href='#' (authenticated)", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: {
+        id: "1",
+        email: "u@e.com",
+        fullName: "Minh Thư",
+        role: "BUYER",
+      },
+    });
+    withProviders(<StorefrontHeader />);
+    const links = screen.getAllByRole("link");
+    const deadLinks = links.filter((l) => l.getAttribute("href") === "#");
+    expect(deadLinks, `Found dead links: ${deadLinks.length}`).toHaveLength(0);
+  });
+
+  it("compact variant cũng không có href='#' (giỏ hàng/checkout)", () => {
+    withProviders(<StorefrontHeader variant="compact" />);
+    const links = screen.getAllByRole("link");
+    const deadLinks = links.filter((l) => l.getAttribute("href") === "#");
+    expect(deadLinks, `Found dead links: ${deadLinks.length}`).toHaveLength(0);
+  });
+
+  it("link Tải ứng dụng dẫn về /bao-tri?feature=download-app", () => {
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Tải ứng dụng/i });
+    expect(link).toHaveAttribute("href", "/bao-tri?feature=download-app");
+  });
+
+  it("link Thông báo dẫn về /bao-tri?feature=notifications", () => {
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Thông báo/i });
+    expect(link).toHaveAttribute("href", "/bao-tri?feature=notifications");
+  });
+
+  it("link Trở thành người bán dẫn về /bao-tri?feature=seller-register", () => {
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", {
+      name: /Trở thành Người bán Vibe Mart/i,
+    });
+    expect(link).toHaveAttribute("href", "/bao-tri?feature=seller-register");
+  });
+
+  it("nav pill 'Hàng mới về' (Danh mục) dẫn về /bao-tri?feature=category", () => {
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Hàng mới về/i });
+    expect(link).toHaveAttribute("href", "/bao-tri?feature=category");
+  });
+
+  it("nav pill 'Thương hiệu nổi bật' dẫn về /bao-tri?feature=featured-brands", () => {
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Thương hiệu nổi bật/i });
+    expect(link).toHaveAttribute("href", "/bao-tri?feature=featured-brands");
+  });
+
+  it("nav pill 'Bán chạy' dẫn về /bao-tri?feature=best-sellers", () => {
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Bán chạy/i });
+    expect(link).toHaveAttribute("href", "/bao-tri?feature=best-sellers");
+  });
+
+  it("avatar wrapper (khi auth) dẫn về /bao-tri?feature=account-dropdown", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+      user: {
+        id: "1",
+        email: "u@e.com",
+        fullName: "Minh Thư",
+        role: "BUYER",
+      },
+    });
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Minh Thư/i });
+    expect(link).toHaveAttribute(
+      "href",
+      "/bao-tri?feature=account-dropdown",
+    );
+  });
+});

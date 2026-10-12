@@ -231,6 +231,21 @@
       "supportPrompt": "Cần hỗ trợ ngay?",
       "supportLink": "Hỗ trợ khách hàng",
       "searchLink": "Tìm kiếm sản phẩm"
+    },
+    "maintenance": {
+      "codeBadge": "Mã tính năng: review:create",
+      "title": "Tính năng đang được nâng cấp",
+      "descriptionPrefix": "Chúng tôi đang hoàn thiện và tối ưu trải nghiệm ",
+      "descriptionHighlight": "Đánh giá sản phẩm",
+      "descriptionSuffix": " để phục vụ bạn trọn vẹn hơn. Xin vui lòng quay lại sau ít phút.",
+      "progressTitle": "Tiến trình nâng cấp tự động",
+      "progressBody": "Dự kiến hoàn tất trong chốc lát. Đơn hàng, giỏ hàng và các hoạt động mua sắm khác của bạn vẫn diễn ra bình thường và được đảm bảo an toàn tuyệt đối.",
+      "primaryAction": "Về trang chủ",
+      "secondaryAction": "Hỗ trợ trực tuyến 24/7",
+      "explorePrompt": "Trong lúc chờ đợi, bạn có thể khám phá thêm:",
+      "exploreFlashSale": "Flash Sale hôm nay",
+      "exploreBestSellers": "Sản phẩm bán chạy",
+      "exploreOrders": "Kiểm tra đơn hàng"
     }
   },
   "storefront": {

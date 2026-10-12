@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { cn } from "@/lib/utils";
-import { ROUTES } from "@/lib/constants";
+import { ROUTES, MAINTENANCE_FEATURE_CODES } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
 import { useCartCount } from "@/features/cart";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
@@ -50,7 +50,13 @@ export function StorefrontHeader({
   const detected: StorefrontNavKey = (() => {
     if (pathname.startsWith(ROUTES.FLASH_SALE)) return "flash-sale";
     if (pathname.startsWith(ROUTES.VOUCHERS)) return "voucher";
-    if (pathname.startsWith("/danh-muc")) return "category";
+    // Trang /danh-muc chưa có → pill "Danh mục" dẫn về /bao-tri?feature=category.
+    // Khi user đang ở /bao-tri với feature=category thì vẫn tô active "Danh mục".
+    if (
+      pathname.startsWith("/danh-muc") ||
+      pathname.includes(`feature=${MAINTENANCE_FEATURE_CODES.CATEGORY}`)
+    )
+      return "category";
     if (pathname === ROUTES.HOME || pathname === "/") return "home";
     return null;
   })();
@@ -77,7 +83,7 @@ export function StorefrontHeader({
           </Link>
           <div className="ml-auto flex items-center gap-3">
             <Link
-              href={ROUTES.SEARCH}
+              href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SEARCH_SUBMIT)}
               aria-label={t("searchPlaceholder")}
               className="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-low flex items-center justify-center"
             >
@@ -130,19 +136,35 @@ export function StorefrontHeader({
               {t("sellerChannel")}
             </Link>
             <span className="text-outline-variant">|</span>
-            <Link href={ROUTES.SELLER_REGISTER} className="hover:text-primary transition-colors">
+            <Link
+              href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SELLER_REGISTER)}
+              className="hover:text-primary transition-colors"
+            >
               {t("becomeSeller")}
             </Link>
             <span className="text-outline-variant">|</span>
-            <Link href="#" className="hover:text-primary transition-colors flex items-center gap-1">
+            <Link
+              href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.DOWNLOAD_APP)}
+              className="hover:text-primary transition-colors flex items-center gap-1"
+            >
               <MaterialSymbol name="download" size="[14px]" />
               {t("downloadApp")}
             </Link>
             <span className="text-outline-variant">|</span>
             <span className="flex items-center gap-1.5">
               <span>{t("connectLabel")}</span>
-              <Link href="#" className="hover:text-primary font-bold">Facebook</Link>
-              <Link href="#" className="hover:text-primary font-bold">Zalo</Link>
+              <Link
+                href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SOCIAL_FACEBOOK)}
+                className="hover:text-primary font-bold"
+              >
+                Facebook
+              </Link>
+              <Link
+                href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SOCIAL_ZALO)}
+                className="hover:text-primary font-bold"
+              >
+                Zalo
+              </Link>
             </span>
           </div>
           {/* Right links */}
@@ -155,11 +177,14 @@ export function StorefrontHeader({
               {t("supportPhone")}
             </Link>
             <span className="text-outline-variant">|</span>
-            <button className="flex items-center gap-1 cursor-pointer hover:text-primary text-on-surface-variant">
+            <Link
+              href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.LANGUAGE_SWITCH)}
+              className="flex items-center gap-1 cursor-pointer hover:text-primary text-on-surface-variant"
+            >
               <MaterialSymbol name="language" size="[14px]" />
               <span>{t("language")}</span>
               <MaterialSymbol name="expand_more" size="[12px]" />
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -185,29 +210,33 @@ export function StorefrontHeader({
             </Link>
 
             {/* Search bar */}
-            <div className="flex-1 max-w-2xl mx-2 lg:mx-0">
+            <form
+              action={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SEARCH_SUBMIT)}
+              className="flex-1 max-w-2xl mx-2 lg:mx-0"
+            >
               <div className="relative flex items-center">
                 <input
                   className="w-full h-10 pl-4 pr-12 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary text-body-md"
                   placeholder={t("searchPlaceholder")}
                   type="text"
+                  name="q"
                   aria-label={t("searchPlaceholder")}
                 />
                 <button
                   className="absolute right-1 top-1 h-8 w-10 bg-primary hover:bg-primary-container text-on-primary rounded-lg flex items-center justify-center transition-colors"
-                  type="button"
+                  type="submit"
                   aria-label={t("searchPlaceholder")}
                 >
                   <MaterialSymbol name="search" size="base" />
                 </button>
               </div>
-            </div>
+            </form>
 
             {/* Right icons + user */}
             <div className="flex items-center gap-3 lg:gap-4 shrink-0">
               {/* Notifications */}
               <Link
-                href="#"
+                href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.NOTIFICATIONS)}
                 className="relative p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-low flex items-center justify-center"
                 aria-label="Thông báo"
               >
@@ -234,7 +263,11 @@ export function StorefrontHeader({
 
               {/* User area: avatar + greeting khi auth, nút "Đăng nhập" khi chưa auth */}
               {isAuthenticated ? (
-                <div className="flex items-center gap-2 pl-2">
+                <Link
+                  href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.ACCOUNT_DROPDOWN)}
+                  className="flex items-center gap-2 pl-2 rounded-full hover:bg-surface-container-low transition-colors"
+                  aria-label={user?.fullName || t("greeting")}
+                >
                   <div className="text-right hidden sm:block">
                     <div className="text-label-lg text-on-surface leading-tight font-semibold">
                       {user?.fullName || t("greeting")}
@@ -257,7 +290,7 @@ export function StorefrontHeader({
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
                     />
                   )}
-                </div>
+                </Link>
               ) : (
                 <Link
                   href={ROUTES.LOGIN}
@@ -290,17 +323,17 @@ export function StorefrontHeader({
                 },
                 {
                   key: "category" as const,
-                  href: "/danh-muc",
+                  href: ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.CATEGORY),
                   label: t("nav.newArrivals"),
                 },
                 {
                   key: null,
-                  href: "#",
+                  href: ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.FEATURED_BRANDS),
                   label: t("nav.featuredBrands"),
                 },
                 {
                   key: null,
-                  href: "#",
+                  href: ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.BEST_SELLERS),
                   label: t("nav.bestSellers"),
                 },
                 {
