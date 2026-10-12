@@ -231,6 +231,21 @@
       "supportPrompt": "Need help?",
       "supportLink": "Customer support",
       "searchLink": "Search products"
+    },
+    "maintenance": {
+      "codeBadge": "Feature code: review:create",
+      "title": "Feature being upgraded",
+      "descriptionPrefix": "We're polishing and improving the ",
+      "descriptionHighlight": "Product reviews",
+      "descriptionSuffix": " experience to serve you better. Please come back in a few minutes.",
+      "progressTitle": "Auto-upgrade in progress",
+      "progressBody": "Expected to complete shortly. Your orders, cart, and other shopping activities continue normally and are guaranteed absolutely safe.",
+      "primaryAction": "Back to home",
+      "secondaryAction": "24/7 Live support",
+      "explorePrompt": "While you wait, you can explore:",
+      "exploreFlashSale": "Today's Flash Sale",
+      "exploreBestSellers": "Best sellers",
+      "exploreOrders": "Check orders"
     }
   },
   "storefront": {

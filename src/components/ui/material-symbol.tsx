@@ -85,7 +85,14 @@ export type MaterialSymbolName =
   // 404 page
   | "arrow_back"
   | "info"
-  | "manage_search";
+  | "manage_search"
+  // Maintenance page
+  | "terminal"
+  | "build"
+  | "auto_awesome"
+  | "arrow_back_ios_new"
+  | "update"
+  | "package_2";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
