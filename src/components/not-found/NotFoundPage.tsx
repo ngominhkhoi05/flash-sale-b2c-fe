@@ -13,62 +13,24 @@ import { Error404Illustration } from "./Error404Illustration";
  * from project `15206106541998912100` (Vibe Mart Marketplace UI/UX).
  *
  * Layout (top → bottom):
- *   1. Page-level watermark ("shopping_bag VIBE MART" at 3% opacity).
- *   2. Two soft glow blobs (primary-fixed 40% top, secondary-fixed 30% lower-left).
- *   3. Brand pill: icon + "VIBE MART" + dot + "Lỗi 404".
- *   4. SVG 404 centerpiece: two "4" digits + magnifying-glass "0"
+ *   1. Brand pill: icon + "VIBE MART" + dot + "Lỗi 404".
+ *   2. SVG 404 centerpiece: two "4" digits + magnifying-glass "0"
  *      with a sad package inside the lens (see Error404Illustration).
- *   5. H1 title "Không tìm thấy trang" + description.
- *   6. Two actions:
+ *   3. H1 title "Không tìm thấy trang" + description.
+ *   4. Two actions:
  *      - Primary "Về trang chủ" → /trang-chu (CLAUDE.md §2: Storefront home).
  *      - Secondary "Quay lại" button (uses `history.back()`).
- *   7. Hints row: "Gợi ý: …" + 2 quick-links "Hỗ trợ khách hàng"
+ *   5. Hints row: "Gợi ý: …" + 2 quick-links "Hỗ trợ khách hàng"
  *      and "Tìm kiếm sản phẩm" separated by a dot.
  */
 export function NotFoundPage() {
   const t = useTranslations("error.notFound");
 
   return (
-    <>
-      {/* Page-level brand watermark (3% opacity, decorative) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 flex items-center justify-center opacity-[0.03] select-none z-0"
-      >
-        <div className="flex items-center gap-2">
-          <MaterialSymbol
-            name="shopping_bag"
-            size="[120px]"
-            className="text-primary"
-          />
-          <span className="text-[100px] font-bold tracking-tight text-primary">
-            VIBE MART
-          </span>
-        </div>
-      </div>
-
-      <main className="relative z-10 w-full min-h-screen flex items-center justify-center p-6">
-        <div className="flex flex-col w-full items-center justify-center py-6 px-4">
-          <div className="relative w-full max-w-xl mx-auto flex flex-col items-center text-center">
-            {/* Ambient glowing backdrop for depth (Stitch: bg-primary-fixed/40 + bg-secondary-fixed/30) */}
-            <div
-              aria-hidden="true"
-              className="absolute -top-16 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full blur-3xl pointer-events-none -z-10"
-              style={{
-                background:
-                  "color-mix(in srgb, var(--color-primary-fixed) 40%, transparent)",
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute top-32 left-1/3 w-64 h-64 rounded-full blur-3xl pointer-events-none -z-10"
-              style={{
-                background:
-                  "color-mix(in srgb, var(--color-secondary-fixed) 30%, transparent)",
-              }}
-            />
-
-            {/* Vibe Mart Subtle Brand Monogram */}
+    <main className="relative z-10 w-full min-h-screen flex items-center justify-center p-6">
+      <div className="flex flex-col w-full items-center justify-center py-6 px-4">
+        <div className="relative w-full max-w-xl mx-auto flex flex-col items-center text-center">
+          {/* Vibe Mart Subtle Brand Monogram */}
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-container shadow-sm mb-6">
               <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center text-on-primary">
                 <MaterialSymbol
@@ -172,7 +134,6 @@ export function NotFoundPage() {
           </div>
         </div>
       </main>
-    </>
   );
 }
 

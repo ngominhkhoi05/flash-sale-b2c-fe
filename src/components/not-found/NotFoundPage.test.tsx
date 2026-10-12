@@ -71,10 +71,9 @@ describe("NotFoundPage – Stitch pixel-perfect", () => {
 
   it("renders the brand pill (VIBE MART + Lỗi 404)", () => {
     renderWithIntl(<NotFoundPage />);
-    // "VIBE MART" appears in BOTH the brand pill AND the page-level watermark.
-    // Use getAllByText to assert the brand pill is present (the watermark is
-    // aria-hidden, so it's still in the DOM but accessible-name is empty).
-    expect(screen.getAllByText("VIBE MART").length).toBeGreaterThanOrEqual(1);
+    // "VIBE MART" appears in the brand pill only (the page-level watermark
+    // and ambient glow blobs were removed in favor of a cleaner layout).
+    expect(screen.getByText("VIBE MART")).toBeInTheDocument();
     expect(screen.getByText("Lỗi 404")).toBeInTheDocument();
   });
 
