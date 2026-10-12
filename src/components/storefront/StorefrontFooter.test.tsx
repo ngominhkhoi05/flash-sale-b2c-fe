@@ -197,3 +197,74 @@ describe("StorefrontFooter – i18n key completeness", () => {
     expect(container).toBeInTheDocument();
   });
 });
+
+// ── Placeholder links: 3 link /ho-tro/<sub-route> + App Store/Google Play
+// phải dẫn về /bao-tri?feature=<code>. Tất cả 5 link trong footer
+// KHÔNG được trỏ đến route chưa tồn tại.
+describe("StorefrontFooter – placeholder links (route to /bao-tri)", () => {
+  it("'Hướng dẫn đặt hàng' dẫn về /bao-tri?feature=help-shopping-guide", () => {
+    renderFooter("vi");
+    const link = screen.getByRole("link", {
+      name: /Hướng dẫn đặt hàng & Thanh toán/i,
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      "/bao-tri?feature=help-shopping-guide",
+    );
+  });
+
+  it("'Chính sách vận chuyển' dẫn về /bao-tri?feature=help-shipping-policy", () => {
+    renderFooter("vi");
+    const link = screen.getByRole("link", {
+      name: /Chính sách vận chuyển & Giao nhận/i,
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      "/bao-tri?feature=help-shipping-policy",
+    );
+  });
+
+  it("'Chính sách bảo hành' dẫn về /bao-tri?feature=help-return-policy", () => {
+    renderFooter("vi");
+    const link = screen.getByRole("link", {
+      name: /Chính sách bảo hành & Đổi trả/i,
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      "/bao-tri?feature=help-return-policy",
+    );
+  });
+
+  it("App Store là <a> (không phải <span role='link'>) dẫn về app-store feature", () => {
+    renderFooter("vi");
+    const appStoreLinks = screen
+      .getAllByRole("link")
+      .filter((l) => l.textContent?.includes("App Store"));
+    expect(appStoreLinks.length).toBeGreaterThan(0);
+    const realLink = appStoreLinks[0];
+    expect(realLink.tagName).toBe("A");
+    expect(realLink).toHaveAttribute("href", "/bao-tri?feature=app-store");
+  });
+
+  it("Google Play là <a> dẫn về google-play feature", () => {
+    renderFooter("vi");
+    const playLinks = screen
+      .getAllByRole("link")
+      .filter((l) => l.textContent?.includes("Google Play"));
+    expect(playLinks.length).toBeGreaterThan(0);
+    const realLink = playLinks[0];
+    expect(realLink.tagName).toBe("A");
+    expect(realLink).toHaveAttribute("href", "/bao-tri?feature=google-play");
+  });
+
+  it("footer KHÔNG có link nào trỏ đến /ho-tro/<sub-route> (đã gắn hết)", () => {
+    renderFooter("vi");
+    const links = screen.getAllByRole("link");
+    const hoTroLinks = links.filter(
+      (l) =>
+        l.getAttribute("href")?.startsWith("/ho-tro/") &&
+        l.getAttribute("href") !== "/ho-tro",
+    );
+    expect(hoTroLinks, `Found dead: ${hoTroLinks.map((l) => l.getAttribute("href")).join(", ")}`).toHaveLength(0);
+  });
+});

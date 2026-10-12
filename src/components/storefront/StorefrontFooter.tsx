@@ -23,8 +23,10 @@
  * - §10 a11y: <footer role="contentinfo"> + <h3> column headings + aria-label for icon-only links
  */
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { ROUTES, MAINTENANCE_FEATURE_CODES } from "@/lib/constants";
 
 /** Payment gateway labels (display strings; no enum mapping needed). */
 const PAYMENT_METHODS = ["Visa", "Mastercard", "MoMo", "ZaloPay", "VNPay", "COD"] as const;
@@ -97,19 +99,25 @@ export function StorefrontFooter() {
                 {tfLinks("helpCenter")}
               </a>
               <a
-                href="/ho-tro/huong-dan-dat-hang"
+                href={ROUTES.MAINTENANCE(
+                  MAINTENANCE_FEATURE_CODES.HELP_SHOPPING_GUIDE,
+                )}
                 className="text-on-surface-variant hover:text-primary text-body-sm transition-colors"
               >
                 {tfLinks("shoppingGuide")}
               </a>
               <a
-                href="/ho-tro/chinh-sach-van-chuyen"
+                href={ROUTES.MAINTENANCE(
+                  MAINTENANCE_FEATURE_CODES.HELP_SHIPPING_POLICY,
+                )}
                 className="text-on-surface-variant hover:text-primary text-body-sm transition-colors"
               >
                 {tfLinks("shippingPolicy")}
               </a>
               <a
-                href="/ho-tro/chinh-sach-bao-hanh"
+                href={ROUTES.MAINTENANCE(
+                  MAINTENANCE_FEATURE_CODES.HELP_RETURN_POLICY,
+                )}
                 className="text-on-surface-variant hover:text-primary text-body-sm transition-colors"
               >
                 {tfLinks("returnPolicy")}
@@ -166,22 +174,22 @@ export function StorefrontFooter() {
                 {tf("qrPlaceholder")}
               </div>
               <div className="flex flex-col gap-1.5">
-                <span
+                <Link
+                  href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.APP_STORE)}
                   className="px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded text-label-sm cursor-pointer transition-colors flex items-center gap-1.5"
-                  role="link"
-                  aria-label={tf("appStore")}
                 >
                   <MaterialSymbol name="phone_iphone" size="[16px]" label="iOS" />
                   {tf("appStore")}
-                </span>
-                <span
+                </Link>
+                <Link
+                  href={ROUTES.MAINTENANCE(
+                    MAINTENANCE_FEATURE_CODES.GOOGLE_PLAY,
+                  )}
                   className="px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded text-label-sm cursor-pointer transition-colors flex items-center gap-1.5"
-                  role="link"
-                  aria-label={tf("googlePlay")}
                 >
                   <MaterialSymbol name="android" size="[16px]" label="Android" />
                   {tf("googlePlay")}
-                </span>
+                </Link>
               </div>
             </div>
             <div className="mt-2">
