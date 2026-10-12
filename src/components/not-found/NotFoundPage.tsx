@@ -41,7 +41,10 @@ export function NotFoundPage() {
               priority
               className="h-7 w-auto"
             />
-            <span className="w-1 h-4 bg-outline-variant" aria-hidden />
+            <span
+              className="inline-block w-px h-4 bg-outline-variant"
+              aria-hidden
+            />
             <span className="text-label-sm uppercase tracking-wider text-outline">
               {t("idBadge")}
             </span>
