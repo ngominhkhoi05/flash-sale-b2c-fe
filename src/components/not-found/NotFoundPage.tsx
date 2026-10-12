@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { Error404Illustration } from "./Error404Illustration";
@@ -13,7 +14,7 @@ import { Error404Illustration } from "./Error404Illustration";
  * from project `15206106541998912100` (Vibe Mart Marketplace UI/UX).
  *
  * Layout (top → bottom):
- *   1. Brand pill: icon + "VIBE MART" + dot + "Lỗi 404".
+ *   1. Brand pill: Vibe Mart default logo (lockup-light) + divider + "Lỗi 404".
  *   2. SVG 404 centerpiece: two "4" digits + magnifying-glass "0"
  *      with a sad package inside the lens (see Error404Illustration).
  *   3. H1 title "Không tìm thấy trang" + description.
@@ -30,23 +31,21 @@ export function NotFoundPage() {
     <main className="relative z-10 w-full min-h-screen flex items-center justify-center p-6">
       <div className="flex flex-col w-full items-center justify-center py-6 px-4">
         <div className="relative w-full max-w-xl mx-auto flex flex-col items-center text-center">
-          {/* Vibe Mart Subtle Brand Monogram */}
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-container shadow-sm mb-6">
-              <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center text-on-primary">
-                <MaterialSymbol
-                  name="shopping_bag"
-                  size="[16px]"
-                  className="text-on-primary"
-                />
-              </div>
-              <span className="text-headline-sm font-bold text-on-surface tracking-tight">
-                {t("brandTag")}
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-              <span className="text-label-sm uppercase tracking-wider text-outline">
-                {t("idBadge")}
-              </span>
-            </div>
+          {/* Vibe Mart Default Logo + 404 badge pill */}
+          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-surface-container shadow-sm mb-6">
+            <Image
+              src="/images/vibe-mart-logo-lockup-light.png"
+              alt="Vibe Mart"
+              width={96}
+              height={28}
+              priority
+              className="h-7 w-auto"
+            />
+            <span className="w-1 h-4 bg-outline-variant" aria-hidden />
+            <span className="text-label-sm uppercase tracking-wider text-outline">
+              {t("idBadge")}
+            </span>
+          </div>
 
             {/* Massive 404 Typography with Outline & SVG Integration */}
             <div className="relative flex items-center justify-center my-2 select-none">

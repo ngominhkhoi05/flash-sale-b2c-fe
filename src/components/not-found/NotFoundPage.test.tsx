@@ -69,11 +69,17 @@ describe("NotFoundPage – Stitch pixel-perfect", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the brand pill (VIBE MART + Lỗi 404)", () => {
+  it("renders the brand pill (Vibe Mart logo + Lỗi 404)", () => {
     renderWithIntl(<NotFoundPage />);
-    // "VIBE MART" appears in the brand pill only (the page-level watermark
-    // and ambient glow blobs were removed in favor of a cleaner layout).
-    expect(screen.getByText("VIBE MART")).toBeInTheDocument();
+    // Brand pill now shows the default Vibe Mart logo lockup image plus the
+    // "Lỗi 404" badge text. Logo is rendered via next/image, so we assert
+    // the img alt and the text badge.
+    const logo = screen.getByRole("img", { name: /Vibe Mart/i });
+    expect(logo).toBeInTheDocument();
+    expect(logo).toHaveAttribute(
+      "src",
+      expect.stringContaining("vibe-mart-logo-lockup-light.png")
+    );
     expect(screen.getByText("Lỗi 404")).toBeInTheDocument();
   });
 
