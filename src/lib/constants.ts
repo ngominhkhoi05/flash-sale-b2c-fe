@@ -277,6 +277,41 @@ export const FEATURE_CODES = {
 export type FeatureCode = (typeof FEATURE_CODES)[keyof typeof FEATURE_CODES];
 
 // =========================================================
+// Maintenance feature codes – dùng cho /bao-tri?feature=<code>
+// Mỗi code ánh xạ 1 placeholder UI trong header/footer chưa có
+// trang thật. Khi user bấm link href="#" hoặc route chưa implement,
+// sẽ redirect về /bao-tri?feature=<code> kèm nhãn tiếng Việt/Anh.
+// =========================================================
+export const MAINTENANCE_FEATURE_CODES = {
+  DOWNLOAD_APP: "download-app",
+  SOCIAL_FACEBOOK: "social-facebook",
+  SOCIAL_ZALO: "social-zalo",
+  LANGUAGE_SWITCH: "language-switch",
+  NOTIFICATIONS: "notifications",
+  CATEGORY: "category",
+  FEATURED_BRANDS: "featured-brands",
+  BEST_SELLERS: "best-sellers",
+  ACCOUNT_DROPDOWN: "account-dropdown",
+  SEARCH_SUBMIT: "search-submit",
+  HELP_SHOPPING_GUIDE: "help-shopping-guide",
+  HELP_SHIPPING_POLICY: "help-shipping-policy",
+  HELP_RETURN_POLICY: "help-return-policy",
+  APP_STORE: "app-store",
+  GOOGLE_PLAY: "google-play",
+  SELLER_REGISTER: "seller-register",
+} as const;
+export type MaintenanceFeatureCode =
+  (typeof MAINTENANCE_FEATURE_CODES)[keyof typeof MAINTENANCE_FEATURE_CODES];
+
+/** Type guard: kiểm tra string có phải maintenance feature code hợp lệ không. */
+export function isMaintenanceFeatureCode(
+  value: string | null | undefined,
+): value is MaintenanceFeatureCode {
+  if (!value) return false;
+  return (Object.values(MAINTENANCE_FEATURE_CODES) as string[]).includes(value);
+}
+
+// =========================================================
 // Routes (path tiếng Việt không dấu, rule §2)
 // =========================================================
 export const ROUTES = {

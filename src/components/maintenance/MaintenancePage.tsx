@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { MaintenanceIllustration } from "./MaintenanceIllustration";
+import { getMaintenanceFeatureLabel } from "./feature-code";
+import type { MaintenanceFeatureCode } from "@/lib/constants";
 
 /**
  * MaintenancePage – 503 / "feature being upgraded" screen
@@ -15,13 +17,21 @@ import { MaintenanceIllustration } from "./MaintenanceIllustration";
  *
  * Layout (top → bottom):
  *   1. Centerpiece illustration (spinner + halos + build badge).
- *   2. Feature code sub-pill ("Mã tính năng: review:create").
+ *   2. Feature code sub-pill ("Mã tính năng: <code>").
  *   3. H1 title.
  *   4. Description paragraph (with highlighted feature name).
  *   5. Auto-progress info card (icon + title + body).
  *   6. Action buttons: primary → /trang-chu, secondary → /trung-tam-tro-giup.
  *   7. "In the meantime" section: lead text + 3 quick-link pills
  *      (Flash Sale, Best sellers, Check orders).
+ *
+ * Feature code (optional):
+ * - Khi page được mở qua `?feature=<code>` từ link placeholder
+ *   trong header/footer, prop `featureCode` sẽ thay đổi:
+ *     • sub-pill hiển thị "Mã tính năng: <code>"
+ *     • description highlight đổi sang label tiếng Việt/Anh tương ứng
+ * - Nếu prop không truyền → fallback mặc định "Đánh giá sản phẩm"
+ *   (giữ behavior cũ, backward-compatible với test hiện tại).
  *
  * Deviations from Stitch (mirrors the ForbiddenPage / NotFoundPage pattern):
  *   - `bg-primary-fixed/40` opacity modifier → inline `color-mix()` because
@@ -36,8 +46,26 @@ import { MaintenanceIllustration } from "./MaintenanceIllustration";
  *   - `animate-[spin_20s_linear_infinite]` arbitrary value → `animate-spin`
  *     (default 1s) with inline `style.animationDuration: "20s"`.
  */
-export function MaintenancePage() {
+export interface MaintenancePageProps {
+  /** Mã tính năng từ URL `?feature=<code>`. Optional. */
+  featureCode?: MaintenanceFeatureCode | string | null;
+}
+
+export function MaintenancePage({ featureCode }: MaintenancePageProps = {}) {
   const t = useTranslations("error.maintenance");
+  const locale = useLocale() as "vi" | "en";
+
+  // Resolve feature label (locale-aware) nếu có code hợp lệ.
+  // Fallback về key i18n `descriptionHighlight` mặc định khi:
+  //  - prop không truyền
+  //  - code không nằm trong MAINTENANCE_FEATURE_CODES enum
+  const resolvedLabel = featureCode
+    ? getMaintenanceFeatureLabel(featureCode, locale)
+    : null;
+  const highlight = resolvedLabel ?? t("descriptionHighlight");
+  const codeBadgeText = featureCode
+    ? `${t("codeBadge")}: ${featureCode}`
+    : t("codeBadge");
 
   return (
     <main className="w-full min-h-screen flex items-center justify-center py-8 px-4 lg:px-8">
@@ -53,7 +81,7 @@ export function MaintenancePage() {
             className="text-primary"
           />
           <span className="text-label-sm font-semibold tracking-wide">
-            {t("codeBadge")}
+            {codeBadgeText}
           </span>
         </div>
 
@@ -66,7 +94,7 @@ export function MaintenancePage() {
         <p className="text-body-lg text-on-surface-variant max-w-lg mb-6 leading-relaxed">
           {t("descriptionPrefix")}
           <span className="text-label-lg text-on-surface">
-            {t("descriptionHighlight")}
+            {highlight}
           </span>
           {t("descriptionSuffix")}
         </p>
