@@ -1,100 +1,142 @@
 /**
  * ProductShareBar – Section 5.
- * Share icon + Wishlist heart toggle.
- * Emits `onCopyLink()` on share click.
+ * Layout (Stitch): `flex items-center justify-between pt-2 text-on-surface-variant font-body-sm`
+ * Left: "Chia sẻ:" label + 3 icon buttons (Facebook share, Messenger chat, link copy).
+ * Right: Wishlist heart (tertiary, FILL=1) + "Đã thích (1,4k)" text.
+ *
+ * Click "link" → `navigator.clipboard.writeText(window.location.href)` + alert.
  */
 "use client";
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 export interface ProductShareBarProps {
-  productName: string;
-  isWishlisted?: boolean;
-  onToggleWishlist?: () => void;
-  onShare?: () => void;
+  likedCount: string;
   className?: string;
 }
 
 export function ProductShareBar({
-  productName,
-  isWishlisted = false,
-  onToggleWishlist,
-  onShare,
+  likedCount,
   className,
 }: ProductShareBarProps) {
   const t = useTranslations("productDetail.share");
   const wishlistT = useTranslations("productDetail.wishlist");
-  const [wishlisted, setWishlisted] = useState(isWishlisted);
 
-  function handleToggle() {
-    setWishlisted((prev) => !prev);
-    onToggleWishlist?.();
-  }
-
-  function handleShare() {
-    if (navigator.share) {
-      navigator.share({ title: productName, url: window.location.href });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      onShare?.();
+  function handleCopyLink() {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href).catch(() => {
+        // Clipboard write may fail (insecure context, permissions); swallow.
+      });
+      window.alert(t("copied"));
     }
   }
 
   return (
     <div
       className={cn(
-        "flex items-center gap-3 text-sm text-ink-2",
-        className
+        "flex items-center justify-between pt-2 text-body-sm text-on-surface-variant",
+        className,
       )}
     >
-      <span className="text-ink-3">{t("label")}</span>
+      {/* Left: Share */}
+      <div className="flex items-center gap-2">
+        <span className="font-label-sm text-outline">{t("label")}</span>
+        <ShareIconButton title="Facebook">
+          <ShareIcon className="h-3.5 w-3.5" />
+        </ShareIconButton>
+        <ShareIconButton title="Messenger">
+          <ChatIcon className="h-3.5 w-3.5" />
+        </ShareIconButton>
+        <ShareIconButton title="Sao chép link" onClick={handleCopyLink}>
+          <LinkIcon className="h-3.5 w-3.5" />
+        </ShareIconButton>
+      </div>
 
-      {/* Share */}
-      <button
-        type="button"
-        onClick={handleShare}
-        aria-label={t("label")}
-        className="flex items-center gap-1.5 hover:text-brand transition-colors"
-      >
-        <ShareIcon className="w-4 h-4" />
-      </button>
-
-      <span className="text-line">|</span>
-
-      {/* Wishlist */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        aria-label={wishlisted ? wishlistT("liked") : wishlistT("count")}
-        aria-pressed={wishlisted}
-        className={cn(
-          "flex items-center gap-1.5 transition-colors",
-          wishlisted ? "text-danger" : "hover:text-danger"
-        )}
-      >
-        <HeartIcon
-          className={cn("w-4 h-4", wishlisted && "fill-current")}
-        />
-        <span className="text-xs">{wishlistT("count")}</span>
-      </button>
+      {/* Right: Wishlist */}
+      <div className="flex cursor-pointer items-center gap-1.5 text-tertiary hover:opacity-80">
+        <HeartFilledIcon className="h-5 w-5" />
+        <span className="font-label-md font-semibold text-on-surface">
+          {wishlistT("liked")} {likedCount}
+        </span>
+      </div>
     </div>
   );
 }
 
+function ShareIconButton({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container text-primary transition-colors hover:bg-surface-container-high"
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Inline SVG icons (Material Symbols outline-style) ────────────────────
+
 function ShareIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M15.75 4.5a.75.75 0 0 1 .75.75v8.69c.393.127.762.295 1.095.504l5.657-5.657a.75.75 0 1 1 1.06 1.06l-5.657 5.657a7.502 7.502 0 0 1-1.138 1.102.75.75 0 0 1-1.067-.414V5.25a.75.75 0 0 1 .75-.75ZM4.5 15.75a.75.75 0 0 1 .75-.75h11.94a2.61 2.61 0 0 0-.408-1.136l-4.19-4.192a.75.75 0 0 1 1.06-1.06l4.19 4.192A3.61 3.61 0 0 1 18.44 15H5.25a.75.75 0 0 1 0-1.5h7.44a1.88 1.88 0 0 0 1.03-2.942l-5.657-5.657a.75.75 0 1 1 1.06-1.06l5.657 5.657c.355.355.635.785.835 1.267H5.25a.75.75 0 0 1 0-1.5h8.69a2.61 2.61 0 0 0-.504-1.096l-4.19-4.192a.75.75 0 0 1 1.06-1.06l4.19 4.192A3.61 3.61 0 0 1 15 5.25a.75.75 0 0 1-.75.75H4.5Z" clipRule="evenodd" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92Z" />
     </svg>
   );
 }
 
-function HeartIcon({ className }: { className?: string }) {
+function ChatIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2Zm-2 12H6v-2h12v2Zm0-3H6V9h12v2Zm0-3H6V6h12v2Z" />
+    </svg>
+  );
+}
+
+function LinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1ZM8 13h8v-2H8v2Zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5Z" />
+    </svg>
+  );
+}
+
+function HeartFilledIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={{ fontVariationSettings: "'FILL' 1" }}
+      className={className}
+    >
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
     </svg>
   );
 }

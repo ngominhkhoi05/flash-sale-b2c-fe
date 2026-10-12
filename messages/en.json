@@ -430,9 +430,9 @@
       "sku": "SKU"
     },
     "rating": {
-      "reviews": "(326 reviews)",
+      "reviews": "({count} reviews)",
       "sold": "Sold",
-      "questions": "questions answered"
+      "questions": "{count} questions"
     },
     "pricing": {
       "flashBanner": "FLASH SALE GOLDEN HOUR",
@@ -467,7 +467,7 @@
     },
     "quantity": {
       "label": "Quantity:",
-      "inStock": "{count} products in stock"
+      "inStock": "<bold>{count}</bold> products in stock"
     },
     "cta": {
       "addToCart": "Add to Cart",

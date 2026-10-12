@@ -16,28 +16,34 @@ const MOCK_SHIPPING: ShippingInfo = {
 };
 
 describe("ProductShipping", () => {
-  it("renders freeship badge + text", () => {
+  it("renders the 'Vận Chuyển:' label from i18n", () => {
+    renderWithIntl(<ProductShipping shipping={MOCK_SHIPPING} />);
+    expect(screen.getByText(/Vận Chuyển:/)).toBeInTheDocument();
+  });
+
+  it("renders FREESHIP XTRA badge with freeship text", () => {
     renderWithIntl(<ProductShipping shipping={MOCK_SHIPPING} />);
     expect(screen.getByText("FREESHIP XTRA")).toBeInTheDocument();
-    expect(screen.getByText(/Miễn phí vận chuyển/)).toBeInTheDocument();
+    expect(screen.getByText(/Miễn phí vận chuyển đơn từ 150K/)).toBeInTheDocument();
   });
 
-  it("renders ship-to address", () => {
+  it("renders ship-to row with location icon and address", () => {
     renderWithIntl(<ProductShipping shipping={MOCK_SHIPPING} />);
+    expect(screen.getByText(/Vận chuyển tới:/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Phường Tăng Nhơn Phú B/)
+      screen.getByText(/Phường Tăng Nhơn Phú B, TP. Thủ Đức/)
     ).toBeInTheDocument();
   });
 
-  it("renders estimated delivery time", () => {
+  it("renders 'Đổi địa chỉ' link (primary color)", () => {
     renderWithIntl(<ProductShipping shipping={MOCK_SHIPPING} />);
+    const changeLink = screen.getByRole("button", { name: /Đổi địa chỉ/ });
+    expect(changeLink).toBeInTheDocument();
+  });
+
+  it("renders estimated delivery row with time + schedule icon", () => {
+    renderWithIntl(<ProductShipping shipping={MOCK_SHIPPING} />);
+    expect(screen.getByText(/Thời gian nhận dự kiến:/)).toBeInTheDocument();
     expect(screen.getByText(/1 - 2 ngày làm việc/)).toBeInTheDocument();
-  });
-
-  it("renders 'Đổi địa chỉ' button", () => {
-    renderWithIntl(<ProductShipping shipping={MOCK_SHIPPING} />);
-    expect(
-      screen.getByRole("button", { name: /Đổi địa chỉ/ })
-    ).toBeInTheDocument();
   });
 });

@@ -9,51 +9,43 @@ function renderWithIntl(ui: React.ReactElement) {
 }
 
 describe("ProductVariantSwitcher", () => {
-  it("renders both options", () => {
-    const onModeChange = vi.fn();
+  it("renders both standard and flash options", () => {
+    const onChange = vi.fn();
     renderWithIntl(
-      <ProductVariantSwitcher
-        mode="standard"
-        onModeChange={onModeChange}
-      />
+      <ProductVariantSwitcher value="flash" onChange={onChange} />,
     );
-    expect(screen.getByRole("button", { name: /Biến thể A/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Biến thể B/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Biến thể A/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Biến thể B/i }),
+    ).toBeInTheDocument();
   });
 
-  it("calls onModeChange with 'flash' when B is clicked", async () => {
+  it("emits onChange('flash') when flash button clicked", async () => {
     const user = userEvent.setup();
-    const onModeChange = vi.fn();
+    const onChange = vi.fn();
     renderWithIntl(
-      <ProductVariantSwitcher
-        mode="standard"
-        onModeChange={onModeChange}
-      />
+      <ProductVariantSwitcher value="standard" onChange={onChange} />,
     );
     await user.click(screen.getByRole("button", { name: /Biến thể B/i }));
-    expect(onModeChange).toHaveBeenCalledWith("flash");
+    expect(onChange).toHaveBeenCalledWith("flash");
   });
 
-  it("calls onModeChange with 'standard' when A is clicked", async () => {
+  it("emits onChange('standard') when standard button clicked", async () => {
     const user = userEvent.setup();
-    const onModeChange = vi.fn();
+    const onChange = vi.fn();
     renderWithIntl(
-      <ProductVariantSwitcher
-        mode="flash"
-        onModeChange={onModeChange}
-      />
+      <ProductVariantSwitcher value="flash" onChange={onChange} />,
     );
     await user.click(screen.getByRole("button", { name: /Biến thể A/i }));
-    expect(onModeChange).toHaveBeenCalledWith("standard");
+    expect(onChange).toHaveBeenCalledWith("standard");
   });
 
-  it('aria-pressed is true for active mode, false for inactive', () => {
-    const onModeChange = vi.fn();
+  it("selected option has aria-pressed=true; non-selected has aria-pressed=false", () => {
+    const onChange = vi.fn();
     renderWithIntl(
-      <ProductVariantSwitcher
-        mode="standard"
-        onModeChange={onModeChange}
-      />
+      <ProductVariantSwitcher value="standard" onChange={onChange} />,
     );
     const btnA = screen.getByRole("button", { name: /Biến thể A/i });
     const btnB = screen.getByRole("button", { name: /Biến thể B/i });

@@ -414,3 +414,37 @@ Mỗi subplan = 1 subagent = 1 concern độc lập, dispatch song song nếu kh
 - BE gap plan: `docs/superpowers/plans/2026-10-12-product-detail-be-required.md`
 - Pattern reference: `docs/superpowers/plans/2026-10-12-not-found-page-stitch.md`
 - Stitch workflow: `.cursor/rules/stitch-workflow.mdc`
+
+---
+
+## 13. Status: DONE (2026-10-12)
+
+**Branch**: `feature/product-detail-stitch-100pct` (off `feature/product-detail-stitch` merged via PR #31).
+
+**Scope shipped (this branch over PR #31)**:
+- 16 sub-components under `src/components/product-detail/` (Breadcrumb, VariantSwitcher, Gallery, ShareBar, Commitments, HeaderInfo, PricingBox [A+B], Vouchers, Shipping, VariantSelectors, QuantityStepper, CtaButtons, StoreCard, SpecsTable, DescriptionCard).
+- `ProductDetailPage` orchestrator (Client Component, Next 16 async params) with state for variant/quantity/colour/size.
+- `/products/[slug]` Server Component route at `src/app/(storefront)/products/[slug]/page.tsx`.
+- i18n: `productDetail.*` namespace extended for both `vi.json` and `en.json`.
+- ProductDetail types, mock fixtures, `useProductDetail` hook (from SP1, merged via PR #31).
+
+**File counts** (this branch only):
+- 9 component pairs (.tsx + .test.tsx) newly added: CtaButtons, DescriptionCard, DetailPage, HeaderInfo, QuantityStepper, SpecsTable, StoreCard, VariantSelectors + ProductDetailPage.
+- 8 component pairs (.tsx + .test.tsx) modified: Breadcrumb, Commitments, Gallery, PricingBox, ShareBar, Shipping, VariantSwitcher, Vouchers.
+- 2 i18n files modified (`messages/vi.json`, `messages/en.json`).
+- 1 route file added (`src/app/(storefront)/products/[slug]/page.tsx`).
+- 1 file intentionally excluded (out of scope): `docs/homepage-api-request.md` (homepage gap analysis, owned by a future homepage task).
+
+**Test results** (final SP7 verification):
+- `npx tsc --noEmit` → exit 0 (pass, no output).
+- `npx vitest run` → 53/53 files, 492/492 tests pass.
+- `npx eslint src/components/product-detail src/app` → 0 errors, 1 pre-existing warning in `src/app/layout.tsx:83` (custom-font, NOT in product-detail scope).
+- `npm run build` → pass; `/products/[slug]` registered as dynamic segment.
+
+**Code hygiene fix during SP7**:
+- Removed unused `productName` prop from `ProductShareBar` (was 1 ESLint warning in scope), updated call sites in `ProductDetailPage.tsx` and 3 usages in `ProductShareBar.test.tsx`.
+
+**Notes for parent**:
+- Single auto-commit on this branch; no push to remote.
+- Mock-only data; BE integration deferred to Phase 1 (see plan `2026-10-12-product-detail-be-required.md`).
+- Pre-existing warning in `src/app/layout.tsx` (about font loading in app router) is outside the scope of this PR.

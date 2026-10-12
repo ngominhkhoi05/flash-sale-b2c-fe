@@ -5,7 +5,6 @@ import { TestWrapper } from "@/__tests__/test-wrapper";
 import userEvent from "@testing-library/user-event";
 import type { ProductImage } from "@/features/products";
 
-// Ensure navigator.clipboard exists for userEvent in jsdom
 if (!globalThis.navigator) {
   Object.defineProperty(globalThis, "navigator", {
     value: {},
@@ -48,55 +47,50 @@ const MOCK_IMAGES: ProductImage[] = [
 ];
 
 describe("ProductGallery", () => {
-  it("renders main image (defaults to primary)", () => {
+  it("renders main image (defaults to primary) and 3 thumbnails", () => {
     renderWithIntl(
-      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />
+      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />,
     );
-    // Use container query (testid only on main image element)
-    const mainImg = document.querySelector('[data-testid="gallery-main-image"]');
+    const mainImg = document.querySelector(
+      '[data-testid="gallery-main-image"]',
+    );
     expect(mainImg).toBeInTheDocument();
+    // Initial image is img1 (primary)
     expect(mainImg).toHaveAttribute("src", "https://example.com/img1.jpg");
+    // 3 thumbnails (rendered as listitem inside a list)
+    const thumbButtons = screen.getAllByRole("listitem");
+    expect(thumbButtons.length).toBe(3);
   });
 
-  it("renders 3 thumbnails (role=listitem buttons)", () => {
-    renderWithIntl(
-      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />
-    );
-    // role="listitem" buttons are the thumbnails
-    const items = screen.getAllByRole("listitem");
-    expect(items.length).toBe(3);
-  });
-
-  it("swaps main image on thumbnail click", async () => {
+  it("swaps main image src when a thumbnail is clicked", async () => {
     const user = userEvent.setup({ writeToClipboard: false });
     renderWithIntl(
-      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />
+      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />,
     );
-    const items = screen.getAllByRole("listitem");
-    expect(items.length).toBe(3);
-    await user.click(items[1]);
-    // Main image src should now be img2
-    const mainImg = document.querySelector('[data-testid="gallery-main-image"]');
+    // Thumbs are accessible via aria-label "Hình N"
+    const thumb2 = screen.getByLabelText("Hình 2");
+    await user.click(thumb2);
+    const mainImg = document.querySelector(
+      '[data-testid="gallery-main-image"]',
+    );
     expect(mainImg).toHaveAttribute("src", "https://example.com/img2.jpg");
   });
 
-  it("has zoom button that opens lightbox", async () => {
+  it("opens lightbox when zoom button clicked", async () => {
     const user = userEvent.setup({ writeToClipboard: false });
     renderWithIntl(
-      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />
+      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />,
     );
-    // Zoom button has aria-label "Phóng to" (exact)
     const zoomBtn = screen.getByLabelText("Phóng to");
     expect(zoomBtn).toBeInTheDocument();
     await user.click(zoomBtn);
-    // Lightbox renders a dialog
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("closes lightbox on close button click", async () => {
+  it("closes lightbox when close button clicked", async () => {
     const user = userEvent.setup({ writeToClipboard: false });
     renderWithIntl(
-      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />
+      <ProductGallery images={MOCK_IMAGES} productName="Áo thun" />,
     );
     const zoomBtn = screen.getByLabelText("Phóng to");
     await user.click(zoomBtn);

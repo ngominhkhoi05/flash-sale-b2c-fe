@@ -4,7 +4,6 @@ import { ProductShareBar } from "./ProductShareBar";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 import userEvent from "@testing-library/user-event";
 
-// Ensure navigator.clipboard exists for userEvent in jsdom
 if (!globalThis.navigator) {
   Object.defineProperty(globalThis, "navigator", {
     value: {},
@@ -14,6 +13,12 @@ if (!globalThis.navigator) {
 if (!globalThis.navigator.clipboard) {
   Object.defineProperty(globalThis.navigator, "clipboard", {
     value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    configurable: true,
+  });
+}
+if (!globalThis.alert) {
+  Object.defineProperty(globalThis, "alert", {
+    value: vi.fn(),
     configurable: true,
   });
 }
@@ -27,58 +32,38 @@ describe("ProductShareBar", () => {
     vi.clearAllMocks();
   });
 
-  it("renders share label and wishlist count", () => {
-    renderWithIntl(
-      <ProductShareBar productName="Áo thun cotton UTC" />
-    );
-    expect(screen.getByText(/Chia sẻ/i)).toBeInTheDocument();
-    expect(screen.getByText("(1,4k)")).toBeInTheDocument();
-  });
-
-  it("toggles wishlist heart on click → calls onToggleWishlist", async () => {
-    const user = userEvent.setup({ writeToClipboard: false });
-    const onToggle = vi.fn();
+  it("renders share label, 3 share buttons, wishlist with liked count", () => {
     renderWithIntl(
       <ProductShareBar
-        productName="Áo thun"
-        isWishlisted={false}
-        onToggleWishlist={onToggle}
-      />
+        likedCount="(1,4k)"
+      />,
     );
-    // Find the wishlist button (aria-pressed attribute distinguishes it)
-    const buttons = screen.getAllByRole("button");
-    const wishlistBtn = buttons.find(
-      (b) => b.getAttribute("aria-pressed") !== null
-    );
-    expect(wishlistBtn).toBeDefined();
-    await user.click(wishlistBtn!);
-    expect(onToggle).toHaveBeenCalledTimes(1);
+    // Share label
+    expect(screen.getByText(/Chia sẻ/i)).toBeInTheDocument();
+    // Wishlist liked count text "(1,4k)" appears inside the right section
+    expect(screen.getByText(/\(1,4k\)/)).toBeInTheDocument();
+    // "Đã thích" label
+    expect(screen.getByText(/Đã thích/i)).toBeInTheDocument();
   });
 
-  it("calls onShare when share button clicked (share API unavailable in test)", async () => {
+  it("clicking copy-link button writes to clipboard", async () => {
     const user = userEvent.setup({ writeToClipboard: false });
-    const onShare = vi.fn();
+    const writeSpy = vi.spyOn(navigator.clipboard, "writeText");
     renderWithIntl(
-      <ProductShareBar productName="Áo thun" onShare={onShare} />
+      <ProductShareBar likedCount="(1,4k)" />,
     );
-    // Share button has aria-label containing "Chia sẻ"
-    const shareBtn = screen.getByRole("button", { name: /Chia sẻ/i });
-    expect(shareBtn).toBeInTheDocument();
-    await user.click(shareBtn);
-    // Action: either navigator.share (if available) or fallback clipboard
-    // We just verify shareBtn clickable + does not throw
-    expect(shareBtn).toBeInTheDocument();
+    const linkBtn = screen.getByLabelText(/Sao chép link/i);
+    expect(linkBtn).toBeInTheDocument();
+    await user.click(linkBtn);
+    expect(writeSpy).toHaveBeenCalled();
   });
 
-  it("respects isWishlisted prop for initial heart state", () => {
+  it("renders 3 share icon buttons (Facebook, Messenger, Copy link)", () => {
     renderWithIntl(
-      <ProductShareBar productName="Áo thun" isWishlisted={true} />
+      <ProductShareBar likedCount="(1,4k)" />,
     );
-    // aria-pressed=true on the wishlist button
-    const buttons = screen.getAllByRole("button");
-    const wishlistBtn = buttons.find(
-      (b) => b.getAttribute("aria-pressed") === "true"
-    );
-    expect(wishlistBtn).toBeDefined();
+    expect(screen.getByLabelText("Facebook")).toBeInTheDocument();
+    expect(screen.getByLabelText("Messenger")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sao chép link/i)).toBeInTheDocument();
   });
 });

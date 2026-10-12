@@ -430,9 +430,9 @@
       "sku": "Mã SKU"
     },
     "rating": {
-      "reviews": "(326 đánh giá)",
+      "reviews": "({count} đánh giá)",
       "sold": "Đã bán",
-      "questions": "câu hỏi được trả lời"
+      "questions": "{count} câu hỏi"
     },
     "pricing": {
       "flashBanner": "FLASH SALE GIỜ VÀNG",
@@ -467,7 +467,7 @@
     },
     "quantity": {
       "label": "Số Lượng:",
-      "inStock": "Còn {count} sản phẩm có sẵn trong kho"
+      "inStock": "Còn <bold>{count}</bold> sản phẩm có sẵn trong kho"
     },
     "cta": {
       "addToCart": "Thêm Vào Giỏ Hàng",
