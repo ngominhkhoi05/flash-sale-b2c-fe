@@ -81,7 +81,11 @@ export type MaterialSymbolName =
   | "home"
   | "switch_account"
   | "support_agent"
-  | "account_circle";
+  | "account_circle"
+  // 404 page
+  | "arrow_back"
+  | "info"
+  | "manage_search";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
