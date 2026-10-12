@@ -39,10 +39,11 @@ describe("getMaintenanceFeatureLabel", () => {
   });
 
   it("falls back to Vietnamese for unsupported locale", () => {
-    // @ts-expect-error – test fallback path với locale không hỗ trợ
-    const label: string | null = getMaintenanceFeatureLabel(
+    // Cast qua `unknown` để simulate runtime gọi với locale không hỗ trợ.
+    // Helper vẫn fallback về `vi` (xem implementation).
+    const label = getMaintenanceFeatureLabel(
       MAINTENANCE_FEATURE_CODES.BEST_SELLERS,
-      "fr",
+      "fr" as unknown as "vi",
     );
     expect(label).toBe("Trang Sản phẩm bán chạy");
   });
