@@ -1,4 +1,4 @@
-# Plan: Product Detail Page – Stitch-Pixel-Perfect (Mock Data)
+﻿# Plan: Product Detail Page – Stitch-Pixel-Perfect (Mock Data)
 
 > **Source of design**: Stitch screen [`31bc6af5008e445b877c60ca77cff328`](https://lh3.googleusercontent.com/aida/AEtjO1XlxhcVX3BGXLevMKC5fY4r-qxNqGRsmGlF4H3SkrQPcJ9BkWd6Bj7PQBN153Bz2bnFw-HiF0sGMZLTo-DtRMyRnWo-4j2IdWKIKiAtlqXSLf9pMX8Q6n1y4t3gtP6_OVyZ3Gxwe8jK_D5aTMFrsis-5OeRGQFcgZK27koVvH5Wki4ekVhDG1W3C3Z6sHucIpcUuDkMHpLp_uYGy5cLdxy3lgyZ7OXX0DxoBKNSkdU_3x5m7RGl8eKTUzGm) (2560×8280 desktop, full responsive).
 > **Yêu cầu user**: full desktop + mobile responsive + interactive switcher A/B (Standard vs Flash Sale).
@@ -414,3 +414,5 @@ Mỗi subplan = 1 subagent = 1 concern độc lập, dispatch song song nếu kh
 - BE gap plan: `docs/superpowers/plans/2026-10-12-product-detail-be-required.md`
 - Pattern reference: `docs/superpowers/plans/2026-10-12-not-found-page-stitch.md`
 - Stitch workflow: `.cursor/rules/stitch-workflow.mdc`
+
+---
