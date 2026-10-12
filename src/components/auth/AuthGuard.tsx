@@ -11,7 +11,7 @@ import { shouldRequireAuth } from "@/lib/auth/require-auth";
  * Flow:
  *  1. Mount → check useAuth() (state từ Zustand persisted store)
  *  2. Nếu chưa hydrated → render `fallback` (mặc định null) để tránh flash redirect
- *  3. Nếu hydrated + chưa auth → router.replace('/dang-nhap?redirect=<currentPath>')
+ *  3. Nếu hydrated + chưa auth → router.replace('/login?redirect=<currentPath>')
  *  4. Nếu hydrated + đã auth → render `children`
  *
  * CÁCH DÙNG:

@@ -93,7 +93,7 @@ describe('RegisterForm', () => {
     withQueryClient(<RegisterForm />);
     expect(
       screen.getByRole('link', { name: /Đăng nhập/i })
-    ).toHaveAttribute('href', '/dang-nhap');
+    ).toHaveAttribute('href', '/login');
   });
 
   it('renders 3 social register buttons', () => {

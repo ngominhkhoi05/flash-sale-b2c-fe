@@ -35,7 +35,7 @@ vi.mock("@/stores/auth.store", () => ({
 }));
 
 vi.mock("@/lib/constants", () => ({
-  ROUTES: { LOGIN: "/dang-nhap", HOME: "/trang-chu" },
+  ROUTES: { LOGIN: "/login", HOME: "/" },
 }));
 
 // Mock sonner to avoid toast warnings in test

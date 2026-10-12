@@ -1,5 +1,5 @@
 /**
- * Trang Giỏ hàng (Storefront) — `/gio-hang`.
+ * Trang Giỏ hàng (Storefront) — `/cart`.
  * Stub page: render AuthGuard + EmptyState + skeleton.
  * UI đầy đủ sẽ làm sau khi backend cung cấp GET /api/v1/cart.
  *

@@ -1,6 +1,6 @@
 /**
  * Cart feature – types (rule features-migration).
- * Giỏ hàng của user đã đăng nhập. Trang stub `/gio-hang` sẽ dùng những type này.
+ * Giỏ hàng của user đã đăng nhập. Trang stub `/cart` sẽ dùng những type này.
  *
  * Hiện tại chưa có API backend thật (xem handoff docs/handoffs/2026-10-10-frontend-storefront-homepage-api-requests.md).
  * Khi backend sẵn sàng, các function trong api.ts sẽ thay thế mock trả về.

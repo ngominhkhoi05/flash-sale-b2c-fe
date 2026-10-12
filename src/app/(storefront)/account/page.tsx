@@ -1,5 +1,5 @@
 /**
- * Trang Tài khoản (Storefront) — `/tai-khoan`.
+ * Trang Tài khoản (Storefront) — `/account`.
  * Stub page: render AuthGuard + EmptyState + skeleton.
  * UI đầy đủ (profile, đơn hàng, đăng xuất) sẽ làm sau.
  */

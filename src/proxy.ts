@@ -7,11 +7,11 @@ import { COOKIE_KEYS, ROLES, type Role } from "@/lib/constants";
  * - Giải mã nhẹ phần payload JWT (KHÔNG verify chữ ký – backend vẫn kiểm tra).
  * - Quyết định:
  *   + `/seller/**`      → cần ROLE_SELLER.
- *     - PENDING          → /seller/ho-so-cho-duyet
+ *     - PENDING          → /seller/pending-review
  *     - BANNED           → /forbidden
- *     - chưa đăng nhập   → /dang-nhap?redirect=...
+ *     - chưa đăng nhập   → /login?redirect=...
  *   + `/admin/**`        → cần ROLE_ADMIN; khác → /forbidden.
- *   + `/dang-nhap`, `/dang-ky` khi đã đăng nhập → về trang chủ portal tương ứng.
+ *   + `/login`, `/register` khi đã đăng nhập → về trang chủ portal tương ứng.
  */
 
 interface JwtPayload {
@@ -48,7 +48,7 @@ interface GuardContext {
 
 function buildLoginRedirect(req: NextRequest): URL {
   const url = req.nextUrl.clone();
-  url.pathname = "/dang-nhap";
+  url.pathname = "/login";
   url.search = `?redirect=${encodeURIComponent(req.nextUrl.pathname + req.nextUrl.search)}`;
   // Xoá hash nếu có
   url.hash = "";
@@ -63,14 +63,14 @@ function redirect(url: URL, req: NextRequest) {
 function handleAuthPages(ctx: GuardContext): NextResponse | null {
   const { req, role, pathname } = ctx;
   if (!role) return null;
-  if (pathname.startsWith("/dang-nhap") || pathname.startsWith("/dang-ky")) {
+  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     const url = req.nextUrl.clone();
     url.pathname =
       role === ROLES.ADMIN
-        ? "/admin/tong-quan"
+        ? "/admin"
         : role === ROLES.SELLER
-          ? "/seller/tong-quan"
-          : "/trang-chu";
+          ? "/seller"
+          : "/";
     url.search = "";
     return redirect(url, req);
   }
@@ -82,12 +82,12 @@ function handleSeller(ctx: GuardContext): NextResponse | null {
   const { req, role, storeStatus, pathname } = ctx;
   if (!pathname.startsWith("/seller")) return null;
   // Cho phép trang "hồ sơ chờ duyệt" mà không cần role SELLER (vì chính nó là kết quả redirect).
-  if (pathname.startsWith("/seller/ho-so-cho-duyet")) {
+  if (pathname.startsWith("/seller/pending-review")) {
     if (role === ROLES.SELLER && storeStatus === "PENDING") return null;
     if (!role) return redirect(buildLoginRedirect(req), req);
     // Role khác hoặc không còn PENDING → đẩy về portal tương ứng
     const url = req.nextUrl.clone();
-    url.pathname = role === ROLES.ADMIN ? "/admin/tong-quan" : "/trang-chu";
+    url.pathname = role === ROLES.ADMIN ? "/admin" : "/";
     url.search = "";
     return redirect(url, req);
   }
@@ -100,7 +100,7 @@ function handleSeller(ctx: GuardContext): NextResponse | null {
   }
   if (storeStatus === "PENDING") {
     const url = req.nextUrl.clone();
-    url.pathname = "/seller/ho-so-cho-duyet";
+    url.pathname = "/seller/pending-review";
     url.search = "";
     return redirect(url, req);
   }
@@ -131,12 +131,12 @@ function handleAdmin(ctx: GuardContext): NextResponse | null {
  * Quyết định điều hướng cho Storefront protected routes (cần auth).
  *
  * Áp dụng cho:
- *  - /gio-hang        (Giỏ hàng)
- *  - /kho-voucher     (Kho voucher cá nhân)
- *  - /tai-khoan       (Tài khoản)
- *  - /don-hang        (Đơn hàng của tôi)
+ *  - /cart        (Giỏ hàng)
+ *  - /vouchers     (Kho voucher cá nhân)
+ *  - /account       (Tài khoản)
+ *  - /orders        (Đơn hàng của tôi)
  *
- * Nếu CHƯA đăng nhập → /dang-nhap?redirect=<path hiện tại>.
+ * Nếu CHƯA đăng nhập → /login?redirect=<path hiện tại>.
  * Nếu đã đăng nhập → cho qua (AuthGuard ở client sẽ check lại role nếu cần).
  *
  * Lý do cần kết hợp với AuthGuard (client):
@@ -148,10 +148,10 @@ function handleAdmin(ctx: GuardContext): NextResponse | null {
  * @see .cursor/rules/routing-guards.mdc – quy ước auth-guard
  */
 const STOREFRONT_PROTECTED_PREFIXES = [
-  "/gio-hang",
-  "/kho-voucher",
-  "/tai-khoan",
-  "/don-hang",
+  "/cart",
+  "/vouchers",
+  "/account",
+  "/orders",
 ] as const;
 
 function isStorefrontProtected(pathname: string): boolean {

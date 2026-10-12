@@ -19,7 +19,7 @@ import { Error404Illustration } from "./Error404Illustration";
  *      with a sad package inside the lens (see Error404Illustration).
  *   3. H1 title "Không tìm thấy trang" + description.
  *   4. Two actions:
- *      - Primary "Về trang chủ" → /trang-chu (CLAUDE.md §2: Storefront home).
+ *      - Primary "Về trang chủ" → / (CLAUDE.md §2: Storefront home).
  *      - Secondary "Quay lại" button (uses `history.back()`).
  *   5. Hints row: "Gợi ý: …" + 2 quick-links "Hỗ trợ khách hàng"
  *      and "Tìm kiếm sản phẩm" separated by a dot.
@@ -68,7 +68,7 @@ export function NotFoundPage() {
             {/* Actions */}
             <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
               <Link
-                href="/trang-chu"
+                href="/"
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-primary text-on-primary text-label-lg shadow-md hover:bg-primary-container active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 group"
               >
                 <MaterialSymbol

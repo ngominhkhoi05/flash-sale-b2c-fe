@@ -93,7 +93,7 @@ export function StorefrontFooter() {
             </div>
             <div className="flex flex-col gap-1.5 pt-1">
               <a
-                href="/ho-tro"
+                href="/support"
                 className="text-on-surface-variant hover:text-primary text-body-sm transition-colors"
               >
                 {tfLinks("helpCenter")}
@@ -205,10 +205,10 @@ export function StorefrontFooter() {
         <div className="pt-6 border-t border-outline-variant flex flex-col sm:flex-row items-center justify-between gap-3 text-body-sm text-on-surface-variant">
           <p>{tf("copyright")}</p>
           <div className="flex items-center gap-4">
-            <a href="/dieu-khoan" className="hover:text-primary transition-colors">
+            <a href="/terms" className="hover:text-primary transition-colors">
               {tfLinks("terms")}
             </a>
-            <a href="/chinh-sach-bao-mat" className="hover:text-primary transition-colors">
+            <a href="/privacy" className="hover:text-primary transition-colors">
               {tfLinks("privacy")}
             </a>
             <a href="/quy-che-hoat-dong" className="hover:text-primary transition-colors">

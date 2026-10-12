@@ -1,5 +1,5 @@
 /**
- * Trang Kho voucher cá nhân (Storefront) — `/kho-voucher`.
+ * Trang Kho voucher cá nhân (Storefront) — `/vouchers`.
  * Stub page: render AuthGuard + EmptyState + skeleton.
  * UI đầy đủ sẽ làm sau khi backend cung cấp GET /api/v1/vouchers/mine.
  */

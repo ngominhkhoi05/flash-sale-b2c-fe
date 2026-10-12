@@ -180,7 +180,7 @@ export function LoginForm() {
           <span className="text-sm text-on-surface">{t('rememberMe')}</span>
         </label>
         <Link
-          href="/quen-mat-khau"
+          href="/forgot-password"
           className="text-sm font-semibold text-primary transition-colors hover:text-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
         >
           {t('forgotPassword')}

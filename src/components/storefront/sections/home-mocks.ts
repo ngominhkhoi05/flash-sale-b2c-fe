@@ -32,14 +32,14 @@ export const HERO_SLIDES: HeroSlide[] = [
   },
   {
     id: "voucher-freeship",
-    ctaHref: "/kho-voucher",
+    ctaHref: "/vouchers",
     imageUrl:
       "https://images.unsplash.com/photo-1556742208-999815fca738?auto=format&fit=crop&w=1600&q=80",
     imageAlt: "Voucher & Freeship Xtra – giảm đến 200K đơn đầu tiên",
   },
   {
     id: "new-arrivals",
-    ctaHref: "/san-pham?sort=newest",
+    ctaHref: "/products?sort=newest",
     imageUrl:
       "https://images.unsplash.com/photo-1491637639811-60e2756cc1c7?auto=format&fit=crop&w=1600&q=80",
     imageAlt: "Hàng mới về mỗi ngày – cập nhật xu hướng",
@@ -49,22 +49,22 @@ export const HERO_SLIDES: HeroSlide[] = [
 // ─── Category grid ────────────────────────────────────────────────────────────
 
 export const CATEGORIES = [
-  { id: "fashion-male", labelKey: "categoryGrid.items.mensFashion", icon: "man", href: "/danh-muc/thoi-trang-nam" },
-  { id: "fashion-female", labelKey: "categoryGrid.items.womensFashion", icon: "woman", href: "/danh-muc/thoi-trang-nu" },
-  { id: "smartphone", labelKey: "categoryGrid.items.phone", icon: "smartphone", href: "/danh-muc/dien-thoai" },
-  { id: "laptop", labelKey: "categoryGrid.items.laptop", icon: "laptop_mac", href: "/danh-muc/laptop" },
-  { id: "headphones", labelKey: "categoryGrid.items.headphones", icon: "headphones", href: "/danh-muc/tai-nghe" },
-  { id: "furniture", labelKey: "categoryGrid.items.furniture", icon: "chair", href: "/danh-muc/noi-that" },
-  { id: "beauty", labelKey: "categoryGrid.items.beauty", icon: "spa", href: "/danh-muc/lam-dep" },
-  { id: "mom-baby", labelKey: "categoryGrid.items.momBaby", icon: "child_friendly", href: "/danh-muc/me-va-be" },
-  { id: "sports", labelKey: "categoryGrid.items.sports", icon: "fitness_center", href: "/danh-muc/the-thao" },
-  { id: "books", labelKey: "categoryGrid.items.books", icon: "menu_book", href: "/danh-muc/sach" },
-  { id: "grocery", labelKey: "categoryGrid.items.grocery", icon: "local_grocery_store", href: "/danh-muc/bach-hoa" },
-  { id: "toys", labelKey: "categoryGrid.items.toys", icon: "toys", href: "/danh-muc/do-choi" },
-  { id: "watches", labelKey: "categoryGrid.items.watches", icon: "watch", href: "/danh-muc/dong-ho" },
-  { id: "auto", labelKey: "categoryGrid.items.auto", icon: "two_wheeler", href: "/danh-muc/xe-co" },
-  { id: "bags", labelKey: "categoryGrid.items.bags", icon: "shopping_bag", href: "/danh-muc/tui-xach" },
-  { id: "shoes", labelKey: "categoryGrid.items.shoes", icon: "steps", href: "/danh-muc/giay-dep" },
+  { id: "fashion-male", labelKey: "categoryGrid.items.mensFashion", icon: "man", href: "/categories/thoi-trang-nam" },
+  { id: "fashion-female", labelKey: "categoryGrid.items.womensFashion", icon: "woman", href: "/categories/thoi-trang-nu" },
+  { id: "smartphone", labelKey: "categoryGrid.items.phone", icon: "smartphone", href: "/categories/dien-thoai" },
+  { id: "laptop", labelKey: "categoryGrid.items.laptop", icon: "laptop_mac", href: "/categories/laptop" },
+  { id: "headphones", labelKey: "categoryGrid.items.headphones", icon: "headphones", href: "/categories/tai-nghe" },
+  { id: "furniture", labelKey: "categoryGrid.items.furniture", icon: "chair", href: "/categories/noi-that" },
+  { id: "beauty", labelKey: "categoryGrid.items.beauty", icon: "spa", href: "/categories/lam-dep" },
+  { id: "mom-baby", labelKey: "categoryGrid.items.momBaby", icon: "child_friendly", href: "/categories/me-va-be" },
+  { id: "sports", labelKey: "categoryGrid.items.sports", icon: "fitness_center", href: "/categories/the-thao" },
+  { id: "books", labelKey: "categoryGrid.items.books", icon: "menu_book", href: "/categories/sach" },
+  { id: "grocery", labelKey: "categoryGrid.items.grocery", icon: "local_grocery_store", href: "/categories/grocery" },
+  { id: "toys", labelKey: "categoryGrid.items.toys", icon: "toys", href: "/categories/do-choi" },
+  { id: "watches", labelKey: "categoryGrid.items.watches", icon: "watch", href: "/categories/dong-ho" },
+  { id: "auto", labelKey: "categoryGrid.items.auto", icon: "two_wheeler", href: "/categories/xe-co" },
+  { id: "bags", labelKey: "categoryGrid.items.bags", icon: "shopping_bag", href: "/categories/tui-xach" },
+  { id: "shoes", labelKey: "categoryGrid.items.shoes", icon: "steps", href: "/categories/giay-dep" },
 ] as const;
 
 // ─── Flash Sale deals ─────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ export const FLASH_SALE_DEALS: FlashSaleDeal[] = [
     soldCount: 72,
     maxStock: 100,
     limitPerBuyer: 2,
-    href: "/san-pham/tai-nghe-true-wireless-anc",
+    href: "/products/tai-nghe-true-wireless-anc",
   },
   {
     id: "deal-2",
@@ -108,7 +108,7 @@ export const FLASH_SALE_DEALS: FlashSaleDeal[] = [
     soldCount: 156,
     maxStock: 200,
     limitPerBuyer: 3,
-    href: "/san-pham/ao-thun-nam-cotton",
+    href: "/products/ao-thun-nam-cotton",
   },
   {
     id: "deal-3",
@@ -121,7 +121,7 @@ export const FLASH_SALE_DEALS: FlashSaleDeal[] = [
     soldCount: 89,
     maxStock: 150,
     limitPerBuyer: 2,
-    href: "/san-pham/kem-chong-nang-spf50",
+    href: "/products/kem-chong-nang-spf50",
   },
   {
     id: "deal-4",
@@ -134,7 +134,7 @@ export const FLASH_SALE_DEALS: FlashSaleDeal[] = [
     soldCount: 203,
     maxStock: 300,
     limitPerBuyer: 2,
-    href: "/san-pham/sua-rua-mat-chiet-xuat-tra-xanh",
+    href: "/products/sua-rua-mat-chiet-xuat-tra-xanh",
   },
   {
     id: "deal-5",
@@ -147,7 +147,7 @@ export const FLASH_SALE_DEALS: FlashSaleDeal[] = [
     soldCount: 134,
     maxStock: 180,
     limitPerBuyer: 2,
-    href: "/san-pham/tinh-dau-thom-phong",
+    href: "/products/tinh-dau-thom-phong",
   },
 ];
 
@@ -303,7 +303,7 @@ export const RECOMMENDED_PRODUCTS: RecommendedProduct[] = [
     rating: 4.8,
     soldCount: "1,2k",
     location: "Hà Nội",
-    href: "/san-pham/tai-nghe-gaming-anc",
+    href: "/products/tai-nghe-gaming-anc",
   },
   {
     id: "rec-2",
@@ -315,7 +315,7 @@ export const RECOMMENDED_PRODUCTS: RecommendedProduct[] = [
     soldCount: "3,8k",
     location: "TP. Hồ Chí Minh",
     voucherLabel: "Giảm 10K",
-    href: "/san-pham/balo-chong-nuoc",
+    href: "/products/balo-chong-nuoc",
   },
   {
     id: "rec-3",
@@ -326,7 +326,7 @@ export const RECOMMENDED_PRODUCTS: RecommendedProduct[] = [
     rating: 4.7,
     soldCount: "890",
     location: "Đà Nẵng",
-    href: "/san-pham/chuot-khong-day",
+    href: "/products/chuot-khong-day",
   },
   {
     id: "rec-4",
@@ -338,7 +338,7 @@ export const RECOMMENDED_PRODUCTS: RecommendedProduct[] = [
     soldCount: "2,1k",
     location: "TP. Hồ Chí Minh",
     voucherLabel: "Freeship",
-    href: "/san-pham/ban-ui-hoi-nuoc",
+    href: "/products/ban-ui-hoi-nuoc",
   },
   {
     id: "rec-5",
@@ -351,7 +351,7 @@ export const RECOMMENDED_PRODUCTS: RecommendedProduct[] = [
     rating: 4.9,
     soldCount: "5,6k",
     location: "Hà Nội",
-    href: "/san-pham/gia-do-nhom-ban",
+    href: "/products/gia-do-nhom-ban",
   },
   {
     id: "rec-6",
@@ -362,6 +362,6 @@ export const RECOMMENDED_PRODUCTS: RecommendedProduct[] = [
     rating: 4.8,
     soldCount: "950",
     location: "Hà Nội",
-    href: "/san-pham/den-ban-hoc-chong-can",
+    href: "/products/den-ban-hoc-chong-can",
   },
 ];

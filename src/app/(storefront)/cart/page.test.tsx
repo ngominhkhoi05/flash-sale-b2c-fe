@@ -1,5 +1,5 @@
 /**
- * Test cho /gio-hang stub page.
+ * Test cho /cart stub page.
  * Verify:
  *  - Render AuthGuard fallback khi chưa auth
  *  - Render content khi đã auth
@@ -20,7 +20,7 @@ vi.mock("next/navigation", () => ({
     forward: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => "/gio-hang",
+  usePathname: () => "/cart",
   useSearchParams: () => new URLSearchParams(),
 }));
 

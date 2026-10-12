@@ -88,10 +88,10 @@ describe("NotFoundPage – Stitch pixel-perfect", () => {
     expect(screen.getByTestId("error-404-illustration")).toBeInTheDocument();
   });
 
-  it("primary action is a link to /trang-chu (CLAUDE.md §2 URL)", () => {
+  it("primary action is a link to / (CLAUDE.md §2 URL)", () => {
     renderWithIntl(<NotFoundPage />);
     const primary = screen.getByRole("link", { name: /Về trang chủ/i });
-    expect(primary).toHaveAttribute("href", "/trang-chu");
+    expect(primary).toHaveAttribute("href", "/");
   });
 
   it("secondary action is a button with text 'Quay lại'", () => {
@@ -137,7 +137,7 @@ describe("NotFoundPage – i18n English", () => {
     renderWithIntl(<NotFoundPage />, { locale: "en", messages: enMessages });
     expect(
       screen.getByRole("link", { name: /Back to home/i })
-    ).toHaveAttribute("href", "/trang-chu");
+    ).toHaveAttribute("href", "/");
   });
 
   it("secondary action text is 'Go back'", () => {

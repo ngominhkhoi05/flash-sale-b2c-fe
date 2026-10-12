@@ -35,7 +35,7 @@ import { ROLES, type Role } from "@/lib/constants";
  *   5. "Khu vực giới hạn" sub-pill.
  *   6. H1 heading.
  *   7. Explanatory paragraph.
- *   8. Two action buttons (primary → /trang-chu, ghost → /dang-nhap?ref=forbidden_retry).
+ *   8. Two action buttons (primary → /, ghost → /login?ref=forbidden_retry).
  *   9. Role diagnostic capsule: session label, current role badge, real
  *      user email (or "Chưa đăng nhập" for guests), required role.
  *  10. Support footer (mailto + tel).
@@ -183,14 +183,14 @@ export function ForbiddenPage() {
             {/* Interactive Actions */}
             <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
               <Link
-                href="/trang-chu"
+                href="/"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-primary text-on-primary text-label-lg shadow-md hover:opacity-90 active:scale-[0.98] transition-all duration-150"
               >
                 <MaterialSymbol name="home" size="[20px]" />
                 <span>{t("primaryAction")}</span>
               </Link>
               <Link
-                href="/dang-nhap?ref=forbidden_retry"
+                href="/login?ref=forbidden_retry"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-surface-container-lowest text-on-surface text-label-lg shadow-sm hover:bg-surface-container active:scale-[0.98] transition-all duration-150"
               >
                 <MaterialSymbol

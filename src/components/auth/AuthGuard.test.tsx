@@ -62,7 +62,7 @@ beforeEach(() => {
 describe("AuthGuard", () => {
   it("renders fallback when not hydrated (avoid flash redirect)", () => {
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: false, isHydrated: false }));
-    mockUsePathname.mockReturnValue("/gio-hang");
+    mockUsePathname.mockReturnValue("/cart");
 
     const { container } = render(
       <AuthGuard fallback={<div data-testid="loading">Đang tải…</div>}>
@@ -77,7 +77,7 @@ describe("AuthGuard", () => {
 
   it("renders children when hydrated and authenticated", () => {
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: true, isHydrated: true }));
-    mockUsePathname.mockReturnValue("/gio-hang");
+    mockUsePathname.mockReturnValue("/cart");
 
     const { container } = render(
       <AuthGuard fallback={<div data-testid="loading">Loading</div>}>
@@ -92,7 +92,7 @@ describe("AuthGuard", () => {
 
   it("redirects to login when hydrated but not authenticated", async () => {
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: false, isHydrated: true }));
-    mockUsePathname.mockReturnValue("/gio-hang");
+    mockUsePathname.mockReturnValue("/cart");
 
     const { container } = render(
       <AuthGuard fallback={<div data-testid="loading">Loading</div>}>
@@ -105,14 +105,13 @@ describe("AuthGuard", () => {
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(
-        `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/gio-hang")}`,
+        `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/cart")}`,
       );
     });
   });
 
-  it("preserves pathname '/' as redirect query (internal homepage)", async () => {
-    // Pathname "/" là path nội bộ hợp lệ (bắt đầu bằng "/"), không phải external.
-    // Vẫn encode thành ?redirect=%2F để sau login quay lại đúng trang chủ.
+  it("redirects to plain /login when already at HOME (/", async () => {
+    // ROUTES.HOME is now "/", so pathname "/" === ROUTES.HOME → no redirect loop.
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: false, isHydrated: true }));
     mockUsePathname.mockReturnValue("/");
 
@@ -123,9 +122,8 @@ describe("AuthGuard", () => {
     );
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith(
-        `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/")}`,
-      );
+      // No redirect query because "/" === ROUTES.HOME (avoid login loop)
+      expect(mockReplace).toHaveBeenCalledWith(ROUTES.LOGIN);
     });
   });
 
@@ -146,7 +144,7 @@ describe("AuthGuard", () => {
 
   it("preserves query string in redirect URL", async () => {
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: false, isHydrated: true }));
-    mockUsePathname.mockReturnValue("/kho-voucher?ref=email");
+    mockUsePathname.mockReturnValue("/vouchers?ref=email");
 
     render(
       <AuthGuard>
@@ -156,14 +154,14 @@ describe("AuthGuard", () => {
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(
-        `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/kho-voucher?ref=email")}`,
+        `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/vouchers?ref=email")}`,
       );
     });
   });
 
-  it("does not redirect when authenticated on /tai-khoan", async () => {
+  it("does not redirect when authenticated on /account", async () => {
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: true, isHydrated: true }));
-    mockUsePathname.mockReturnValue("/tai-khoan");
+    mockUsePathname.mockReturnValue("/account");
 
     render(
       <AuthGuard>
@@ -178,7 +176,7 @@ describe("AuthGuard", () => {
 
   it("renders default null fallback (no children) when not hydrated and no fallback prop", () => {
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: false, isHydrated: false }));
-    mockUsePathname.mockReturnValue("/gio-hang");
+    mockUsePathname.mockReturnValue("/cart");
 
     const { container } = render(
       <AuthGuard>
@@ -192,7 +190,7 @@ describe("AuthGuard", () => {
   it("re-runs redirect effect when auth state changes from false to true", async () => {
     // Lần render 1: chưa auth → redirect
     mockUseAuth.mockReturnValue(makeAuthState({ isAuthenticated: false, isHydrated: true }));
-    mockUsePathname.mockReturnValue("/gio-hang");
+    mockUsePathname.mockReturnValue("/cart");
 
     const { rerender } = render(
       <AuthGuard>

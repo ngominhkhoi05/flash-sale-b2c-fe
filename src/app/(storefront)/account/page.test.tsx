@@ -1,5 +1,5 @@
 /**
- * Test cho /tai-khoan stub page.
+ * Test cho /account stub page.
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
     forward: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => "/tai-khoan",
+  usePathname: () => "/account",
   useSearchParams: () => new URLSearchParams(),
 }));
 

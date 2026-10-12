@@ -277,10 +277,10 @@ export const FEATURE_CODES = {
 export type FeatureCode = (typeof FEATURE_CODES)[keyof typeof FEATURE_CODES];
 
 // =========================================================
-// Maintenance feature codes – dùng cho /bao-tri?feature=<code>
+// Maintenance feature codes – dùng cho /maintenance?feature=<code>
 // Mỗi code ánh xạ 1 placeholder UI trong header/footer chưa có
 // trang thật. Khi user bấm link href="#" hoặc route chưa implement,
-// sẽ redirect về /bao-tri?feature=<code> kèm nhãn tiếng Việt/Anh.
+// sẽ redirect về /maintenance?feature=<code> kèm nhãn tiếng Việt/Anh.
 // =========================================================
 export const MAINTENANCE_FEATURE_CODES = {
   DOWNLOAD_APP: "download-app",
@@ -312,34 +312,36 @@ export function isMaintenanceFeatureCode(
 }
 
 // =========================================================
-// Routes (path tiếng Việt không dấu, rule §2)
+// Routes (English path, rule §2 — đồng bộ với AGENTS.md + i18n.mdc)
 // =========================================================
 export const ROUTES = {
-  HOME: "/trang-chu",
+  HOME: "/",
   FLASH_SALE: "/flash-sale",
-  PRODUCT_DETAIL: (slug: string) => `/san-pham/${slug}`,
-  CART: "/gio-hang",
-  CHECKOUT: "/thanh-toan",
-  ORDERS: "/don-hang",
-  ACCOUNT: "/tai-khoan",
-  VOUCHERS: "/kho-voucher",
-  SEARCH: "/tim-kiem",
-  LOGIN: "/dang-nhap",
-  REGISTER: "/dang-ky",
-  FORGOT_PASSWORD: "/quen-mat-khau",
-  SELLER_REGISTER: "/dang-ky-ban-hang",
+  PRODUCT_DETAIL: (slug: string) => `/products/${slug}`,
+  CART: "/cart",
+  CHECKOUT: "/checkout",
+  ORDERS: "/orders",
+  ACCOUNT: "/account",
+  VOUCHERS: "/vouchers",
+  SEARCH: "/search",
+  LOGIN: "/login",
+  REGISTER: "/register",
+  FORGOT_PASSWORD: "/forgot-password",
+  VERIFY_EMAIL: "/verify-email",
+  SELLER_REGISTER: "/seller/register",
 
-  SELLER_HOME: "/seller/tong-quan",
-  ADMIN_HOME: "/admin/tong-quan",
+  SELLER_HOME: "/seller",
+  SELLER_PENDING: "/seller/pending-review",
+  ADMIN_HOME: "/admin",
 
   // Static / info pages
-  HELP: "/tro-giup",
-  HELP_CENTER: "/ho-tro",
-  ABOUT: "/gioi-thieu",
-  TERMS: "/dieu-khoan",
-  PRIVACY: "/chinh-sach-bao-mat",
-  CONTACT: "/lien-he",
+  HELP: "/help",
+  SUPPORT: "/support",
+  ABOUT: "/about",
+  TERMS: "/terms",
+  PRIVACY: "/privacy",
+  CONTACT: "/contact",
 
   MAINTENANCE: (feature?: string) =>
-    feature ? `/bao-tri?feature=${feature}` : "/bao-tri",
+    feature ? `/maintenance?feature=${feature}` : "/maintenance",
 } as const;

@@ -92,7 +92,7 @@ export default function XacThucEmailPage() {
           {/* Back to login */}
           <div className="mt-5 flex items-center justify-center gap-1 text-sm text-on-surface-variant">
             <Link
-              href="/dang-nhap"
+              href="/login"
               className="inline-flex items-center gap-1 text-on-surface hover:text-primary transition-colors"
             >
               <svg
