@@ -131,18 +131,18 @@ describe("MaintenancePage – Stitch pixel-perfect (vi)", () => {
     expect(screen.getByText("Kiểm tra đơn hàng")).toBeInTheDocument();
   });
 
-  it("primary action links to /trang-chu (CLAUDE.md §2 URL)", () => {
+  it("primary action links to / (CLAUDE.md §2 URL)", () => {
     renderWithIntl(<MaintenancePage />);
     const primary = screen.getByRole("link", { name: /Về trang chủ/i });
-    expect(primary).toHaveAttribute("href", "/trang-chu");
+    expect(primary).toHaveAttribute("href", "/");
   });
 
-  it("secondary action links to /trung-tam-tro-giup", () => {
+  it("secondary action links to /support", () => {
     renderWithIntl(<MaintenancePage />);
     const secondary = screen.getByRole("link", {
       name: /Hỗ trợ trực tuyến 24\/7/i,
     });
-    expect(secondary).toHaveAttribute("href", "/trung-tam-tro-giup");
+    expect(secondary).toHaveAttribute("href", "/support");
   });
 
   it("quick-link 'Flash Sale hôm nay' links to /flash-sale", () => {
@@ -151,16 +151,16 @@ describe("MaintenancePage – Stitch pixel-perfect (vi)", () => {
     expect(link).toHaveAttribute("href", "/flash-sale");
   });
 
-  it("quick-link 'Sản phẩm bán chạy' links to /danh-muc-san-pham", () => {
+  it("quick-link 'Sản phẩm bán chạy' links to /categories", () => {
     renderWithIntl(<MaintenancePage />);
     const link = screen.getByRole("link", { name: /Sản phẩm bán chạy/i });
-    expect(link).toHaveAttribute("href", "/danh-muc-san-pham");
+    expect(link).toHaveAttribute("href", "/categories");
   });
 
-  it("quick-link 'Kiểm tra đơn hàng' links to /gio-hang", () => {
+  it("quick-link 'Kiểm tra đơn hàng' links to /cart", () => {
     renderWithIntl(<MaintenancePage />);
     const link = screen.getByRole("link", { name: /Kiểm tra đơn hàng/i });
-    expect(link).toHaveAttribute("href", "/gio-hang");
+    expect(link).toHaveAttribute("href", "/cart");
   });
 });
 
@@ -175,10 +175,10 @@ describe("MaintenancePage – i18n English", () => {
     ).toBeInTheDocument();
   });
 
-  it("primary action text is 'Back to home' linking to /trang-chu", () => {
+  it("primary action text is 'Back to home' linking to /", () => {
     renderWithIntl(<MaintenancePage />, { locale: "en", messages: enMessages });
     expect(
       screen.getByRole("link", { name: /Back to home/i })
-    ).toHaveAttribute("href", "/trang-chu");
+    ).toHaveAttribute("href", "/");
   });
 });

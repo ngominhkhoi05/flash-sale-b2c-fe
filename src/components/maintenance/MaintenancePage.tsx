@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { MaintenanceIllustration } from "./MaintenanceIllustration";
 import { getMaintenanceFeatureLabel } from "./feature-code";
-import type { MaintenanceFeatureCode } from "@/lib/constants";
+import { ROUTES, type MaintenanceFeatureCode } from "@/lib/constants";
 
 /**
  * MaintenancePage – 503 / "feature being upgraded" screen
@@ -21,7 +21,7 @@ import type { MaintenanceFeatureCode } from "@/lib/constants";
  *   3. H1 title.
  *   4. Description paragraph (with highlighted feature name).
  *   5. Auto-progress info card (icon + title + body).
- *   6. Action buttons: primary → /trang-chu, secondary → /trung-tam-tro-giup.
+ *   6. Action buttons: primary → /, secondary → /support.
  *   7. "In the meantime" section: lead text + 3 quick-link pills
  *      (Flash Sale, Best sellers, Check orders).
  *
@@ -117,7 +117,7 @@ export function MaintenancePage({ featureCode }: MaintenancePageProps = {}) {
         {/* 6. Action buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto mb-8">
           <Link
-            href="/trang-chu"
+            href={ROUTES.HOME}
             className="w-full sm:w-auto px-6 h-10 rounded-lg bg-primary text-on-primary text-label-lg font-semibold flex items-center justify-center gap-2 hover:bg-primary-container shadow-sm transition-all active:scale-[0.98]"
           >
             <MaterialSymbol
@@ -128,7 +128,7 @@ export function MaintenancePage({ featureCode }: MaintenancePageProps = {}) {
             <span>{t("primaryAction")}</span>
           </Link>
           <Link
-            href="/trung-tam-tro-giup"
+            href={ROUTES.SUPPORT}
             className="w-full sm:w-auto px-6 h-10 rounded-lg bg-surface-container-lowest text-on-surface text-label-lg font-semibold flex items-center justify-center gap-2 hover:bg-surface-container-low shadow-sm transition-all active:scale-[0.98]"
           >
             <MaterialSymbol
@@ -147,7 +147,7 @@ export function MaintenancePage({ featureCode }: MaintenancePageProps = {}) {
           </span>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Link
-              href="/flash-sale"
+              href={ROUTES.FLASH_SALE}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors shadow-sm"
             >
               <MaterialSymbol
@@ -161,7 +161,7 @@ export function MaintenancePage({ featureCode }: MaintenancePageProps = {}) {
               </span>
             </Link>
             <Link
-              href="/danh-muc-san-pham"
+              href="/categories"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors shadow-sm"
             >
               <MaterialSymbol
@@ -174,7 +174,7 @@ export function MaintenancePage({ featureCode }: MaintenancePageProps = {}) {
               </span>
             </Link>
             <Link
-              href="/gio-hang"
+              href={ROUTES.CART}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-colors shadow-sm"
             >
               <MaterialSymbol

@@ -136,18 +136,18 @@ describe("ForbiddenPage – layout & links (regression)", () => {
     expect(screen.getByText("Khu vực giới hạn")).toBeInTheDocument();
   });
 
-  it("primary action links to /trang-chu (CLAUDE.md § 2)", () => {
+  it("primary action links to / (CLAUDE.md § 2)", () => {
     renderWithIntl(<ForbiddenPage />);
     const primary = screen.getByRole("link", { name: /Về trang chủ/i });
-    expect(primary).toHaveAttribute("href", "/trang-chu");
+    expect(primary).toHaveAttribute("href", "/");
   });
 
-  it("secondary action links to /dang-nhap?ref=forbidden_retry", () => {
+  it("secondary action links to /login?ref=forbidden_retry", () => {
     renderWithIntl(<ForbiddenPage />);
     const secondary = screen.getByRole("link", {
       name: /Đăng nhập tài khoản khác/i,
     });
-    expect(secondary).toHaveAttribute("href", "/dang-nhap?ref=forbidden_retry");
+    expect(secondary).toHaveAttribute("href", "/login?ref=forbidden_retry");
   });
 
   it("support email link uses mailto: and correct address", () => {

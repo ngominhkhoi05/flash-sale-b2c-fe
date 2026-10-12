@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StorefrontHeader } from "./StorefrontHeader";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 
-const mockUsePathname = vi.fn(() => "/trang-chu");
+const mockUsePathname = vi.fn(() => "/");
 vi.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
 }));
@@ -56,10 +56,10 @@ function withProviders(ui: React.ReactNode) {
 
 describe("StorefrontHeader – nav pill active detection", () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUsePathname.mockReturnValue("/");
   });
 
-  it("highlights Trang chủ pill when pathname is /trang-chu", () => {
+  it("highlights Trang chủ pill when pathname is /", () => {
     withProviders(<StorefrontHeader />);
     const homeLink = screen.getAllByRole("link").find(
       (l) => l.textContent?.trim() === "Trang chủ"
@@ -77,10 +77,10 @@ describe("StorefrontHeader – nav pill active detection", () => {
     expect(flashPill).toBeDefined();
   });
 
-  it("highlights Voucher nav item when pathname is /kho-voucher", () => {
-    mockUsePathname.mockReturnValue("/kho-voucher");
+  it("highlights Voucher nav item when pathname is /vouchers", () => {
+    mockUsePathname.mockReturnValue("/vouchers");
     withProviders(<StorefrontHeader />);
-    // Verify that at least one nav pill gets aria-current on /kho-voucher
+    // Verify that at least one nav pill gets aria-current on /vouchers
     const pillsWithAriaCurrent = screen
       .getAllByRole("link")
       .filter((l) => l.getAttribute("aria-current") === "page");
@@ -88,7 +88,7 @@ describe("StorefrontHeader – nav pill active detection", () => {
   });
 
   it("activeNav prop overrides pathname detection", () => {
-    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUsePathname.mockReturnValue("/");
     withProviders(<StorefrontHeader activeNav="flash-sale" />);
     const homeLink = screen
       .getAllByRole("link")
@@ -106,7 +106,7 @@ describe("StorefrontHeader – nav pill active detection", () => {
 
 describe("StorefrontHeader – renders all sections", () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUsePathname.mockReturnValue("/");
   });
 
   it("renders the top bar with seller channel text", () => {
@@ -179,7 +179,7 @@ describe("StorefrontHeader – renders all sections", () => {
 // ── User avatar / login button ──────────────────────────────────────────
 describe("StorefrontHeader – user area", () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUsePathname.mockReturnValue("/");
   });
 
   it("renders the user greeting text when authenticated", () => {
@@ -217,7 +217,7 @@ describe("StorefrontHeader – user area", () => {
     expect(screen.queryByText(/thành viên vip/i)).not.toBeInTheDocument();
   });
 
-  it("renders Đăng nhập link when NOT authenticated (linking to /dang-nhap)", () => {
+  it("renders Đăng nhập link when NOT authenticated (linking to /login)", () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isHydrated: true,
@@ -226,7 +226,7 @@ describe("StorefrontHeader – user area", () => {
     withProviders(<StorefrontHeader />);
     const loginLinks = screen
       .getAllByRole("link")
-      .filter((l) => l.getAttribute("href") === "/dang-nhap");
+      .filter((l) => l.getAttribute("href") === "/login");
     expect(loginLinks.length).toBeGreaterThan(0);
   });
 
@@ -239,7 +239,7 @@ describe("StorefrontHeader – user area", () => {
     withProviders(<StorefrontHeader />);
     const loginLinks = screen
       .getAllByRole("link")
-      .filter((l) => l.getAttribute("href") === "/dang-nhap");
+      .filter((l) => l.getAttribute("href") === "/login");
     expect(loginLinks).toHaveLength(0);
   });
 
@@ -356,7 +356,7 @@ describe("StorefrontHeader – user area", () => {
 // ── Cart count badge ──────────────────────────────────────────────────────
 describe("StorefrontHeader – cart count badge", () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUsePathname.mockReturnValue("/");
   });
 
   it("does NOT render badge when count is 0", () => {
@@ -392,16 +392,16 @@ describe("StorefrontHeader – cart count badge", () => {
   });
 });
 
-// ── Placeholder links: tất cả href="#" phải được gắn vào /bao-tri ─────
+// ── Placeholder links: tất cả href="#" phải được gắn vào /maintenance ─────
 //
 // Sau khi gắn các placeholder UI (Tải app, Facebook, Zalo, Ngôn ngữ,
 // Thông báo, Hãng nổi bật, Bán chạy, Trở thành người bán, search submit,
-// account dropdown, danh mục) vào /bao-tri?feature=<code>, MỌI link
+// account dropdown, danh mục) vào /maintenance?feature=<code>, MỌI link
 // trong header KHÔNG được có href="#". Test này chống regression nếu
 // ai đó vô tình thêm lại href="#" vào code mới.
 describe("StorefrontHeader – placeholder links (no href='#')", () => {
   beforeEach(() => {
-    mockUsePathname.mockReturnValue("/trang-chu");
+    mockUsePathname.mockReturnValue("/");
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isHydrated: true,
@@ -441,45 +441,45 @@ describe("StorefrontHeader – placeholder links (no href='#')", () => {
     expect(deadLinks, `Found dead links: ${deadLinks.length}`).toHaveLength(0);
   });
 
-  it("link Tải ứng dụng dẫn về /bao-tri?feature=download-app", () => {
+  it("link Tải ứng dụng dẫn về /maintenance?feature=download-app", () => {
     withProviders(<StorefrontHeader />);
     const link = screen.getByRole("link", { name: /Tải ứng dụng/i });
-    expect(link).toHaveAttribute("href", "/bao-tri?feature=download-app");
+    expect(link).toHaveAttribute("href", "/maintenance?feature=download-app");
   });
 
-  it("link Thông báo dẫn về /bao-tri?feature=notifications", () => {
+  it("link Thông báo dẫn về /maintenance?feature=notifications", () => {
     withProviders(<StorefrontHeader />);
     const link = screen.getByRole("link", { name: /Thông báo/i });
-    expect(link).toHaveAttribute("href", "/bao-tri?feature=notifications");
+    expect(link).toHaveAttribute("href", "/maintenance?feature=notifications");
   });
 
-  it("link Trở thành người bán dẫn về /bao-tri?feature=seller-register", () => {
+  it("link Trở thành người bán dẫn về /maintenance?feature=seller-register", () => {
     withProviders(<StorefrontHeader />);
     const link = screen.getByRole("link", {
       name: /Trở thành Người bán Vibe Mart/i,
     });
-    expect(link).toHaveAttribute("href", "/bao-tri?feature=seller-register");
+    expect(link).toHaveAttribute("href", "/maintenance?feature=seller-register");
   });
 
-  it("nav pill 'Hàng mới về' (Danh mục) dẫn về /bao-tri?feature=category", () => {
+  it("nav pill 'Hàng mới về' (Danh mục) dẫn về /maintenance?feature=category", () => {
     withProviders(<StorefrontHeader />);
     const link = screen.getByRole("link", { name: /Hàng mới về/i });
-    expect(link).toHaveAttribute("href", "/bao-tri?feature=category");
+    expect(link).toHaveAttribute("href", "/maintenance?feature=category");
   });
 
-  it("nav pill 'Thương hiệu nổi bật' dẫn về /bao-tri?feature=featured-brands", () => {
+  it("nav pill 'Thương hiệu nổi bật' dẫn về /maintenance?feature=featured-brands", () => {
     withProviders(<StorefrontHeader />);
     const link = screen.getByRole("link", { name: /Thương hiệu nổi bật/i });
-    expect(link).toHaveAttribute("href", "/bao-tri?feature=featured-brands");
+    expect(link).toHaveAttribute("href", "/maintenance?feature=featured-brands");
   });
 
-  it("nav pill 'Bán chạy' dẫn về /bao-tri?feature=best-sellers", () => {
+  it("nav pill 'Bán chạy' dẫn về /maintenance?feature=best-sellers", () => {
     withProviders(<StorefrontHeader />);
     const link = screen.getByRole("link", { name: /Bán chạy/i });
-    expect(link).toHaveAttribute("href", "/bao-tri?feature=best-sellers");
+    expect(link).toHaveAttribute("href", "/maintenance?feature=best-sellers");
   });
 
-  it("avatar wrapper (khi auth) dẫn về /bao-tri?feature=account-dropdown", () => {
+  it("avatar wrapper (khi auth) dẫn về /maintenance?feature=account-dropdown", () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       isHydrated: true,
@@ -494,7 +494,7 @@ describe("StorefrontHeader – placeholder links (no href='#')", () => {
     const link = screen.getByRole("link", { name: /Minh Thư/i });
     expect(link).toHaveAttribute(
       "href",
-      "/bao-tri?feature=account-dropdown",
+      "/maintenance?feature=account-dropdown",
     );
   });
 });

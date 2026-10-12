@@ -12,7 +12,7 @@ import { ROUTES } from "@/lib/constants";
  *    (chỉ có login/register/refresh/logout – xem AuthController.java).
  *  - Khi có endpoint, sẽ implement form nhập email + gọi API + toast.
  *  - Hiện tại chỉ hiện thông báo "đang phát triển" + nút quay lại
- *    /dang-nhap để tránh Next 16 prefetch 404 / "Invalid URL" khi
+ *    /login để tránh Next 16 prefetch 404 / "Invalid URL" khi
  *    user click "Quên mật khẩu?" ở LoginForm.
  *
  * Lưu ý: dùng `next/link` thay vì `next-intl/navigation` vì

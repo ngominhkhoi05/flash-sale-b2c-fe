@@ -91,7 +91,7 @@ export function useLoginMutation() {
  *  1. POST /api/v1/auth/register
  *  2. Lưu token + user
  *  3. Toast "Đăng ký thành công"
- *  4. Component chủ động router.push('/xac-thuc-email?email=<...>')
+ *  4. Component chủ động router.push('/verify-email?email=<...>')
  *     (OTP verification page – TODO task riêng khi backend sẵn sàng)
  *
  * KHÔNG auto-redirect ở hook để RegisterForm quyết định UX flow.

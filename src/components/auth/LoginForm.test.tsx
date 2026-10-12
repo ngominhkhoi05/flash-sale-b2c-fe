@@ -104,13 +104,13 @@ describe('LoginForm', () => {
   it('renders the "Quên mật khẩu?" link', () => {
     withQueryClient(<LoginForm />);
     const link = screen.getByRole('link', { name: /Quên mật khẩu/i });
-    expect(link).toHaveAttribute('href', '/quen-mat-khau');
+    expect(link).toHaveAttribute('href', '/forgot-password');
   });
 
   it('renders the "Đăng ký ngay" link', () => {
     withQueryClient(<LoginForm />);
     const link = screen.getByRole('link', { name: /Đăng ký ngay/i });
-    expect(link).toHaveAttribute('href', '/dang-ky');
+    expect(link).toHaveAttribute('href', '/register');
   });
 
   it('renders Remember me checkbox unchecked by default', () => {
@@ -152,8 +152,8 @@ describe('LoginForm', () => {
       });
     });
 
-    it('navigates to /gio-hang when redirect=/gio-hang', async () => {
-      mockUseSearchParams.mockReturnValue(new URLSearchParams('redirect=/gio-hang'));
+    it('navigates to /cart when redirect=/cart', async () => {
+      mockUseSearchParams.mockReturnValue(new URLSearchParams('redirect=/cart'));
       const user = userEvent.setup();
       withQueryClient(<LoginForm />);
       await user.type(
@@ -164,12 +164,12 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/gio-hang');
+        expect(mockPush).toHaveBeenCalledWith('/cart');
       });
     });
 
-    it('navigates to /kho-voucher when redirect=/kho-voucher', async () => {
-      mockUseSearchParams.mockReturnValue(new URLSearchParams('redirect=/kho-voucher'));
+    it('navigates to /vouchers when redirect=/vouchers', async () => {
+      mockUseSearchParams.mockReturnValue(new URLSearchParams('redirect=/vouchers'));
       const user = userEvent.setup();
       withQueryClient(<LoginForm />);
       await user.type(
@@ -180,7 +180,7 @@ describe('LoginForm', () => {
       await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/kho-voucher');
+        expect(mockPush).toHaveBeenCalledWith('/vouchers');
       });
     });
 

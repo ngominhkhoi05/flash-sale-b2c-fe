@@ -1,39 +1,29 @@
 /**
- * Trang Kho voucher cá nhân (Storefront) — `/kho-voucher`.
+ * Trang Tài khoản (Storefront) — `/account`.
  * Stub page: render AuthGuard + EmptyState + skeleton.
- * UI đầy đủ sẽ làm sau khi backend cung cấp GET /api/v1/vouchers/mine.
+ * UI đầy đủ (profile, đơn hàng, đăng xuất) sẽ làm sau.
  */
-import Link from "next/link";
-import { Ticket } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { User } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { EmptyState } from "@/components/common/EmptyState";
-import { ROUTES } from "@/lib/constants";
 
-function VoucherContent() {
-  const t = useTranslations("storefront.voucher");
+function AccountContent() {
+  const t = useTranslations("storefront.account");
 
   return (
     <div className="mx-auto max-w-3xl py-8">
       <h1 className="mb-6 text-2xl font-semibold text-on-surface">{t("title")}</h1>
       <EmptyState
-        icon={<Ticket className="h-6 w-6" aria-hidden />}
+        icon={<User className="h-6 w-6" aria-hidden />}
         title={t("empty")}
         description={t("emptyDescription")}
       />
-      <div className="mt-6 text-center">
-        <Link
-          href={ROUTES.HOME}
-          className="text-sm font-semibold text-primary hover:underline"
-        >
-          ← {t("browseVouchers")}
-        </Link>
-      </div>
     </div>
   );
 }
 
-export default function KhoVoucherPage() {
+export default function TaiKhoanPage() {
   return (
     <AuthGuard
       fallback={
@@ -43,7 +33,7 @@ export default function KhoVoucherPage() {
         </div>
       }
     >
-      <VoucherContent />
+      <AccountContent />
     </AuthGuard>
   );
 }

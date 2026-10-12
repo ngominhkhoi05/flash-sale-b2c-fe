@@ -27,7 +27,7 @@ export function FeaturedStoresSection() {
           </h2>
         </div>
         <Link
-          href="/danh-muc/shop-chinh-hang"
+          href="/categories/authentic-stores"
           className="text-label-md text-primary hover:underline flex items-center gap-1"
         >
           {t("stores.seeAll")}

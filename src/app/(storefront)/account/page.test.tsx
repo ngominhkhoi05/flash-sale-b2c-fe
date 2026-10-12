@@ -1,9 +1,9 @@
 /**
- * Test cho /kho-voucher stub page.
+ * Test cho /account stub page.
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import KhoVoucherPage from "./page";
+import TaiKhoanPage from "./page";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({
     forward: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => "/kho-voucher",
+  usePathname: () => "/account",
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -36,7 +36,7 @@ function withWrapper(ui: React.ReactNode) {
 
 beforeEach(() => mockUseAuth.mockReset());
 
-describe("KhoVoucherPage", () => {
+describe("TaiKhoanPage", () => {
   it("renders skeleton fallback when not hydrated", () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
@@ -49,8 +49,8 @@ describe("KhoVoucherPage", () => {
       isSeller: false,
       isAdmin: false,
     });
-    withWrapper(<KhoVoucherPage />);
-    expect(screen.queryByText("Kho voucher của tôi")).not.toBeInTheDocument();
+    withWrapper(<TaiKhoanPage />);
+    expect(screen.queryByText("Tài khoản của tôi")).not.toBeInTheDocument();
   });
 
   it("renders EmptyState with title when authenticated", () => {
@@ -65,8 +65,8 @@ describe("KhoVoucherPage", () => {
       isSeller: false,
       isAdmin: false,
     });
-    withWrapper(<KhoVoucherPage />);
-    expect(screen.getByText("Kho voucher của tôi")).toBeInTheDocument();
-    expect(screen.getByText("Bạn chưa lưu voucher nào")).toBeInTheDocument();
+    withWrapper(<TaiKhoanPage />);
+    expect(screen.getByText("Tài khoản của tôi")).toBeInTheDocument();
+    expect(screen.getByText("Không tìm thấy thông tin tài khoản")).toBeInTheDocument();
   });
 });

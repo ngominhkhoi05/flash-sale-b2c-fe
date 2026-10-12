@@ -41,7 +41,7 @@ describe("useRecommendedProducts", () => {
         rating: 4.8,
         totalSold: 1200,
         location: "Hà Nội",
-        href: "/san-pham/p1",
+        href: "/products/p1",
       },
     ];
     mockGetRecommended.mockResolvedValue(products);

@@ -142,9 +142,9 @@ describe("HeroBannerSection (image-bg click-through)", () => {
     act(() => {
       fireEvent.click(dot2);
     });
-    // After click, the active link should be slide 3 with /kho-voucher href
+    // After click, the active link should be slide 3 with /vouchers href
     const activeLink = screen.getByRole("link", { name: /slide 3 \/ 4/i });
-    expect(activeLink).toHaveAttribute("href", "/kho-voucher");
+    expect(activeLink).toHaveAttribute("href", "/vouchers");
   });
 
   it("does NOT render any heading text (h1/h2) inside the hero region — text is gone", () => {

@@ -22,9 +22,9 @@ interface MenuItem {
 }
 
 const MENU: MenuItem[] = [
-  { key: "overview", label: "Tổng quan", href: "/seller/tong-quan", icon: LayoutDashboard },
-  { key: "products", label: "Sản phẩm", href: "/seller/san-pham", icon: Package },
-  { key: "orders", label: "Đơn hàng", href: "/seller/don-hang", icon: Receipt },
+  { key: "overview", label: "Tổng quan", href: "/seller", icon: LayoutDashboard },
+  { key: "products", label: "Sản phẩm", href: "/seller/products", icon: Package },
+  { key: "orders", label: "Đơn hàng", href: "/seller/orders", icon: Receipt },
   { key: "flash-sale", label: "Flash Sale", href: "/seller/flash-sale", icon: Zap },
   { key: "wallet", label: "Ví & Doanh thu", href: "/seller/vi", icon: Wallet },
   { key: "settings", label: "Cài đặt shop", href: "/seller/cai-dat", icon: Settings },

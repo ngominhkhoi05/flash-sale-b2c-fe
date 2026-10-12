@@ -11,7 +11,7 @@ import { StorefrontShell } from "./_shell";
  * - Footer bên dưới content từng trang
  *
  * Lưu ý: Trang chủ (HomepageView) tự wrap <main> + padding.
- * Trang khác (vd /flash-sale, /san-pham/[slug]) sử dụng default centered max-w-[1200px].
+ * Trang khác (vd /flash-sale, /products/[slug]) sử dụng default centered max-w-[1200px].
  */
 export default function StorefrontLayout({ children }: { children: ReactNode }) {
   return (

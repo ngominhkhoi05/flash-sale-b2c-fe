@@ -88,7 +88,7 @@ export function RegisterForm() {
         onSuccess: (_, vars) => {
           toast.success(t('submitSuccess'));
           // Redirect sang trang xác thực email OTP
-          router.push(`/xac-thuc-email?email=${encodeURIComponent(vars.email)}`);
+          router.push(`/verify-email?email=${encodeURIComponent(vars.email)}`);
         },
         onError: (err: Error) => {
           setApiError(err.message || tErr('registerFailed'));
@@ -379,14 +379,14 @@ export function RegisterForm() {
           <span className="text-sm leading-tight text-on-surface-variant">
             {t('termsLabel')}{' '}
             <a
-              href="/dieu-khoan"
+              href="/terms"
               className="font-semibold text-primary hover:underline"
             >
               {t('termsLink')}
             </a>{' '}
             {t('andLabel')}{' '}
             <a
-              href="/chinh-sach-bao-mat"
+              href="/privacy"
               className="font-semibold text-primary hover:underline"
             >
               {t('privacyLink')}

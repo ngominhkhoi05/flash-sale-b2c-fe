@@ -23,12 +23,12 @@ interface MenuItem {
 }
 
 const MENU: MenuItem[] = [
-  { key: "overview", label: "Tổng quan", href: "/admin/tong-quan", icon: LayoutDashboard },
+  { key: "overview", label: "Tổng quan", href: "/admin", icon: LayoutDashboard },
   { key: "users", label: "Người dùng", href: "/admin/nguoi-dung", icon: Users },
   { key: "stores", label: "Gian hàng", href: "/admin/gian-hang", icon: Store },
   { key: "slots", label: "Khung giờ", href: "/admin/khung-gio", icon: Clock },
   { key: "vouchers", label: "Voucher sàn", href: "/admin/voucher", icon: Ticket },
-  { key: "orders", label: "Đơn hàng", href: "/admin/don-hang", icon: ShoppingBag },
+  { key: "orders", label: "Đơn hàng", href: "/admin/orders", icon: ShoppingBag },
   { key: "settings", label: "Cấu hình", href: "/admin/cai-dat", icon: Settings },
 ];
 

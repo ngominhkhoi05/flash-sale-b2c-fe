@@ -20,14 +20,14 @@ interface CategoryItem {
 }
 
 const CATEGORIES: CategoryItem[] = [
-  { icon: "man", labelKey: "categoryGrid.items.mensFashion", href: "/danh-muc/thoi-trang-nam" },
-  { icon: "woman", labelKey: "categoryGrid.items.womensFashion", href: "/danh-muc/thoi-trang-nu" },
-  { icon: "smartphone", labelKey: "categoryGrid.items.phone", href: "/danh-muc/dien-thoai" },
-  { icon: "laptop_mac", labelKey: "categoryGrid.items.laptop", href: "/danh-muc/laptop" },
-  { icon: "headphones", labelKey: "categoryGrid.items.headphones", href: "/danh-muc/tai-nghe" },
-  { icon: "chair", labelKey: "categoryGrid.items.furniture", href: "/danh-muc/noi-that" },
-  { icon: "spa", labelKey: "categoryGrid.items.beauty", href: "/danh-muc/lam-dep" },
-  { icon: "child_friendly", labelKey: "categoryGrid.items.momBaby", href: "/danh-muc/me-va-be" },
+  { icon: "man", labelKey: "categoryGrid.items.mensFashion", href: "/categories/mens-fashion" },
+  { icon: "woman", labelKey: "categoryGrid.items.womensFashion", href: "/categories/womens-fashion" },
+  { icon: "smartphone", labelKey: "categoryGrid.items.phone", href: "/categories/phones" },
+  { icon: "laptop_mac", labelKey: "categoryGrid.items.laptop", href: "/categories/laptops" },
+  { icon: "headphones", labelKey: "categoryGrid.items.headphones", href: "/categories/headphones" },
+  { icon: "chair", labelKey: "categoryGrid.items.furniture", href: "/categories/furniture" },
+  { icon: "spa", labelKey: "categoryGrid.items.beauty", href: "/categories/beauty" },
+  { icon: "child_friendly", labelKey: "categoryGrid.items.momBaby", href: "/categories/mom-baby" },
 ];
 
 export function CategoryGridSection() {
@@ -40,7 +40,7 @@ export function CategoryGridSection() {
           {t("categoryGrid.title")}
         </h2>
         <Link
-          href="/danh-muc"
+          href="/categories"
           className="text-label-md text-primary hover:underline flex items-center gap-1"
         >
           {t("categoryGrid.seeAll")}

@@ -1,5 +1,5 @@
 /**
- * Helper đọc feature code từ URL `?feature=` cho trang /bao-tri.
+ * Helper đọc feature code từ URL `?feature=` cho trang /maintenance.
  *
  * Pattern:
  *   const code = useMaintenanceFeatureFromUrl(); // "download-app" | null

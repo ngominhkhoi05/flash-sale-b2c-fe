@@ -55,7 +55,7 @@ export function VoucherGridSection() {
           </h2>
         </div>
         <Link
-          href="/kho-voucher"
+          href="/vouchers"
           className="text-label-md text-primary hover:underline flex items-center gap-1"
         >
           {t("voucher.voucherCount")}

@@ -1,5 +1,9 @@
 import { EmptyState } from "@/components/common/EmptyState";
 
+/**
+ * Seller Center – Trang tổng quan.
+ * Render tại "/seller" (root của seller portal).
+ */
 export default function SellerOverviewPage() {
   return (
     <div className="space-y-4">

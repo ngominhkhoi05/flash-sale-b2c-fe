@@ -44,33 +44,33 @@ describe("sanitizeRedirectPath", () => {
   });
 
   it("returns HOME for relative path without leading slash", () => {
-    expect(sanitizeRedirectPath("gio-hang")).toBe(ROUTES.HOME);
+    expect(sanitizeRedirectPath("cart")).toBe(ROUTES.HOME);
   });
 
   it("returns the path for valid storefront path", () => {
-    expect(sanitizeRedirectPath("/gio-hang")).toBe("/gio-hang");
+    expect(sanitizeRedirectPath("/cart")).toBe("/cart");
   });
 
   it("returns the path for valid account path", () => {
-    expect(sanitizeRedirectPath("/tai-khoan")).toBe("/tai-khoan");
+    expect(sanitizeRedirectPath("/account")).toBe("/account");
   });
 
   it("returns the path for voucher path", () => {
-    expect(sanitizeRedirectPath("/kho-voucher")).toBe("/kho-voucher");
+    expect(sanitizeRedirectPath("/vouchers")).toBe("/vouchers");
   });
 
   it("preserves query string in path", () => {
-    expect(sanitizeRedirectPath("/san-pham/abc?ref=flash-sale")).toBe(
-      "/san-pham/abc?ref=flash-sale",
+    expect(sanitizeRedirectPath("/products/abc?ref=flash-sale")).toBe(
+      "/products/abc?ref=flash-sale",
     );
   });
 
   it("preserves hash in path", () => {
-    expect(sanitizeRedirectPath("/don-hang#active")).toBe("/don-hang#active");
+    expect(sanitizeRedirectPath("/orders#active")).toBe("/orders#active");
   });
 
   it("trims whitespace from valid path", () => {
-    expect(sanitizeRedirectPath("  /gio-hang  ")).toBe("/gio-hang");
+    expect(sanitizeRedirectPath("  /cart  ")).toBe("/cart");
   });
 });
 
@@ -92,43 +92,43 @@ describe("buildLoginUrl", () => {
   });
 
   it("encodes storefront path as redirect query", () => {
-    expect(buildLoginUrl("/gio-hang")).toBe(
-      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/gio-hang")}`,
+    expect(buildLoginUrl("/cart")).toBe(
+      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/cart")}`,
     );
   });
 
   it("encodes account path as redirect query", () => {
-    expect(buildLoginUrl("/tai-khoan")).toBe(
-      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/tai-khoan")}`,
+    expect(buildLoginUrl("/account")).toBe(
+      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/account")}`,
     );
   });
 
   it("encodes path with query string safely", () => {
-    expect(buildLoginUrl("/san-pham/abc?ref=flash")).toBe(
-      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/san-pham/abc?ref=flash")}`,
+    expect(buildLoginUrl("/products/abc?ref=flash")).toBe(
+      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/products/abc?ref=flash")}`,
     );
   });
 });
 
 describe("shouldRequireAuth", () => {
   it("returns shouldRedirect=false when not hydrated (avoid flash)", () => {
-    const result = shouldRequireAuth(false, false, "/gio-hang");
+    const result = shouldRequireAuth(false, false, "/cart");
     expect(result.shouldRedirect).toBe(false);
     expect(result.loginUrl).toBe(
-      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/gio-hang")}`,
+      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/cart")}`,
     );
   });
 
   it("returns shouldRedirect=true when hydrated + not authenticated", () => {
-    const result = shouldRequireAuth(false, true, "/gio-hang");
+    const result = shouldRequireAuth(false, true, "/cart");
     expect(result.shouldRedirect).toBe(true);
     expect(result.loginUrl).toBe(
-      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/gio-hang")}`,
+      `${ROUTES.LOGIN}?redirect=${encodeURIComponent("/cart")}`,
     );
   });
 
   it("returns shouldRedirect=false when hydrated + authenticated", () => {
-    const result = shouldRequireAuth(true, true, "/gio-hang");
+    const result = shouldRequireAuth(true, true, "/cart");
     expect(result.shouldRedirect).toBe(false);
   });
 

@@ -1,16 +1,12 @@
 /**
- * Test cho /gio-hang stub page.
- * Verify:
- *  - Render AuthGuard fallback khi chưa auth
- *  - Render content khi đã auth
+ * Test cho /vouchers stub page.
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import GioHangPage from "./page";
+import KhoVoucherPage from "./page";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Mock next/navigation
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -20,11 +16,10 @@ vi.mock("next/navigation", () => ({
     forward: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => "/gio-hang",
+  usePathname: () => "/vouchers",
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// Mock useAuth để AuthGuard có thể test cả 2 trạng thái
 const mockUseAuth = vi.fn();
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
@@ -39,11 +34,9 @@ function withWrapper(ui: React.ReactNode) {
   );
 }
 
-beforeEach(() => {
-  mockUseAuth.mockReset();
-});
+beforeEach(() => mockUseAuth.mockReset());
 
-describe("GioHangPage", () => {
+describe("KhoVoucherPage", () => {
   it("renders skeleton fallback when not hydrated", () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
@@ -56,9 +49,8 @@ describe("GioHangPage", () => {
       isSeller: false,
       isAdmin: false,
     });
-    withWrapper(<GioHangPage />);
-    // Fallback skeleton có class animate-pulse – không có text content
-    expect(screen.queryByText("Giỏ hàng của tôi")).not.toBeInTheDocument();
+    withWrapper(<KhoVoucherPage />);
+    expect(screen.queryByText("Kho voucher của tôi")).not.toBeInTheDocument();
   });
 
   it("renders EmptyState with title when authenticated", () => {
@@ -73,8 +65,8 @@ describe("GioHangPage", () => {
       isSeller: false,
       isAdmin: false,
     });
-    withWrapper(<GioHangPage />);
-    expect(screen.getByText("Giỏ hàng của tôi")).toBeInTheDocument();
-    expect(screen.getByText("Giỏ hàng của bạn đang trống")).toBeInTheDocument();
+    withWrapper(<KhoVoucherPage />);
+    expect(screen.getByText("Kho voucher của tôi")).toBeInTheDocument();
+    expect(screen.getByText("Bạn chưa lưu voucher nào")).toBeInTheDocument();
   });
 });

@@ -3,7 +3,7 @@
  * Tách logic ra để dễ test (không cần mock next/navigation).
  *
  * Rule auth-jwt + routing-guards: link yêu cầu auth (giỏ hàng, voucher, tài khoản)
- * phải redirect về /dang-nhap?redirect=<path> khi user chưa đăng nhập.
+ * phải redirect về /login?redirect=<path> khi user chưa đăng nhập.
  */
 import { ROUTES } from "@/lib/constants";
 
@@ -28,8 +28,8 @@ export function sanitizeRedirectPath(input: string | null | undefined): string {
 
 /**
  * Tính URL đăng nhập kèm redirect query.
- * - Nếu `currentPath` hợp lệ → /dang-nhap?redirect=<encoded path>
- * - Nếu không → /dang-nhap (không có redirect)
+ * - Nếu `currentPath` hợp lệ → /login?redirect=<encoded path>
+ * - Nếu không → /login (không có redirect)
  */
 export function buildLoginUrl(currentPath: string | null | undefined): string {
   const safe = sanitizeRedirectPath(currentPath);

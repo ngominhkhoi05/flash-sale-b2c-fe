@@ -50,10 +50,10 @@ export function StorefrontHeader({
   const detected: StorefrontNavKey = (() => {
     if (pathname.startsWith(ROUTES.FLASH_SALE)) return "flash-sale";
     if (pathname.startsWith(ROUTES.VOUCHERS)) return "voucher";
-    // Trang /danh-muc chưa có → pill "Danh mục" dẫn về /bao-tri?feature=category.
-    // Khi user đang ở /bao-tri với feature=category thì vẫn tô active "Danh mục".
+    // Trang /categories chưa có → pill "Danh mục" dẫn về /maintenance?feature=category.
+    // Khi user đang ở /maintenance với feature=category thì vẫn tô active "Danh mục".
     if (
-      pathname.startsWith("/danh-muc") ||
+      pathname.startsWith("/categories") ||
       pathname.includes(`feature=${MAINTENANCE_FEATURE_CODES.CATEGORY}`)
     )
       return "category";
@@ -197,7 +197,7 @@ export function StorefrontHeader({
             <Link
               href={ROUTES.HOME}
               className="flex items-center gap-2 shrink-0"
-              data-path="trang-chu"
+              data-path="home"
             >
               <Image
                 alt="Vibe Mart"

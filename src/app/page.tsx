@@ -1,9 +1,9 @@
-import { redirect } from "next/navigation";
-
 /**
- * Trang gốc → đẩy về Storefront (mục 9: "/" thuộc Storefront).
- * Locale mặc định "vi" sẽ được gán tự động khi middleware i18n bật.
+ * Trang chủ Storefront (Stitch "33db6dd859b643bda103e6045378886b").
+ * Render tại root "/" sau khi refactor URL sang tiếng Anh.
  */
-export default function RootPage(): never {
-  redirect("/trang-chu");
+import { HomepageView } from "./_homepage-view";
+
+export default function HomePage() {
+  return <HomepageView />;
 }

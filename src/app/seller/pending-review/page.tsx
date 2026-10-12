@@ -29,10 +29,10 @@ export default async function HoSoChoDuyetPage() {
         )}
         <div className="mt-6 flex items-center justify-center gap-2">
           <Button asChild>
-            <Link href="/trang-chu">Về trang chủ</Link>
+            <Link href="/">Về trang chủ</Link>
           </Button>
           <Button asChild variant="secondary">
-            <Link href="/tai-khoan">Tài khoản của tôi</Link>
+            <Link href="/account">Tài khoản của tôi</Link>
           </Button>
         </div>
       </div>
