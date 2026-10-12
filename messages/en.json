@@ -218,6 +218,19 @@
         "SELLER": "Seller",
         "ADMIN": "Administrator"
       }
+    },
+    "notFound": {
+      "brandTag": "VIBE MART",
+      "idBadge": "Error 404",
+      "title": "Page not found",
+      "description": "The page you're looking for may have been removed or moved.",
+      "primaryAction": "Back to home",
+      "secondaryAction": "Go back",
+      "hintPrefix": "Tip:",
+      "hintText": "Check the URL or return to the previous page",
+      "supportPrompt": "Need help?",
+      "supportLink": "Customer support",
+      "searchLink": "Search products"
     }
   },
   "storefront": {

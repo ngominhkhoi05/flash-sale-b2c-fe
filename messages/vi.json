@@ -218,6 +218,19 @@
         "SELLER": "Người bán",
         "ADMIN": "Quản trị viên"
       }
+    },
+    "notFound": {
+      "brandTag": "VIBE MART",
+      "idBadge": "Lỗi 404",
+      "title": "Không tìm thấy trang",
+      "description": "Trang bạn tìm có thể đã bị xóa hoặc đổi địa chỉ.",
+      "primaryAction": "Về trang chủ",
+      "secondaryAction": "Quay lại",
+      "hintPrefix": "Gợi ý:",
+      "hintText": "Kiểm tra lại đường dẫn URL hoặc quay lại trang trước",
+      "supportPrompt": "Cần hỗ trợ ngay?",
+      "supportLink": "Hỗ trợ khách hàng",
+      "searchLink": "Tìm kiếm sản phẩm"
     }
   },
   "storefront": {
