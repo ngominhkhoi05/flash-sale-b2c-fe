@@ -95,11 +95,6 @@ export function ProductVariantSelectors({
                   aria-disabled={s.disabled}
                 >
                   {s.label}
-                  {s.disabled && (
-                    <span className="mt-0.5 block text-[9px] font-normal not-italic">
-                      {t("outOfStock")}
-                    </span>
-                  )}
                 </button>
               );
             })}
