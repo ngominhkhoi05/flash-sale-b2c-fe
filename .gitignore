@@ -77,5 +77,9 @@ tmp/
 
 # Stitch design refs (raw HTML, large files used for pixel-match, not source)
 docs/stitch-refs/
+
+# Temp API specs (downloaded for inspection, never source)
+tmp-*.json
+
 # Git worktrees (tllq-workflow:itz-using-git-worktrees skill)
 /.worktrees/

@@ -285,6 +285,107 @@
       "emptyDescription": "Browse products and add them to your cart to continue shopping.",
       "continueShopping": "Continue Shopping"
     },
+    "checkout": {
+      "title": "Checkout",
+      "breadcrumb": "Checkout",
+      "nav": {
+        "cart": "Cart",
+        "payment": "Checkout",
+        "confirmation": "Confirmation"
+      },
+      "userMenu": {
+        "account": "My account",
+        "logout": "Sign out",
+        "loggingOut": "Signing out…"
+      },
+      "totalLabel": "Grand total",
+      "addressCard": {
+        "title": "Shipping address",
+        "change": "Change",
+        "default": "Default"
+      },
+      "splitBanner": {
+        "text": "Your order contains products from {count} shops, so it will be split into {count} separate orders for faster delivery."
+      },
+      "shopCard": {
+        "voucherLabel": "Shop voucher:",
+        "changeVoucher": "Change code",
+        "notePlaceholder": "Message to the shop (e.g. deliver during business hours, call before delivery)...",
+        "shippingFee": "Shipping fee:",
+        "shopSubtotal": "Shop subtotal:",
+        "estimatedDelivery": "Estimated delivery:",
+        "shopBadge": "Order 1 –"
+      },
+      "voucherCard": {
+        "title": "VibeMart discount codes",
+        "seeAll": "See all codes",
+        "placeholder": "Enter a code (e.g. VIBE30K)",
+        "apply": "Apply",
+        "removeAria": "Remove code"
+      },
+      "paymentCard": {
+        "title": "Payment method",
+        "zaloPay": "ZaloPay – Scan QR",
+        "zaloPayDesc": "Scan a single QR code to pay for all orders. Instant refund on cancellation.",
+        "zaloPayHint": "Supports Napas / Visa / MasterCard",
+        "cod": "Cash on delivery (COD)",
+        "codDesc": "Pay cash to the courier when receiving each parcel. Please prepare the exact amount.",
+        "codHint": "COD fee: 0₫",
+        "secure": "100% secure via ZaloPay & PCI-DSS",
+        "recommended": "Recommended"
+      },
+      "vibeCare": {
+        "title": "VibeCare – 1-for-1 warranty",
+        "badge": "30 days",
+        "description": "Free replacement within 30 days for any manufacturer defects, no receipt needed. Applies to Mall & Official Mall products.",
+        "price": "Add for only {price}",
+        "add": "Add plan",
+        "added": "Added"
+      },
+      "summary": {
+        "title": "Order summary",
+        "subtotal": "Subtotal ({count} items)",
+        "shipping": "Shipping ({count} orders)",
+        "shopVoucher": "Shop voucher",
+        "platformVoucher": "VibeMart voucher ({code})",
+        "vibeCare": "VibeCare (warranty)",
+        "total": "Grand total",
+        "vat": "VAT included",
+        "submit": "Place order",
+        "submitting": "Processing...",
+        "errorSubmit": "Order failed. Please try again.",
+        "vatNotice": "Prices include VAT and any applicable special consumption tax.",
+        "guarantee": "Secured by ZaloPay – PCI DSS Level 1",
+        "terms": "By clicking <strong>Place order</strong>, you agree to Vibe Mart's <a href='/terms' class='text-primary underline'>Terms of Service</a>.",
+        "zaloPayNotice": "Your order will be held for 5 minutes. Please complete payment within this time.",
+        "secureHint": "Your payment info is encrypted with <strong>PCI DSS Level 1</strong> – totally safe."
+      },
+      "modals": {
+        "address": {
+          "title": "Choose shipping address",
+          "empty": "You don't have any saved addresses. Please add a new one.",
+          "addNew": "Add new address",
+          "done": "Done",
+          "close": "Close"
+        },
+        "voucher": {
+          "title": "Choose VibeMart voucher",
+          "tabAll": "All ({count})",
+          "tabActive": "Available ({count})",
+          "tabSoon": "Coming soon ({count})",
+          "tabUsed": "Expired ({count})",
+          "empty": "No codes in this tab.",
+          "applied": "In use",
+          "apply": "Apply",
+          "appliedDone": "Applied",
+          "unavailable": "Unavailable",
+          "close": "Close",
+          "expires": "Exp: {date}"
+        }
+      },
+      "empty": "No items to checkout",
+      "loading": "Loading checkout…"
+    },
     "voucher": {
       "title": "My Vouchers",
       "loading": "Loading vouchers…",
