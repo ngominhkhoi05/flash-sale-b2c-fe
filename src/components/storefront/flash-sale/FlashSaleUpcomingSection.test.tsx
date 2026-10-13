@@ -10,17 +10,18 @@ import type { PublicFlashSaleItemResponse } from "@/features/flash-sale";
 function mkItem(id: number, name: string, stock: number, sold: number): PublicFlashSaleItemResponse {
   return {
     id,
-    flashSaleSlotId: 4,
-    productId: 100 + id,
+    slotId: 4,
+    variantId: id * 10,
+    sku: `MOCK-${id.toString().padStart(4, "0")}`,
+    variantName: "Default",
     productName: name,
-    productSlug: `p-${id}`,
-    thumbnailUrl: `https://picsum.photos/seed/${id}/400/400`,
+    imageUrl: `https://picsum.photos/seed/${id}/400/400`,
     originalPrice: 1_000_000,
-    flashPrice: 500_000,
-    totalStock: stock,
-    soldCount: sold,
+    flashSalePrice: 500_000,
+    allocatedStock: stock,
+    availableStock: Math.max(0, stock - sold),
+    userPurchaseLimit: 2,
     status: "APPROVED",
-    limitPerUser: 2,
   };
 }
 
