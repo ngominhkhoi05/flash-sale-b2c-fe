@@ -265,6 +265,12 @@
       "language": "Vietnamese / VND",
       "searchPlaceholder": "Search products, brands, or hot deals...",
       "greeting": "Minh Thu",
+      "userMenu": {
+        "openMenu": "Open user menu",
+        "myAccount": "My account",
+        "logout": "Log out",
+        "loggingOut": "Logging out..."
+      },
       "nav": {
         "home": "Home",
         "flashSale": "Flash Sale",
