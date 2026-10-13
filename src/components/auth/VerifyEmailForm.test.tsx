@@ -552,4 +552,209 @@ describe("VerifyEmailForm", () => {
       );
     });
   });
+
+  // ========== State C visual (Stitch handoff xac-thuc-email-het-luot-thu.md) ==========
+
+  /** Helper: trigger state tooMany bằng OTP_TOO_MANY_ATTEMPTS. */
+  function triggerTooMany() {
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 429,
+            code: "OTP_TOO_MANY_ATTEMPTS",
+            message: "Too many attempts",
+          })
+        );
+      }
+    );
+  }
+
+  it("state C (tooMany): title đổi thành 'Đã hết lượt thử'", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("too-many-title")).toBeInTheDocument();
+      expect(screen.getByTestId("too-many-title")).toHaveTextContent(
+        "Đã hết lượt thử"
+      );
+    });
+  });
+
+  it("state C (tooMany): mô tả hiển thị 'Bạn đã nhập sai quá 5 lần'", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const desc = screen.getByTestId("too-many-description");
+      expect(desc).toBeInTheDocument();
+      expect(desc.textContent).toMatch(/5 lần/);
+    });
+  });
+
+  it("state C (tooMany): banner vàng cảnh báo bảo mật hiển thị", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const banner = screen.getByTestId("too-many-security-banner");
+      expect(banner).toBeInTheDocument();
+      // Khác banner đỏ ở state B
+      expect(banner.className).toMatch(/amber-/);
+    });
+  });
+
+  it("state C (tooMany): 6 ô OTP bị khoá hiển thị '—'", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const locked = screen.getByTestId("otp-input-locked");
+      expect(locked).toBeInTheDocument();
+      for (let i = 0; i < 6; i++) {
+        expect(screen.getByTestId(`otp-cell-${i}`)).toHaveTextContent("—");
+      }
+    });
+  });
+
+  it("state C (tooMany): icon phong bì có ổ khoá đỏ", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const icon = screen.getByTestId("otp-icon-mail");
+      expect(icon).toHaveAttribute("data-state", "locked");
+    });
+  });
+
+  it("state C (tooMany): nút primary 'Gửi mã mới' hiển thị", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const btn = screen.getByTestId("resend-new-code-button");
+      expect(btn).toBeInTheDocument();
+      expect(btn).toHaveTextContent(/Gửi mã mới/);
+    });
+  });
+
+  it("state C (tooMany): click 'Gửi mã mới' gọi resendMutate", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("resend-new-code-button")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("resend-new-code-button"));
+    expect(mockResendMutate).toHaveBeenCalledWith(
+      { email: "an@gmail.com" },
+      expect.any(Object)
+    );
+  });
+
+  it("state C (tooMany): link 'đăng ký với email khác' trỏ về /register", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const link = screen.getByTestId("sign-up-different-link");
+      expect(link).toBeInTheDocument();
+      expect(link).toHaveAttribute("href", "/register");
+    });
+  });
+
+  it("state C (tooMany): stepper bước 2 có data-state='error'", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const step2 = screen.getByTestId("otp-step-1");
+      expect(step2).toHaveAttribute("data-state", "error");
+    });
+  });
+
+  it("state C (tooMany): submit button gốc bị ẩn (early return sang card tooMany)", async () => {
+    const user = userEvent.setup();
+    triggerTooMany();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("resend-new-code-button")).toBeInTheDocument();
+    });
+    // Submit button cũ bị ẩn hoàn toàn (early return sang card tooMany)
+    expect(screen.queryByTestId("verify-submit")).not.toBeInTheDocument();
+  });
 });

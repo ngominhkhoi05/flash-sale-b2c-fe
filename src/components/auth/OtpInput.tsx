@@ -27,6 +27,13 @@ export interface OtpInputProps {
   length?: number;
   hasError?: boolean;
   disabled?: boolean;
+  /**
+   * Trạng thái khoá nâng cao (dùng cho Stitch state "Đã hết lượt thử" – tooMany).
+   * - "default": dùng `disabled` bình thường (input bị disable nhưng DOM vẫn còn)
+   * - "locked": ẩn hoàn toàn input thật, thay bằng 6 ô read-only hiển thị "—",
+   *   cursor not-allowed, không cho click/focus/paste
+   */
+  disabledState?: "default" | "locked";
   /** id prefix cho từng ô (mặc định "otp"). */
   idPrefix?: string;
   className?: string;
@@ -49,6 +56,7 @@ export const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(function OtpInput
     length = DEFAULT_LENGTH,
     hasError = false,
     disabled = false,
+    disabledState = "default",
     idPrefix = DEFAULT_ID_PREFIX,
     className,
     autoFocus = true,
@@ -73,6 +81,34 @@ export const OtpInput = forwardRef<OtpInputRef, OtpInputProps>(function OtpInput
   const setRef = (idx: number) => (el: HTMLInputElement | null) => {
     inputRefs.current[idx] = el;
   };
+
+  // ========== Locked mode (Stitch state tooMany) ==========
+  if (disabledState === "locked") {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center gap-2",
+          className
+        )}
+        role="group"
+        aria-label="OTP input – locked"
+        aria-disabled="true"
+        data-testid="otp-input-locked"
+      >
+        {Array.from({ length }).map((_, idx) => (
+          <div
+            key={idx}
+            className="flex h-14 w-12 cursor-not-allowed select-none items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-2xl font-semibold text-slate-400"
+            data-testid={`otp-cell-${idx}`}
+            data-state="locked"
+            data-filled="false"
+          >
+            <span aria-hidden>—</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   function updateAt(idx: number, digit: string) {
     if (disabled) return;

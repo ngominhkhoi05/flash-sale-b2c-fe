@@ -168,6 +168,15 @@
         "tooManyAttempts": "Too many incorrect attempts. Please try again in {minutes} minutes.",
         "retry": "Try again",
         "requestNew": "Send new code"
+      },
+      "tooMany": {
+        "title": "Too many attempts",
+        "description": "You have entered the wrong code too many times. Please request a new code to continue.",
+        "securityTitle": "Account security:",
+        "securityDesc": "The old code has been disabled for security. Please request a new code.",
+        "sendNew": "Send new code",
+        "orSignUpDifferent": "Or go back to",
+        "signUpDifferentLink": "sign up with a different email"
       }
     },
     "errors": {

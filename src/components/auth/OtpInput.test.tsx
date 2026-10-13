@@ -182,4 +182,43 @@ describe("OtpInput", () => {
     await user.keyboard("1");
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  // ========== disabledState="locked" – Stich state tooMany ==========
+
+  it("locked: 6 ô input bị thay bằng div read-only hiển thị '—'", () => {
+    render(<OtpInput value="" onChange={() => {}} disabledState="locked" />);
+    // Không còn input thật (querySelector hidden vì <input> bị ẩn)
+    expect(screen.queryByLabelText("OTP digit 1")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("OTP digit 6")).not.toBeInTheDocument();
+    // 6 ô vẫn render với testid
+    expect(screen.getByTestId("otp-cell-0")).toBeInTheDocument();
+    expect(screen.getByTestId("otp-cell-5")).toBeInTheDocument();
+    // 6 ô có data-state="locked"
+    for (let i = 0; i < 6; i++) {
+      expect(screen.getByTestId(`otp-cell-${i}`)).toHaveAttribute(
+        "data-state",
+        "locked"
+      );
+    }
+  });
+
+  it("locked: mỗi ô hiển thị text '—' khi không có value", () => {
+    render(<OtpInput value="" onChange={() => {}} disabledState="locked" />);
+    for (let i = 0; i < 6; i++) {
+      expect(screen.getByTestId(`otp-cell-${i}`)).toHaveTextContent("—");
+    }
+  });
+
+  it("locked: container có data-testid='otp-input-locked' để phân biệt", () => {
+    render(<OtpInput value="" onChange={() => {}} disabledState="locked" />);
+    expect(screen.getByTestId("otp-input-locked")).toBeInTheDocument();
+  });
+
+  it("locked: container có aria-disabled='true'", () => {
+    render(<OtpInput value="" onChange={() => {}} disabledState="locked" />);
+    expect(screen.getByTestId("otp-input-locked")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+  });
 });
