@@ -285,6 +285,107 @@
       "emptyDescription": "Khám phá thêm sản phẩm và thêm vào giỏ để tiếp tục mua sắm.",
       "continueShopping": "Tiếp tục mua sắm"
     },
+    "checkout": {
+      "title": "Thanh toán",
+      "breadcrumb": "Thanh toán",
+      "nav": {
+        "cart": "Giỏ hàng",
+        "payment": "Thanh toán",
+        "confirmation": "Xác nhận"
+      },
+      "userMenu": {
+        "account": "Tài khoản của tôi",
+        "logout": "Đăng xuất",
+        "loggingOut": "Đang đăng xuất…"
+      },
+      "totalLabel": "Tổng thanh toán",
+      "addressCard": {
+        "title": "Địa chỉ nhận hàng",
+        "change": "Thay đổi",
+        "default": "Mặc định"
+      },
+      "splitBanner": {
+        "text": "Đơn của bạn gồm sản phẩm từ {count} shop nên sẽ được tách thành {count} đơn hàng riêng biệt nhằm tối ưu vận chuyển."
+      },
+      "shopCard": {
+        "voucherLabel": "Voucher của shop:",
+        "changeVoucher": "Đổi mã",
+        "notePlaceholder": "Lời nhắn cho shop (ví dụ: giao giờ hành chính, gọi trước khi giao)...",
+        "shippingFee": "Phí giao hàng:",
+        "shopSubtotal": "Tạm tính đơn này:",
+        "estimatedDelivery": "Giao dự kiến:",
+        "shopBadge": "Đơn 1 –"
+      },
+      "voucherCard": {
+        "title": "Mã giảm giá VibeMart",
+        "seeAll": "Xem thêm mã",
+        "placeholder": "Nhập mã giảm giá (vd: VIBE30K)",
+        "apply": "Áp dụng",
+        "removeAria": "Gỡ mã giảm giá"
+      },
+      "paymentCard": {
+        "title": "Phương thức thanh toán",
+        "zaloPay": "ZaloPay – Quét mã QR",
+        "zaloPayDesc": "Quét 1 mã QR duy nhất để thanh toán tất cả các đơn hàng nhanh chóng, hoàn tiền tức thì nếu hủy.",
+        "zaloPayHint": "Hỗ trợ Napas / Visa / MasterCard",
+        "cod": "Thanh toán khi nhận hàng (COD)",
+        "codDesc": "Thanh toán tiền mặt cho nhân viên giao hàng khi nhận từng kiện. Vui lòng chuẩn bị đúng số tiền.",
+        "codHint": "Phí thu hộ: 0₫",
+        "secure": "Bảo mật 100% qua ZaloPay & PCI-DSS",
+        "recommended": "Khuyên dùng"
+      },
+      "vibeCare": {
+        "title": "VibeCare – Bảo hành 1 đổi 1",
+        "badge": "30 ngày",
+        "description": "Đổi mới miễn phí trong 30 ngày nếu có lỗi từ nhà sản xuất, không cần hoá đơn. Áp dụng cho sản phẩm Mall & Official Mall.",
+        "price": "Thêm chỉ với {price}",
+        "add": "Thêm gói",
+        "added": "Đã thêm"
+      },
+      "summary": {
+        "title": "Tóm tắt đơn hàng",
+        "subtotal": "Tạm tính ({count} sản phẩm)",
+        "shipping": "Phí vận chuyển ({count} đơn)",
+        "shopVoucher": "Voucher shop",
+        "platformVoucher": "Voucher VibeMart ({code})",
+        "vibeCare": "VibeCare (gói bảo hành)",
+        "total": "Tổng thanh toán",
+        "vat": "Đã bao gồm VAT",
+        "submit": "Đặt hàng ngay",
+        "submitting": "Đang xử lý...",
+        "errorSubmit": "Đặt hàng thất bại. Vui lòng thử lại.",
+        "vatNotice": "Giá đã bao gồm VAT và thuế tiêu thụ đặc biệt (nếu có).",
+        "guarantee": "Được bảo chứng bởi ZaloPay – PCI DSS cấp 1",
+        "terms": "Bằng việc nhấn <strong>Đặt hàng ngay</strong>, bạn đồng ý với <a href='/terms' class='text-primary underline'>Điều khoản sử dụng</a> của Vibe Mart.",
+        "zaloPayNotice": "Đơn hàng sẽ được giữ chỗ trong 5 phút. Vui lòng hoàn tất thanh toán trong thời gian này.",
+        "secureHint": "Thông tin thanh toán của bạn được mã hoá theo chuẩn <strong>PCI DSS cấp 1</strong> – an toàn tuyệt đối."
+      },
+      "modals": {
+        "address": {
+          "title": "Chọn địa chỉ giao hàng",
+          "empty": "Bạn chưa có địa chỉ nào. Hãy thêm địa chỉ mới.",
+          "addNew": "Thêm địa chỉ mới",
+          "done": "Xong",
+          "close": "Đóng"
+        },
+        "voucher": {
+          "title": "Chọn mã giảm giá VibeMart",
+          "tabAll": "Tất cả ({count})",
+          "tabActive": "Có thể dùng ({count})",
+          "tabSoon": "Sắp tới ({count})",
+          "tabUsed": "Hết hạn ({count})",
+          "empty": "Không có mã nào trong mục này.",
+          "applied": "Đang dùng",
+          "apply": "Áp dụng",
+          "appliedDone": "Đã áp dụng",
+          "unavailable": "Không khả dụng",
+          "close": "Đóng",
+          "expires": "HSD: {date}"
+        }
+      },
+      "empty": "Không có sản phẩm để thanh toán",
+      "loading": "Đang tải trang thanh toán…"
+    },
     "voucher": {
       "title": "Kho voucher của tôi",
       "loading": "Đang tải voucher…",
