@@ -108,7 +108,12 @@ export type MaterialSymbolName =
   | "auto_awesome"
   | "arrow_back_ios_new"
   | "update"
-  | "package_2";
+  | "package_2"
+  // Flash Sale page (added 2026-10-13)
+  | "remove_red_eye"
+  | "schedule"
+  | "notifications_active"
+  | "visibility";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
@@ -135,7 +140,8 @@ export interface MaterialSymbolProps {
     | "[56px]"
     | "[80px]"
     | "[100px]"
-    | "[120px]";
+    | "[120px]"
+    | "[48px]";
   className?: string;
   /** Optional accessible label; renders as aria-label. If absent, icon is decorative. */
   label?: string;

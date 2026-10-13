@@ -16,17 +16,18 @@ function mkItem(
 ): PublicFlashSaleItemResponse {
   return {
     id,
-    flashSaleSlotId: 2,
-    productId: 100 + id,
+    slotId: 2,
+    variantId: id * 10,
+    sku: `MOCK-${id.toString().padStart(4, "0")}`,
+    variantName: "Default",
     productName: name,
-    productSlug: `p-${id}`,
-    thumbnailUrl: `https://picsum.photos/seed/${id}/400/400`,
+    imageUrl: `https://picsum.photos/seed/${id}/400/400`,
     originalPrice: 1_000_000,
-    flashPrice: 500_000,
-    totalStock: stock,
-    soldCount: sold,
+    flashSalePrice: 500_000,
+    allocatedStock: stock,
+    availableStock: Math.max(0, stock - sold),
+    userPurchaseLimit: 2,
     status,
-    limitPerUser: 2,
   };
 }
 
@@ -48,7 +49,7 @@ describe("FlashSaleDealsGrid", () => {
 
   it("renders EmptyState when items empty", () => {
     render(
-      <FlashSaleDealsGrid
+      <FlashSaleDealsGrid<PublicFlashSaleItemResponse>
         items={[]}
         renderItem={(it) => <span key={it.id}>{it.productName}</span>}
         emptyTitle="Chưa có sản phẩm"
@@ -61,7 +62,7 @@ describe("FlashSaleDealsGrid", () => {
 
   it("applies custom className to root", () => {
     const { container } = render(
-      <FlashSaleDealsGrid
+      <FlashSaleDealsGrid<PublicFlashSaleItemResponse>
         items={items}
         renderItem={(it) => <span key={it.id}>{it.productName}</span>}
         className="custom-grid"
