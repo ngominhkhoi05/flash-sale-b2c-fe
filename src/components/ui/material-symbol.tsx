@@ -113,7 +113,14 @@ export type MaterialSymbolName =
   | "remove_red_eye"
   | "schedule"
   | "notifications_active"
-  | "visibility";
+  | "visibility"
+  // Search page (added 2026-10-13)
+  | "tune"
+  | "restart_alt"
+  | "search_off"
+  | "filter_alt_off"
+  | "chevron_left"
+  | "trending_up";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
@@ -136,12 +143,15 @@ export interface MaterialSymbolProps {
     | "[20px]"
     | "[24px]"
     | "[28px]"
+    | "[32px]"
+    | "[36px]"
     | "[40px]"
+    | "[48px]"
     | "[56px]"
+    | "[64px]"
     | "[80px]"
     | "[100px]"
-    | "[120px]"
-    | "[48px]";
+    | "[120px]";
   className?: string;
   /** Optional accessible label; renders as aria-label. If absent, icon is decorative. */
   label?: string;

@@ -90,7 +90,7 @@ describe("useSearchProducts", () => {
     const { wrapper } = withQueryClient();
     const query = {
       q: "tai nghe",
-      filters: { services: ["freeship"] },
+      filters: { services: ["freeship" as const] },
       sort: "price_asc" as const,
       page: 2,
     };

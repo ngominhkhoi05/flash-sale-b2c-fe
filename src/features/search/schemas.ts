@@ -79,10 +79,13 @@ export const searchParamsSchema = z.object({
   rating: z
     .union([z.coerce.number().int().min(3).max(5), z.array(z.coerce.number().int().min(3).max(5))])
     .optional()
-    .transform((v) => {
+    .transform((v): 3 | 4 | 5 | undefined => {
       if (!v) return undefined;
       const arr = Array.isArray(v) ? v : [v];
-      return arr.length > 0 ? Math.max(...arr) : undefined;
+      if (arr.length === 0) return undefined;
+      const max = Math.max(...arr);
+      if (max === 3 || max === 4 || max === 5) return max;
+      return undefined;
     }),
   sort: sortEnum.optional().default(DEFAULT_SEARCH_SORT),
   page: optionalPositiveInt.transform((v) => v ?? DEFAULT_SEARCH_PAGE),

@@ -442,6 +442,84 @@
       "emptyDescription": "Thu thập voucher từ trang chủ hoặc trong quá trình thanh toán để tiết kiệm hơn.",
       "browseVouchers": "Xem voucher"
     },
+    "search": {
+      "title": "Tìm kiếm sản phẩm",
+      "loading": "Đang tìm kiếm…",
+      "resultsFor": "Kết quả cho '{q}'",
+      "resultsCount": "({total} sản phẩm tìm thấy trên toàn sàn)",
+      "resultsCountZero": "(Không tìm thấy sản phẩm nào)",
+      "breadcrumbs": {
+        "home": "Trang chủ",
+        "category": "Thiết bị điện tử",
+        "current": "Tai nghe"
+      },
+      "filter": {
+        "title": "BỘ LỌC TÌM KIẾM",
+        "reset": "Thiết lập lại",
+        "clearAll": "Xóa tất cả bộ lọc",
+        "subcategory": "Danh mục con",
+        "subcategoryOptions": {
+          "true-wireless": "Tai nghe True Wireless",
+          "over-ear": "Tai nghe chụp tai Over-ear",
+          "sport-waterproof": "Tai nghe thể thao chống nước",
+          "gaming-mic": "Tai nghe gaming có mic",
+          "accessories": "Phụ kiện & ốp tai nghe"
+        },
+        "city": "Nơi bán",
+        "cityOptions": {
+          "HCM": "TP. Hồ Chí Minh",
+          "HN": "Hà Nội",
+          "DN": "Đà Nẵng",
+          "BD": "Bình Dương"
+        },
+        "price": "Khoảng giá (₫)",
+        "pricePlaceholderMin": "Từ",
+        "pricePlaceholderMax": "Đến",
+        "priceApply": "Áp dụng khoảng giá",
+        "rating": "Đánh giá sao",
+        "ratingFive": "5 sao tuyệt đối",
+        "ratingFour": "Từ 4 sao trở lên",
+        "ratingThree": "Từ 3 sao trở lên",
+        "services": "Dịch vụ & Khuyến mãi",
+        "serviceOptions": {
+          "flash-sale": "Đang Flash Sale",
+          "voucher": "Voucher giảm giá",
+          "freeship": "Freeship Xtra",
+          "official": "Hàng chính hãng 100%"
+        }
+      },
+      "sort": {
+        "label": "Sắp xếp theo:",
+        "relevance": "Liên quan",
+        "newest": "Mới nhất",
+        "best_selling": "Bán chạy",
+        "price_asc": "Giá: Thấp đến Cao",
+        "price_desc": "Giá: Cao đến Thấp"
+      },
+      "activeChips": {
+        "label": "Đang lọc:",
+        "clearAll": "Xóa tất cả"
+      },
+      "mall": {
+        "officialBadge": "MALL",
+        "mallOfficial": "Mall Chính Hãng",
+        "responseRate": "Phản hồi: {rate}%",
+        "products": "Sản phẩm: {count}",
+        "viewStore": "Xem Shop"
+      },
+      "empty": {
+        "title": "Không tìm thấy sản phẩm phù hợp",
+        "description": "Hãy thử kiểm tra lỗi chính tả của từ khóa, thử lại với từ khóa phổ quát hơn hoặc xóa bớt các tiêu chí bộ lọc đang chọn.",
+        "clearFilters": "Xóa bộ lọc tìm kiếm",
+        "goHome": "Về trang chủ mua sắm",
+        "suggestedLabel": "Gợi ý từ khóa tìm kiếm phổ biến:"
+      },
+      "pagination": {
+        "previous": "Trước",
+        "next": "Sau",
+        "pageOf": "{page}/{total}"
+      }
+    },
     "account": {
       "title": "Tài khoản của tôi",
       "loading": "Đang tải tài khoản…",
