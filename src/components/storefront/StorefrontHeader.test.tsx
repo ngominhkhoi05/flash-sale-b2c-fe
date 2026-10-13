@@ -122,6 +122,26 @@ describe("StorefrontHeader – renders all sections", () => {
     expect(inputs.length).toBeGreaterThan(0);
   });
 
+  it("search form posts to /search (Subplan C of search-page-ui plan)", () => {
+    withProviders(<StorefrontHeader />);
+    // Lấy form chứa search input
+    const input = screen.getAllByRole("textbox").find(
+      (el) => (el as HTMLInputElement).name === "q",
+    ) as HTMLInputElement | undefined;
+    expect(input).toBeDefined();
+    const form = input?.closest("form");
+    expect(form).not.toBeNull();
+    expect(form?.getAttribute("action")).toBe("/search");
+    expect(form?.getAttribute("method")).toBe("get");
+  });
+
+  it("search icon link in compact variant also points to /search", () => {
+    withProviders(<StorefrontHeader variant="compact" />);
+    // Search icon button là link có aria-label = searchPlaceholder
+    const link = screen.getByRole("link", { name: /Tìm sản phẩm/i });
+    expect(link).toHaveAttribute("href", "/search");
+  });
+
   it("renders multiple nav pills (at least 5)", () => {
     withProviders(<StorefrontHeader />);
     const pills = screen.getAllByRole("link");

@@ -4,7 +4,7 @@
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TestWrapper } from "@/__tests__/test-wrapper";
 import type { SearchFacets, SearchFilters } from "@/features/search/types";
