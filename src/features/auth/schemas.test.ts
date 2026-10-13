@@ -3,9 +3,11 @@ import {
   emailSchema,
   fullNameSchema,
   loginSchema,
+  otpCodeSchema,
   phoneRegisterSchema,
   passwordRegisterSchema,
   registerSchema,
+  verifyOtpSchema,
 } from './schemas';
 
 describe('emailSchema', () => {
@@ -156,6 +158,55 @@ describe('registerSchema', () => {
 
   it('rejects when phone is invalid', () => {
     const r = registerSchema.safeParse({ ...valid, phone: '12345' });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('otpCodeSchema', () => {
+  it('accepts 6-digit code', () => {
+    const r = otpCodeSchema.safeParse('123456');
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects shorter code', () => {
+    const r = otpCodeSchema.safeParse('1234');
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects longer code', () => {
+    const r = otpCodeSchema.safeParse('1234567');
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects non-numeric code', () => {
+    const r = otpCodeSchema.safeParse('abcdef');
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects mixed alphanumeric', () => {
+    const r = otpCodeSchema.safeParse('12ab56');
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects empty string', () => {
+    const r = otpCodeSchema.safeParse('');
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('verifyOtpSchema', () => {
+  it('accepts valid 6-digit code', () => {
+    const r = verifyOtpSchema.safeParse({ code: '123456' });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects missing code', () => {
+    const r = verifyOtpSchema.safeParse({});
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects invalid code', () => {
+    const r = verifyOtpSchema.safeParse({ code: '12' });
     expect(r.success).toBe(false);
   });
 });

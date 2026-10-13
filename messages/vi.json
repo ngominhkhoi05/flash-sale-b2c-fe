@@ -140,6 +140,36 @@
       "comingSoon": "Tính năng đang được phát triển. Vui lòng liên hệ hỗ trợ.",
       "backToLogin": "Quay lại đăng nhập"
     },
+    "verifyEmail": {
+      "step1Label": "Tạo tài khoản",
+      "step2Label": "Xác thực email",
+      "step3Label": "Hoàn tất",
+      "iconMail": "Email",
+      "iconCheck": "Đã xác thực",
+      "title": "Xác thực email của bạn",
+      "description": "Nhập mã gồm 6 chữ số đã gửi tới",
+      "changeEmail": "Đổi email",
+      "placeholderEmail": "email của bạn",
+      "validity": "Mã có hiệu lực trong {minutes} phút",
+      "submit": "Xác thực",
+      "submitting": "Đang xác thực…",
+      "resendHint": "Chưa nhận được mã?",
+      "resendCountdown": "Gửi lại sau {seconds}",
+      "resendNow": "Gửi lại mã",
+      "resendSuccess": "Đã gửi lại mã xác thực",
+      "backToRegister": "Quay lại đăng ký",
+      "securityNote": "Bảo mật kết nối TLS 256-bit chuẩn thương mại điện tử",
+      "securityIcon": "Bảo mật",
+      "error": {
+        "title": "Mã chưa đúng",
+        "description": "Vui lòng kiểm tra lại mã đã nhập cho tài khoản",
+        "banner": "Mã chưa đúng. Bạn còn {attempts} lần thử.",
+        "expired": "Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.",
+        "tooManyAttempts": "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau {minutes} phút.",
+        "retry": "Thử lại",
+        "requestNew": "Gửi mã mới"
+      }
+    },
     "errors": {
       "identifierRequired": "Vui lòng nhập email hoặc số điện thoại",
       "identifierInvalid": "Email hoặc số điện thoại không hợp lệ",

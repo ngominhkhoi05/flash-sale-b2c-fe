@@ -1,5 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { loginRequest, registerRequest, fetchMe, logoutRequest } from './api';
+import {
+  loginRequest,
+  registerRequest,
+  fetchMe,
+  logoutRequest,
+  verifyOtpRequest,
+  resendOtpRequest,
+} from './api';
 
 vi.mock('@/lib/api', () => ({
   apiFetch: vi.fn(),
@@ -155,5 +162,63 @@ describe('logoutRequest (real backend contract)', () => {
   it('swallows errors (best-effort logout)', async () => {
     mockedApiFetch.mockRejectedValueOnce(new Error('boom'));
     await expect(logoutRequest('rt')).resolves.toBeUndefined();
+  });
+});
+
+describe('verifyOtpRequest (real backend contract)', () => {
+  it('POSTs /api/v1/auth/verify-email with { email, code }', async () => {
+    mockedApiFetch.mockResolvedValueOnce({
+      accessToken: 't',
+      refreshToken: 'r',
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      user: { id: 1, email: 'an@example.com', fullName: 'An' },
+    });
+    await verifyOtpRequest({ email: 'an@example.com', code: '123456' });
+    expect(mockedApiFetch).toHaveBeenCalledWith('/api/v1/auth/verify-email', {
+      method: 'POST',
+      json: { email: 'an@example.com', code: '123456' },
+      withAuth: false,
+    });
+  });
+
+  it('rejects non-6-digit code client-side (does not call API)', async () => {
+    await expect(
+      verifyOtpRequest({ email: 'an@example.com', code: '1234' })
+    ).rejects.toThrow();
+    expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-numeric code client-side (does not call API)', async () => {
+    await expect(
+      verifyOtpRequest({ email: 'an@example.com', code: 'abcdef' })
+    ).rejects.toThrow();
+    expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid email client-side (does not call API)', async () => {
+    await expect(
+      verifyOtpRequest({ email: 'not-email', code: '123456' })
+    ).rejects.toThrow();
+    expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('resendOtpRequest (real backend contract)', () => {
+  it('POSTs /api/v1/auth/resend-otp with { email }', async () => {
+    mockedApiFetch.mockResolvedValueOnce({ success: true, email: 'an@example.com' });
+    await resendOtpRequest({ email: 'an@example.com' });
+    expect(mockedApiFetch).toHaveBeenCalledWith('/api/v1/auth/resend-otp', {
+      method: 'POST',
+      json: { email: 'an@example.com' },
+      withAuth: false,
+    });
+  });
+
+  it('rejects invalid email client-side (does not call API)', async () => {
+    await expect(
+      resendOtpRequest({ email: 'not-email' })
+    ).rejects.toThrow();
+    expect(mockedApiFetch).not.toHaveBeenCalled();
   });
 });

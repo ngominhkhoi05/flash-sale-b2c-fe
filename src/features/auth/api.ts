@@ -77,6 +77,21 @@ export interface RegisterRequest {
   password: string;
 }
 
+/** FE form input – xác thực OTP 6 số sau khi đăng ký. */
+export interface VerifyOtpRequest {
+  email: string;
+  /** Mã OTP 6 chữ số backend gửi qua email. */
+  code: string;
+}
+
+/** Response sau khi verify OTP thành công – trả về auth đầy đủ. */
+export type VerifyOtpResponse = AuthResponse;
+
+/** FE form input – yêu cầu gửi lại mã OTP. */
+export interface ResendOtpRequest {
+  email: string;
+}
+
 export async function loginRequest(
   payload: LoginRequest
 ): Promise<AuthResponse> {
@@ -123,4 +138,63 @@ export async function logoutRequest(refreshToken: string): Promise<void> {
     method: 'POST',
     json: { refreshToken },
   }).catch(() => undefined);
+}
+
+const verifyOtpPayloadSchema = z.object({
+  email: emailSchema,
+  code: z
+    .string()
+    .min(6, 'Mã OTP phải có 6 chữ số')
+    .max(6, 'Mã OTP phải có 6 chữ số')
+    .regex(/^\d{6}$/, 'Mã OTP chỉ chứa chữ số'),
+});
+
+/**
+ * verifyOtpRequest – gọi POST /api/v1/auth/verify-email.
+ * Backend (sẽ có) trả về AuthResponse đầy đủ (accessToken, refreshToken, user).
+ *
+ * Mock flow: nếu NEXT_PUBLIC_USE_MOCK=true thì dùng `verifyOtpMock` (xem mocks.ts).
+ * Mock accept "123456" làm mã đúng, các mã khác trả OTP_INVALID.
+ */
+export async function verifyOtpRequest(
+  payload: VerifyOtpRequest
+): Promise<VerifyOtpResponse> {
+  const parsed = verifyOtpPayloadSchema.parse(payload);
+  if (process.env.NEXT_PUBLIC_USE_MOCK === 'true') {
+    const { verifyOtpMock } = await import('./mocks');
+    return verifyOtpMock(parsed);
+  }
+  return apiFetch<VerifyOtpResponse>('/api/v1/auth/verify-email', {
+    method: 'POST',
+    json: { email: parsed.email, code: parsed.code },
+    withAuth: false,
+  });
+}
+
+const resendOtpPayloadSchema = z.object({
+  email: emailSchema,
+});
+
+/**
+ * resendOtpRequest – gọi POST /api/v1/auth/resend-otp.
+ * Backend gửi lại mã OTP mới qua email.
+ *
+ * Mock flow: nếu NEXT_PUBLIC_USE_MOCK=true thì dùng `resendOtpMock` (xem mocks.ts).
+ */
+export async function resendOtpRequest(
+  payload: ResendOtpRequest
+): Promise<{ success: boolean; email: string }> {
+  const parsed = resendOtpPayloadSchema.parse(payload);
+  if (process.env.NEXT_PUBLIC_USE_MOCK === 'true') {
+    const { resendOtpMock } = await import('./mocks');
+    return resendOtpMock(parsed);
+  }
+  return apiFetch<{ success: boolean; email: string }>(
+    '/api/v1/auth/resend-otp',
+    {
+      method: 'POST',
+      json: { email: parsed.email },
+      withAuth: false,
+    }
+  );
 }

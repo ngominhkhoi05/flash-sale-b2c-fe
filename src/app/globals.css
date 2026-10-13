@@ -192,3 +192,15 @@ input[type='password']::-webkit-textfield-decoration-container {
   appearance: none;
   display: none !important;
 }
+
+/* =========================================================
+ * OTP input shake animation – rule §8 mục 2 (error UX).
+ * Trigger khi người dùng nhập sai mã OTP, giúp nhấn mạnh lỗi
+ * mà không cần reflow toàn trang. Dùng cubic-bezier giống
+ * Material Design shake pattern.
+ * ========================================================= */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
