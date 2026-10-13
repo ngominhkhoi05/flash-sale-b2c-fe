@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { useLoginMutation, useRegisterMutation } from "./hooks";
+import { useLoginMutation, useRegisterMutation, useLogoutMutation } from "./hooks";
 
 // ── Mock API layer ──────────────────────────────────────────────────────
 const mockLoginRequest = vi.fn();
@@ -25,12 +25,14 @@ vi.mock("@/lib/api", () => ({
 
 // ── Mock auth store ─────────────────────────────────────────────────────
 const mockSetUser = vi.fn();
-const mockUseAuthStore = vi.fn((selector: (s: { setUser: typeof mockSetUser }) => unknown) =>
-  selector({ setUser: mockSetUser }),
+const mockReset = vi.fn();
+const mockUseAuthStore = vi.fn(
+  (selector: (s: { setUser: typeof mockSetUser; reset: typeof mockReset }) => unknown) =>
+    selector({ setUser: mockSetUser, reset: mockReset }),
 );
 
 vi.mock("@/stores/auth.store", () => ({
-  useAuthStore: (selector: (s: { setUser: typeof mockSetUser }) => unknown) =>
+  useAuthStore: (selector: (s: { setUser: typeof mockSetUser; reset: typeof mockReset }) => unknown) =>
     mockUseAuthStore(selector),
 }));
 
@@ -261,5 +263,108 @@ describe("useRegisterMutation - post-register invalidation", () => {
         ["products", "recommended"],
       ]),
     );
+  });
+});
+
+// ── useLogoutMutation – redirect về / thay vì /login ─────────────────────
+//
+// Bug trước: useLogoutMutation ép `window.location.href = '/login'` trong
+// onSettled. UX tệ — user click "Đăng xuất" ở trang chủ thì bị đá sang
+// trang đăng nhập mặc dù họ không cần auth để xem trang chủ.
+//
+// Fix: sau logout, redirect về ROUTES.HOME ("/"). Tokens + auth store
+// vẫn phải được clear.
+describe("useLogoutMutation - post-logout redirect", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // jsdom chặn set window.location.href trực tiếp. Mỗi test sẽ tự
+    // defineProperty lại location với setter capture.
+    // Stub sessionStorage để có refresh token
+    vi.spyOn(window.sessionStorage, "getItem").mockReturnValue("rt-abc");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function setup() {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+    return renderHook(() => useLogoutMutation(), { wrapper });
+  }
+
+  it("after onSettled, redirects to ROUTES.HOME ('/'), not /login", async () => {
+    // jsdom chặn set window.location.href trực tiếp. Dùng defineProperty
+    // trên `location` của window để override setter của `href`.
+    const captured: { href: string } = { href: "" };
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      writable: true,
+      value: {
+        set href(url: string) {
+          captured.href = url;
+        },
+        get href() {
+          return captured.href;
+        },
+        assign: () => {
+          /* noop */
+        },
+        replace: () => {
+          /* noop */
+        },
+      },
+    });
+
+    const { result } = setup();
+    await act(async () => {
+      result.current.mutate();
+    });
+    await waitFor(() => expect(captured.href).not.toBe(""));
+    expect(captured.href).toBe("/");
+    expect(captured.href).not.toBe("/login");
+  });
+
+  it("still clears access token + refresh token after logout", async () => {
+    const captured: { href: string } = { href: "" };
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      writable: true,
+      value: {
+        set href(url: string) {
+          captured.href = url;
+        },
+        get href() {
+          return captured.href;
+        },
+        assign: () => {
+          /* noop */
+        },
+        replace: () => {
+          /* noop */
+        },
+      },
+    });
+
+    const accessModule = await import("@/lib/api");
+    const accessSpy = vi
+      .spyOn(accessModule, "clearAccessToken")
+      .mockImplementation(() => undefined);
+    const refreshSpy = vi
+      .spyOn(accessModule, "clearRefreshToken")
+      .mockImplementation(() => undefined);
+
+    const { result } = setup();
+    await act(async () => {
+      result.current.mutate();
+    });
+    await waitFor(() => expect(captured.href).not.toBe(""));
+
+    expect(accessSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 });
