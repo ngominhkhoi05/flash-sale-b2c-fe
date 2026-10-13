@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api";
 import { ROUTES } from "@/lib/constants";
@@ -206,6 +207,7 @@ export function VerifyEmailForm({
 }: VerifyEmailFormProps) {
   const t = useTranslations("auth.verifyEmail");
   const tErr = useTranslations("auth.errors");
+  const router = useRouter();
 
   const {
     handleSubmit,
@@ -260,11 +262,14 @@ export function VerifyEmailForm({
       {
         onSuccess: () => {
           toast.success(t("submit"));
-          // Dùng window.location thay vì router.push vì hook đã lưu token
-          // → middleware sẽ chuyển hướng đúng theo role
-          if (typeof window !== "undefined") {
-            window.location.href = redirectTo;
-          }
+          // Redirect sang trang success với email để hiển thị thông báo thành công
+          // (auto-redirect 5s về redirectTo mặc định = /login)
+          const target = `${ROUTES.VERIFY_EMAIL_SUCCESS}?email=${encodeURIComponent(email)}`;
+          // Pass redirectTo qua query param để SuccessCard auto-redirect đúng
+          const finalTarget = redirectTo !== ROUTES.LOGIN
+            ? `${target}&redirectTo=${encodeURIComponent(redirectTo)}`
+            : target;
+          router.push(finalTarget);
         },
         onError: (err) => {
           if (err instanceof ApiError) {

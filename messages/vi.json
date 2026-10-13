@@ -177,6 +177,16 @@
         "sendNew": "Gửi mã mới",
         "orSignUpDifferent": "Hoặc quay lại",
         "signUpDifferentLink": "đăng ký với email khác"
+      },
+      "success": {
+        "title": "Email đã được xác thực",
+        "description": "Tài khoản của bạn đã sẵn sàng.",
+        "descriptionWithEmail": "{email} đã được kích hoạt thành công.",
+        "accountLabel": "Tài khoản",
+        "activatedBadge": "Đã kích hoạt",
+        "shopNow": "Bắt đầu mua sắm",
+        "autoRedirect": "Tự chuyển trang sau",
+        "autoRedirectUnit": "giây."
       }
     },
     "errors": {

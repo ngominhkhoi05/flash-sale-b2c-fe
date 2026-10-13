@@ -177,6 +177,16 @@
         "sendNew": "Send new code",
         "orSignUpDifferent": "Or go back to",
         "signUpDifferentLink": "sign up with a different email"
+      },
+      "success": {
+        "title": "Email verified",
+        "description": "Your account is ready.",
+        "descriptionWithEmail": "{email} has been successfully activated.",
+        "accountLabel": "Account",
+        "activatedBadge": "Activated",
+        "shopNow": "Start shopping",
+        "autoRedirect": "Auto redirect in",
+        "autoRedirectUnit": "seconds."
       }
     },
     "errors": {
