@@ -265,12 +265,6 @@
       "language": "Vietnamese / VND",
       "searchPlaceholder": "Search products, brands, or hot deals...",
       "greeting": "Minh Thu",
-      "userMenu": {
-        "openMenu": "Open user menu",
-        "myAccount": "My account",
-        "logout": "Log out",
-        "loggingOut": "Logging out..."
-      },
       "nav": {
         "home": "Home",
         "flashSale": "Flash Sale",
@@ -418,6 +412,138 @@
         "operationRules": "Operation Rules"
       },
       "copyright": "© 2026 Vibe Mart. All rights reserved."
+    }
+  },
+  "productDetail": {
+    "breadcrumb": {
+      "home": "Home",
+      "category": "Unisex Fashion"
+    },
+    "switcher": {
+      "label": "View mode:",
+      "standard": "Variant A (Standard)",
+      "flash": "⚡ Variant B (Flash Sale)"
+    },
+    "gallery": {
+      "zoom": "Zoom in"
+    },
+    "share": {
+      "label": "Share:",
+      "copied": "Product link copied!"
+    },
+    "wishlist": {
+      "liked": "Liked",
+      "count": "(1.4k)"
+    },
+    "tags": {
+      "favorite": "FAVORITE+",
+      "official": "100% Authentic UTC",
+      "sku": "SKU"
+    },
+    "rating": {
+      "reviews": "({count} reviews)",
+      "sold": "Sold",
+      "questions": "{count} questions"
+    },
+    "pricing": {
+      "flashBanner": "FLASH SALE GOLDEN HOUR",
+      "endsIn": "Ends in",
+      "flashDeal": "⚡ FLASH DEAL ONLY 28 LEFT",
+      "soldProgress": "Sold {sold}/{total}",
+      "remaining": "{count} left",
+      "maxQtyNote": "Note: Each customer can buy at most {max} products at Flash Sale price",
+      "trustGuarantee": "111% money-back guarantee if counterfeit is detected",
+      "goodPriceDaily": "Good daily price"
+    },
+    "vouchers": {
+      "label": "Vouchers:",
+      "save": "Save",
+      "saved": "Saved"
+    },
+    "shipping": {
+      "label": "Shipping:",
+      "freeshipBadge": "FREESHIP XTRA",
+      "freeshipText": "Free shipping for orders from 150K",
+      "shipTo": "Ship to:",
+      "shipToValue": "Tang Nhon Phu B Ward, Thu Duc City (District 9), HCMC",
+      "changeAddress": "Change address",
+      "estimatedTime": "Estimated delivery:",
+      "estimatedValue": "1 - 2 business days"
+    },
+    "selectors": {
+      "color": "Color:",
+      "size": "Size:",
+      "sizeGuide": "Vietnamese standard size chart",
+      "outOfStock": "(Out of stock)"
+    },
+    "quantity": {
+      "label": "Quantity:",
+      "inStock": "<bold>{count}</bold> products in stock"
+    },
+    "cta": {
+      "addToCart": "Add to Cart",
+      "buyNow": "Buy Now",
+      "buyNowFlash": "⚡ Buy now – Hold for 5 minutes"
+    },
+    "store": {
+      "viewShop": "View Shop",
+      "chatNow": "Chat now",
+      "rating": "Shop Rating",
+      "products": "Products",
+      "productsUnit": "items",
+      "responseRate": "Response Rate",
+      "joined": "Joined",
+      "online": "Online {time} ago",
+      "officialBadge": "Official Mall"
+    },
+    "specs": {
+      "title": "Product Details",
+      "category": "Category",
+      "material": "Material",
+      "origin": "Origin",
+      "style": "Style",
+      "sku": "SKU",
+      "careInstructions": "Care instructions"
+    },
+    "description": {
+      "title": "Detailed Product Description",
+      "featureTitle": "Vietnamese Standard Size Chart (Reference)"
+    },
+    "reviews": {
+      "title": "Product Reviews",
+      "totalCount": "{count} reviews",
+      "filter": {
+        "all": "All",
+        "star5": "5 Stars",
+        "star4": "4 Stars",
+        "star3": "3 Stars",
+        "star2": "2 Stars",
+        "star1": "1 Star",
+        "withMedia": "With photos / videos"
+      },
+      "verified": "Purchased at Vibe Mart",
+      "sellerReply": "Seller's reply",
+      "pagination": {
+        "prev": "Previous",
+        "next": "Next"
+      }
+    },
+    "related": {
+      "sameStore": "Same Store",
+      "seeAll": "See all",
+      "bestSellers": "Best Sellers in Category",
+      "hot": "HOT"
+    },
+    "commitments": {
+      "natural": "100% Natural Cotton",
+      "returns": "30-day easy returns",
+      "warranty": "6-month sewing warranty"
+    },
+    "toast": {
+      "addedToCart": "Added to cart",
+      "redirectingCheckout": "Redirecting to instant checkout",
+      "flashMaxQty": "During Flash Sale, each customer can order at most {max} items!",
+      "saveSuccess": "Saved"
     }
   }
 }
