@@ -82,6 +82,7 @@ export type MaterialSymbolName =
   | "switch_account"
   | "support_agent"
   | "account_circle"
+  | "logout"
   // 404 page
   | "arrow_back"
   | "info"
