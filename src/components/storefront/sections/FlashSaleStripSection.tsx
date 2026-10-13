@@ -7,6 +7,8 @@
  * Body: grid 5 deal flash sale (2 cols mobile, 3 tablet, 5 desktop)
  * Mỗi deal có: ảnh + badge "FLASH SALE" + giá + % giảm + stock bar + limit.
  *
+ * Data: GET /api/v1/flash-sales/slots → lấy slot ACTIVE/UPCOMING
+ *
  * Countdown endsAt được tính trong useState initializer để chỉ chạy 1 lần
  * khi component mount (tránh "impure function during render" – Next 16).
  *
@@ -18,16 +20,122 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { Countdown } from "@/components/common/Countdown";
-import { FLASH_SALE_DEALS } from "./home-mocks";
+import { useFlashSaleSlots } from "@/features/homepage/hooks";
+import type {
+  PublicFlashSaleItemResponse,
+  PublicFlashSaleSlotResponse,
+} from "@/features/homepage/api";
 
 function defaultEndsAt(): string {
-  return new Date(Date.now() + 1000 * 60 * 60 + 1000 * 60 * 24 + 1000 * 42).toISOString();
+  return new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
+}
+
+function pickActiveSlot(
+  slots: PublicFlashSaleSlotResponse[] | undefined
+): PublicFlashSaleSlotResponse | undefined {
+  if (!slots || slots.length === 0) return undefined;
+  // Ưu tiên ACTIVE, rồi UPCOMING
+  return (
+    slots.find((s) => s.status === "ACTIVE") ??
+    slots.find((s) => s.status === "UPCOMING") ??
+    slots[0]
+  );
+}
+
+function formatVND(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0₫";
+  return new Intl.NumberFormat("vi-VN").format(value) + "₫";
+}
+
+function formatVNDShort(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  if (value >= 1_000_000) {
+    return (Math.round((value / 1_000_000) * 10) / 10).toString() + "tr";
+  }
+  if (value >= 1_000) {
+    return Math.round(value / 1_000) + "K";
+  }
+  return value.toString();
 }
 
 export function FlashSaleStripSection() {
   const t = useTranslations("storefront.home");
   // Tính 1 lần khi mount để countdown ổn định cho cả session
   const [endsAt] = useState<string>(defaultEndsAt);
+  const { data: slots, isLoading } = useFlashSaleSlots();
+
+  const activeSlot = pickActiveSlot(slots);
+  const items: PublicFlashSaleItemResponse[] = (activeSlot?.items ?? []).slice(0, 5);
+  const slotEndsAt = activeSlot?.endTime ?? endsAt;
+
+  // Loading skeleton – render header + 5 placeholder cards
+  if (isLoading) {
+    return (
+      <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-tertiary">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-surface-container">
+          <div className="flex items-center gap-4">
+            <h2 className="flex items-center gap-1.5 text-tertiary text-headline-lg font-bold">
+              <MaterialSymbol name="bolt" size="3xl" fill />
+              FLASH SALE
+            </h2>
+            <div className="flex items-center gap-1.5 text-on-surface text-label-md">
+              <span className="text-on-surface-variant hidden sm:inline">
+                {t("flashSale.endsIn")}
+              </span>
+              <Countdown endsAt={endsAt} variant="compact" />
+            </div>
+          </div>
+          <Link
+            href="/flash-sale"
+            className="text-label-md text-tertiary hover:underline flex items-center gap-1"
+          >
+            {t("flashSale.seeAll")}
+            <MaterialSymbol name="chevron_right" size="sm" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white border border-surface-container rounded-xl overflow-hidden h-72 animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // Empty state
+  if (items.length === 0) {
+    return (
+      <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-tertiary">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-surface-container">
+          <div className="flex items-center gap-4">
+            <h2 className="flex items-center gap-1.5 text-tertiary text-headline-lg font-bold">
+              <MaterialSymbol name="bolt" size="3xl" fill />
+              FLASH SALE
+            </h2>
+            <div className="flex items-center gap-1.5 text-on-surface text-label-md">
+              <span className="text-on-surface-variant hidden sm:inline">
+                {t("flashSale.endsIn")}
+              </span>
+              <Countdown endsAt={slotEndsAt} variant="compact" />
+            </div>
+          </div>
+          <Link
+            href="/flash-sale"
+            className="text-label-md text-tertiary hover:underline flex items-center gap-1"
+          >
+            {t("flashSale.seeAll")}
+            <MaterialSymbol name="chevron_right" size="sm" />
+          </Link>
+        </div>
+        <div className="py-12 text-center text-on-surface-variant">
+          <p>{t("flashSale.empty")}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border-l-4 border-tertiary">
@@ -39,8 +147,10 @@ export function FlashSaleStripSection() {
             FLASH SALE
           </h2>
           <div className="flex items-center gap-1.5 text-on-surface text-label-md">
-            <span className="text-on-surface-variant hidden sm:inline">{t("flashSale.endsIn")}</span>
-            <Countdown endsAt={endsAt} variant="compact" />
+            <span className="text-on-surface-variant hidden sm:inline">
+              {t("flashSale.endsIn")}
+            </span>
+            <Countdown endsAt={slotEndsAt} variant="compact" />
           </div>
         </div>
         <Link
@@ -53,19 +163,32 @@ export function FlashSaleStripSection() {
       </div>
       {/* Grid deals */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-5">
-        {FLASH_SALE_DEALS.map((deal) => {
-          const soldPercent = Math.round((deal.soldCount / deal.maxStock) * 100);
+        {items.map((deal) => {
+          const maxStock = deal.allocatedStock || 1;
+          const soldCount = maxStock - deal.availableStock;
+          const soldPercent = Math.round((soldCount / maxStock) * 100);
+          const discountPercent =
+            deal.originalPrice > deal.flashSalePrice
+              ? Math.round(
+                  ((deal.originalPrice - deal.flashSalePrice) /
+                    deal.originalPrice) *
+                    100
+                )
+              : 0;
+          const dealHref = `/flash-sale/${deal.id}`;
+
           return (
             <Link
               key={deal.id}
-              href={deal.href}
+              href={dealHref}
               className="flex flex-col bg-white border border-surface-container rounded-xl overflow-hidden justify-between hover:border-tertiary hover:-translate-y-0.5 hover:shadow-md transition-all group h-full"
             >
               <div>
                 {/* Image + badges */}
                 <div className="relative w-full aspect-square bg-surface-container overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    alt={deal.imageAlt}
+                    alt={deal.variantName}
                     src={deal.imageUrl}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -75,25 +198,29 @@ export function FlashSaleStripSection() {
                     <span>{t("flashSale.soldBadge")}</span>
                   </div>
                   {/* % discount */}
-                  <div className="absolute top-2 right-2 bg-tertiary-soft text-tertiary text-[12px] font-semibold px-2 py-0.5 rounded-md shadow-sm">
-                    -{deal.discountPercent}%
-                  </div>
+                  {discountPercent > 0 && (
+                    <div className="absolute top-2 right-2 bg-tertiary-soft text-tertiary text-[12px] font-semibold px-2 py-0.5 rounded-md shadow-sm">
+                      -{discountPercent}%
+                    </div>
+                  )}
                 </div>
                 {/* Info */}
                 <div className="p-3 space-y-2">
                   <h3
                     className="text-[14px] font-normal text-on-surface line-clamp-2 min-h-[40px] leading-tight text-clip group-hover:text-primary transition-colors"
-                    title={deal.name}
+                    title={deal.productName}
                   >
-                    {deal.name}
+                    {deal.productName}
                   </h3>
                   <div className="flex items-baseline gap-1.5 flex-wrap">
                     <span className="text-[18px] font-semibold text-tertiary leading-none">
-                      {deal.flashPrice}
+                      {formatVNDShort(deal.flashSalePrice)}
                     </span>
-                    <span className="text-[12px] text-on-surface-variant line-through leading-none">
-                      {deal.originalPrice}
-                    </span>
+                    {deal.originalPrice > deal.flashSalePrice && (
+                      <span className="text-[12px] text-on-surface-variant line-through leading-none">
+                        {formatVND(deal.originalPrice)}
+                      </span>
+                    )}
                   </div>
                   {/* Stock progress bar */}
                   <div className="space-y-1 pt-0.5">
@@ -103,11 +230,11 @@ export function FlashSaleStripSection() {
                         style={{ width: `${Math.min(soldPercent, 100)}%` }}
                       />
                       <span className="relative z-10 text-white text-[10px] font-bold tracking-tight uppercase">
-                        {t("flashSale.sold")} {deal.soldCount}
+                        {t("flashSale.sold")} {soldCount}
                       </span>
                     </div>
                     <div className="text-[11px] text-on-surface-variant italic text-center">
-                      {t("flashSale.limitPerBuyer")} {deal.limitPerBuyer}
+                      {t("flashSale.limitPerBuyer")} {deal.userPurchaseLimit}
                     </div>
                   </div>
                 </div>
