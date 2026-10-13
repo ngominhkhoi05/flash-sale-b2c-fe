@@ -265,12 +265,6 @@
       "language": "Tiếng Việt / VND",
       "searchPlaceholder": "Tìm sản phẩm, thương hiệu hoặc deal hot...",
       "greeting": "Minh Thư",
-      "userMenu": {
-        "openMenu": "Mở menu người dùng",
-        "myAccount": "Tài khoản của tôi",
-        "logout": "Đăng xuất",
-        "loggingOut": "Đang đăng xuất..."
-      },
       "nav": {
         "home": "Trang chủ",
         "flashSale": "Flash Sale",
@@ -418,6 +412,138 @@
         "operationRules": "Quy chế hoạt động"
       },
       "copyright": "© 2026 Vibe Mart. Tất cả quyền được bảo lưu."
+    }
+  },
+  "productDetail": {
+    "breadcrumb": {
+      "home": "Trang chủ",
+      "category": "Thời trang Unisex"
+    },
+    "switcher": {
+      "label": "Chế độ xem:",
+      "standard": "Biến thể A (Thường)",
+      "flash": "⚡ Biến thể B (Flash Sale)"
+    },
+    "gallery": {
+      "zoom": "Phóng to"
+    },
+    "share": {
+      "label": "Chia sẻ:",
+      "copied": "Đã sao chép liên kết sản phẩm!"
+    },
+    "wishlist": {
+      "liked": "Đã thích",
+      "count": "(1,4k)"
+    },
+    "tags": {
+      "favorite": "YÊU THÍCH+",
+      "official": "Chính Hãng UTC 100%",
+      "sku": "Mã SKU"
+    },
+    "rating": {
+      "reviews": "({count} đánh giá)",
+      "sold": "Đã bán",
+      "questions": "{count} câu hỏi"
+    },
+    "pricing": {
+      "flashBanner": "FLASH SALE GIỜ VÀNG",
+      "endsIn": "Kết thúc sau",
+      "flashDeal": "⚡ FLASH DEAL CHỈ CÒN 28 SUẤT",
+      "soldProgress": "Đã bán {sold}/{total} sản phẩm",
+      "remaining": "Còn lại {count} suất",
+      "maxQtyNote": "Lưu ý: Mỗi khách hàng chỉ được mua tối đa {max} sản phẩm theo giá Flash Sale",
+      "trustGuarantee": "Cam kết hoàn tiền 111% nếu phát hiện hàng giả, hàng nhái kém chất lượng",
+      "goodPriceDaily": "Giá tốt mỗi ngày"
+    },
+    "vouchers": {
+      "label": "Mã Giảm Giá:",
+      "save": "Lưu",
+      "saved": "Đã Lưu"
+    },
+    "shipping": {
+      "label": "Vận Chuyển:",
+      "freeshipBadge": "FREESHIP XTRA",
+      "freeshipText": "Miễn phí vận chuyển đơn từ 150K",
+      "shipTo": "Vận chuyển tới:",
+      "shipToValue": "Phường Tăng Nhơn Phú B, TP. Thủ Đức (Quận 9), TP.HCM",
+      "changeAddress": "Đổi địa chỉ",
+      "estimatedTime": "Thời gian nhận dự kiến:",
+      "estimatedValue": "1 - 2 ngày làm việc"
+    },
+    "selectors": {
+      "color": "Màu Sắc:",
+      "size": "Kích Thước:",
+      "sizeGuide": "Bảng quy đổi kích thước chuẩn người Việt",
+      "outOfStock": "(Hết hàng)"
+    },
+    "quantity": {
+      "label": "Số Lượng:",
+      "inStock": "Còn <bold>{count}</bold> sản phẩm có sẵn trong kho"
+    },
+    "cta": {
+      "addToCart": "Thêm Vào Giỏ Hàng",
+      "buyNow": "Mua Ngay",
+      "buyNowFlash": "⚡ Mua ngay – Giữ hàng 5 phút"
+    },
+    "store": {
+      "viewShop": "Xem Shop",
+      "chatNow": "Chat ngay",
+      "rating": "Đánh Giá Shop",
+      "products": "Sản Phẩm",
+      "productsUnit": "mẫu",
+      "responseRate": "Tỉ Lệ Phản Hồi",
+      "joined": "Tham Gia Sàn",
+      "online": "Online {time} trước",
+      "officialBadge": "Official Mall"
+    },
+    "specs": {
+      "title": "Chi Tiết Sản Phẩm",
+      "category": "Danh mục",
+      "material": "Chất liệu",
+      "origin": "Xuất xứ",
+      "style": "Kiểu dáng",
+      "sku": "Mã SKU",
+      "careInstructions": "Hướng dẫn giặt ủi"
+    },
+    "description": {
+      "title": "Mô Tả Sản Phẩm Chi Tiết",
+      "featureTitle": "Bảng Thông Số Chọn Size Chuẩn Người Việt (Tham khảo)"
+    },
+    "reviews": {
+      "title": "Đánh Giá Sản Phẩm",
+      "totalCount": "{count} lượt đánh giá",
+      "filter": {
+        "all": "Tất cả",
+        "star5": "5 Sao",
+        "star4": "4 Sao",
+        "star3": "3 Sao",
+        "star2": "2 Sao",
+        "star1": "1 Sao",
+        "withMedia": "Có hình ảnh / video"
+      },
+      "verified": "Đã mua hàng tại Vibe Mart",
+      "sellerReply": "Phản hồi của Người bán",
+      "pagination": {
+        "prev": "Trước",
+        "next": "Sau"
+      }
+    },
+    "related": {
+      "sameStore": "Cùng Shop UTC",
+      "seeAll": "Xem hết",
+      "bestSellers": "Bán Chạy Cùng Ngành",
+      "hot": "HOT"
+    },
+    "commitments": {
+      "natural": "100% Cotton Tự Nhiên",
+      "returns": "Đổi trả 30 ngày dễ dàng",
+      "warranty": "Bảo hành may 6 tháng"
+    },
+    "toast": {
+      "addedToCart": "Đã thêm vào giỏ hàng",
+      "redirectingCheckout": "Chuyển đến màn hình thanh toán tức thì",
+      "flashMaxQty": "Trong sự kiện Flash Sale, mỗi khách chỉ được đặt tối đa {max} áo!",
+      "saveSuccess": "Đã Lưu"
     }
   }
 }

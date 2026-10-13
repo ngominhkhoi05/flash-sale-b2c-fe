@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
         hostname: "cdn.vibemart.vn",
         pathname: "/users/**",
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
     ],
   },
 };
