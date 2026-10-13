@@ -81,7 +81,7 @@ export function ProductPricingBox({
               {t("flashBanner")}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 font-label-sm">
+          <div className="flex items-center gap-1.5 text-[13px]">
             <span className="opacity-90">{t("endsIn")}</span>
             <Countdown
               endsAt={flashSale.endsAt}
@@ -117,14 +117,14 @@ export function ProductPricingBox({
             </span>
             {discountPercent > 0 && (
               <span
-                className="px-2 py-0.5 rounded font-label-sm font-bold bg-tertiary text-on-tertiary"
+                className="px-2 py-0.5 rounded text-[13px] font-bold bg-tertiary text-on-tertiary"
                 data-testid="flash-discount"
               >
                 -{discountPercent}%
               </span>
             )}
             <span
-              className="px-2.5 py-0.5 rounded font-label-sm font-bold bg-tertiary/10 text-tertiary"
+              className="px-2.5 py-0.5 rounded text-[13px] font-bold bg-tertiary/10 text-tertiary"
               data-testid="flash-deal-badge"
             >
               ⚡ {t("flashDeal")}

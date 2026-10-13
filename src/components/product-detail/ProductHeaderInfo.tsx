@@ -81,12 +81,12 @@ export function ProductHeaderInfo({
       </h1>
 
       {/* Performance stats row */}
-      <div className="flex flex-wrap items-center gap-3 font-body-sm text-on-surface-variant">
+      <div className="flex flex-wrap items-center gap-3 text-[13px] text-on-surface-variant">
         <div className="flex items-center gap-1">
           <div className="flex items-center text-amber-500">
             <StarIcon className="h-4 w-4 text-base" filled />
           </div>
-          <span className="font-label-md font-bold text-on-surface">
+          <span className="font-semibold text-on-surface">
             {ratingAvg}
           </span>
           <NextLink

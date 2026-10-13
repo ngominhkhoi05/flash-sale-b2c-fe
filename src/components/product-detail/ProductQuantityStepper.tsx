@@ -44,7 +44,7 @@ export function ProductQuantityStepper({
       className={cn("flex items-center gap-4", className)}
       data-testid="product-quantity-stepper"
     >
-      <span className="w-28 shrink-0 text-xs font-medium text-ink-2">
+      <span className="w-28 shrink-0 text-[13px] font-medium text-ink-2">
         {t("label")}
       </span>
       <div className="flex items-center gap-3">
@@ -64,7 +64,7 @@ export function ProductQuantityStepper({
             readOnly
             value={value}
             aria-label="Quantity"
-            className="w-12 bg-transparent text-center text-xs font-bold text-ink focus:outline-none"
+            className="w-12 bg-transparent text-center text-[13px] font-bold text-ink focus:outline-none"
           />
           <button
             type="button"
@@ -76,7 +76,7 @@ export function ProductQuantityStepper({
             <AddIcon className="h-4 w-4" />
           </button>
         </div>
-        <span className="text-xs text-ink-3">
+        <span className="text-[13px] text-ink-3">
           {t.rich("inStock", {
             count: stockCount,
             bold: (chunks: React.ReactNode) => (

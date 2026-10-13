@@ -38,7 +38,7 @@ export function ProductVariantSelectors({
     <div className={cn("flex flex-col gap-4", className)} data-testid="product-variant-selectors">
       {/* Color selector */}
       <div className="flex items-start gap-4">
-        <span className="pt-2 text-xs font-medium text-ink-2 shrink-0 w-28">
+        <span className="pt-2 text-[13px] font-medium text-ink-2 shrink-0 w-28">
           {t("color")}
         </span>
         <div className="flex flex-wrap gap-2.5">
@@ -50,7 +50,7 @@ export function ProductVariantSelectors({
                 type="button"
                 onClick={() => onColorChange(c.name)}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-all",
+                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] transition-all",
                   active
                     ? "bg-surface-container-lowest font-semibold text-ink outline outline-2 outline-primary shadow-sm"
                     : "bg-surface-container font-medium text-ink hover:bg-surface-container-high"
@@ -59,7 +59,7 @@ export function ProductVariantSelectors({
               >
                 <span className={cn("h-4 w-4 rounded-full border border-slate-300", c.bgClass)} />
                 <span>{c.name}</span>
-                {active && <CheckIcon className="h-3 w-3 text-primary" />}
+                {active && <CheckIcon className="h-3.5 w-3.5 text-primary" />}
               </button>
             );
           })}
@@ -69,7 +69,7 @@ export function ProductVariantSelectors({
       {/* Size selector */}
       <div className="flex items-start gap-4">
         <div className="w-28 shrink-0 pt-1">
-          <span className="text-xs font-medium text-ink-2">{t("size")}</span>
+          <span className="text-[13px] font-medium text-ink-2">{t("size")}</span>
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -84,7 +84,7 @@ export function ProductVariantSelectors({
                     if (!s.disabled) onSizeChange(s.label);
                   }}
                   className={cn(
-                    "min-w-12 rounded-lg px-3 py-1.5 text-xs transition-all",
+                    "min-w-12 rounded-lg px-3 py-1.5 text-[13px] transition-all",
                     s.disabled
                       ? "relative cursor-not-allowed bg-surface-container text-ink-3 opacity-40 line-through"
                       : active
@@ -101,7 +101,7 @@ export function ProductVariantSelectors({
           </div>
           <a
             href="#size-guide"
-            className="flex w-fit items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+            className="flex w-fit items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
           >
             <StraightenIcon className="h-3.5 w-3.5" />
             {t("sizeGuide")}

@@ -49,7 +49,7 @@ export function ProductCtaButtons({
       <button
         type="button"
         onClick={onAddToCart}
-        className="flex h-12 items-center justify-center gap-2 rounded-lg border-2 border-primary bg-surface-container-lowest px-6 text-sm font-bold text-primary shadow-sm transition-all hover:bg-surface-container"
+        className="flex h-12 items-center justify-center gap-2 rounded-lg border-2 border-primary bg-surface-container-lowest px-6 text-[13px] font-bold text-primary shadow-sm transition-all hover:bg-surface-container"
       >
         <CartIcon className="h-5 w-5" />
         <span>{t("addToCart")}</span>
@@ -57,7 +57,7 @@ export function ProductCtaButtons({
       <button
         type="button"
         onClick={onBuyNow}
-        className="flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-bold text-on-primary shadow-md transition-all hover:bg-primary-hover"
+        className="flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-[13px] font-bold text-on-primary shadow-md transition-all hover:bg-primary-hover"
       >
         <BagIcon className="h-5 w-5" />
         <span>{t("buyNow")}</span>
