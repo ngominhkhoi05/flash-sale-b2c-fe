@@ -6,10 +6,12 @@ import { VerifyEmailForm } from "./VerifyEmailForm";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 
 // Mock next/navigation
+const mockRouterPush = vi.fn();
+const mockRouterReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
+    push: (...args: unknown[]) => mockRouterPush(...args),
+    replace: (...args: unknown[]) => mockRouterReplace(...args),
     refresh: vi.fn(),
   }),
   useSearchParams: () => new URLSearchParams(),
@@ -71,6 +73,8 @@ function withQueryClient(ui: React.ReactNode) {
 beforeEach(() => {
   mockVerifyMutate.mockReset();
   mockResendMutate.mockReset();
+  mockRouterPush.mockReset();
+  mockRouterReplace.mockReset();
   toastError.mockReset();
   toastSuccess.mockReset();
   // Mặc định: thành công
@@ -756,5 +760,80 @@ describe("VerifyEmailForm", () => {
     });
     // Submit button cũ bị ẩn hoàn toàn (early return sang card tooMany)
     expect(screen.queryByTestId("verify-submit")).not.toBeInTheDocument();
+  });
+
+  // ========== State D (success) – redirect sang /verify-email/success ==========
+
+  it("state D (success): submit OTP thành công → router.push sang /verify-email/success?email=...", async () => {
+    const user = userEvent.setup();
+    withQueryClient(<VerifyEmailForm email="an.nguyen@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("1");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        "/verify-email/success?email=an.nguyen%40gmail.com"
+      );
+    });
+  });
+
+  it("state D (success): submit với custom redirectTo → truyền qua query param", async () => {
+    const user = userEvent.setup();
+    withQueryClient(
+      <VerifyEmailForm email="an@gmail.com" redirectTo="/custom-path" />
+    );
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("1");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        "/verify-email/success?email=an%40gmail.com&redirectTo=%2Fcustom-path"
+      );
+    });
+  });
+
+  it("state D (success): KHÔNG dùng window.location.href (dùng router.push)", async () => {
+    // Spy trên window.location.href để chắc chắn không bị gọi
+    const originalLocation = window.location;
+    let hrefSet: string | null = null;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        set href(v: string) {
+          hrefSet = v;
+        },
+      },
+      writable: true,
+    });
+
+    const user = userEvent.setup();
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("1");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalled();
+    });
+    expect(hrefSet).toBeNull();
+
+    // Restore
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+      writable: true,
+    });
   });
 });

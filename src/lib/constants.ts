@@ -328,6 +328,7 @@ export const ROUTES = {
   REGISTER: "/register",
   FORGOT_PASSWORD: "/forgot-password",
   VERIFY_EMAIL: "/verify-email",
+  VERIFY_EMAIL_SUCCESS: "/verify-email/success",
   SELLER_REGISTER: "/seller/register",
 
   SELLER_HOME: "/seller",
