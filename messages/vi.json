@@ -265,6 +265,12 @@
       "language": "Tiếng Việt / VND",
       "searchPlaceholder": "Tìm sản phẩm, thương hiệu hoặc deal hot...",
       "greeting": "Minh Thư",
+      "userMenu": {
+        "openMenu": "Mở menu người dùng",
+        "myAccount": "Tài khoản của tôi",
+        "logout": "Đăng xuất",
+        "loggingOut": "Đang đăng xuất..."
+      },
       "nav": {
         "home": "Trang chủ",
         "flashSale": "Flash Sale",
