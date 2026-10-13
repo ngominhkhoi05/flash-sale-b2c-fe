@@ -50,3 +50,28 @@ export function formatDate(iso: string | Date): string {
   const d = typeof iso === "string" ? parseISO(iso) : iso;
   return format(d, "dd/MM/yyyy", { locale: vi });
 }
+
+/**
+ * Format VND ngắn gọn cho card / badge: "1tr", "1,5tr", "12,3k", "500".
+ * Trả về chuỗi KHÔNG kèm ký hiệu "₫" (compact hơn formatVND).
+ * - < 1.000 → raw number
+ * - 1.000 – 999.999 → "Xk" / "X,Yk"
+ * - ≥ 1.000.000 → "Xtr" / "X,Ytr"
+ */
+export function formatVNDCompact(value: string | number | Decimal): string {
+  const n = Number(toDecimal(value).toString());
+  const fmt = (s: string) => s.replace(".", ",");
+  if (n < 1_000) return n.toString();
+  if (n < 1_000_000) {
+    const k = n / 1_000;
+    // floor to 1 decimal to avoid edge-case overflow to 1000.0 when value is near upper bound
+    const flooredK = Math.floor(k * 10) / 10;
+    const fixed = flooredK.toFixed(1);
+    const stripped = fixed.endsWith(".0") ? `${Math.floor(flooredK)}` : fixed;
+    return `${fmt(stripped)}k`;
+  }
+  const m = n / 1_000_000;
+  const fixed = m.toFixed(2);
+  const stripped = fixed.replace(/\.?0+$/, "");
+  return `${fmt(stripped)}tr`;
+}
