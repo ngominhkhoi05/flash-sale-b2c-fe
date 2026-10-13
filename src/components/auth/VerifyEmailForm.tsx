@@ -150,6 +150,32 @@ const SECURITY_ICON = (
   </svg>
 );
 
+const WARNING_ICON = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden
+  >
+    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+  </svg>
+);
+
+const LOCK_SMALL_ICON = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden
+  >
+    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+  </svg>
+);
+
 const ARROW_BACK_ICON = (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -299,7 +325,7 @@ export function VerifyEmailForm({
   // Step state: khi có lỗi thì bước 2 hiển thị "error" (vòng tròn đỏ)
   const stepperState: ["done", "active" | "error", "pending"] = [
     "done",
-    isInvalid || isExpired ? "error" : "active",
+    isInvalid || isExpired || isTooMany ? "error" : "active",
     "pending",
   ];
 
@@ -315,6 +341,110 @@ export function VerifyEmailForm({
         <OtpStepper steps={stepperState} />
       </div>
 
+      {/* ========== State C (tooMany) – trang riêng ========== */}
+      {isTooMany ? (
+        <div
+          className="rounded-2xl bg-surface-container-lowest p-8 shadow-sm border border-outline-variant text-center sm:p-9"
+          data-testid="too-many-card"
+        >
+          {/* Icon phong bì có ổ khoá đỏ */}
+          <div className="mb-5 flex items-center justify-center">
+            <div
+              className="relative flex h-14 w-14 items-center justify-center rounded-full bg-warning-soft text-warning shadow-sm"
+              data-testid="otp-icon-mail"
+              data-state="locked"
+            >
+              {MAIL_ICON}
+              <div className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-on-primary ring-2 ring-surface-container-lowest">
+                {LOCK_SMALL_ICON}
+              </div>
+            </div>
+          </div>
+
+          {/* Title */}
+          <h1
+            className="mb-2 text-2xl font-bold tracking-tight text-on-surface"
+            data-testid="too-many-title"
+          >
+            {t("tooMany.title")}
+          </h1>
+
+          {/* Description */}
+          <p
+            className="mb-5 text-sm leading-relaxed text-on-surface-variant"
+            data-testid="too-many-description"
+          >
+            {t("tooMany.description")}
+          </p>
+
+          {/* Banner vàng cảnh báo bảo mật */}
+          <div
+            className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left"
+            data-testid="too-many-security-banner"
+            role="alert"
+          >
+            <span className="text-warning shrink-0 mt-0.5">
+              {WARNING_ICON}
+            </span>
+            <p className="text-xs font-semibold text-amber-900 leading-snug">
+              {t("tooMany.securityTitle")}{" "}
+              <span className="font-normal text-amber-800">
+                {t("tooMany.securityDesc")}
+              </span>
+            </p>
+          </div>
+
+          {/* 6 ô OTP bị khoá */}
+          <div className="mb-6 flex justify-center">
+            <OtpInput
+              value=""
+              onChange={() => {
+                /* locked: no-op */
+              }}
+              disabledState="locked"
+            />
+          </div>
+
+          {/* Nút primary "Gửi mã mới" */}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendMutation.isPending}
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="resend-new-code-button"
+          >
+            {REFRESH_ICON}
+            <span>
+              {resendMutation.isPending
+                ? t("submitting")
+                : t("tooMany.sendNew")}
+            </span>
+          </button>
+
+          {/* Link phụ */}
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <p className="text-xs text-on-surface-variant">
+              {t("tooMany.orSignUpDifferent")}{" "}
+              <a
+                href={ROUTES.REGISTER}
+                className="font-medium text-primary hover:underline"
+                data-testid="sign-up-different-link"
+              >
+                {t("tooMany.signUpDifferentLink")}
+              </a>
+            </p>
+            <a
+              href={ROUTES.REGISTER}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+              data-testid="back-to-register"
+            >
+              {ARROW_BACK_ICON}
+              {t("backToRegister")}
+            </a>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Card wrapper (relative để chứa line đỏ top khi error) */}
       <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-8 shadow-sm border border-outline-variant sm:p-9">
         {/* Line đỏ trên top card khi state B */}
@@ -494,6 +624,8 @@ export function VerifyEmailForm({
         <span>{t("securityNote")}</span>
       </div>
       </div>
+      </>
+      )}
     </form>
   );
 }

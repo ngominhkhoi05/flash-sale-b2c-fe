@@ -168,6 +168,15 @@
         "tooManyAttempts": "Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau {minutes} phút.",
         "retry": "Thử lại",
         "requestNew": "Gửi mã mới"
+      },
+      "tooMany": {
+        "title": "Đã hết lượt thử",
+        "description": "Bạn đã nhập sai quá 5 lần. Vui lòng yêu cầu mã mới để tiếp tục.",
+        "securityTitle": "Bảo mật tài khoản:",
+        "securityDesc": "Mã xác thực cũ đã bị vô hiệu hóa để đảm bảo an toàn. Hãy gửi yêu cầu mã mới.",
+        "sendNew": "Gửi mã mới",
+        "orSignUpDifferent": "Hoặc quay lại",
+        "signUpDifferentLink": "đăng ký với email khác"
       }
     },
     "errors": {
