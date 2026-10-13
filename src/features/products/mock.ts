@@ -89,7 +89,7 @@ const VARIANTS: ProductVariant[] = COLORS.flatMap((color, colorIdx) =>
       attributes: { "Màu Sắc": color.name, "Kích Thước": size },
       originalPrice: 159000,
       stockQuantity: isOOS ? 0 : 48,
-      imageUrl: "",
+      imageUrl: null,
       status: isOOS ? ("OUT_OF_STOCK" as const) : ("ACTIVE" as const),
       isDisabled: isOOS,
       version: 1,

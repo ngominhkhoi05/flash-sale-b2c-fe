@@ -2,108 +2,54 @@
  * Cart hooks – TanStack Query wrappers (rule api-data).
  * Query keys: ["cart", ...] (sub-key per concern).
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  addToCart as addToCartApi,
-  clearCart as clearCartApi,
-  getCart as getCartApi,
-  removeCartItem as removeCartItemApi,
-  updateCartItem as updateCartItemApi,
-} from "./api";
-import type {
-  AddToCartRequest,
-  CartResponse,
-  UpdateCartItemRequest,
-} from "./types";
+import { useQuery } from "@tanstack/react-query";
+import { getCartItems, getCartSummary } from "./api";
+import type { CartItem, CartSummary } from "./types";
 
-/** Key cho cart queries – refetch khi invalidate ["cart"]. */
+/** Key cho list cart items – refetch khi invalidate ["cart"]. */
 export const cartKeys = {
   all: ["cart"] as const,
-  detail: () => [...cartKeys.all, "detail"] as const,
+  items: () => [...cartKeys.all, "items"] as const,
+  summary: () => [...cartKeys.all, "summary"] as const,
 };
 
 /**
- * useCart – lấy giỏ hàng (grouped by store).
+ * useCartItems – danh sách item trong giỏ.
  * Disabled khi chưa auth (AuthGuard đã chặn page, nhưng check thêm để an toàn).
  */
-export function useCart(enabled = true) {
-  return useQuery<CartResponse>({
-    queryKey: cartKeys.detail(),
-    queryFn: () => getCartApi(),
+export function useCartItems(enabled = true) {
+  return useQuery<CartItem[]>({
+    queryKey: cartKeys.items(),
+    queryFn: () => getCartItems(),
     enabled,
     staleTime: 30_000,
   });
 }
 
 /**
- * useCartCount – số dòng sản phẩm trong giỏ (badge trên header).
- * Select từ useCart để tránh gọi 2 query song song.
+ * useCartSummary – tổng hợp giỏ hàng.
+ */
+export function useCartSummary(enabled = true) {
+  return useQuery<CartSummary>({
+    queryKey: cartKeys.summary(),
+    queryFn: () => getCartSummary(),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * useCartCount – số lượng item (badge trên header).
+ * Select từ useCartSummary để tránh gọi 2 query song song.
+ * Dùng `select` để trả về `number` thay vì `CartSummary | undefined` –
+ * TanStack Query sẽ vẫn gọi queryFn 1 lần nhưng `data` luôn là number.
  */
 export function useCartCount(enabled = true) {
-  return useQuery<CartResponse, Error, number>({
-    queryKey: cartKeys.detail(),
-    queryFn: () => getCartApi(),
+  return useQuery<CartSummary, Error, number>({
+    queryKey: cartKeys.summary(),
+    queryFn: () => getCartSummary(),
     enabled,
     staleTime: 30_000,
-    select: (cart) => cart.totalItems,
-  });
-}
-
-/**
- * useAddToCartMutation – thêm sản phẩm vào giỏ.
- * Tự invalidate cartKeys.all để UI refetch.
- */
-export function useAddToCartMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: AddToCartRequest) => addToCartApi(payload),
-    onSuccess: (data) => {
-      qc.setQueryData(cartKeys.detail(), data);
-    },
-  });
-}
-
-/**
- * useUpdateCartItemMutation – cập nhật số lượng 1 dòng.
- */
-export function useUpdateCartItemMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      itemId,
-      payload,
-    }: {
-      itemId: number;
-      payload: UpdateCartItemRequest;
-    }) => updateCartItemApi(itemId, payload),
-    onSuccess: (data) => {
-      qc.setQueryData(cartKeys.detail(), data);
-    },
-  });
-}
-
-/**
- * useRemoveCartItemMutation – xóa 1 dòng khỏi giỏ.
- */
-export function useRemoveCartItemMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (itemId: number) => removeCartItemApi(itemId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: cartKeys.all });
-    },
-  });
-}
-
-/**
- * useClearCartMutation – xóa toàn bộ giỏ.
- */
-export function useClearCartMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => clearCartApi(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: cartKeys.all });
-    },
+    select: (summary) => summary.totalItems,
   });
 }
