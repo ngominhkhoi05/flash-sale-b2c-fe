@@ -3,19 +3,18 @@
  *
  * /products/[slug] - Hiển thị chi tiết sản phẩm với Stitch pixel-perfect layout.
  *
- * Flow:
- *  1. Get `slug` from async params (Next 16).
- *  2. Match slug → find mock product ID (hoặc lookup từ API).
- *  3. Render <ProductDetailPage> (Client Component) với product ID.
+ * Data flow (mock phase):
+ *   1. Get `slug` from async params (Next 16).
+ *   2. Fetch product detail via mock (sẽ replace bằng BE API khi ready).
+ *   3. Render <ProductDetailPage> (Client Component) với mock data.
  *
- * Backend integration:
- *  - API nhận `id` (number) không phải slug
- *  - Slug → ID lookup dùng local cache (mockProductsBySlug)
- *  - Khi BE bổ sung slug tracking → update slugIdCache
+ * Xem plan: docs/superpowers/plans/2026-10-12-product-detail-page-stitch.md
+ *
+ * Note: Header/Footer/MobileBottomNav đã có trong layout cha (storefront/layout.tsx)
  */
 import { notFound } from "next/navigation";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
-import { mockProductDetail, mockProductsBySlug } from "@/features/products";
+import { mockProductDetail } from "@/features/products";
 import { setRequestLocale } from "next-intl/server";
 
 interface PageProps {
@@ -25,34 +24,29 @@ interface PageProps {
 export default async function ProductDetailRoute({ params }: PageProps) {
   const { slug } = await params;
 
+  // Locale for static rendering
   setRequestLocale("vi");
 
-  // Slug → ID mapping
-  // Hiện tại: dùng mockProductsBySlug để match slug → ID
-  // Khi BE bổ sung slug tracking → thay bằng API lookup
-  const product = mockProductsBySlug[slug];
-
-  if (!product) {
+  // Mock data lookup - in production sẽ gọi API
+  // For now: chỉ trả mock khi slug khớp
+  if (slug !== mockProductDetail.slug) {
     notFound();
   }
 
   return (
     <main className="pt-4 md:pt-6">
-      <ProductDetailPage product={product} />
+      <ProductDetailPage product={mockProductDetail} />
     </main>
   );
 }
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
-  const product = mockProductsBySlug[slug];
-
-  if (!product) {
+  if (slug !== mockProductDetail.slug) {
     return { title: "Không tìm thấy sản phẩm" };
   }
-
   return {
-    title: `${product.name} | Vibe Mart`,
-    description: product.description?.slice(0, 160),
+    title: `${mockProductDetail.name} | Vibe Mart`,
+    description: mockProductDetail.description.slice(0, 160),
   };
 }
