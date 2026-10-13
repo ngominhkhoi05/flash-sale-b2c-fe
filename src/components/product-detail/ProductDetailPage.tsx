@@ -5,19 +5,18 @@
  *   - `selectedColor`: màu hiện tại (mặc định = màu đầu tiên của variants)
  *   - `selectedSize`: size hiện tại (mặc định = size đầu tiên KHÔNG disabled)
  *   - `quantity`: số lượng (mặc định = 1)
- *   - `activeVariant`: "standard" | "flash" (mặc định = "flash" nếu có FlashSale)
  *
- * Effect khi chuyển từ flash → standard: clamp quantity về stockCount.
+ * Auto-select variant: nếu product có flashSale → dùng variant "flash",
+ * ngược lại dùng variant "standard". KHÔNG có switcher UI.
  *
- * Layout: 2-col desktop (lg:col-span-7 gallery + lg:col-span-5 sidebar),
- * stack 1-col trên mobile. Sidebar sticky trên desktop.
+ * Layout: 2-col desktop (1/3 gallery + 2/3 sidebar),
+ * stack 1-col trên mobile.
  */
 "use client";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ProductBreadcrumb } from "@/components/product-detail/ProductBreadcrumb";
-import { ProductVariantSwitcher } from "@/components/product-detail/ProductVariantSwitcher";
 import { ProductGallery } from "@/components/product-detail/ProductGallery";
 import { ProductShareBar } from "@/components/product-detail/ProductShareBar";
 import { ProductCommitments } from "@/components/product-detail/ProductCommitments";
@@ -113,6 +112,10 @@ function totalStockCount(product: ProductDetail): number {
 export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const t = useTranslations("productDetail");
 
+  // Auto-select variant: có flashSale → "flash", không có → "standard"
+  const isFlashSale = Boolean(product.flashSale);
+  const variant: "standard" | "flash" = isFlashSale ? "flash" : "standard";
+
   const colors = useMemo(() => deriveColors(product), [product]);
   const sizes = useMemo(() => deriveSizes(product), [product]);
 
@@ -124,13 +127,10 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     return firstAvailable?.label ?? sizes[0]?.label ?? "";
   });
   const [quantity, setQuantity] = useState<number>(1);
-  const [activeVariant, setActiveVariant] = useState<"standard" | "flash">(
-    product.flashSale ? "flash" : "standard",
-  );
 
   const stockCount = totalStockCount(product);
   const flashMaxQty = product.flashSale?.maxQtyPerUser ?? 2;
-  const maxQty = activeVariant === "flash" ? flashMaxQty : stockCount;
+  const maxQty = isFlashSale ? flashMaxQty : stockCount;
 
   // Derived: khi color/size không khớp variant nào active, tự động chọn size available.
   const variantForCurrent = product.variants.find(
@@ -166,14 +166,6 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     }
   }
 
-  function handleVariantChange(v: "standard" | "flash") {
-    setActiveVariant(v);
-    // Khi chuyển từ flash → standard, clamp quantity về stockCount.
-    if (v === "standard" && quantity > stockCount) {
-      setQuantity(Math.max(1, stockCount));
-    }
-  }
-
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-4">
       {/* Breadcrumb full-width */}
@@ -186,15 +178,6 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: Gallery (1/3) */}
         <div className="lg:col-span-1">
-          {/* Section 2: Variant Switcher A/B (top of gallery) */}
-          {product.flashSale && (
-            <div className="mb-4">
-              <ProductVariantSwitcher
-                value={activeVariant}
-                onChange={handleVariantChange}
-              />
-            </div>
-          )}
           <ProductGallery images={product.images} productName={product.name} />
         </div>
 
@@ -214,11 +197,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             questionCount={product.questionCount}
           />
 
-          {/* Section 4: Pricing box */}
+          {/* Section 4: Pricing box (auto-select flash/standard based on product.flashSale) */}
           <ProductPricingBox
-            variant={activeVariant}
+            variant={variant}
             minPrice={
-              activeVariant === "flash" && product.flashSale
+              isFlashSale && product.flashSale
                 ? product.flashSale.price
                 : product.minPrice
             }
@@ -236,15 +219,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             }
           />
 
-          {/* Section 5: Variant Switcher controls (below pricing) */}
-          {product.flashSale && (
-            <ProductVariantSwitcher
-              value={activeVariant}
-              onChange={handleVariantChange}
-            />
-          )}
-
-          {/* Section 6: Color + Size selectors */}
+          {/* Section 5: Color + Size selectors */}
           <ProductVariantSelectors
             colors={colors}
             sizes={sizes}
@@ -254,7 +229,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onSizeChange={setSelectedSize}
           />
 
-          {/* Section 7: Quantity stepper */}
+          {/* Section 6: Quantity stepper */}
           <ProductQuantityStepper
             value={safeQuantity}
             max={maxQty}
@@ -262,9 +237,9 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onChange={setQuantity}
           />
 
-          {/* Section 8: CTA buttons */}
+          {/* Section 7: CTA buttons */}
           <ProductCtaButtons
-            mode={activeVariant}
+            mode={variant}
             onAddToCart={() => {
               if (typeof window !== "undefined") {
                 window.alert(t("toast.addedToCart"));
@@ -277,7 +252,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             }}
           />
 
-          {/* Section 9: Share bar */}
+          {/* Section 8: Share bar */}
           <ProductShareBar likedCount={t("wishlist.count")} />
         </div>
       </div>
