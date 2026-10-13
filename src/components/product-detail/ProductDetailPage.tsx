@@ -220,12 +220,6 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             }
           />
 
-          {/* Vouchers + Shipping */}
-          <div className="flex flex-col gap-4">
-            <ProductVouchers vouchers={product.vouchers} />
-            <ProductShipping shipping={product.shipping} />
-          </div>
-
           {/* Section 5: Color + Size selectors */}
           <ProductVariantSelectors
             colors={colors}
@@ -269,7 +263,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
         <ProductStoreCard store={product.storeProfile} />
       </div>
 
-      {/* ─── Row 3: Shipping info (Vouchers already moved up) ─── */}
+      {/* ─── Row 3: Vouchers + Shipping (1 column, stacked) ─── */}
+      <div className="mt-6 flex flex-col gap-4">
+        <ProductVouchers vouchers={product.vouchers} />
+        <ProductShipping shipping={product.shipping} />
+      </div>
 
       {/* ─── Row 4: Product Content (2 columns) ─── */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
