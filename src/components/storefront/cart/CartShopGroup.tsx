@@ -1,6 +1,5 @@
 /**
  * CartShopGroup – hiển thị nhóm sản phẩm theo shop.
- * Gồm: shop header + danh sách CartItemCard + voucher row.
  * Dựa trên Stitch design (docs/superpowers/plans/2026-10-13-cart-page-ui-stitch.md).
  */
 "use client";
@@ -8,19 +7,17 @@
 import Link from "next/link";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { CartItemCard } from "./CartItemCard";
-import type { CartItem } from "@/features/cart/types";
+import type { CartItemResponse } from "@/features/cart/types";
 
 interface CartShopGroupProps {
-  shopId: string;
-  shopName: string;
-  isMall?: boolean;
-  items: CartItem[];
-  checkedItems: Set<string>;
-  onCheckedChange: (itemId: string, checked: boolean) => void;
-  onQuantityChange: (itemId: string, quantity: number) => void;
-  onDeleteItem: (itemId: string) => void;
+  storeId: number;
+  storeName: string;
+  items: CartItemResponse[];
+  checkedItems: Set<number>;
+  onCheckedChange: (itemId: number, checked: boolean) => void;
+  onQuantityChange: (itemId: number, quantity: number) => void;
+  onDeleteItem: (itemId: number) => void;
   onChatShop?: () => void;
-  onViewShop?: () => void;
   onSelectVoucher?: () => void;
   shopVoucher?: {
     code: string;
@@ -29,16 +26,14 @@ interface CartShopGroupProps {
 }
 
 export function CartShopGroup({
-  shopId,
-  shopName,
-  isMall = false,
+  storeId,
+  storeName,
   items,
   checkedItems,
   onCheckedChange,
   onQuantityChange,
   onDeleteItem,
   onChatShop,
-  onViewShop,
   onSelectVoucher,
   shopVoucher,
 }: CartShopGroupProps) {
@@ -64,18 +59,12 @@ export function CartShopGroup({
             onChange={(e) => handleShopCheckboxChange(e.target.checked)}
             className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300 cursor-pointer"
           />
-          {/* Mall badge */}
-          {isMall && (
-            <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
-              Mall
-            </span>
-          )}
           {/* Shop name */}
           <Link
-            href={`/shop/${shopId}`}
+            href={`/shop/${storeId}`}
             className="font-bold text-slate-900 text-sm hover:text-primary transition-colors flex items-center gap-1"
           >
-            {shopName}
+            {storeName}
             <MaterialSymbol name="chevron_right" size="sm" />
           </Link>
         </div>
@@ -91,14 +80,12 @@ export function CartShopGroup({
               Chat ngay
             </button>
           )}
-          {onViewShop && (
-            <Link
-              href={`/shop/${shopId}`}
-              className="px-2.5 py-1 text-xs font-medium rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-700 transition-colors"
-            >
-              Xem shop
-            </Link>
-          )}
+          <Link
+            href={`/shop/${storeId}`}
+            className="px-2.5 py-1 text-xs font-medium rounded border border-slate-200 bg-white hover:border-slate-400 text-slate-700 transition-colors"
+          >
+            Xem shop
+          </Link>
         </div>
       </div>
 
@@ -110,8 +97,8 @@ export function CartShopGroup({
             item={item}
             checked={checkedItems.has(item.id)}
             onCheckedChange={(checked) => onCheckedChange(item.id, checked)}
-            onQuantityChange={(qty) => onQuantityChange(item.id, qty)}
-            onDelete={() => onDeleteItem(item.id)}
+            onQuantityChange={onQuantityChange}
+            onDelete={onDeleteItem}
             dimmed={!checkedItems.has(item.id)}
           />
         ))}

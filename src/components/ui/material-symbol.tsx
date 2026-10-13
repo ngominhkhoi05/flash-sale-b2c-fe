@@ -51,6 +51,7 @@ export type MaterialSymbolName =
   | "loyalty"
   | "check_circle"
   | "sell"
+  | "error"
   // Categories
   | "man"
   | "woman"

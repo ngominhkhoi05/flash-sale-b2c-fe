@@ -1,6 +1,7 @@
 /**
  * CartPageContent – layout chính của trang Giỏ hàng.
  * Kết hợp CartHeader + CartShopGroup + CartStickyFooter.
+ * Hookup API backend qua useCart() + mutations.
  * Dựa trên Stitch design (docs/superpowers/plans/2026-10-13-cart-page-ui-stitch.md).
  */
 "use client";
@@ -13,143 +14,54 @@ import { CartHeader } from "./CartHeader";
 import { CartShopGroup } from "./CartShopGroup";
 import { CartStickyFooter } from "./CartStickyFooter";
 import { EmptyState } from "@/components/common/EmptyState";
-import type { CartItem } from "@/features/cart/types";
+import {
+  useCart,
+  useRemoveCartItemMutation,
+  useUpdateCartItemMutation,
+  useClearCartMutation,
+} from "@/features/cart";
+import { useAuth } from "@/hooks/useAuth";
 import { ROUTES } from "@/lib/constants";
 
-// ============================================================
-// Mock data for development (sẽ thay bằng API call khi backend ready)
-// ============================================================
-const MOCK_CART_ITEMS: CartItem[] = [
-  {
-    id: "item-1",
-    productId: "prod-1",
-    productName: "Áo thun unisex cotton 100% UTC Basic form rộng thoáng mát",
-    imageUrl: "https://picsum.photos/seed/shirt/200/200",
-    variantLabel: "Đen, M",
-    quantity: 2,
-    unitPrice: 149000,
-    originalPrice: 189000,
-    storeId: "shop-1",
-    storeName: "UTC Fashion",
-    inStock: true,
-  },
-  {
-    id: "item-2",
-    productId: "prod-2",
-    productName: "Áo khoác dù gió thể thao 2 lớp cản gió chống thấm nước cao cấp",
-    imageUrl: "https://picsum.photos/seed/jacket/200/200",
-    variantLabel: "Xanh navy, L",
-    quantity: 1,
-    unitPrice: 265000,
-    originalPrice: 330000,
-    storeId: "shop-1",
-    storeName: "UTC Fashion",
-    inStock: true,
-  },
-  {
-    id: "item-3",
-    productId: "prod-3",
-    productName: "Quần short thể thao nam co giãn 4 chiều kháng khuẩn",
-    imageUrl: "https://picsum.photos/seed/shorts/200/200",
-    variantLabel: "Xám, XL",
-    quantity: 1,
-    unitPrice: 120000,
-    originalPrice: 150000,
-    storeId: "shop-1",
-    storeName: "UTC Fashion",
-    inStock: true,
-  },
-  {
-    id: "item-4",
-    productId: "prod-4",
-    productName: "Tai nghe True Wireless ANC thể thao chống ồn chủ động",
-    imageUrl: "https://picsum.photos/seed/earbuds/200/200",
-    variantLabel: "Trắng ngọc",
-    quantity: 1,
-    unitPrice: 299000,
-    originalPrice: 550000,
-    storeId: "shop-2",
-    storeName: "TechZone Official",
-    inStock: true,
-  },
-  {
-    id: "item-5",
-    productId: "prod-5",
-    productName: "Tai nghe chụp tai Bluetooth khử tiếng ồn Gaming RGB Vibe Pro",
-    imageUrl: "https://picsum.photos/seed/headphone/200/200",
-    variantLabel: "Đen Titan",
-    quantity: 1,
-    unitPrice: 385000,
-    originalPrice: 520000,
-    storeId: "shop-2",
-    storeName: "TechZone Official",
-    inStock: true,
-  },
-];
-
-// ============================================================
-// Component
-// ============================================================
 export function CartPageContent() {
   const t = useTranslations("storefront.cart");
-  
-  // TODO: Khi backend API ready, thay bằng useCartItems() hook
-  // const { data: cartItems = [], isLoading } = useCartItems();
-  const isLoading = false;
-  const cartItems = MOCK_CART_ITEMS;
+  const { isAuthenticated } = useAuth();
+  const { data: cart, isLoading, isError, error, refetch } = useCart(isAuthenticated);
+  const updateItem = useUpdateCartItemMutation();
+  const removeItem = useRemoveCartItemMutation();
+  const clearCart = useClearCartMutation();
 
   // State cho checkbox items
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(
-    new Set(cartItems.map((item) => item.id))
-  );
-  const [hasVoucherApplied] = useState(true); // TODO: khi nào có API voucher
+  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
 
-  // Group items by shop
-  const shopGroups = useMemo(() => {
-    const groups = new Map<string, { shopName: string; isMall: boolean; items: CartItem[] }>();
-    
-    cartItems.forEach((item) => {
-      const existing = groups.get(item.storeId);
-      if (existing) {
-        existing.items.push(item);
-      } else {
-        // Mock isMall based on shop name (hoặc có thể thêm field isMall vào CartItem)
-        const isMall = item.storeName.includes("Official") || item.storeName.includes("Mall");
-        groups.set(item.storeId, {
-          shopName: item.storeName,
-          isMall,
-          items: [item],
-        });
-      }
-    });
-    
-    return Array.from(groups.entries()).map(([shopId, group]) => ({
-      shopId,
-      ...group,
-    }));
-  }, [cartItems]);
+  // Khi cart load xong, tự động chọn tất cả items
+  useMemo(() => {
+    if (cart?.storeGroups) {
+      const allIds = new Set<number>();
+      cart.storeGroups.forEach((g) => g.items.forEach((i) => allIds.add(i.id)));
+      setCheckedItems(allIds);
+    }
+  }, [cart?.id]);
 
-  // Calculate totals
-  const { selectedCount, subtotal, discount } = useMemo(() => {
+  // Tính tổng tiền các items được chọn
+  const { selectedCount, subtotal, totalCount } = useMemo(() => {
     let count = 0;
     let total = 0;
-    let saved = 0;
-
-    cartItems.forEach((item) => {
-      if (checkedItems.has(item.id)) {
-        count++;
-        total += item.unitPrice * item.quantity;
-        if (item.originalPrice) {
-          saved += (item.originalPrice - item.unitPrice) * item.quantity;
+    let totalCount = 0;
+    cart?.storeGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        totalCount++;
+        if (checkedItems.has(item.id)) {
+          count++;
+          total += item.itemSubtotal;
         }
-      }
+      });
     });
-
-    return { selectedCount: count, subtotal: total, discount: saved };
-  }, [cartItems, checkedItems]);
+    return { selectedCount: count, subtotal: total, totalCount };
+  }, [cart, checkedItems]);
 
   // Handlers
-  const handleItemCheckedChange = (itemId: string, checked: boolean) => {
+  const handleItemCheckedChange = (itemId: number, checked: boolean) => {
     setCheckedItems((prev) => {
       const next = new Set(prev);
       if (checked) {
@@ -161,14 +73,12 @@ export function CartPageContent() {
     });
   };
 
-  const handleQuantityChange = (itemId: string, quantity: number) => {
-    // TODO: Gọi API update quantity
-    console.log("Update quantity:", itemId, quantity);
+  const handleQuantityChange = (itemId: number, quantity: number) => {
+    updateItem.mutate({ itemId, payload: { quantity } });
   };
 
-  const handleDeleteItem = (itemId: string) => {
-    // TODO: Gọi API delete item
-    console.log("Delete item:", itemId);
+  const handleDeleteItem = (itemId: number) => {
+    removeItem.mutate(itemId);
     setCheckedItems((prev) => {
       const next = new Set(prev);
       next.delete(itemId);
@@ -177,7 +87,10 @@ export function CartPageContent() {
   };
 
   const handleSelectAll = () => {
-    setCheckedItems(new Set(cartItems.map((item) => item.id)));
+    if (!cart) return;
+    const allIds = new Set<number>();
+    cart.storeGroups.forEach((g) => g.items.forEach((i) => allIds.add(i.id)));
+    setCheckedItems(allIds);
   };
 
   const handleDeselectAll = () => {
@@ -185,13 +98,57 @@ export function CartPageContent() {
   };
 
   const handleDeleteSelected = () => {
-    // TODO: Gọi API delete multiple items
-    console.log("Delete selected:", Array.from(checkedItems));
+    if (!cart) return;
+    // Gọi mutation xóa từng item
+    cart.storeGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        if (checkedItems.has(item.id)) {
+          removeItem.mutate(item.id);
+        }
+      });
+    });
     setCheckedItems(new Set());
   };
 
-  // Empty state
-  if (!isLoading && cartItems.length === 0) {
+  // ── Loading state ───────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <CartHeader />
+        <main className="pt-36 md:pt-40 pb-24">
+          <div className="max-w-[1240px] mx-auto px-4 lg:px-8 flex justify-center">
+            <div className="flex flex-col items-center gap-3 py-20">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-slate-600">{t("loading")}</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ── Error state ───────────────────────────────────────
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <CartHeader />
+        <main className="pt-36 md:pt-40 pb-24">
+          <div className="max-w-[1240px] mx-auto px-4 lg:px-8">
+            <EmptyState
+              icon={<MaterialSymbol name="error" size="[56px]" />}
+              title="Không thể tải giỏ hàng"
+              description={error?.message ?? "Đã có lỗi xảy ra. Vui lòng thử lại."}
+              actionLabel="Thử lại"
+              onAction={() => refetch()}
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ── Empty state ───────────────────────────────────────
+  if (!cart || cart.totalItems === 0) {
     return (
       <div className="min-h-screen bg-slate-100">
         <CartHeader />
@@ -212,6 +169,7 @@ export function CartPageContent() {
     );
   }
 
+  // ── Main content ───────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Header */}
@@ -232,7 +190,7 @@ export function CartPageContent() {
           </div>
 
           {/* Cart content */}
-          <div className="space-y-4" id="cart-content-view">
+          <div className="space-y-4">
             {/* Cart Header Banner */}
             <div className="bg-gradient-to-r from-sky-50 via-white to-blue-50/40 p-4 sm:p-5 rounded-xl border border-sky-100 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
               <div>
@@ -240,7 +198,7 @@ export function CartPageContent() {
                   <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                     Giỏ hàng
                     <span className="text-sm font-normal text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
-                      ({cartItems.length} sản phẩm)
+                      ({cart.totalItems} sản phẩm)
                     </span>
                   </h1>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
@@ -256,17 +214,16 @@ export function CartPageContent() {
                   </span>
                 </p>
               </div>
-              {/* Freeship progress */}
-              <div className="w-full md:w-64 bg-white/90 p-2.5 rounded-lg border border-sky-100 text-xs">
-                <div className="flex items-center justify-between text-[11px] mb-1">
-                  <span className="font-medium text-slate-600">Tiến độ nhận Freeship Extra:</span>
-                  <span className="font-bold text-emerald-600">Đã đạt!</span>
+              {/* Grand total badge */}
+              <div className="w-full md:w-auto bg-white/90 p-3 rounded-lg border border-sky-100 text-xs">
+                <div className="text-[11px] text-slate-500 mb-1">
+                  Tổng giá trị giỏ hàng
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full w-full" />
-                </div>
-                <div className="text-[10px] text-slate-400 mt-1">
-                  Đã áp dụng mã vận chuyển giảm tối đa 30.000₫
+                <div className="text-lg font-bold text-primary">
+                  {new Intl.NumberFormat("vi-VN", {
+                    style: "currency",
+                    currency: "VND",
+                  }).format(cart.grandTotal)}
                 </div>
               </div>
             </div>
@@ -277,12 +234,17 @@ export function CartPageContent() {
                 <input
                   type="checkbox"
                   id="check-all-top"
-                  checked={selectedCount === cartItems.length}
-                  onChange={() => (selectedCount === cartItems.length ? handleDeselectAll() : handleSelectAll())}
+                  checked={selectedCount === totalCount && totalCount > 0}
+                  onChange={() =>
+                    selectedCount === totalCount ? handleDeselectAll() : handleSelectAll()
+                  }
                   className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300 cursor-pointer"
                 />
-                <label htmlFor="check-all-top" className="cursor-pointer select-none text-slate-800">
-                  Chọn tất cả ({selectedCount}/{cartItems.length} sản phẩm)
+                <label
+                  htmlFor="check-all-top"
+                  className="cursor-pointer select-none text-slate-800"
+                >
+                  Chọn tất cả ({selectedCount}/{totalCount} sản phẩm)
                 </label>
               </div>
               <div className="col-span-2 text-center">Đơn giá</div>
@@ -292,36 +254,48 @@ export function CartPageContent() {
             </div>
 
             {/* Shop Groups */}
-            {shopGroups.map((group) => (
+            {cart.storeGroups.map((group) => (
               <CartShopGroup
-                key={group.shopId}
-                shopId={group.shopId}
-                shopName={group.shopName}
-                isMall={group.isMall}
+                key={group.storeId}
+                storeId={group.storeId}
+                storeName={group.storeName}
                 items={group.items}
                 checkedItems={checkedItems}
                 onCheckedChange={handleItemCheckedChange}
                 onQuantityChange={handleQuantityChange}
                 onDeleteItem={handleDeleteItem}
-                shopVoucher={
-                  group.shopId === "shop-1"
-                    ? { code: "UTC15", discountLabel: "Giảm 15k đơn 250k" }
-                    : { code: "TECH30", discountLabel: "Giảm 30k đơn 500k" }
-                }
               />
             ))}
+
+            {/* Clear cart button */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Bạn có chắc muốn xóa toàn bộ giỏ hàng?"
+                    )
+                  ) {
+                    clearCart.mutate();
+                    setCheckedItems(new Set());
+                  }
+                }}
+                disabled={clearCart.isPending}
+                className="text-xs text-slate-500 hover:text-rose-600 transition-colors font-medium disabled:opacity-50"
+              >
+                {clearCart.isPending ? "Đang xóa..." : "Xóa toàn bộ giỏ hàng"}
+              </button>
+            </div>
           </div>
         </div>
       </main>
 
       {/* Sticky Footer */}
       <CartStickyFooter
-        totalItems={cartItems.length}
         subtotal={subtotal}
-        discount={discount}
+        discount={0}
         selectedCount={selectedCount}
-        totalCount={cartItems.length}
-        hasVoucherApplied={hasVoucherApplied}
+        totalCount={totalCount}
         onSelectAll={handleSelectAll}
         onDeselectAll={handleDeselectAll}
         onDeleteSelected={handleDeleteSelected}
