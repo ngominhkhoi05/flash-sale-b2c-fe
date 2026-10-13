@@ -182,48 +182,25 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
         productName={product.name}
       />
 
+      {/* ─── Row 1: Product Info (2 columns) ─── */}
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* ─── Left column: store card (sticky) ─── */}
-        <div className="flex flex-col gap-4 lg:col-span-5 lg:order-1">
-          <div className="sticky top-4 flex flex-col gap-6">
-            <ProductStoreCard store={product.storeProfile} />
-
-            {/* Section 19: Related same-store products */}
-            <ProductRelatedStores products={product.relatedSameStore} />
-
-            {/* Section 20: Best sellers */}
-            <ProductBestSellers products={product.relatedBestSellers} />
-          </div>
+        {/* Left: Gallery */}
+        <div className="lg:col-span-7">
+          {/* Section 2: Variant Switcher A/B (top of gallery) */}
+          {product.flashSale && (
+            <div className="mb-4">
+              <ProductVariantSwitcher
+                value={activeVariant}
+                onChange={handleVariantChange}
+              />
+            </div>
+          )}
+          <ProductGallery images={product.images} productName={product.name} />
         </div>
 
-        {/* ─── Right column: all product info sections ─── */}
-        <div className="flex flex-col gap-4 lg:col-span-7 lg:order-2">
-          {/* Section 2: Variant Switcher A/B */}
-          {product.flashSale && (
-            <ProductVariantSwitcher
-              value={activeVariant}
-              onChange={handleVariantChange}
-            />
-          )}
-
-          {/* Section 3: Gallery */}
-          <ProductGallery images={product.images} productName={product.name} />
-
-          {/* Section 4: Share bar */}
-          <ProductShareBar
-            likedCount={t("wishlist.count")}
-          />
-
-          {/* Section 5: Commitments */}
-          <ProductCommitments commitments={product.commitments} />
-
-          {/* Section 6: Vouchers */}
-          <ProductVouchers vouchers={product.vouchers} />
-
-          {/* Section 7: Shipping */}
-          <ProductShipping shipping={product.shipping} />
-
-          {/* Section 8: Header info (tags + title + rating) */}
+        {/* Right: Product Info Sidebar */}
+        <div className="flex flex-col gap-4 lg:col-span-5">
+          {/* Section 3: Header info (tags + title + rating) */}
           <ProductHeaderInfo
             tags={{
               favorite: true,
@@ -237,7 +214,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             questionCount={product.questionCount}
           />
 
-          {/* Section 9: Pricing box (A or B) */}
+          {/* Section 4: Pricing box */}
           <ProductPricingBox
             variant={activeVariant}
             minPrice={
@@ -259,7 +236,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             }
           />
 
-          {/* Section 10: Variant Switcher controls (visible below pricing) */}
+          {/* Section 5: Variant Switcher controls (below pricing) */}
           {product.flashSale && (
             <ProductVariantSwitcher
               value={activeVariant}
@@ -267,7 +244,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             />
           )}
 
-          {/* Section 11: Color + Size selectors */}
+          {/* Section 6: Color + Size selectors */}
           <ProductVariantSelectors
             colors={colors}
             sizes={sizes}
@@ -277,7 +254,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onSizeChange={setSelectedSize}
           />
 
-          {/* Section 12: Quantity stepper */}
+          {/* Section 7: Quantity stepper */}
           <ProductQuantityStepper
             value={safeQuantity}
             max={maxQty}
@@ -285,40 +262,64 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onChange={setQuantity}
           />
 
-          {/* Section 13: CTA buttons */}
+          {/* Section 8: CTA buttons */}
           <ProductCtaButtons
             mode={activeVariant}
             onAddToCart={() => {
-              // Mock: thêm vào giỏ — sẽ wire với useCart khi có BE.
               if (typeof window !== "undefined") {
                 window.alert(t("toast.addedToCart"));
               }
             }}
             onBuyNow={() => {
-              // Mock: redirect checkout — sẽ wire với router khi có BE.
               if (typeof window !== "undefined") {
                 window.alert(t("toast.redirectingCheckout"));
               }
             }}
           />
 
-          {/* Section 14: Description card */}
+          {/* Section 9: Share bar */}
+          <ProductShareBar likedCount={t("wishlist.count")} />
+        </div>
+      </div>
+
+      {/* ─── Row 2: Store Card (full width) ─── */}
+      <div className="mt-6">
+        <ProductStoreCard store={product.storeProfile} />
+      </div>
+
+      {/* ─── Row 3: Commitments + Vouchers + Shipping (1 column, stacked) ─── */}
+      <div className="mt-6 flex flex-col gap-4">
+        <ProductCommitments commitments={product.commitments} />
+        <ProductVouchers vouchers={product.vouchers} />
+        <ProductShipping shipping={product.shipping} />
+      </div>
+
+      {/* ─── Row 4: Product Content (2 columns) ─── */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left: Description + Specs */}
+        <div className="flex flex-col gap-4 lg:col-span-7">
           <ProductDescriptionCard
             descriptionRich={product.descriptionRich}
             features={product.features}
             sizeChart={product.sizeChart}
           />
-
-          {/* Section 15: Specs table */}
           <ProductSpecsTable specs={product.specs} />
-
-          {/* Section 18: Reviews card */}
-          <ProductReviewsCard
-            reviews={product.reviews}
-            ratingAvg={product.ratingAvg}
-            ratingCount={product.ratingCount}
-          />
         </div>
+
+        {/* Right: Related + Best Sellers */}
+        <div className="flex flex-col gap-4 lg:col-span-5">
+          <ProductRelatedStores products={product.relatedSameStore} />
+          <ProductBestSellers products={product.relatedBestSellers} />
+        </div>
+      </div>
+
+      {/* ─── Row 5: Reviews (full width) ─── */}
+      <div className="mt-6">
+        <ProductReviewsCard
+          reviews={product.reviews}
+          ratingAvg={product.ratingAvg}
+          ratingCount={product.ratingCount}
+        />
       </div>
     </div>
   );
