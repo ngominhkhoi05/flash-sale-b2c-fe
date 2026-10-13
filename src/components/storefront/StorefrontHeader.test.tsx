@@ -479,7 +479,10 @@ describe("StorefrontHeader – placeholder links (no href='#')", () => {
     expect(link).toHaveAttribute("href", "/maintenance?feature=best-sellers");
   });
 
-  it("avatar wrapper (khi auth) dẫn về /maintenance?feature=account-dropdown", () => {
+  it("avatar trigger (khi auth) là button dropdown, không phải link", () => {
+    // Sau khi thêm dropdown menu, click avatar mở menu (không phải link tới
+    // /maintenance?feature=account-dropdown nữa). Test này chống regression
+    // nếu ai đó vô tình đổi lại thành Link.
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       isHydrated: true,
@@ -491,10 +494,12 @@ describe("StorefrontHeader – placeholder links (no href='#')", () => {
       },
     });
     withProviders(<StorefrontHeader />);
-    const link = screen.getByRole("link", { name: /Minh Thư/i });
-    expect(link).toHaveAttribute(
-      "href",
-      "/maintenance?feature=account-dropdown",
-    );
+    // Trigger là button có aria-label "Mở menu người dùng" (định nghĩa trong i18n)
+    const trigger = screen.getByRole("button", { name: /mở menu người dùng/i });
+    expect(trigger).toBeInTheDocument();
+    // KHÔNG còn link /maintenance?feature=account-dropdown
+    const deadLink = screen
+      .queryByRole("link", { name: /Minh Thư/i });
+    expect(deadLink).not.toBeInTheDocument();
   });
 });
