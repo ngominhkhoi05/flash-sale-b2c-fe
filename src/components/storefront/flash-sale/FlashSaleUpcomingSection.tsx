@@ -84,13 +84,13 @@ export function FlashSaleUpcomingSection({
             <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-surface-container">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={item.thumbnailUrl}
+                src={item.imageUrl}
                 alt={item.productName}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
               <span className="absolute right-1.5 top-1.5 rounded-md bg-tertiary px-1.5 py-0.5 text-label-sm font-bold text-on-tertiary shadow-sm">
-                -{Math.round(((item.originalPrice - item.flashPrice) / item.originalPrice) * 100)}%
+                -{Math.round(((item.originalPrice - item.flashSalePrice) / item.originalPrice) * 100)}%
               </span>
             </div>
             <h3 className="line-clamp-2 min-h-[2.5rem] text-body-sm font-medium text-on-surface">
@@ -98,7 +98,7 @@ export function FlashSaleUpcomingSection({
             </h3>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-headline-sm font-bold text-tertiary">
-                {formatVNDCompact(item.flashPrice)}
+                {formatVNDCompact(item.flashSalePrice)}
               </span>
               <span className="text-label-sm text-on-surface-variant line-through">
                 {formatVND(item.originalPrice)}
