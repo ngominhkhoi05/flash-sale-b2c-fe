@@ -17,6 +17,7 @@ import {
 import { OtpInput } from "./OtpInput";
 import { OtpStepper } from "./OtpStepper";
 import { ResendCountdown } from "./ResendCountdown";
+import { cn } from "@/lib/utils";
 
 /**
  * VerifyEmailForm – form xác thực email 6 số (Stitch screen 26dbd4cd7e7f47c68d509c58a44cb083).
@@ -67,6 +68,40 @@ const CHECK_SMALL_ICON = (
     aria-hidden
   >
     <path d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const X_SMALL_ICON = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const REFRESH_ICON = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
   </svg>
 );
 
@@ -255,6 +290,19 @@ export function VerifyEmailForm({
 
   const validityMinutes = Math.floor(validityRemaining / 60);
 
+  // State machine cho visual (Stitch state B – sai mã)
+  const isInvalid = inlineError?.type === "invalid";
+  const isExpired = inlineError?.type === "expired";
+  const isTooMany = inlineError?.type === "tooMany";
+  const hasError = isInvalid || isExpired || isTooMany;
+
+  // Step state: khi có lỗi thì bước 2 hiển thị "error" (vòng tròn đỏ)
+  const stepperState: ["done", "active" | "error", "pending"] = [
+    "done",
+    isInvalid || isExpired ? "error" : "active",
+    "pending",
+  ];
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -264,38 +312,77 @@ export function VerifyEmailForm({
     >
       {/* Stepper */}
       <div className="mb-7">
-        <OtpStepper />
+        <OtpStepper steps={stepperState} />
       </div>
 
-      {/* Icon envelope + check */}
-      <div className="mb-5 flex items-center justify-center">
-        <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-primary shadow-sm">
-          {MAIL_ICON}
-          <div className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-success text-on-primary ring-2 ring-surface-container-lowest">
-            {CHECK_SMALL_ICON}
+      {/* Card wrapper (relative để chứa line đỏ top khi error) */}
+      <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest p-8 shadow-sm border border-outline-variant sm:p-9">
+        {/* Line đỏ trên top card khi state B */}
+        {hasError && (
+          <div
+            className="absolute inset-x-0 top-0 h-1 bg-danger"
+            data-testid="card-error-line"
+            aria-hidden
+          />
+        )}
+
+        {/* Icon phong bì (state A: xanh + check; state B: đỏ + X) */}
+        <div className="mb-5 flex items-center justify-center">
+          <div
+            className={cn(
+              "relative flex h-14 w-14 items-center justify-center rounded-full shadow-sm",
+              hasError ? "bg-danger-soft text-danger" : "bg-primary-soft text-primary"
+            )}
+            data-testid="otp-icon-mail"
+            data-state={hasError ? "error" : "default"}
+          >
+            {MAIL_ICON}
+            <div
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-surface-container-lowest",
+                hasError ? "bg-danger text-on-primary" : "bg-success text-on-primary"
+              )}
+            >
+              {hasError ? X_SMALL_ICON : CHECK_SMALL_ICON}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Title */}
-      <h1 className="mb-2 text-center text-2xl font-bold tracking-tight text-on-surface">
-        {t("title")}
-      </h1>
-
-      {/* Description + email */}
-      <p className="mb-5 text-center text-sm leading-relaxed text-on-surface-variant">
-        {t("description")}
-        <br />
-        <span className="font-semibold text-on-surface" data-testid="masked-email">
-          {email ? maskEmail(email) : t("placeholderEmail")}
-        </span>
-        <a
-          href={ROUTES.REGISTER}
-          className="ml-1.5 text-xs font-normal text-primary hover:underline"
+        {/* Title (state A: "Xác thực email của bạn"; state B: "Mã chưa đúng") */}
+        <h1
+          className="mb-2 text-center text-2xl font-bold tracking-tight text-on-surface"
+          data-testid={isInvalid ? "error-title" : "page-title"}
         >
-          ({t("changeEmail")})
-        </a>
-      </p>
+          {isInvalid ? t("error.title") : t("title")}
+        </h1>
+
+        {/* Description (state A: hướng dẫn + email; state B: mô tả + email masked) */}
+        {isInvalid ? (
+          <p
+            className="mb-5 text-center text-sm leading-relaxed text-on-surface-variant"
+            data-testid="error-description"
+          >
+            {t("error.description")}
+            <br />
+            <span className="font-semibold text-on-surface">
+              {email ? maskEmail(email) : t("placeholderEmail")}
+            </span>
+          </p>
+        ) : (
+          <p className="mb-5 text-center text-sm leading-relaxed text-on-surface-variant">
+            {t("description")}
+            <br />
+            <span className="font-semibold text-on-surface" data-testid="masked-email">
+              {email ? maskEmail(email) : t("placeholderEmail")}
+            </span>
+            <a
+              href={ROUTES.REGISTER}
+              className="ml-1.5 text-xs font-normal text-primary hover:underline"
+            >
+              ({t("changeEmail")})
+            </a>
+          </p>
+        )}
 
       {/* OTP Input */}
       <div
@@ -367,10 +454,16 @@ export function VerifyEmailForm({
           verifyMutation.isPending ||
           inlineError?.type === "tooMany"
         }
-        className="flex h-10 w-full items-center justify-center rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         data-testid="verify-submit"
+        data-mode={isInvalid ? "retry" : "verify"}
       >
-        {verifyMutation.isPending ? t("submitting") : t("submit")}
+        {isInvalid && REFRESH_ICON}
+        {verifyMutation.isPending
+          ? t("submitting")
+          : isInvalid
+            ? t("error.retry")
+            : t("submit")}
       </button>
 
       {/* Resend countdown */}
@@ -399,6 +492,7 @@ export function VerifyEmailForm({
       <div className="mt-4 flex items-center justify-center gap-2 text-xs text-on-surface-variant">
         <span className="text-success">{SECURITY_ICON}</span>
         <span>{t("securityNote")}</span>
+      </div>
       </div>
     </form>
   );

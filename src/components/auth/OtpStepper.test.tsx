@@ -52,4 +52,21 @@ describe("OtpStepper", () => {
     expect(screen.getByTestId("otp-step-0")).toHaveAttribute("data-state", "active");
     expect(screen.getByTestId("otp-step-1")).toHaveAttribute("data-state", "pending");
   });
+
+  it("state 'error' (Stitch state B – sai mã): step active có ring đỏ, label đỏ", () => {
+    withI18n(<OtpStepper steps={["done", "error", "pending"]} />);
+    const stepCircle = screen.getByTestId("otp-step-circle-1");
+    const stepContainer = screen.getByTestId("otp-step-1");
+    expect(stepContainer).toHaveAttribute("data-state", "error");
+    // Bg-danger class (M3 danger token)
+    expect(stepCircle.className).toMatch(/bg-danger/);
+    expect(stepCircle.className).toMatch(/ring-danger-soft/);
+  });
+
+  it("state 'error': vẫn hiển thị số 2, không phải checkmark", () => {
+    withI18n(<OtpStepper steps={["done", "error", "pending"]} />);
+    const circle = screen.getByTestId("otp-step-circle-1");
+    expect(circle.textContent).toBe("2");
+    expect(circle.querySelector("svg")).toBeNull();
+  });
 });

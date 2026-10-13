@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  *
  * @see docs/superpowers/handoffs/xac-thuc-email.md
  */
-export type OtpStepState = "done" | "active" | "pending";
+export type OtpStepState = "done" | "active" | "error" | "pending";
 
 export interface OtpStepperProps {
   /** Trạng thái từng step (mảng length = 3). */
@@ -87,6 +87,8 @@ export function OtpStepper({
                       "bg-success text-on-primary",
                     state === "active" &&
                       "bg-primary text-on-primary ring-4 ring-primary-soft",
+                    state === "error" &&
+                      "bg-danger text-on-primary ring-4 ring-danger-soft",
                     state === "pending" &&
                       "bg-surface-container text-on-surface-variant"
                   )}
@@ -103,6 +105,7 @@ export function OtpStepper({
                     "mt-2 text-center text-[12px] font-medium whitespace-nowrap",
                     state === "done" && "text-success",
                     state === "active" && "font-semibold text-primary",
+                    state === "error" && "font-semibold text-danger",
                     state === "pending" && "text-outline"
                   )}
                 >

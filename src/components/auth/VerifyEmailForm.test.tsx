@@ -347,4 +347,209 @@ describe("VerifyEmailForm", () => {
       screen.getByText(/Bảo mật kết nối TLS 256-bit/i)
     ).toBeInTheDocument();
   });
+
+  // ========== State B visual (Stitch handoff xac-thuc-email-sai-ma.md) ==========
+
+  it("state B: title đổi thành 'Mã chưa đúng' khi OTP_INVALID", async () => {
+    const user = userEvent.setup();
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 401,
+            code: "OTP_INVALID",
+            message: "Invalid",
+            details: { attemptsLeft: 4 },
+          })
+        );
+      }
+    );
+
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error-title")).toBeInTheDocument();
+    });
+  });
+
+  it("state B: nút submit đổi text thành 'Thử lại' khi OTP_INVALID", async () => {
+    const user = userEvent.setup();
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 401,
+            code: "OTP_INVALID",
+            message: "Invalid",
+            details: { attemptsLeft: 4 },
+          })
+        );
+      }
+    );
+
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const submit = screen.getByTestId("verify-submit");
+      // Submit button data-mode attribute reflects state
+      expect(submit).toHaveAttribute("data-mode", "retry");
+    });
+  });
+
+  it("state B: OtpStepper bước 2 hiển thị state='error' khi OTP_INVALID", async () => {
+    const user = userEvent.setup();
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 401,
+            code: "OTP_INVALID",
+            message: "Invalid",
+            details: { attemptsLeft: 4 },
+          })
+        );
+      }
+    );
+
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const step2 = screen.getByTestId("otp-step-1");
+      expect(step2).toHaveAttribute("data-state", "error");
+    });
+  });
+
+  it("state B: card có line đỏ 1px trên top khi OTP_INVALID", async () => {
+    const user = userEvent.setup();
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 401,
+            code: "OTP_INVALID",
+            message: "Invalid",
+            details: { attemptsLeft: 4 },
+          })
+        );
+      }
+    );
+
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const line = screen.getByTestId("card-error-line");
+      expect(line).toBeInTheDocument();
+    });
+  });
+
+  it("state B: mô tả hiển thị email masked khi OTP_INVALID", async () => {
+    const user = userEvent.setup();
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 401,
+            code: "OTP_INVALID",
+            message: "Invalid",
+            details: { attemptsLeft: 4 },
+          })
+        );
+      }
+    );
+
+    withQueryClient(<VerifyEmailForm email="an.nguyen@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+
+    await waitFor(() => {
+      const desc = screen.getByTestId("error-description");
+      expect(desc.textContent).toContain("an***@gmail.com");
+    });
+  });
+
+  it("clear inline error khi user bắt đầu sửa → stepper trở về 'active'", async () => {
+    const user = userEvent.setup();
+    mockVerifyMutate.mockImplementation(
+      (
+        _data: unknown,
+        options?: { onSuccess?: () => void; onError?: (err: unknown) => void }
+      ) => {
+        options?.onError?.(
+          new realApi.ApiError({
+            status: 401,
+            code: "OTP_INVALID",
+            message: "Invalid",
+            details: { attemptsLeft: 4 },
+          })
+        );
+      }
+    );
+
+    withQueryClient(<VerifyEmailForm email="an@gmail.com" />);
+    const inputs = screen.getAllByLabelText(/OTP digit/);
+    for (let i = 0; i < 6; i++) {
+      await user.click(inputs[i]);
+      await user.keyboard("0");
+    }
+    await user.click(screen.getByTestId("verify-submit"));
+    await waitFor(() => {
+      expect(screen.getByTestId("otp-step-1")).toHaveAttribute(
+        "data-state",
+        "error"
+      );
+    });
+
+    // User paste lại → clear error
+    inputs[0].focus();
+    await user.paste("123456");
+    await waitFor(() => {
+      expect(screen.getByTestId("otp-step-1")).toHaveAttribute(
+        "data-state",
+        "active"
+      );
+    });
+  });
 });
