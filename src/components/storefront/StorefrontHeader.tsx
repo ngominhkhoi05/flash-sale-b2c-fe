@@ -92,7 +92,7 @@ export function StorefrontHeader({
           </Link>
           <div className="ml-auto flex items-center gap-3">
             <Link
-              href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SEARCH_SUBMIT)}
+              href={ROUTES.SEARCH}
               aria-label={t("searchPlaceholder")}
               className="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-low flex items-center justify-center"
             >
@@ -284,7 +284,8 @@ export function StorefrontHeader({
 
             {/* Search bar */}
             <form
-              action={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.SEARCH_SUBMIT)}
+              action={ROUTES.SEARCH}
+              method="get"
               className="flex-1 max-w-2xl mx-2 lg:mx-0"
             >
               <div className="relative flex items-center">

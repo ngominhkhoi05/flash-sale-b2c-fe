@@ -442,6 +442,84 @@
       "emptyDescription": "Collect vouchers from the homepage or during checkout to save more.",
       "browseVouchers": "Browse Vouchers"
     },
+    "search": {
+      "title": "Search products",
+      "loading": "Searching…",
+      "resultsFor": "Results for '{q}'",
+      "resultsCount": "({total} products found across the marketplace)",
+      "resultsCountZero": "(No products found)",
+      "breadcrumbs": {
+        "home": "Home",
+        "category": "Electronics",
+        "current": "Headphones"
+      },
+      "filter": {
+        "title": "FILTERS",
+        "reset": "Reset",
+        "clearAll": "Clear all filters",
+        "subcategory": "Subcategory",
+        "subcategoryOptions": {
+          "true-wireless": "True Wireless",
+          "over-ear": "Over-ear",
+          "sport-waterproof": "Sport & Waterproof",
+          "gaming-mic": "Gaming with mic",
+          "accessories": "Accessories"
+        },
+        "city": "Shipping from",
+        "cityOptions": {
+          "HCM": "Ho Chi Minh City",
+          "HN": "Hanoi",
+          "DN": "Da Nang",
+          "BD": "Binh Duong"
+        },
+        "price": "Price range (₫)",
+        "pricePlaceholderMin": "From",
+        "pricePlaceholderMax": "To",
+        "priceApply": "Apply price range",
+        "rating": "Rating",
+        "ratingFive": "5 stars only",
+        "ratingFour": "From 4 stars",
+        "ratingThree": "From 3 stars",
+        "services": "Services & Promos",
+        "serviceOptions": {
+          "flash-sale": "In Flash Sale",
+          "voucher": "Discount voucher",
+          "freeship": "Free shipping",
+          "official": "100% Authentic"
+        }
+      },
+      "sort": {
+        "label": "Sort by:",
+        "relevance": "Relevance",
+        "newest": "Newest",
+        "best_selling": "Best selling",
+        "price_asc": "Price: Low to High",
+        "price_desc": "Price: High to Low"
+      },
+      "activeChips": {
+        "label": "Active filters:",
+        "clearAll": "Clear all"
+      },
+      "mall": {
+        "officialBadge": "MALL",
+        "mallOfficial": "Official Mall",
+        "responseRate": "Response: {rate}%",
+        "products": "Products: {count}",
+        "viewStore": "View Shop"
+      },
+      "empty": {
+        "title": "No matching products",
+        "description": "Check the spelling of your keywords, try a more generic search, or remove some filter criteria.",
+        "clearFilters": "Clear search filters",
+        "goHome": "Back to shopping home",
+        "suggestedLabel": "Suggested popular keywords:"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "{page}/{total}"
+      }
+    },
     "account": {
       "title": "My Account",
       "loading": "Loading account…",
