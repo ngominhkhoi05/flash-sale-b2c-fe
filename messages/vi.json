@@ -351,14 +351,17 @@
         "seeAll": "Xem tất cả",
         "soldBadge": "FLASH SALE",
         "sold": "ĐÃ BÁN",
-        "limitPerBuyer": "Giới hạn 2/khách"
+        "limitPerBuyer": "Giới hạn 2/khách",
+        "empty": "Hiện chưa có flash sale nào đang diễn ra"
       },
       "voucher": {
         "title": "MÃ GIẢM GIÁ CHO BẠN",
         "voucherCount": "Kho voucher (12)",
+        "seeAll": "Xem tất cả",
         "saveAction": "Lưu",
         "savedAction": "Đã lưu",
         "expiresAt": "HSD",
+        "empty": "Hiện chưa có mã giảm giá nào",
         "tickets": {
           "discount50k": "GIẢM NGAY",
           "discount100k": "GIẢM ĐẬM",
@@ -372,12 +375,15 @@
         "seeAll": "Xem tất cả shop",
         "viewShop": "Xem shop",
         "ratingPrefix": "★",
-        "followersSuffix": "theo dõi"
+        "followersSuffix": "theo dõi",
+        "empty": "Hiện chưa có shop nổi bật nào"
       },
       "recommended": {
         "tabForYou": "Dành cho bạn",
         "tabBestSellers": "Bán chạy",
-        "tabHotDeals": "Ưu đãi sốc"
+        "tabHotDeals": "Ưu đãi sốc",
+        "empty": "Hiện chưa có sản phẩm gợi ý",
+        "error": "Không thể tải sản phẩm gợi ý"
       }
     },
     "footer": {

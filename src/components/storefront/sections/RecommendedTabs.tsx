@@ -4,13 +4,18 @@
  * RecommendedTabs – Internal tabs cho RecommendedSection.
  * - 3 tab: "Dành cho bạn" (mặc định), "Bán chạy", "Ưu đãi sốc"
  * - Sticky dưới flash sale strip + vouchers
- * - Logic: filter products theo activeTab
+ * - Gọi API /api/v1/products/recommended với tab tương ứng
  */
 import { cn } from "@/lib/utils";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
-import type { RecommendedProduct } from "./home-mocks";
 
 export type RecommendedTab = "forYou" | "bestSellers" | "hotDeals";
+
+export const TAB_TO_API: Record<RecommendedTab, "for_you" | "best_seller" | "hot_deal"> = {
+  forYou: "for_you",
+  bestSellers: "best_seller",
+  hotDeals: "hot_deal",
+};
 
 interface RecommendedTabsProps {
   activeTab: RecommendedTab;
@@ -51,41 +56,4 @@ export function RecommendedTabs({ activeTab, onTabChange, t }: RecommendedTabsPr
       ))}
     </div>
   );
-}
-
-/**
- * Filter products theo active tab.
- * - forYou: trả về tất cả
- * - bestSellers: filter theo soldCount >= 1000 (proxy)
- * - hotDeals: chỉ những sản phẩm có discountPercent > 0
- */
-export function filterProductsByTab(
-  products: RecommendedProduct[],
-  tab: RecommendedTab
-): RecommendedProduct[] {
-  if (tab === "bestSellers") {
-    return products.filter((p) => parseSoldCount(p.soldCount) >= 1000);
-  }
-  if (tab === "hotDeals") {
-    return products.filter((p) => p.discountPercent && p.discountPercent > 0);
-  }
-  return products;
-}
-
-/**
- * Parse "5,6k" / "1,2k" / "890" → number.
- * Examples:
- * - "890" → 890
- * - "1,2k" → 1200
- * - "5,6k" → 5600
- * - "12,3k" → 12300
- */
-export function parseSoldCount(raw: string): number {
-  const normalized = raw.replace(",", ".").trim();
-  if (normalized.endsWith("k")) {
-    const num = parseFloat(normalized.slice(0, -1));
-    return Number.isFinite(num) ? num * 1000 : 0;
-  }
-  const num = parseFloat(normalized);
-  return Number.isFinite(num) ? num : 0;
 }

@@ -351,14 +351,17 @@
         "seeAll": "See all",
         "soldBadge": "FLASH SALE",
         "sold": "SOLD",
-        "limitPerBuyer": "Limit 2/customer"
+        "limitPerBuyer": "Limit 2/customer",
+        "empty": "No flash sales available right now"
       },
       "voucher": {
         "title": "DISCOUNT CODES FOR YOU",
         "voucherCount": "Voucher wallet (12)",
+        "seeAll": "See all",
         "saveAction": "Save",
         "savedAction": "Saved",
         "expiresAt": "Exp",
+        "empty": "No discount codes available",
         "tickets": {
           "discount50k": "OFF",
           "discount100k": "DEEP OFF",
@@ -372,12 +375,15 @@
         "seeAll": "See all stores",
         "viewShop": "View shop",
         "ratingPrefix": "★",
-        "followersSuffix": "followers"
+        "followersSuffix": "followers",
+        "empty": "No featured stores available"
       },
       "recommended": {
         "tabForYou": "For You",
         "tabBestSellers": "Best Sellers",
-        "tabHotDeals": "Hot Deals"
+        "tabHotDeals": "Hot Deals",
+        "empty": "No recommended products",
+        "error": "Failed to load recommended products"
       }
     },
     "footer": {

@@ -9,7 +9,7 @@
  * chạy. Mỗi lần sau phải match y hệt — nếu khác, buộc phải update snapshot
  * bằng `npx vitest run -u`.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { HomepageView } from "./_homepage-view";
 import { TestWrapper } from "@/__tests__/test-wrapper";
