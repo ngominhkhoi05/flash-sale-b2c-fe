@@ -18,8 +18,8 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ProductBreadcrumb } from "@/components/product-detail/ProductBreadcrumb";
 import { ProductGallery } from "@/components/product-detail/ProductGallery";
-import { ProductShareBar } from "@/components/product-detail/ProductShareBar";
 import { ProductCommitments } from "@/components/product-detail/ProductCommitments";
+import { ProductShareBar } from "@/components/product-detail/ProductShareBar";
 import { ProductHeaderInfo } from "@/components/product-detail/ProductHeaderInfo";
 import { ProductPricingBox } from "@/components/product-detail/ProductPricingBox";
 import { ProductVouchers } from "@/components/product-detail/ProductVouchers";
@@ -177,8 +177,9 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       {/* ─── Row 1: Product Info (2 columns) ─── */}
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: Gallery (1/3) */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col gap-3">
           <ProductGallery images={product.images} productName={product.name} />
+          <ProductCommitments commitments={product.commitments} />
         </div>
 
         {/* Right: Product Info Sidebar (2/3) */}
@@ -262,9 +263,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
         <ProductStoreCard store={product.storeProfile} />
       </div>
 
-      {/* ─── Row 3: Commitments + Vouchers + Shipping (1 column, stacked) ─── */}
+      {/* ─── Row 3: Vouchers + Shipping (1 column, stacked) ─── */}
       <div className="mt-6 flex flex-col gap-4">
-        <ProductCommitments commitments={product.commitments} />
         <ProductVouchers vouchers={product.vouchers} />
         <ProductShipping shipping={product.shipping} />
       </div>
