@@ -9,12 +9,11 @@
  *   3. Render <ProductDetailPage> (Client Component) với mock data.
  *
  * Xem plan: docs/superpowers/plans/2026-10-12-product-detail-page-stitch.md
+ *
+ * Note: Header/Footer/MobileBottomNav đã có trong layout cha (storefront/layout.tsx)
  */
 import { notFound } from "next/navigation";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
-import { StorefrontHeader } from "@/components/storefront/StorefrontHeader";
-import { StorefrontFooter } from "@/components/storefront/StorefrontFooter";
-import { MobileBottomNav } from "@/components/storefront/MobileBottomNav";
 import { mockProductDetail } from "@/features/products";
 import { setRequestLocale } from "next-intl/server";
 
@@ -35,14 +34,9 @@ export default async function ProductDetailRoute({ params }: PageProps) {
   }
 
   return (
-    <>
-      <StorefrontHeader />
-      <main className="pt-4 pb-20 md:pt-6">
-        <ProductDetailPage product={mockProductDetail} />
-      </main>
-      <StorefrontFooter />
-      <MobileBottomNav />
-    </>
+    <main className="pt-4 md:pt-6">
+      <ProductDetailPage product={mockProductDetail} />
+    </main>
   );
 }
 
