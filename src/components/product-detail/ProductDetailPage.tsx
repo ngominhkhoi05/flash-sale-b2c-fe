@@ -183,9 +183,9 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       />
 
       {/* ─── Row 1: Product Info (2 columns) ─── */}
-      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left: Gallery */}
-        <div className="lg:col-span-7">
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left: Gallery (1/3) */}
+        <div className="lg:col-span-1">
           {/* Section 2: Variant Switcher A/B (top of gallery) */}
           {product.flashSale && (
             <div className="mb-4">
@@ -198,8 +198,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
           <ProductGallery images={product.images} productName={product.name} />
         </div>
 
-        {/* Right: Product Info Sidebar */}
-        <div className="flex flex-col gap-4 lg:col-span-5">
+        {/* Right: Product Info Sidebar (2/3) */}
+        <div className="flex flex-col gap-4 lg:col-span-2">
           {/* Section 3: Header info (tags + title + rating) */}
           <ProductHeaderInfo
             tags={{
