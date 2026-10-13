@@ -120,7 +120,10 @@ export function useRegisterMutation() {
   });
 }
 
-/** useLogoutMutation – gọi backend /auth/logout với refreshToken. */
+/** useLogoutMutation – gọi backend /auth/logout với refreshToken.
+ * Sau khi settle: clear tokens, reset auth store, redirect về trang chủ
+ * (KHÔNG redirect /login — UX tốt hơn: user logout xong vẫn ở lại
+ * trang public, không bị đá sang form đăng nhập). */
 export function useLogoutMutation() {
   const reset = useAuthStore((s) => s.reset);
   const qc = useQueryClient();
@@ -139,7 +142,7 @@ export function useLogoutMutation() {
       reset();
       qc.clear();
       if (typeof window !== "undefined") {
-        window.location.href = ROUTES.LOGIN;
+        window.location.href = ROUTES.HOME;
       }
     },
   });
