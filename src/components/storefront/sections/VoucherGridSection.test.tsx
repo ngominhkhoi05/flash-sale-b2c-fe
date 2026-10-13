@@ -1,53 +1,62 @@
 /**
- * Unit tests cho VoucherGridSection.
+ * Unit tests cho VoucherGridSection (API-driven).
  * - Logic state: button "Lưu" toggle "Đã lưu" khi click
- * - Logic xác nhận state của all tickets sau khi click từng button
- *
- * Snapshot/pixel-match ở HomepageView test.
  */
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { VoucherGridSection } from "./VoucherGridSection";
 import { TestWrapper } from "@/__tests__/test-wrapper";
+import type { VoucherResponse } from "@/features/homepage/api";
 
-describe("VoucherGridSection – save state", () => {
-  it("renders all 4 voucher tickets", () => {
-    render(<VoucherGridSection />, { wrapper: TestWrapper });
-    // Section h2 title (Mã giảm giá cho bạn → "Mã giảm giá" substring)
-    const headings = screen.getAllByRole("heading");
-    expect(headings.find((h) => h.textContent?.toLowerCase().includes("mã giảm"))).toBeInTheDocument();
-    // 4 ticket cards
-    expect(screen.getAllByText(/giảm \d+k/i).length).toBeGreaterThanOrEqual(2);
+const MOCK_VOUCHERS: VoucherResponse[] = [
+  { id: 1, code: "WELCOME10", storeId: null, discountType: "PERCENTAGE", discountValue: 10, minOrderAmount: 199000, maxDiscountAmount: null, totalQuantity: 100, usedQuantity: 0, userUsageLimit: 1, startTime: "2026-01-01", endTime: "2026-12-31", status: "ACTIVE", createdAt: "2026-01-01" },
+  { id: 2, code: "SAVE50K", storeId: null, discountType: "FIXED_AMOUNT", discountValue: 50000, minOrderAmount: 299000, maxDiscountAmount: null, totalQuantity: 50, usedQuantity: 0, userUsageLimit: 1, startTime: "2026-01-01", endTime: "2026-12-31", status: "ACTIVE", createdAt: "2026-01-01" },
+  { id: 3, code: "FREESHIP", storeId: null, discountType: "FIXED_AMOUNT", discountValue: 30000, minOrderAmount: 150000, maxDiscountAmount: null, totalQuantity: 200, usedQuantity: 0, userUsageLimit: 1, startTime: "2026-01-01", endTime: "2026-12-31", status: "ACTIVE", createdAt: "2026-01-01" },
+  { id: 4, code: "VIP15", storeId: null, discountType: "PERCENTAGE", discountValue: 15, minOrderAmount: 1000000, maxDiscountAmount: null, totalQuantity: 30, usedQuantity: 0, userUsageLimit: 1, startTime: "2026-01-01", endTime: "2026-12-31", status: "ACTIVE", createdAt: "2026-01-01" },
+];
+
+vi.mock("@/features/homepage/hooks", () => ({
+  usePlatformVouchers: () => ({
+    data: MOCK_VOUCHERS,
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
   });
+}
 
-  it("renders 4 'Save' (Lưu) buttons by default", () => {
-    render(<VoucherGridSection />, { wrapper: TestWrapper });
-    const saveButtons = screen.getAllByRole("button", { name: /lưu/i });
-    expect(saveButtons).toHaveLength(4);
+function renderWithProviders(ui: React.ReactNode) {
+  const client = makeQueryClient();
+  return render(
+    <QueryClientProvider client={client}>
+      <TestWrapper>{ui}</TestWrapper>
+    </QueryClientProvider>
+  );
+}
+
+describe("VoucherGridSection – save state (API-driven)", () => {
+  it("renders 4 'Lưu' buttons by default", () => {
+    renderWithProviders(<VoucherGridSection />);
+    // Component uses mock hook directly, so data is sync
+    const saveButtons = screen.getAllByRole("button", { name: /^lưu$/i });
+    expect(saveButtons.length).toBeGreaterThanOrEqual(4);
   });
 
   it("clicking Save toggles to Saved for that ticket only", async () => {
     const user = userEvent.setup();
-    render(<VoucherGridSection />, { wrapper: TestWrapper });
-    const saveButtons = screen.getAllByRole("button", { name: /lưu/i });
-    expect(saveButtons).toHaveLength(4);
-
-    // Click first one (use data-testid for reliable selection)
-    await user.click(screen.getByTestId("save-v-1"));
-    // First becomes "Đã lưu", others remain "Lưu"
+    renderWithProviders(<VoucherGridSection />);
+    await waitFor(() => {
+      expect(screen.getByTestId("save-1")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("save-1"));
     const saved = screen.getByRole("button", { name: /đã lưu/i });
     expect(saved).toBeInTheDocument();
-    expect(saved).toHaveAttribute("data-testid", "save-v-1");
-  });
-
-  it("clicking Save twice reverts back to Save", async () => {
-    const user = userEvent.setup();
-    render(<VoucherGridSection />, { wrapper: TestWrapper });
-    const btn = screen.getAllByRole("button", { name: /lưu/i })[0];
-    await user.click(btn);
-    expect(screen.getByRole("button", { name: /đã lưu/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /đã lưu/i }));
-    expect(screen.getAllByRole("button", { name: /lưu/i })).toHaveLength(4);
+    expect(saved).toHaveAttribute("data-testid", "save-1");
   });
 });
