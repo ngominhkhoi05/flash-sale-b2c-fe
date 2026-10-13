@@ -1,27 +1,66 @@
 /**
- * Cart API – mock hiện tại, sẽ thay bằng apiFetch() khi backend cung cấp
- * (xem handoff docs/handoffs/2026-10-10-frontend-storefront-homepage-api-requests.md).
+ * Cart API layer – kết nối backend thật.
+ * Theo OpenAPI spec `http://180.93.137.28/v3/api-docs`:
+ *  - GET /api/v1/cart
+ *  - DELETE /api/v1/cart
+ *  - POST /api/v1/cart/items
+ *  - PUT /api/v1/cart/items/{itemId}
+ *  - DELETE /api/v1/cart/items/{itemId}
  *
  * Convention (rule api-data):
  *  - Pure function, throw ApiError
  *  - Trả về DTO khớp với `types.ts`
- *  - Test trong api.test.ts (mock apiFetch bằng vi.fn())
  */
 import { apiFetch } from "@/lib/api";
-import type { CartItem, CartSummary } from "./types";
+import type {
+  CartResponse,
+  AddToCartRequest,
+  UpdateCartItemRequest,
+} from "./types";
 
 /**
- * GET /api/v1/cart – lấy danh sách item trong giỏ hàng của user hiện tại.
- * Backend: 200 + CartItem[]; 401 nếu chưa đăng nhập.
+ * GET /api/v1/cart – lấy giỏ hàng cá nhân.
+ * Backend: 200 + CartResponse; 401 nếu chưa đăng nhập.
  */
-export async function getCartItems(): Promise<CartItem[]> {
-  return apiFetch<CartItem[]>("/cart");
+export async function getCart(): Promise<CartResponse> {
+  return apiFetch<CartResponse>("/cart");
 }
 
 /**
- * GET /api/v1/cart/summary – tổng hợp (subtotal, shipping, total).
- * Backend: 200 + CartSummary; 401 nếu chưa đăng nhập.
+ * DELETE /api/v1/cart – xóa toàn bộ giỏ hàng.
  */
-export async function getCartSummary(): Promise<CartSummary> {
-  return apiFetch<CartSummary>("/cart/summary");
+export async function clearCart(): Promise<void> {
+  return apiFetch<void>("/cart", { method: "DELETE" });
+}
+
+/**
+ * POST /api/v1/cart/items – thêm sản phẩm vào giỏ.
+ */
+export async function addToCart(
+  payload: AddToCartRequest
+): Promise<CartResponse> {
+  return apiFetch<CartResponse>("/cart/items", {
+    method: "POST",
+    json: payload,
+  });
+}
+
+/**
+ * PUT /api/v1/cart/items/{itemId} – cập nhật số lượng.
+ */
+export async function updateCartItem(
+  itemId: number,
+  payload: UpdateCartItemRequest
+): Promise<CartResponse> {
+  return apiFetch<CartResponse>(`/cart/items/${itemId}`, {
+    method: "PUT",
+    json: payload,
+  });
+}
+
+/**
+ * DELETE /api/v1/cart/items/{itemId} – xóa 1 sản phẩm khỏi giỏ.
+ */
+export async function removeCartItem(itemId: number): Promise<void> {
+  return apiFetch<void>(`/cart/items/${itemId}`, { method: "DELETE" });
 }

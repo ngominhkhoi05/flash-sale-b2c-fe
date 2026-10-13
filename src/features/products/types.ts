@@ -1,68 +1,148 @@
 /**
- * Products (detail) feature – types.
- * Mở rộng `ProductSummaryResponse` (BE) với các field Stitch cần hiển thị.
- * Khi BE bổ sung các field còn thiếu, sẽ migrate sang gọi API thật (xem
- * docs/superpowers/plans/2026-10-12-product-detail-be-required.md).
+ * Products feature – types.
+ * Gồm 2 lớp:
+ *   1. API types – khớp response từ OpenAPI `http://180.93.137.28/v3/api-docs`
+ *   2. UI types – merge API response + Stitch UI fields (mock hoặc computed)
  *
- * Lưu ý: `RecommendedProduct` được re-export từ "./types" cũ (xem index.ts
- * của feature cart hoặc các feature khác dùng chung). Để tránh circular
- * import, type này được import từ file này trong mock.ts/hooks.ts.
+ * Khi BE bổ sung field mới → cập nhật API types + loại bỏ mock.
  */
 
-// (Không import RecommendedProduct ở đây để tránh circular dependency.)
+/** ─── API Response Types (khớp OpenAPI) ─────────────────────────────────── */
 
-/**
- * RecommendedProduct – subset của ProductSummaryResponse (BE).
- * Đã có từ trước (dùng cho trang chủ Recommended Section), giữ lại để
- * dùng cho related products trong product detail page.
- */
-export interface RecommendedProduct {
-  id: string;
-  name: string;
-  imageUrl: string;
-  imageAlt: string;
-  /** Giá hiện tại (đã giảm nếu có KM). */
-  price: number;
-  /** Giá gốc (nếu có KM). */
-  originalPrice?: number;
-  discountPercent?: number;
-  rating?: number;
-  totalSold?: number;
-  location?: string;
-  voucherLabel?: string; // vd: "Giảm 10K", "Freeship"
-  href: string;
-}
-
-/**
- * ProductDetail – mirror `ProductDetailResponse` của BE + bổ sung field
- * Stitch yêu cầu mà BE chưa trả (đánh dấu `// BE PENDING`).
- */
-export interface ProductDetail {
+/** GET /api/v1/products/{id} */
+export interface ProductDetailResponse {
   id: number;
-  slug: string;
   storeId: number;
   storeName: string;
   categoryId: number;
   categoryName: string;
   name: string;
   imageUrl: string;
-  images: ProductImage[];
   description: string;
-  tierVariationConfigs: TierVariationConfig[];
-  /** Variants (BE có field này, nhưng đảm bảo rõ trong FE type). */
-  variants: ProductVariant[];
+  tierVariationConfigs: TierVariationConfigDto[];
   status: string;
   createdAt: string;
-
-  // ── BE PENDING: chưa có trong ProductDetailResponse ────────────────────
+  variants: ProductVariantResponse[];
   ratingAvg: number;
   ratingCount: number;
   soldCount: number;
-  questionCount: number;
   minPrice: number;
   maxPrice: number;
-  discountPercent: number | null;
+  discountPercent: number;
+  images: ProductImageDto[];
+  flashSales: ActiveFlashSaleDto[];
+}
+
+export interface ProductVariantResponse {
+  id: number;
+  productId: number;
+  sku: string;
+  variantName: string;
+  attributes: Record<string, string>;
+  originalPrice: number;
+  stockQuantity: number;
+  imageUrl: string;
+  status: string;
+  version: number;
+  createdAt: string;
+}
+
+export interface ProductImageDto {
+  id: number;
+  url: string;
+  isPrimary: boolean;
+  displayOrder: number;
+  alt: string;
+}
+
+export interface TierVariationConfigDto {
+  name: string;
+  options: string[];
+}
+
+export interface ActiveFlashSaleDto {
+  flashSaleItemId: number;
+  variantId: number;
+  price: number;
+  originalPrice: number;
+  discountPercent: number;
+  totalStock: number;
+  soldStock: number;
+  maxQtyPerUser: number;
+  endsAt: string;
+}
+
+/** GET /api/v1/products */
+export interface ProductSummaryResponse {
+  id: number;
+  storeId: number;
+  storeName: string;
+  categoryId: number;
+  categoryName: string;
+  name: string;
+  imageUrl: string;
+  minPrice: number;
+  maxPrice: number;
+  totalStock: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  numberOfElements: number;
+  empty: boolean;
+}
+
+export interface ProductListParams {
+  categoryId?: number;
+  keyword?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  size?: number;
+}
+
+/** ─── UI Types (API + Stitch UI fields) ─────────────────────────────────── */
+
+/**
+ * ProductDetail – dùng trong UI.
+ * Merge `ProductDetailResponse` (từ BE) + Stitch UI fields (mock/computed).
+ * Fields đánh dấu `// mock` = BE chưa có, dùng mock tạm.
+ */
+export interface ProductDetail {
+  // ── From API ──────────────────────────────────────────────────────────
+  id: number;
+  storeId: number;
+  storeName: string;
+  categoryId: number;
+  categoryName: string;
+  name: string;
+  imageUrl: string;
+  description: string;
+  tierVariationConfigs: TierVariationConfig[];
+  variants: ProductVariant[];
+  status: string;
+  createdAt: string;
+  ratingAvg: number;
+  ratingCount: number;
+  soldCount: number;
+  minPrice: number;
+  maxPrice: number;
+  discountPercent: number;
+  images: ProductImage[];
   flashSale: FlashSaleInfo | null;
+
+  // ── Stitch UI fields (mock) ─────────────────────────────────────────────
+  /** Slug for URL – generated from name, not from BE */
+  slug: string;
+  questionCount: number;
   reviews: Review[];
   relatedSameStore: RecommendedProduct[];
   relatedBestSellers: RecommendedProduct[];
@@ -75,6 +155,8 @@ export interface ProductDetail {
   shipping: ShippingInfo;
   commitments: CommitmentBadge[];
 }
+
+/** ─── Shared Types (dùng chung FE-BE) ─────────────────────────────────── */
 
 export interface ProductImage {
   id: number;
@@ -89,25 +171,11 @@ export interface TierVariationConfig {
   options: string[];
 }
 
-/**
- * ProductVariant – mirror `ProductVariantResponse` của BE + bổ sung flag
- * disabled (size hết hàng) để UI render.
- */
-export interface ProductVariant {
-  id: number;
-  productId: number;
-  sku: string;
-  variantName: string;
-  attributes: Record<string, string>;
-  originalPrice: number;
-  stockQuantity: number;
-  imageUrl: string | null;
-  status: "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK";
-  /** Bổ sung ở FE: variant nào disable trong UI (vd size XL hết hàng). */
+/** Variant cho UI — thêm computed field `isDisabled` từ `stockQuantity`. */
+export type ProductVariant = ProductVariantResponse & {
+  /** Computed: true khi stockQuantity === 0 hoặc status OUT_OF_STOCK */
   isDisabled: boolean;
-  version: number;
-  createdAt: string;
-}
+};
 
 export interface FlashSaleInfo {
   flashSaleItemId: number;
@@ -203,4 +271,88 @@ export interface CommitmentBadge {
   label: string;
 }
 
+/** RecommendedProduct – subset của ProductSummaryResponse. */
+export interface RecommendedProduct {
+  id: string;
+  name: string;
+  imageUrl: string;
+  imageAlt: string;
+  price: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  rating?: number;
+  totalSold?: number;
+  location?: string;
+  voucherLabel?: string;
+  href: string;
+}
+
 export type ProductVariantMode = "standard" | "flash";
+
+/** ─── Helper Functions ─────────────────────────────────────────────────── */
+
+/**
+ * Chuyển ProductDetailResponse (BE) → ProductDetail (UI).
+ * Thêm computed fields + merge mock Stitch UI fields.
+ */
+export function mapProductDetailResponse(
+  api: ProductDetailResponse,
+  mockFields: Partial<ProductDetail>
+): ProductDetail {
+  const mapped: ProductDetail = {
+    ...api,
+    // Computed fields từ API
+    slug: generateSlug(api.name),
+    images: api.images.map((img) => ({
+      ...img,
+      alt: img.alt ?? api.name,
+    })),
+    variants: api.variants.map((v) => ({
+      ...v,
+      isDisabled: v.stockQuantity === 0 || v.status === "OUT_OF_STOCK",
+    })),
+    flashSale: api.flashSales[0] ?? null,
+    // Stitch UI fields mặc định
+    questionCount: 0,
+    reviews: [],
+    relatedSameStore: [],
+    relatedBestSellers: [],
+    specs: { category: "", material: "", origin: "", style: "", sku: "", careInstructions: "" },
+    sizeChart: [],
+    features: [],
+    descriptionRich: [],
+    storeProfile: {
+      id: api.storeId,
+      name: api.storeName,
+      initials: "",
+      initialsBgClass: "",
+      isOfficial: false,
+      ratingAvg: 0,
+      ratingCount: 0,
+      productCount: 0,
+      productCountUnit: "mẫu",
+      responseRate: 0,
+      responseTimeLabel: "",
+      joinedAt: "",
+      lastActiveLabel: "",
+    },
+    vouchers: [],
+    shipping: { freeshipBadge: "", freeshipText: "", shipTo: "", estimatedDays: "" },
+    commitments: [],
+  };
+
+  // Merge mock fields (override defaults)
+  return { ...mapped, ...mockFields };
+}
+
+/** Tạo slug từ tên sản phẩm (simple slugify). */
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
