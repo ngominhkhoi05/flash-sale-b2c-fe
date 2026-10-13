@@ -33,11 +33,8 @@ import {
 import {
   mockCheckoutData,
   useApplyVoucherMutation,
-  useBuyerNoteMutation,
+  useAvailableVouchers,
   useCheckout,
-  usePaymentMethodMutation,
-  useRemoveVoucherMutation,
-  useSelectAddressMutation,
   useSubmitOrderMutation,
 } from "@/features/checkout";
 
@@ -60,7 +57,7 @@ interface CheckoutPageContentProps {
 }
 
 export function CheckoutPageContent({
-  useMockData = true,
+  useMockData = false,
 }: CheckoutPageContentProps) {
   const t = useTranslations("storefront.checkout");
   const router = useRouter();
@@ -85,154 +82,8 @@ export function CheckoutPageContent({
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [vibecare, setVibecare] = useState(false);
 
-  // ── Mutations ──────────────────────────────────────────────────
-  const selectAddressMut = useSelectAddressMutation();
-  const applyVoucherMut = useApplyVoucherMutation();
-  const removeVoucherMut = useRemoveVoucherMutation();
-  const paymentMut = usePaymentMethodMutation();
-  const noteMut = useBuyerNoteMutation();
-  const submitMut = useSubmitOrderMutation();
-
-  // ── Derived ────────────────────────────────────────────────────
-  const shopGroups: CheckoutShopGroup[] = data.shopGroups;
-
-  const subtotal = useMemo(
-    () =>
-      shopGroups.reduce((sum, g) => sum + Number(g.shopSubtotal ?? 0), 0),
-    [shopGroups],
-  );
-  const shippingFee = useMemo(
-    () => shopGroups.reduce((sum, g) => sum + Number(g.shippingFee ?? 0), 0),
-    [shopGroups],
-  );
-  const shopVoucherDiscount = useMemo(
-    () =>
-      shopGroups.reduce(
-        (sum, g) => sum + Number(g.appliedShopVoucher?.discountAmount ?? 0),
-        0,
-      ),
-    [shopGroups],
-  );
-  const platformVoucherDiscount = appliedPlatformVoucher
-    ? Number(appliedPlatformVoucher.discountAmount ?? 0)
-    : 0;
-  const totalDiscount = shopVoucherDiscount + platformVoucherDiscount;
-  const vibecareFee = vibecare ? 15000 * shopGroups.length : 0;
-  const grandTotal = Math.max(
-    0,
-    subtotal + shippingFee + vibecareFee - totalDiscount,
-  );
-
-  // ── Handlers ───────────────────────────────────────────────────
-  const handleSelectAddress = async (addr: Address) => {
-    setSelectedAddress(addr);
-    if (!useMockData) {
-      try {
-        await selectAddressMut.mutateAsync(addr.id);
-      } catch (err) {
-        console.error("[checkout] selectAddress", err);
-      }
-    }
-  };
-
-  const handleApplyVoucherCode = async (code: string) => {
-    setVoucherError(null);
-    // Simple in-mock validation: must be in available platform vouchers.
-    const match = availablePlatformVouchers.find(
-      (v) => v.code.toUpperCase() === code.toUpperCase(),
-    );
-    if (!match) {
-      setVoucherError(`Mã "${code}" không hợp lệ hoặc đã hết hạn.`);
-      return;
-    }
-    if (match.isDisabled) {
-      setVoucherError(match.disabledReason ?? "Mã chưa đủ điều kiện áp dụng.");
-      return;
-    }
-    if (useMockData) {
-      setAppliedPlatformVoucher(match);
-    } else {
-      try {
-        const res = await applyVoucherMut.mutateAsync({
-          voucherId: match.id,
-          scope: "PLATFORM",
-        });
-        if (res.applied) setAppliedPlatformVoucher(res.voucher);
-        else setVoucherError("Mã không áp dụng được.");
-      } catch (err) {
-        console.error("[checkout] applyVoucher", err);
-        setVoucherError("Không thể áp dụng mã. Vui lòng thử lại.");
-      }
-    }
-  };
-
-  const handleRemoveVoucher = async () => {
-    setAppliedPlatformVoucher(null);
-    if (!useMockData) {
-      try {
-        await removeVoucherMut.mutateAsync({ scope: "PLATFORM" });
-      } catch (err) {
-        console.error("[checkout] removeVoucher", err);
-      }
-    }
-  };
-
-  const handleChangePayment = async (m: PaymentMethod) => {
-    setPaymentMethod(m);
-    if (!useMockData) {
-      try {
-        await paymentMut.mutateAsync(m);
-      } catch (err) {
-        console.error("[checkout] paymentMethod", err);
-      }
-    }
-  };
-
-  const handleChangeNote = async (storeId: number, note: string) => {
-    if (useMockData) {
-      // local-only: do nothing
-      return;
-    }
-    try {
-      await noteMut.mutateAsync({ storeId, note });
-    } catch (err) {
-      console.error("[checkout] updateBuyerNote", err);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedAddress) return;
-    if (useMockData) {
-      // Mock flow: chuyển sang màn xác nhận
-      router.push(`${ROUTES.ORDERS}?mock=checkout-success`);
-      return;
-    }
-    try {
-      const res = await submitMut.mutateAsync({
-        payload: {
-          addressId: selectedAddress.id,
-          paymentMethod,
-          platformVoucherId: appliedPlatformVoucher?.id,
-          shopSelections: shopGroups.map((g) => ({
-            storeId: g.storeId,
-            shopVoucherId: g.appliedShopVoucher?.id,
-            buyerNote: g.buyerNote,
-          })),
-          idempotencyKey: uuidv4(),
-        },
-        idempotencyKey: uuidv4(),
-      });
-      if (res.status === "PENDING_PAYMENT" && res.paymentUrl) {
-        router.push(res.paymentUrl);
-      } else {
-        router.push(`${ROUTES.ORDERS}/${res.orderCode}`);
-      }
-    } catch (err) {
-      console.error("[checkout] submitOrder", err);
-    }
-  };
-
-  // ── Voucher picker list (mock-aware) ──────────────────────────
+  // ── Real API: fetch available platform vouchers ──────────────
+  const platformVouchersQuery = useAvailableVouchers("PLATFORM");
   const availablePlatformVouchers: Voucher[] = useMockData
     ? [
         {
@@ -279,7 +130,127 @@ export function CheckoutPageContent({
           status: "ACTIVE",
         },
       ]
-    : [];
+    : (platformVouchersQuery.data ?? []);
+
+  // ── Mutations ──────────────────────────────────────────────────
+  const applyVoucherMut = useApplyVoucherMutation();
+  const submitMut = useSubmitOrderMutation();
+
+  // ── Derived ────────────────────────────────────────────────────
+  const shopGroups: CheckoutShopGroup[] = data.shopGroups;
+
+  const subtotal = useMemo(
+    () =>
+      shopGroups.reduce((sum, g) => sum + Number(g.shopSubtotal ?? 0), 0),
+    [shopGroups],
+  );
+  const shippingFee = useMemo(
+    () => shopGroups.reduce((sum, g) => sum + Number(g.shippingFee ?? 0), 0),
+    [shopGroups],
+  );
+  const shopVoucherDiscount = useMemo(
+    () =>
+      shopGroups.reduce(
+        (sum, g) => sum + Number(g.appliedShopVoucher?.discountAmount ?? 0),
+        0,
+      ),
+    [shopGroups],
+  );
+  const platformVoucherDiscount = appliedPlatformVoucher
+    ? Number(appliedPlatformVoucher.discountAmount ?? 0)
+    : 0;
+  const totalDiscount = shopVoucherDiscount + platformVoucherDiscount;
+  const vibecareFee = vibecare ? 15000 * shopGroups.length : 0;
+  const grandTotal = Math.max(
+    0,
+    subtotal + shippingFee + vibecareFee - totalDiscount,
+  );
+
+  // ── Handlers ───────────────────────────────────────────────────
+  const handleSelectAddress = (addr: Address) => {
+    // Local-only: backend uses selectedAddress implicitly via addressId at submit time.
+    setSelectedAddress(addr);
+  };
+
+  const handleApplyVoucherCode = async (code: string) => {
+    setVoucherError(null);
+    // Simple in-mock validation: must be in available platform vouchers.
+    const match = availablePlatformVouchers.find(
+      (v) => v.code.toUpperCase() === code.toUpperCase(),
+    );
+    if (!match) {
+      setVoucherError(`Mã "${code}" không hợp lệ hoặc đã hết hạn.`);
+      return;
+    }
+    if (match.isDisabled) {
+      setVoucherError(match.disabledReason ?? "Mã chưa đủ điều kiện áp dụng.");
+      return;
+    }
+    if (useMockData) {
+      setAppliedPlatformVoucher(match);
+      return;
+    }
+    try {
+      const res = await applyVoucherMut.mutateAsync({
+        voucherCode: match.code,
+        orderAmount: subtotal,
+      });
+      if (res.applied) {
+        setAppliedPlatformVoucher(res.voucher);
+      } else {
+        setVoucherError("Mã không áp dụng được cho đơn này.");
+      }
+    } catch (err) {
+      console.error("[checkout] applyVoucher", err);
+      setVoucherError("Không thể áp dụng mã. Vui lòng thử lại.");
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedPlatformVoucher(null);
+  };
+
+  const handleChangePayment = (m: PaymentMethod) => {
+    setPaymentMethod(m);
+  };
+
+  const handleChangeNote = (storeId: number, note: string) => {
+    // Note sent at submit time (BE doesn't have a per-shop note endpoint yet).
+    void storeId;
+    void note;
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedAddress) return;
+    if (useMockData) {
+      // Mock flow: chuyển sang màn xác nhận
+      router.push(`${ROUTES.ORDERS}?mock=checkout-success`);
+      return;
+    }
+    try {
+      const res = await submitMut.mutateAsync({
+        payload: {
+          addressId: selectedAddress.id,
+          paymentMethod,
+          platformVoucherCode: appliedPlatformVoucher?.code,
+          shopSelections: shopGroups.map((g) => ({
+            storeId: g.storeId,
+            shopVoucherCode: g.appliedShopVoucher?.code,
+            buyerNote: g.buyerNote,
+          })),
+          idempotencyKey: uuidv4(),
+        },
+        idempotencyKey: uuidv4(),
+      });
+      if (res.status === "PENDING_PAYMENT" && res.paymentUrl) {
+        window.location.href = res.paymentUrl;
+      } else {
+        router.push(`${ROUTES.ORDERS}/${res.orderCode}`);
+      }
+    } catch (err) {
+      console.error("[checkout] submitOrder", err);
+    }
+  };
 
   // ── Summary lines ─────────────────────────────────────────────
   const summaryLines: CheckoutOrderSummaryLine[] = [
@@ -383,7 +354,7 @@ export function CheckoutPageContent({
               <CheckoutPaymentMethodCard
                 value={paymentMethod}
                 onChange={handleChangePayment}
-                disabled={paymentMut.isPending}
+                disabled={applyVoucherMut.isPending}
               />
 
               <CheckoutVibeCareBanner

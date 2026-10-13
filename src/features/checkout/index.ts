@@ -13,24 +13,18 @@ export type {
 export {
   getCheckout,
   getAddresses,
-  selectAddress,
   applyVoucher,
-  removeVoucher,
-  setPaymentMethod,
-  updateBuyerNote,
   submitOrder,
   getAvailableVouchers,
+  getPlatformVouchers,
+  getShopVouchers,
 } from "./api";
 export {
   checkoutKeys,
   useCheckout,
   useAddresses,
   useAvailableVouchers,
-  useSelectAddressMutation,
   useApplyVoucherMutation,
-  useRemoveVoucherMutation,
-  usePaymentMethodMutation,
-  useBuyerNoteMutation,
   useSubmitOrderMutation,
 } from "./hooks";
 export {

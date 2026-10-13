@@ -1,6 +1,14 @@
 /**
  * Checkout hooks – TanStack Query wrappers (rule api-data + testing-required).
+ *
  * Query keys: ["checkout", ...]
+ *
+ * Wired to real backend endpoints:
+ *  - GET /api/v1/cart           → checkout snapshot
+ *  - GET /api/v1/users/addresses
+ *  - GET /api/v1/vouchers/platform, /vouchers/store/{id}
+ *  - POST /api/v1/vouchers/apply
+ *  - POST /api/v1/orders/checkout
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,17 +16,12 @@ import {
   getAddresses as getAddressesApi,
   getAvailableVouchers as getAvailableVouchersApi,
   getCheckout as getCheckoutApi,
-  removeVoucher as removeVoucherApi,
-  selectAddress as selectAddressApi,
-  setPaymentMethod as setPaymentMethodApi,
   submitOrder as submitOrderApi,
-  updateBuyerNote as updateBuyerNoteApi,
 } from "./api";
 import type {
   Address,
   ApplyVoucherResponse,
   CheckoutData,
-  CheckoutShopGroup,
   SubmitOrderRequest,
   Voucher,
 } from "./types";
@@ -67,86 +70,17 @@ export function useAvailableVouchers(
 }
 
 /**
- * useSelectAddressMutation – đổi địa chỉ giao hàng.
- * Trả về CheckoutData mới (totals có thể đổi vì phí ship).
- */
-export function useSelectAddressMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (addressId: number) => selectAddressApi(addressId),
-    onSuccess: (data) => {
-      qc.setQueryData(checkoutKeys.detail(), data);
-    },
-  });
-}
-
-/**
- * useApplyVoucherMutation – áp dụng voucher (shop hoặc sàn).
- * Caller kiểm tra result.applied trước khi update UI.
+ * useApplyVoucherMutation – áp dụng voucher (shop hoặc sàn) qua
+ * POST /api/v1/vouchers/apply. Caller kiểm tra result.applied trước
+ * khi update UI.
  */
 export function useApplyVoucherMutation() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: {
-      voucherId: number;
-      scope: "SHOP" | "PLATFORM";
+      voucherCode: string;
+      orderAmount: number;
       storeId?: number;
     }) => applyVoucherApi(input),
-    onSuccess: (data: ApplyVoucherResponse) => {
-      // API contract: nếu áp thành công, BE trả về CheckoutData mới trong details.
-      // Tạm thời invalidate để refresh.
-      if (data.applied) {
-        qc.invalidateQueries({ queryKey: checkoutKeys.detail() });
-      }
-    },
-  });
-}
-
-/** useRemoveVoucherMutation – gỡ voucher. */
-export function useRemoveVoucherMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: {
-      scope: "SHOP" | "PLATFORM";
-      storeId?: number;
-    }) => removeVoucherApi(input),
-    onSuccess: (data) => {
-      qc.setQueryData(checkoutKeys.detail(), data);
-    },
-  });
-}
-
-/** usePaymentMethodMutation – đổi ZaloPay ↔ COD. */
-export function usePaymentMethodMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (paymentMethod: "ZALOPAY" | "COD") =>
-      setPaymentMethodApi(paymentMethod),
-    onSuccess: (data) => {
-      qc.setQueryData(checkoutKeys.detail(), data);
-    },
-  });
-}
-
-/** useBuyerNoteMutation – cập nhật lời nhắn cho shop. */
-export function useBuyerNoteMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { storeId: number; note: string }) =>
-      updateBuyerNoteApi(input),
-    onSuccess: (group: CheckoutShopGroup) => {
-      // Patch cache: thay nhóm tương ứng.
-      qc.setQueryData(checkoutKeys.detail(), (prev: unknown) => {
-        const data = prev as CheckoutData | undefined;
-        if (!data) return prev;
-        return {
-          ...data,
-          shopGroups: data.shopGroups.map((g) =>
-            g.storeId === group.storeId ? { ...g, buyerNote: group.buyerNote } : g,
-          ),
-        };
-      });
-    },
   });
 }
 
@@ -171,3 +105,6 @@ export function useSubmitOrderMutation() {
     },
   });
 }
+
+// Re-export ApplyVoucherResponse for backwards compatibility
+export type { ApplyVoucherResponse };

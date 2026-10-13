@@ -130,15 +130,16 @@ export interface ApplyVoucherResponse {
   reasonCode?: string;
 }
 
-/** Request body cho `POST /api/v1/checkout/submit`. */
+/** Request body cho `POST /api/v1/orders/checkout`. */
 export interface SubmitOrderRequest {
+  /** shippingAddressId (BE field). */
   addressId: number;
   paymentMethod: PaymentMethod;
-  platformVoucherId?: number;
-  /** Map storeId -> voucher + note. */
+  platformVoucherCode?: string;
+  /** Map storeId -> voucher code + note. */
   shopSelections: Array<{
     storeId: number;
-    shopVoucherId?: number;
+    shopVoucherCode?: string;
     buyerNote?: string;
   }>;
   /** Idempotency-Key để chống double submit. (Optional trong body, thường gửi qua header.) */

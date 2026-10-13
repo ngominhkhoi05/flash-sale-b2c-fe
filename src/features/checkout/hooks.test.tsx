@@ -1,5 +1,12 @@
 /**
  * Checkout hooks test — RED tests viết trước khi implement (rule testing-required).
+ *
+ * Tests the new API surface wired to:
+ *  - GET /api/v1/cart
+ *  - GET /api/v1/users/addresses
+ *  - GET /api/v1/vouchers/platform, /vouchers/store/{id}
+ *  - POST /api/v1/vouchers/apply
+ *  - POST /api/v1/orders/checkout
  */
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -9,11 +16,7 @@ import {
   useCheckout,
   useAddresses,
   useAvailableVouchers,
-  useSelectAddressMutation,
   useApplyVoucherMutation,
-  useRemoveVoucherMutation,
-  usePaymentMethodMutation,
-  useBuyerNoteMutation,
   useSubmitOrderMutation,
 } from "./hooks";
 import type { CheckoutData } from "./types";
@@ -22,11 +25,7 @@ import type { CheckoutData } from "./types";
 const mockGetCheckout = vi.fn();
 const mockGetAddresses = vi.fn();
 const mockGetAvailableVouchers = vi.fn();
-const mockSelectAddress = vi.fn();
 const mockApplyVoucher = vi.fn();
-const mockRemoveVoucher = vi.fn();
-const mockSetPaymentMethod = vi.fn();
-const mockUpdateBuyerNote = vi.fn();
 const mockSubmitOrder = vi.fn();
 
 vi.mock("./api", () => ({
@@ -34,11 +33,7 @@ vi.mock("./api", () => ({
   getAddresses: () => mockGetAddresses(),
   getAvailableVouchers: (input: unknown) =>
     mockGetAvailableVouchers(input),
-  selectAddress: (id: number) => mockSelectAddress(id),
   applyVoucher: (input: unknown) => mockApplyVoucher(input),
-  removeVoucher: (input: unknown) => mockRemoveVoucher(input),
-  setPaymentMethod: (method: string) => mockSetPaymentMethod(method),
-  updateBuyerNote: (input: unknown) => mockUpdateBuyerNote(input),
   submitOrder: (payload: unknown, key: string) =>
     mockSubmitOrder(payload, key),
 }));
@@ -75,11 +70,7 @@ beforeEach(() => {
     mockGetCheckout,
     mockGetAddresses,
     mockGetAvailableVouchers,
-    mockSelectAddress,
     mockApplyVoucher,
-    mockRemoveVoucher,
-    mockSetPaymentMethod,
-    mockUpdateBuyerNote,
     mockSubmitOrder,
   ].forEach((m) => m.mockReset());
 });
@@ -130,7 +121,7 @@ describe("useAddresses", () => {
 });
 
 describe("useAvailableVouchers", () => {
-  it("fetches vouchers with scope param", async () => {
+  it("fetches platform vouchers when scope=PLATFORM", async () => {
     mockGetAvailableVouchers.mockResolvedValue([]);
     const { wrapper } = withQueryClient();
     const { result } = renderHook(
@@ -144,32 +135,25 @@ describe("useAvailableVouchers", () => {
       storeId: undefined,
     });
   });
-});
 
-describe("useSelectAddressMutation", () => {
-  it("calls API and updates detail cache", async () => {
-    const updated = { ...MOCK_CHECKOUT, grandTotal: 1050000 };
-    mockSelectAddress.mockResolvedValue(updated);
-
-    const { wrapper, qc } = withQueryClient();
-    qc.setQueryData(checkoutKeys.detail(), MOCK_CHECKOUT);
-
-    const { result } = renderHook(() => useSelectAddressMutation(), {
-      wrapper,
-    });
-
-    await act(async () => {
-      result.current.mutate(7);
-    });
+  it("fetches shop vouchers when scope=SHOP with storeId", async () => {
+    mockGetAvailableVouchers.mockResolvedValue([]);
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(
+      () => useAvailableVouchers("SHOP", 5),
+      { wrapper },
+    );
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockSelectAddress).toHaveBeenCalledWith(7);
-    expect(qc.getQueryData(checkoutKeys.detail())).toEqual(updated);
+    expect(mockGetAvailableVouchers).toHaveBeenCalledWith({
+      scope: "SHOP",
+      storeId: 5,
+    });
   });
 });
 
 describe("useApplyVoucherMutation", () => {
-  it("invalidates detail cache when applied=true", async () => {
+  it("calls apply API with voucherCode + orderAmount", async () => {
     mockApplyVoucher.mockResolvedValue({
       applied: true,
       voucher: {
@@ -179,131 +163,26 @@ describe("useApplyVoucherMutation", () => {
         scope: "PLATFORM",
       },
       grandTotal: 990000,
-      totalDiscount: 60000,
+      totalDiscount: 10000,
     });
 
-    const { wrapper, qc } = withQueryClient();
-    qc.setQueryData(checkoutKeys.detail(), MOCK_CHECKOUT);
-
-    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+    const { wrapper } = withQueryClient();
     const { result } = renderHook(() => useApplyVoucherMutation(), {
       wrapper,
     });
 
     await act(async () => {
       result.current.mutate({
-        voucherId: 1,
-        scope: "PLATFORM",
+        voucherCode: "VIBE10",
+        orderAmount: 1_000_000,
       });
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockApplyVoucher).toHaveBeenCalledWith({
-      voucherId: 1,
-      scope: "PLATFORM",
+      voucherCode: "VIBE10",
+      orderAmount: 1_000_000,
     });
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: checkoutKeys.detail(),
-    });
-  });
-});
-
-describe("useRemoveVoucherMutation", () => {
-  it("calls API and updates detail cache", async () => {
-    const updated = { ...MOCK_CHECKOUT, totalDiscount: 0 };
-    mockRemoveVoucher.mockResolvedValue(updated);
-
-    const { wrapper, qc } = withQueryClient();
-    qc.setQueryData(checkoutKeys.detail(), MOCK_CHECKOUT);
-
-    const { result } = renderHook(() => useRemoveVoucherMutation(), {
-      wrapper,
-    });
-
-    await act(async () => {
-      result.current.mutate({ scope: "PLATFORM" });
-    });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockRemoveVoucher).toHaveBeenCalledWith({ scope: "PLATFORM" });
-    expect(qc.getQueryData(checkoutKeys.detail())).toEqual(updated);
-  });
-});
-
-describe("usePaymentMethodMutation", () => {
-  it("calls API with COD and patches detail cache", async () => {
-    const updated = { ...MOCK_CHECKOUT, paymentMethod: "COD" as const };
-    mockSetPaymentMethod.mockResolvedValue(updated);
-
-    const { wrapper, qc } = withQueryClient();
-    qc.setQueryData(checkoutKeys.detail(), MOCK_CHECKOUT);
-
-    const { result } = renderHook(() => usePaymentMethodMutation(), {
-      wrapper,
-    });
-
-    await act(async () => {
-      result.current.mutate("COD");
-    });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockSetPaymentMethod).toHaveBeenCalledWith("COD");
-    expect(qc.getQueryData(checkoutKeys.detail())).toEqual(updated);
-  });
-});
-
-describe("useBuyerNoteMutation", () => {
-  it("patches only the matching shop group", async () => {
-    const checkoutWithGroups: CheckoutData = {
-      ...MOCK_CHECKOUT,
-      shopGroups: [
-        {
-          storeId: 1,
-          storeName: "UTC",
-          estimatedDeliveryLabel: "Ngày mai",
-          shippingMethodLabel: "Hỏa Tốc",
-          shippingFee: 15000,
-          shopSubtotal: 500000,
-          items: [],
-          buyerNote: "",
-        },
-        {
-          storeId: 2,
-          storeName: "TechZone",
-          estimatedDeliveryLabel: "2-3 ngày",
-          shippingMethodLabel: "Tiết kiệm",
-          shippingFee: 15000,
-          shopSubtotal: 700000,
-          items: [],
-          buyerNote: "Cũ",
-        },
-      ],
-    };
-    const updatedGroup = {
-      storeId: 1,
-      storeName: "UTC",
-      estimatedDeliveryLabel: "Ngày mai",
-      shippingMethodLabel: "Hỏa Tốc",
-      shippingFee: 15000,
-      shopSubtotal: 500000,
-      items: [],
-      buyerNote: "Mới",
-    };
-    mockUpdateBuyerNote.mockResolvedValue(updatedGroup);
-
-    const { wrapper, qc } = withQueryClient();
-    qc.setQueryData(checkoutKeys.detail(), checkoutWithGroups);
-
-    const { result } = renderHook(() => useBuyerNoteMutation(), { wrapper });
-
-    await act(async () => {
-      result.current.mutate({ storeId: 1, note: "Mới" });
-    });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    const after = qc.getQueryData(checkoutKeys.detail()) as CheckoutData;
-    expect(after.shopGroups[0].buyerNote).toBe("Mới");
-    expect(after.shopGroups[1].buyerNote).toBe("Cũ");
   });
 });
 
@@ -329,7 +208,10 @@ describe("useSubmitOrderMutation", () => {
         payload: {
           addressId: 1,
           paymentMethod: "ZALOPAY",
-          shopSelections: [],
+          platformVoucherCode: "VIBE10",
+          shopSelections: [
+            { storeId: 1, shopVoucherCode: "SHOP5" },
+          ],
         },
         idempotencyKey: "test-key-1",
       });
@@ -340,7 +222,8 @@ describe("useSubmitOrderMutation", () => {
       {
         addressId: 1,
         paymentMethod: "ZALOPAY",
-        shopSelections: [],
+        platformVoucherCode: "VIBE10",
+        shopSelections: [{ storeId: 1, shopVoucherCode: "SHOP5" }],
       },
       "test-key-1",
     );
