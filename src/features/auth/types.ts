@@ -5,8 +5,11 @@
 export type {
   LoginRequest,
   RegisterRequest,
+  VerifyOtpRequest,
+  VerifyOtpResponse,
+  ResendOtpRequest,
   AuthResponse,
   UserResponse,
   AuthUserDto,
 } from './api';
-export type { LoginInput, RegisterInput } from './schemas';
+export type { LoginInput, RegisterInput, VerifyOtpInput } from './schemas';

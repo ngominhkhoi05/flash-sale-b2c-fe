@@ -1,17 +1,27 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { useLoginMutation, useRegisterMutation, useLogoutMutation } from "./hooks";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import {
+  useLoginMutation,
+  useRegisterMutation,
+  useLogoutMutation,
+  useVerifyOtpMutation,
+  useResendOtpMutation,
+} from "./hooks";
 
 // ── Mock API layer ──────────────────────────────────────────────────────
 const mockLoginRequest = vi.fn();
 const mockRegisterRequest = vi.fn();
+const mockVerifyOtpRequest = vi.fn();
+const mockResendOtpRequest = vi.fn();
 const mockSetAccessToken = vi.fn();
 const mockSetRefreshToken = vi.fn();
 
 vi.mock("./api", () => ({
   loginRequest: (input: unknown) => mockLoginRequest(input),
   registerRequest: (input: unknown) => mockRegisterRequest(input),
+  verifyOtpRequest: (input: unknown) => mockVerifyOtpRequest(input),
+  resendOtpRequest: (input: unknown) => mockResendOtpRequest(input),
   fetchMe: vi.fn(),
   logoutRequest: vi.fn(),
 }));
@@ -65,6 +75,8 @@ function withQueryClient() {
 beforeEach(() => {
   mockLoginRequest.mockReset();
   mockRegisterRequest.mockReset();
+  mockVerifyOtpRequest.mockReset();
+  mockResendOtpRequest.mockReset();
   mockSetUser.mockReset();
   mockSetAccessToken.mockReset();
   mockSetRefreshToken.mockReset();
@@ -366,5 +378,152 @@ describe("useLogoutMutation - post-logout redirect", () => {
 
     expect(accessSpy).toHaveBeenCalledTimes(1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── useVerifyOtpMutation – xác thực OTP 6 số ────────────────────────────
+//
+// Sau khi verify thành công:
+//  - Lưu accessToken + refreshToken + user vào store
+//  - Invalidate 4 query keys (auth, cart, vouchers, recommended)
+// Component chủ động router.push('/login') – KHÔNG auto login
+describe("useVerifyOtpMutation", () => {
+  it("lưu token + user vào store khi thành công", async () => {
+    mockVerifyOtpRequest.mockResolvedValue({
+      accessToken: "at_otp",
+      refreshToken: "rt_otp",
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      user: {
+        id: 42,
+        email: "an@example.com",
+        fullName: "An",
+        phone: "0912345678",
+        avatarUrl: null,
+        status: "ACTIVE",
+        createdAt: "2026-10-10T00:00:00Z",
+      },
+    });
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useVerifyOtpMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "an@example.com", code: "123456" });
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockSetAccessToken).toHaveBeenCalledWith("at_otp");
+    expect(mockSetRefreshToken).toHaveBeenCalledWith("rt_otp");
+    expect(mockSetUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "42",
+        email: "an@example.com",
+        role: "BUYER",
+      })
+    );
+  });
+
+  it("invalidates 4 query keys (auth, cart, vouchers.mine, products.recommended) khi thành công", async () => {
+    mockVerifyOtpRequest.mockResolvedValue({
+      accessToken: "at",
+      refreshToken: "rt",
+      tokenType: "Bearer",
+      expiresIn: 3600,
+      user: {
+        id: 1,
+        email: "a@e.com",
+        fullName: "A",
+        phone: "0912345678",
+        avatarUrl: null,
+        status: "ACTIVE",
+        createdAt: "2026-10-10T00:00:00Z",
+      },
+    });
+
+    const { wrapper, invalidateSpy } = withQueryClient();
+    const { result } = renderHook(() => useVerifyOtpMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "a@e.com", code: "123456" });
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(invalidateSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it("expose isError khi API throw ApiError (OTP_INVALID)", async () => {
+    // Tạo ApiError thật từ source (bypass vi.mock của @/lib/api)
+    const realApi = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+    mockVerifyOtpRequest.mockRejectedValue(
+      new realApi.ApiError({
+        status: 401,
+        code: "OTP_INVALID",
+        message: "Invalid code",
+        details: { attemptsLeft: 4 },
+      })
+    );
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useVerifyOtpMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "a@e.com", code: "000000" });
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect((result.current.error as unknown as { code: string }).code).toBe("OTP_INVALID");
+  });
+
+  it("KHÔNG tự động toast lỗi – component tự quyết định UX", async () => {
+    mockVerifyOtpRequest.mockRejectedValue(new Error("boom"));
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useVerifyOtpMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "a@e.com", code: "000000" });
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    // toast.error là mock – kiểm tra nó KHÔNG được gọi từ hook
+    // (rule error-handling: chỉ toast network/system, validation/business hiển thị inline)
+    const sonner = await import("sonner");
+    const toastErrorSpy = vi.spyOn(sonner.toast, "error");
+    expect(toastErrorSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── useResendOtpMutation – yêu cầu gửi lại OTP ─────────────────────────
+//
+// Hook chỉ gọi API, KHÔNG toast tự động. Component tự quyết định UX
+// (toast hoặc inline message).
+describe("useResendOtpMutation", () => {
+  it("gọi API với email truyền vào", async () => {
+    mockResendOtpRequest.mockResolvedValue({
+      success: true,
+      email: "an@example.com",
+    });
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useResendOtpMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "an@example.com" });
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockResendOtpRequest).toHaveBeenCalledWith({
+      email: "an@example.com",
+    });
+  });
+
+  it("expose isError khi API throw", async () => {
+    mockResendOtpRequest.mockRejectedValue(new Error("Network down"));
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useResendOtpMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "an@example.com" });
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
   });
 });

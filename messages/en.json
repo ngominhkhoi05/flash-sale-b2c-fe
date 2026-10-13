@@ -140,6 +140,36 @@
       "comingSoon": "This feature is under development. Please contact support.",
       "backToLogin": "Back to login"
     },
+    "verifyEmail": {
+      "step1Label": "Create account",
+      "step2Label": "Verify email",
+      "step3Label": "Done",
+      "iconMail": "Email",
+      "iconCheck": "Verified",
+      "title": "Verify your email",
+      "description": "Enter the 6-digit code we sent to",
+      "changeEmail": "Change email",
+      "placeholderEmail": "your email",
+      "validity": "Code is valid for {minutes} minutes",
+      "submit": "Verify",
+      "submitting": "Verifying…",
+      "resendHint": "Didn't receive the code?",
+      "resendCountdown": "Resend in {seconds}",
+      "resendNow": "Resend code",
+      "resendSuccess": "A new verification code has been sent",
+      "backToRegister": "Back to sign up",
+      "securityNote": "256-bit TLS encryption, e-commerce standard",
+      "securityIcon": "Secure",
+      "error": {
+        "title": "Incorrect code",
+        "description": "Please re-check the code you entered for",
+        "banner": "Incorrect code. You have {attempts} attempts left.",
+        "expired": "The verification code has expired. Please request a new one.",
+        "tooManyAttempts": "Too many incorrect attempts. Please try again in {minutes} minutes.",
+        "retry": "Try again",
+        "requestNew": "Send new code"
+      }
+    },
     "errors": {
       "identifierRequired": "Please enter your email or phone number",
       "identifierInvalid": "Invalid email or phone number",

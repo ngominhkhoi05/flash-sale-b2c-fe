@@ -94,3 +94,23 @@ export const registerSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+/**
+ * otpCodeSchema – mã OTP 6 chữ số (dùng cho xác thực email).
+ * Rule: chính xác 6 ký tự, chỉ chứa chữ số 0-9.
+ */
+export const otpCodeSchema = z
+  .string()
+  .min(6, 'Mã xác thực phải có 6 chữ số')
+  .max(6, 'Mã xác thực phải có 6 chữ số')
+  .regex(/^\d{6}$/, 'Mã xác thực chỉ chứa chữ số');
+
+/**
+ * verifyOtpSchema – form xác thực email (Stitch screen 26dbd4cd7e7f47c68d509c58a44cb083).
+ * Field: code (6 số).
+ */
+export const verifyOtpSchema = z.object({
+  code: otpCodeSchema,
+});
+
+export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;

@@ -15,8 +15,12 @@ import {
   registerRequest,
   fetchMe,
   logoutRequest,
+  verifyOtpRequest,
+  resendOtpRequest,
   type LoginRequest,
   type RegisterRequest,
+  type VerifyOtpRequest,
+  type ResendOtpRequest,
   type UserResponse,
   type AuthResponse,
 } from "./api";
@@ -155,5 +159,49 @@ export function useMeQuery(enabled = true) {
     queryFn: () => fetchMe(),
     enabled,
     staleTime: 60_000,
+  });
+}
+
+/**
+ * useVerifyOtpMutation – xác thực mã OTP 6 số sau đăng ký.
+ *
+ * Flow thành công:
+ *  1. POST /api/v1/auth/verify-email
+ *  2. Lưu token + user
+ *  3. Component chủ động router.push('/login') (KHÔNG auto login – tách UX flow)
+ *  4. Invalidate auth queries
+ *
+ * @see docs/superpowers/plans/2026-10-13-verify-email-otp-form.md
+ */
+export function useVerifyOtpMutation() {
+  const setUser = useAuthStore((s) => s.setUser);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: VerifyOtpRequest) => verifyOtpRequest(input),
+    onSuccess: async (res: AuthResponse) => {
+      setAccessToken(res.accessToken);
+      setRefreshToken(res.refreshToken);
+      const user = toAuthUser(res.user, res.accessToken);
+      setUser(user);
+      await Promise.all(
+        POST_LOGIN_INVALIDATE_KEYS.map((key) =>
+          qc.invalidateQueries({ queryKey: key })
+        )
+      );
+    },
+    // KHÔNG toast lỗi ở hook – component sẽ hiển thị inline banner (rule i18n + error-handling).
+  });
+}
+
+/**
+ * useResendOtpMutation – yêu cầu gửi lại mã OTP qua email.
+ *
+ * Component tự quyết định UX (toast / inline) qua callback onSuccess/onError.
+ * KHÔNG auto toast ở hook để component linh hoạt.
+ */
+export function useResendOtpMutation() {
+  return useMutation({
+    mutationFn: (input: ResendOtpRequest) => resendOtpRequest(input),
+    // KHÔNG toast tự động – component quyết định.
   });
 }
