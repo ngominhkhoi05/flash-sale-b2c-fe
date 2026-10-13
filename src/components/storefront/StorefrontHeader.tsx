@@ -10,7 +10,15 @@ import { cn } from "@/lib/utils";
 import { ROUTES, MAINTENANCE_FEATURE_CODES } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
 import { useCartCount } from "@/features/cart";
+import { useLogoutMutation } from "@/features/auth";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type StorefrontNavKey =
   | "home"
@@ -46,6 +54,7 @@ export function StorefrontHeader({
   const { isAuthenticated, user } = useAuth();
   // Cart count chỉ fetch khi đã đăng nhập (tránh 401 spam khi user chưa login)
   const { data: cartCount = 0 } = useCartCount(isAuthenticated);
+  const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
 
   const detected: StorefrontNavKey = (() => {
     if (pathname.startsWith(ROUTES.FLASH_SALE)) return "flash-sale";
@@ -104,6 +113,70 @@ export function StorefrontHeader({
                 </span>
               )}
             </Link>
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1 rounded-full hover:bg-surface-container-low transition-colors"
+                    aria-label={t("userMenu.openMenu")}
+                  >
+                    {user?.avatarUrl ? (
+                      <Image
+                        alt={user.fullName || t("greeting")}
+                        src={user.avatarUrl}
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                      />
+                    ) : (
+                      <Image
+                        alt="Ảnh đại diện mặc định"
+                        src="/images/default-avatar.svg"
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                      />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[200px]">
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={ROUTES.ACCOUNT}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <MaterialSymbol name="person" size="base" />
+                      <span>{t("userMenu.myAccount")}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={isLoggingOut}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      logout();
+                    }}
+                    className="text-tertiary focus:text-tertiary cursor-pointer"
+                  >
+                    <MaterialSymbol name="logout" size="base" />
+                    <span>
+                      {isLoggingOut
+                        ? t("userMenu.loggingOut")
+                        : t("userMenu.logout")}
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link
+                href={ROUTES.LOGIN}
+                aria-label={t("nav.login")}
+                className="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-low flex items-center justify-center"
+              >
+                <MaterialSymbol name="person" size="2xl" />
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -261,36 +334,67 @@ export function StorefrontHeader({
                 )}
               </Link>
 
-              {/* User area: avatar + greeting khi auth, nút "Đăng nhập" khi chưa auth */}
+              {/* User area: avatar dropdown khi auth, nút "Đăng nhập" khi chưa auth */}
               {isAuthenticated ? (
-                <Link
-                  href={ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.ACCOUNT_DROPDOWN)}
-                  className="flex items-center gap-2 pl-2 rounded-full hover:bg-surface-container-low transition-colors"
-                  aria-label={user?.fullName || t("greeting")}
-                >
-                  <div className="text-right hidden sm:block">
-                    <div className="text-label-lg text-on-surface leading-tight font-semibold">
-                      {user?.fullName || t("greeting")}
-                    </div>
-                  </div>
-                  {user?.avatarUrl ? (
-                    <Image
-                      alt={user.fullName || t("greeting")}
-                      src={user.avatarUrl}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
-                    />
-                  ) : (
-                    <Image
-                      alt="Ảnh đại diện mặc định"
-                      src="/images/default-avatar.svg"
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
-                    />
-                  )}
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 pl-2 rounded-full hover:bg-surface-container-low transition-colors"
+                      aria-label={t("userMenu.openMenu")}
+                    >
+                      <div className="text-right hidden sm:block">
+                        <div className="text-label-lg text-on-surface leading-tight font-semibold">
+                          {user?.fullName || t("greeting")}
+                        </div>
+                      </div>
+                      {user?.avatarUrl ? (
+                        <Image
+                          alt={user.fullName || t("greeting")}
+                          src={user.avatarUrl}
+                          width={32}
+                          height={32}
+                          className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                        />
+                      ) : (
+                        <Image
+                          alt="Ảnh đại diện mặc định"
+                          src="/images/default-avatar.svg"
+                          width={32}
+                          height={32}
+                          className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
+                        />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[200px]">
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href={ROUTES.ACCOUNT}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <MaterialSymbol name="person" size="base" />
+                        <span>{t("userMenu.myAccount")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={isLoggingOut}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        logout();
+                      }}
+                      className="text-tertiary focus:text-tertiary cursor-pointer"
+                    >
+                      <MaterialSymbol name="logout" size="base" />
+                      <span>
+                        {isLoggingOut
+                          ? t("userMenu.loggingOut")
+                          : t("userMenu.logout")}
+                      </span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Link
                   href={ROUTES.LOGIN}
