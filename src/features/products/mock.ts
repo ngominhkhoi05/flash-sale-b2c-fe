@@ -108,7 +108,7 @@ const FLASH_SALE: FlashSaleInfo = {
   totalStock: 100,
   soldStock: 72,
   maxQtyPerUser: 2,
-  endsAt: "2026-10-12T18:00:00Z",
+  endsAt: "2026-10-14T18:00:00Z",
 };
 
 // ── Reviews (3 sample) ────────────────────────────────────────────────────
