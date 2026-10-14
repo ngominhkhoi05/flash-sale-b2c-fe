@@ -11,6 +11,9 @@
  *
  * Pixel-match reference:
  * Stitch HTML lines 557-719
+ *
+ * UI: Dùng ProductCard component chuẩn (11+ biến thể) để đảm bảo
+ * pixel-match với Stitch design.
  */
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -20,20 +23,45 @@ import {
   useFeaturedProducts,
 } from "@/features/homepage/hooks";
 import type { RecommendedProductResponse } from "@/features/homepage/api";
-import { cn } from "@/lib/utils";
-
-function formatVND(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "0₫";
-  return new Intl.NumberFormat("vi-VN").format(value) + "₫";
-}
-
-function formatVNDShort(value: number): string {
-  if (value >= 1_000_000) return (value / 1_000_000).toFixed(1).replace(/\.0$/, "") + "tr";
-  if (value >= 1_000) return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  return value.toString();
-}
+import {
+  ProductCard,
+  type ProductCardBaseProps,
+} from "@/components/storefront/ProductCard";
 
 const PRODUCT_LIMIT = 4;
+
+function mapToProductCardProps(
+  product: RecommendedProductResponse,
+  index: number,
+): ProductCardBaseProps {
+  const hasDiscount = product.minPrice < product.maxPrice;
+  const discountPercent = hasDiscount
+    ? Math.round(((product.maxPrice - product.minPrice) / product.maxPrice) * 100)
+    : undefined;
+
+  // Chọn variant phù hợp với Stitch design
+  let variant: ProductCardBaseProps["onClick"] = undefined;
+  if (product.label === "Freeship") {
+    // Freeship card - variant freeship
+  } else if (product.label && product.label !== "Freeship") {
+    // Voucher card
+  } else if (hasDiscount) {
+    // Discount card
+  }
+
+  return {
+    imageUrl: product.imageUrl,
+    imageAlt: product.name,
+    title: product.name,
+    price: product.minPrice,
+    originalPrice: hasDiscount ? product.maxPrice : undefined,
+    discountPercent,
+    rating: undefined, // API chưa trả rating
+    soldCount: product.totalSold,
+    location: product.storeName,
+    onClick: undefined,
+  };
+}
 
 export function FeaturedStoresSection() {
   const t = useTranslations("storefront.home");
@@ -44,7 +72,7 @@ export function FeaturedStoresSection() {
   const isLoading = storesLoading && productsLoading;
   const displayProducts: RecommendedProductResponse[] =
     stores && stores.length > 0
-      ? [] // stores path — không dùng product layout, render riêng
+      ? []
       : (products ?? []).slice(0, PRODUCT_LIMIT);
 
   // Loading skeleton
@@ -68,12 +96,9 @@ export function FeaturedStoresSection() {
             <MaterialSymbol name="chevron_right" size="sm" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 pt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 pt-5">
           {Array.from({ length: PRODUCT_LIMIT }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-surface-container-low rounded-xl p-4 h-48 animate-pulse"
-            />
+            <ProductCard key={i} variant="skeleton" />
           ))}
         </div>
       </section>
@@ -129,55 +154,41 @@ export function FeaturedStoresSection() {
         </Link>
       </div>
 
-      {/* Grid products (fallback) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pt-5">
-        {displayProducts.map((product) => {
+      {/* Grid products dùng ProductCard chuẩn */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 pt-5">
+        {displayProducts.map((product, index) => {
+          const props = mapToProductCardProps(product, index);
           const hasDiscount = product.minPrice < product.maxPrice;
-          return (
-            <Link
-              key={product.id}
-              href={`/san-pham/${product.id}`}
-              data-testid={`featured-product-${product.id}`}
-              className={cn(
-                "group relative bg-white border border-surface-container rounded-xl overflow-hidden",
-                "hover:border-primary hover:-translate-y-0.5 hover:shadow-md transition-all duration-200",
-              )}
-            >
-              <div className="relative w-full aspect-square bg-surface-container overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={product.name}
-                  src={product.imageUrl}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+
+          // Chọn variant theo Stitch design
+          if (product.label === "Freeship") {
+            return (
+              <Link key={product.id} href={`/san-pham/${product.id}`}>
+                <ProductCard variant="freeship" {...props} />
+              </Link>
+            );
+          }
+          if (product.label && product.label !== "Freeship") {
+            return (
+              <Link key={product.id} href={`/san-pham/${product.id}`}>
+                <ProductCard
+                  variant="voucher"
+                  {...props}
+                  voucherLabel={product.label}
                 />
-              </div>
-              <div className="p-3 space-y-1.5">
-                <h3
-                  className={cn(
-                    "text-[14px] font-normal text-on-surface line-clamp-2 min-h-[40px] leading-snug",
-                    "group-hover:text-primary transition-colors",
-                  )}
-                  title={product.name}
-                >
-                  {product.name}
-                </h3>
-                <div className="flex items-baseline gap-1.5 flex-wrap">
-                  <span
-                    className={cn(
-                      "text-[16px] font-semibold leading-none",
-                      hasDiscount ? "text-tertiary" : "text-on-surface",
-                    )}
-                  >
-                    {hasDiscount
-                      ? `${formatVNDShort(product.minPrice)}-${formatVNDShort(product.maxPrice)}`
-                      : formatVND(product.minPrice)}
-                  </span>
-                </div>
-                <div className="flex items-center text-[12px] text-on-surface-variant gap-1">
-                  <MaterialSymbol name="store" size="[14px]" />
-                  <span className="truncate">{product.storeName}</span>
-                </div>
-              </div>
+              </Link>
+            );
+          }
+          if (hasDiscount && props.discountPercent) {
+            return (
+              <Link key={product.id} href={`/san-pham/${product.id}`}>
+                <ProductCard variant="discount" {...props} />
+              </Link>
+            );
+          }
+          return (
+            <Link key={product.id} href={`/san-pham/${product.id}`}>
+              <ProductCard variant="default" {...props} />
             </Link>
           );
         })}
