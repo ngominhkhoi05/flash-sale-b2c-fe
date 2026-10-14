@@ -32,56 +32,43 @@ import type {
 interface BackendCartItem {
   id: number;
   variantId: number;
-  sku: string;
-  storeId: number;
-  storeName: string;
+  productId: number;
   productName: string;
   variantName: string;
-  imageUrl: string | null;
+  imageUrl: string;
   price: number;
   quantity: number;
-  /** Swagger dùng `itemSubtotal`, không phải `subtotal` */
-  itemSubtotal: number;
-  /** NOTE: productId KHÔNG có trong Swagger CartItemResponse */
+  subtotal: number;
 }
 
 interface BackendCartStoreGroup {
   storeId: number;
   storeName: string;
-  /** NOTE: Swagger CartStoreGroupResponse chỉ có 4 fields trên.
-   *  Các field bên dưới (storeBadge, estimatedDeliveryLabel, shippingMethodLabel,
-   *  shippingFee) CÓ THỂ BE đã thêm nhưng chưa reflect trong spec.
-   *  Tạm giữ nullable để không break khi BE chưa return. */
   storeBadge?: "Mall" | "OfficialMall" | "";
-  estimatedDeliveryLabel?: string;
-  shippingMethodLabel?: string;
-  shippingFee?: number;
+  estimatedDeliveryLabel: string;
+  shippingMethodLabel: string;
+  shippingFee: number;
   items: BackendCartItem[];
-  storeSubtotal: number;
+  shopSubtotal: number;
 }
 
 interface BackendCartResponse {
   id: number;
   userId: number;
   storeGroups: BackendCartStoreGroup[];
-  /** NOTE: Swagger chỉ có 5 fields (id, userId, storeGroups, totalItems, grandTotal).
-   *  subtotal, totalShippingFee CÓ THỂ BE đã thêm nhưng chưa reflect trong spec. */
-  subtotal?: number;
-  totalShippingFee?: number;
+  subtotal: number;
+  totalShippingFee: number;
   totalItems: number;
-  grandTotal: number;
 }
 
 interface BackendAddress {
   id: number;
-  contactName: string;
+  recipientName: string;
   phone: string;
   province: string;
   district: string;
   ward: string;
-  detailAddress: string;
-  latitude?: number | null;
-  longitude?: number | null;
+  street: string;
   isDefault: boolean;
 }
 
@@ -114,13 +101,12 @@ interface BackendVoucherCalculation {
 interface BackendOrderItem {
   id: number;
   variantId: number;
-  /** Swagger OrderItemResponse dùng flashSaleItemId, KHÔNG có imageUrl */
-  flashSaleItemId: number | null;
   productName: string;
   variantName: string;
-  priceAtPurchase: number;
+  imageUrl: string;
+  price: number;
   quantity: number;
-  itemSubtotal: number;
+  subtotal: number;
 }
 
 interface BackendOrder {
@@ -137,9 +123,6 @@ interface BackendOrder {
   totalAmount: number;
   paymentUrl?: string;
   qrCodeUrl?: string;
-  /** NOTE: BE có thể trả `expiresAt` hoặc `paymentExpiry` tuỳ endpoint.
-   *  Thêm cả 2 để tương thích. */
-  expiresAt?: string;
   paymentExpiry?: string;
 }
 
@@ -148,14 +131,12 @@ interface BackendOrder {
 function adaptAddress(a: BackendAddress): Address {
   return {
     id: a.id,
-    contactName: a.contactName,
+    recipientName: a.recipientName,
     phone: a.phone,
-    province: a.province,
-    district: a.district,
+    street: a.street,
     ward: a.ward,
-    detailAddress: a.detailAddress,
-    latitude: a.latitude,
-    longitude: a.longitude,
+    district: a.district,
+    city: a.province,
     isDefault: a.isDefault,
   };
 }
@@ -169,7 +150,7 @@ function adaptCartItem(i: BackendCartItem): CheckoutItem {
     imageUrl: i.imageUrl,
     price: i.price,
     quantity: i.quantity,
-    itemSubtotal: i.itemSubtotal,
+    itemSubtotal: i.subtotal,
   };
 }
 
@@ -180,9 +161,9 @@ function adaptShopGroup(g: BackendCartStoreGroup): CheckoutShopGroup {
     storeBadge: g.storeBadge,
     estimatedDeliveryLabel: g.estimatedDeliveryLabel,
     shippingMethodLabel: g.shippingMethodLabel,
-    shippingFee: g.shippingFee ?? 0,
+    shippingFee: g.shippingFee,
     items: g.items.map(adaptCartItem),
-    shopSubtotal: g.storeSubtotal,
+    shopSubtotal: g.shopSubtotal,
   };
 }
 
@@ -238,7 +219,7 @@ function adaptOrderResponse(
     orderCode: orders.map((o) => o.orderCode).join(", "),
     paymentUrl: primary?.paymentUrl,
     qrCodeUrl: primary?.qrCodeUrl,
-    expiresAt: primary?.expiresAt ?? primary?.paymentExpiry,
+    expiresAt: primary?.paymentExpiry,
     status:
       paymentMethod === "COD"
         ? ("PENDING_PAYMENT" as const)
@@ -257,11 +238,10 @@ function adaptCartToCheckout(
 ): CheckoutData {
   const defaultAddr = addresses.find((a) => a.isDefault) ?? addresses[0] ?? null;
   const shopGroups = cart.storeGroups.map(adaptShopGroup);
-  // subtotal/totalShippingFee có thể optional nếu BE chưa reflect trong spec
-  const goodsSubtotal = cart.subtotal ?? shopGroups.reduce((s, g) => s + g.shopSubtotal, 0);
-  const shippingFee = cart.totalShippingFee ?? 0;
+  const goodsSubtotal = cart.subtotal;
+  const shippingFee = cart.totalShippingFee;
   const totalDiscount = 0; // No vouchers applied yet
-  const grandTotal = cart.grandTotal ?? (goodsSubtotal + shippingFee - totalDiscount);
+  const grandTotal = goodsSubtotal + shippingFee - totalDiscount;
 
   return {
     id: String(cart.id),
