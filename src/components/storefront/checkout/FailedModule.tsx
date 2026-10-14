@@ -70,16 +70,27 @@ function CountdownPill({
   tLabel: string;
   tExpired: string;
 }) {
-  const [now, setNow] = useState(() => Date.now());
+  // SSR-safe: `now` ban đầu là `null` → render placeholder "Còn --:--".
+  // Sau khi hydrate, useEffect set now + tick mỗi 1s. Tránh hydration mismatch
+  // vì server không gọi Date.now() tại thời điểm render.
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
   const target = new Date(heldUntil).getTime();
-  const isPast = expired || now >= target;
-  const msLeft = Math.max(0, target - now);
-  const countdownText = isPast ? tExpired : `${tLabel} ${formatCountdown(msLeft)}`;
+  // Placeholder khi SSR / trước hydrate. Sau hydrate, now !== null → render
+  // giá trị thật.
+  const isPast = now !== null && (expired || now >= target);
+  const msLeft = now !== null ? Math.max(0, target - now) : null;
+  const countdownText =
+    now === null
+      ? `${tLabel} --:--`
+      : isPast
+        ? tExpired
+        : `${tLabel} ${formatCountdown(msLeft!)}`;
 
   return (
     <div className="flex items-center gap-1 font-bold" data-testid="failed-countdown">

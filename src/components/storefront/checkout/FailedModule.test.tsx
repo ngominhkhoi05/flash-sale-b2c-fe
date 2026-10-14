@@ -84,11 +84,50 @@ describe("FailedModule", () => {
     expect(screen.getByText("Thanh toán chưa thành công")).toBeInTheDocument();
   });
 
-  it("renders countdown formatted mm:ss", () => {
-    // 4 phút 15 giây = 255 giây
+  it("renders countdown initial state (no hydration mismatch warning)", () => {
+    // Component dùng 'useState<number | null>(null)' + useEffect để set
+    // Date.now() → SSR render '--:--', client render thật sau hydrate.
+    // Test này chỉ verify component render được (không assert text cụ thể)
+    // vì jsdom + RTL flush useEffect synchronously, nên giá trị sau
+    // render đã là "Còn MM:SS". Trong browser thật, SSR sẽ là "--:--".
     render(<FailedModule order={makeView(255)} onSelectCod={vi.fn()} />);
-    // Có thể hiển thị "04:15" hoặc "04:14" tùy timing (1s tolerance)
-    expect(screen.getByText(/0[34]:\d\d/)).toBeInTheDocument();
+    expect(screen.getByTestId("failed-countdown-text")).toBeInTheDocument();
+  });
+
+  it("renders countdown formatted mm:ss sau khi hydrate", () => {
+    vi.useFakeTimers();
+    // Đặt system time cố định để Date.now() trong useEffect cũng cố định.
+    vi.setSystemTime(new Date("2026-10-14T21:30:00Z"));
+    render(<FailedModule order={makeView(255)} onSelectCod={vi.fn()} />);
+    // Trigger useEffect setNow(Date.now()) + interval.
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    // Sau hydrate: target = 21:30:00 + 4:15 = 21:34:15, now = 21:30:00
+    // → msLeft = 4:15 = 255000ms → "04:15"
+    expect(screen.getByText("Còn 04:15")).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("countdown ticks down by 1 second after 1s", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-14T21:30:00Z"));
+    const base = 255; // 4:15
+    render(<FailedModule order={makeView(base)} onSelectCod={vi.fn()} />);
+    // Trigger useEffect để set now + bật interval.
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    const initial = screen.getByText(/0[34]:\d\d/).textContent;
+    expect(initial).toBe("Còn 04:15");
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    const after = screen.getByText(/0[34]:\d\d/).textContent;
+    expect(initial).not.toBe(after);
+    expect(after).toBe("Còn 04:14");
+    vi.useRealTimers();
   });
 
   it("renders transaction card with mã GD + grand total 1.292.000₫", () => {
