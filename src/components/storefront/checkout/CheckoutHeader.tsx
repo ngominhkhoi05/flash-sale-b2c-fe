@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLogoutMutation } from "@/features/auth";
-import { CheckoutStepper } from "./CheckoutStepper";
 
 export function CheckoutHeader() {
   const t = useTranslations("storefront.header");
@@ -154,8 +153,9 @@ export function CheckoutHeader() {
         </div>
       </div>
 
-      {/* ── Stepper dưới header (mobile + desktop đều thấy) ──── */}
-      <CheckoutStepper />
+      {/* Stepper dưới header đã được render bởi (checkout)/layout.tsx
+          (a11y: progress indicator không thuộc landmark <header>).
+          Page này chỉ chứa nội dung chính. */}
     </header>
   );
 }

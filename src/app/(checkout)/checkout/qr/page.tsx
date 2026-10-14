@@ -4,20 +4,16 @@
  * Theo Stitch design (docs/superpowers/handoffs/thanh-toan-QR-zalo.md,
  * screen 203897a8, project 15206106541998912100).
  *
- * Layout:
- *  - Dùng chung `CheckoutHeader` với /checkout (xem mục 5 `docs/CLAUDE.md` —
- *    tái sử dụng component dùng chung, không tạo header riêng cho QR)
- *  - Stepper 3 bước (1. Giỏ hàng ✓ → 2. Đặt hàng ✓ → 3. Thanh toán ZaloPay QR)
- *  - Module 2 cột (QR + countdown | order details + CTA) — `QrPaymentPageContent`
- *  - Footer chung (`CheckoutFooter`) — wrap bởi `(checkout)/layout.tsx`
+ * Layout (do `(checkout)/layout.tsx` render chung):
+ *  - `<CheckoutHeader />` (dùng chung với /checkout)
+ *  - `<CheckoutStepper />` 3 bước (1. Giỏ hàng ✓ → 2. Đặt hàng ✓ → 3. Thanh toán ZaloPay QR)
+ *  - `<main>{children}</main>` — page này render nội dung
+ *  - `<CheckoutFooter />` chung
  *
  * Lưu ý:
- *  - Page nằm trong route group `(checkout)/layout.tsx` (move từ `(storefront)`
- *    để tách khỏi header/footer Storefront mặc định — tránh render trùng).
  *  - Page là Server Component. `?orderCode=<…>` được parse ở server.
  *    Nếu thiếu / invalid → dùng mock để dev UI (rule §7 "không bịa API").
  */
-import { CheckoutHeader } from "@/components/storefront/checkout/CheckoutHeader";
 import { QrPaymentPageContent } from "@/components/storefront/checkout/QrPaymentPageContent";
 
 export const metadata = {
@@ -40,17 +36,5 @@ export default async function CheckoutQrPage({
   const raw = params?.orderCode;
   const orderCode = Array.isArray(raw) ? raw[0] : raw;
 
-  return (
-    <>
-      <CheckoutHeader />
-      {/*
-        Stepper 3 bước đã có sẵn trong `CheckoutHeader` (dùng chung với /checkout
-        theo mục 5 `docs/CLAUDE.md`); KHÔNG render lại ở page để tránh duplicate.
-        Trước đây page có `<main>` riêng + stepper riêng → bị double stepper và
-        nested `<main>` (vi phạm cấu trúc landmark). Layout `(checkout)/layout.tsx`
-        đã wrap `<main>` rồi → page chỉ render fragment + nội dung.
-      */}
-      <QrPaymentPageContent orderCode={orderCode} />
-    </>
-  );
+  return <QrPaymentPageContent orderCode={orderCode} />;
 }
