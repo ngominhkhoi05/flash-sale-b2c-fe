@@ -293,9 +293,6 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
                   height={20}
                   className="h-5 w-5 object-contain"
                 />
-                <span className="font-bold text-primary text-headline-sm">
-                  Vibe Mart
-                </span>
                 <span className="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold text-label-sm">
                   {t("vibeMartCheckout")}
                 </span>
