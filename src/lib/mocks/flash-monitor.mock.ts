@@ -140,7 +140,7 @@ export const INITIAL_LIVE_LOGS: LiveLogEvent[] = [
 ];
 
 let telemetryState: RealtimeTelemetry = { ...INITIAL_TELEMETRY };
-let liveSkusState: LiveSkuInventoryItem[] = [...INITIAL_LIVE_SKUS];
+const liveSkusState: LiveSkuInventoryItem[] = [...INITIAL_LIVE_SKUS];
 let liveLogsState: LiveLogEvent[] = [...INITIAL_LIVE_LOGS];
 
 export function getMockTelemetry(): RealtimeTelemetry {

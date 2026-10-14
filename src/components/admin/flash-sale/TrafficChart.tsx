@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -58,12 +58,14 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   return null;
 }
 
-export function TrafficChart({ data }: TrafficChartProps) {
-  const [mounted, setMounted] = useState(false);
+const emptySubscribe = () => () => {};
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+export function TrafficChart({ data }: TrafficChartProps) {
+  const isMounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   return (
     <div className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm border border-outline-variant/30 flex flex-col justify-between">
@@ -97,7 +99,7 @@ export function TrafficChart({ data }: TrafficChartProps) {
 
       {/* Recharts Canvas */}
       <div className="w-full h-64 mt-space-md relative">
-        {mounted ? (
+        {isMounted ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={data}
