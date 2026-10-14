@@ -5,7 +5,7 @@
  *  - Logo Vibe Mart + divider + breadcrumb "Thanh toán ZaloPay"
  *  - Bên phải: chip "SSL 256-bit Encrypted" (desktop), hotline, nút "Hủy giao dịch", avatar
  *  - KHÔNG có search bar, subnav, mobile bottom nav
- *  - KHÔNG bao gồm stepper (stepper nằm riêng trong StepperBar, trang dùng)
+ *  - Bao gồm stepper 3 bước dưới header (đồng bộ với CheckoutHeader /checkout)
  *
  * Server Component (không cần 'use client') vì không có state.
  */
@@ -13,6 +13,7 @@ import Link from "next/link";
 
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { ROUTES } from "@/lib/constants";
+import { CheckoutStepper } from "./CheckoutStepper";
 
 interface CheckoutQrHeaderProps {
   /** Tùy chọn: tên user để hiển thị avatar fallback. */
@@ -101,6 +102,9 @@ export function CheckoutQrHeader({
           </div>
         </div>
       </div>
+
+      {/* ── Stepper dưới header (đồng bộ với CheckoutHeader /checkout) ── */}
+      <CheckoutStepper />
     </header>
   );
 }
