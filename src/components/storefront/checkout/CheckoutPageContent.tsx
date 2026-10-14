@@ -296,7 +296,7 @@ export function CheckoutPageContent({
       <div className="max-w-[1240px] mx-auto px-4 lg:px-8">
         {isInitialLoading ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 flex flex-col gap-4">
+            <div className="lg:col-span-8 flex flex-col gap-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
@@ -309,7 +309,7 @@ export function CheckoutPageContent({
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* ── Left column ─────────────────────────────────── */}
-            <div className="lg:col-span-8 flex flex-col gap-4">
+            <div className="lg:col-span-8 flex flex-col gap-6">
               {selectedAddress && (
                 <CheckoutAddressCard
                   address={selectedAddress}
