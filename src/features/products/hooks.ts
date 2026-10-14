@@ -4,12 +4,13 @@
  *              ["products", "detail", slug] – product detail.
  */
 import { useQuery } from "@tanstack/react-query";
-import { getRecommendedProducts } from "./api";
 import {
-  mockProductsBySlug,
-} from "./mock";
-import type { RecommendedProduct } from "./types";
-import type { ProductDetail } from "./types";
+  getRecommendedProducts,
+  fetchProductDetailBySlug,
+  fetchProductDetailById,
+} from "./api";
+import { mockProductsBySlug } from "./mock";
+import type { RecommendedProduct, ProductDetail } from "./types";
 
 export const productKeys = {
   all: ["products"] as const,
@@ -32,21 +33,60 @@ export function useRecommendedProducts(size = 20) {
 /**
  * useProductDetail – lấy chi tiết sản phẩm theo slug.
  *
- * Hiện tại dùng MOCK data (xem docs/superpowers/plans/2026-10-12-product-detail-be-required.md).
- * Khi BE sẵn sàng Phase 1, sẽ thay bằng apiFetch('/api/v1/products/{id}') (BE cần thêm slug lookup).
+ * Wire tới backend thật (GET /api/v1/products/slug/{slug}).
+ * Fallback về mock khi `NEXT_PUBLIC_USE_MOCK=true` (dev-only).
  *
- * @param slug – slug sản phẩm (vd: "ao-thun-unisex-cotton-utc-basic")
- * @returns ProductDetail | null (null khi slug không tồn tại)
+ * @param slug – slug SEO sản phẩm (vd: "ao-thun-unisex-cotton-utc-basic")
+ * @returns ProductDetail | null (null khi queryFn disabled, throw khi 404)
  */
 export function useProductDetail(slug: string | null | undefined) {
+  const useMock = process.env.NEXT_PUBLIC_USE_MOCK === "true";
   return useQuery<ProductDetail | null>({
     queryKey: slug ? productKeys.detail(slug) : ["products", "detail", "__noop__"],
     queryFn: async () => {
       if (!slug) return null;
-      // TODO(api): thay bằng apiFetch(`/api/v1/products/${slugOrId}`) khi BE ready.
-      return mockProductsBySlug[slug] ?? null;
+      if (useMock) {
+        return mockProductsBySlug[slug] ?? null;
+      }
+      return fetchProductDetailBySlug(slug);
     },
     enabled: !!slug,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * useProductDetailBySlug – Server/Client Component safe wrapper.
+ *
+ * Ưu tiên: gọi API thật. Khi `NEXT_PUBLIC_USE_MOCK=true`, fallback mock.
+ * Throw error khi 404 (để caller render not-found).
+ */
+export function useProductDetailBySlug(slug: string | null | undefined) {
+  return useQuery<ProductDetail>({
+    queryKey: slug ? productKeys.detail(slug) : ["products", "detail", "__noop__"],
+    queryFn: () => {
+      if (!slug) throw new Error("slug is required");
+      return fetchProductDetailBySlug(slug);
+    },
+    enabled: !!slug,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * useProductDetailById – dùng để resolve id → slug trong page detail route.
+ * Throw error khi 404.
+ */
+export function useProductDetailById(id: number | null | undefined) {
+  return useQuery<ProductDetail>({
+    queryKey: id
+      ? [...productKeys.all, "detail-by-id", id]
+      : ["products", "detail-by-id", "__noop__"],
+    queryFn: () => {
+      if (id == null) throw new Error("id is required");
+      return fetchProductDetailById(id);
+    },
+    enabled: id != null,
     staleTime: 30_000,
   });
 }

@@ -17,10 +17,12 @@ export type {
   ProductVariantMode,
   TierVariationConfig,
 } from "./types";
-export { getRecommendedProducts } from "./api";
+export { getRecommendedProducts, fetchProductDetailById, fetchProductDetailBySlug } from "./api";
 export {
   useRecommendedProducts,
   useProductDetail,
+  useProductDetailBySlug,
+  useProductDetailById,
   productKeys,
 } from "./hooks";
 export { mockProductDetail, mockProductsBySlug, mockProductIdToSlug, mockAllProductSlugs } from "./mock";
