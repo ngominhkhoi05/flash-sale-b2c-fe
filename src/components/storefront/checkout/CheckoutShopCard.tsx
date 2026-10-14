@@ -124,9 +124,9 @@ export function CheckoutShopCard({
         <span>
           Phí giao hàng:{" "}
           <strong className="text-on-surface font-semibold">
-            {formatVND(group.shippingFee ?? 0)}
+            {formatVND(group.shippingFee)}
           </strong>{" "}
-          ({group.shippingMethodLabel ?? 'Tiêu chuẩn'})
+          ({group.shippingMethodLabel})
         </span>
         <div>
           Tạm tính đơn này:{" "}
