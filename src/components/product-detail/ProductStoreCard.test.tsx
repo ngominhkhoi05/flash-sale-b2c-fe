@@ -83,3 +83,49 @@ describe("ProductStoreCard", () => {
     expect(screen.getByText(/Online 5 phút trước/)).toBeInTheDocument();
   });
 });
+
+describe("ProductStoreCard – defensive guards (BE nullable)", () => {
+  it("does NOT crash when ratingCount is undefined (BE missing field)", () => {
+    // BE có thể trả storeProfile mà thiếu ratingCount (store mới, partial response).
+    const storeNoRating = {
+      ...STORE,
+      ratingCount: undefined,
+    } as unknown as StoreProfile;
+    expect(() =>
+      renderWithIntl(<ProductStoreCard store={storeNoRating} />),
+    ).not.toThrow();
+    // Fallback an toàn: hiển thị "0" thay vì crash.
+    expect(screen.getByText(/\(0\)/)).toBeInTheDocument();
+  });
+
+  it("does NOT crash when ratingCount is null (BE explicit null)", () => {
+    const storeNullRating = {
+      ...STORE,
+      ratingCount: null,
+    } as unknown as StoreProfile;
+    expect(() =>
+      renderWithIntl(<ProductStoreCard store={storeNullRating} />),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when joinedAt is empty string (BE empty)", () => {
+    const storeEmptyJoined = {
+      ...STORE,
+      joinedAt: "",
+    };
+    expect(() =>
+      renderWithIntl(<ProductStoreCard store={storeEmptyJoined} />),
+    ).not.toThrow();
+  });
+
+  it("renders '0' when ratingCount = 0", () => {
+    const storeZero = { ...STORE, ratingCount: 0 };
+    renderWithIntl(<ProductStoreCard store={storeZero} />);
+    expect(screen.getByText(/\(0\)/)).toBeInTheDocument();
+  });
+
+  it("renders '42.5k' when ratingCount = 42500", () => {
+    renderWithIntl(<ProductStoreCard store={STORE} />);
+    expect(screen.getByText(/42,5k/)).toBeInTheDocument();
+  });
+});
