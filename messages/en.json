@@ -325,6 +325,13 @@
         "orders": "Orders",
         "account": "Account",
         "login": "Log in"
+      },
+      "userMenu": {
+        "openMenu": "Open user menu",
+        "myAccount": "My account",
+        "account": "My account",
+        "logout": "Sign out",
+        "loggingOut": "Signing out…"
       }
     },
     "cart": {
@@ -343,6 +350,8 @@
         "confirmation": "Confirmation"
       },
       "userMenu": {
+        "openMenu": "Open user menu",
+        "myAccount": "My account",
         "account": "My account",
         "logout": "Sign out",
         "loggingOut": "Signing out…"
@@ -568,7 +577,8 @@
     },
     "home": {
       "hero": {
-        "ariaLabel": "Featured promotion banner"
+        "ariaLabel": "Featured promotion banner",
+        "empty": "No banners yet"
       },
       "sideBanners": {
         "freeshipTag": "Express",
@@ -591,6 +601,7 @@
       "categoryGrid": {
         "title": "FEATURED CATEGORIES",
         "seeAll": "See all",
+        "empty": "No categories yet",
         "items": {
           "mensFashion": "Men's Fashion",
           "womensFashion": "Women's Fashion",

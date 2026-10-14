@@ -3,45 +3,77 @@
 /**
  * FeaturedStoresSection – Stitch "SHOP NỔI BẬT (VIBE MALL)" (Section #6).
  *
- * 4 store cards với avatar (chữ cái đầu) + tên + verified + rating + 3 thumbnail.
+ * 4 product cards từ featured products (fallback khi /stores/featured chưa có).
  *
- * Data: GET /api/v1/stores/featured
+ * Data (ưu tiên):
+ * - GET /api/v1/stores/featured (chuẩn)
+ * - Fallback: GET /api/v1/products?size=4&sort=createdAt,desc
  *
  * Pixel-match reference:
  * Stitch HTML lines 557-719
+ *
+ * UI: Dùng ProductCard component chuẩn (11+ biến thể) để đảm bảo
+ * pixel-match với Stitch design.
  */
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
-import { cn } from "@/lib/utils";
-import { useFeaturedStores } from "@/features/homepage/hooks";
-import type { FeaturedStoreResponse } from "@/features/homepage/api";
+import {
+  useFeaturedStores,
+  useFeaturedProducts,
+} from "@/features/homepage/hooks";
+import type { RecommendedProductResponse } from "@/features/homepage/api";
+import {
+  ProductCard,
+  type ProductCardBaseProps,
+} from "@/components/storefront/ProductCard";
 
-const INITIAL_COLORS = [
-  "text-primary",
-  "text-secondary",
-  "text-tertiary",
-  "text-info",
-];
+const PRODUCT_LIMIT = 4;
 
-function getInitial(name: string): string {
-  // Lấy chữ cái đầu của từ đầu tiên (uppercase, bỏ qua ký tự đặc biệt)
-  const cleaned = name.trim().replace(/^[^\p{L}\p{N}]+/u, "");
-  return (cleaned[0] ?? "?").toUpperCase();
-}
+function mapToProductCardProps(
+  product: RecommendedProductResponse,
+  index: number,
+): ProductCardBaseProps {
+  const hasDiscount = product.minPrice < product.maxPrice;
+  const discountPercent = hasDiscount
+    ? Math.round(((product.maxPrice - product.minPrice) / product.maxPrice) * 100)
+    : undefined;
 
-function formatFollowers(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "tr";
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  return n.toString();
+  // Chọn variant phù hợp với Stitch design
+  const variant: ProductCardBaseProps["onClick"] = undefined;
+  if (product.label === "Freeship") {
+    // Freeship card - variant freeship
+  } else if (product.label && product.label !== "Freeship") {
+    // Voucher card
+  } else if (hasDiscount) {
+    // Discount card
+  }
+
+  return {
+    imageUrl: product.imageUrl,
+    imageAlt: product.name,
+    title: product.name,
+    price: product.minPrice,
+    originalPrice: hasDiscount ? product.maxPrice : undefined,
+    discountPercent,
+    rating: undefined, // API chưa trả rating
+    soldCount: product.totalSold,
+    location: product.storeName,
+    onClick: undefined,
+  };
 }
 
 export function FeaturedStoresSection() {
   const t = useTranslations("storefront.home");
-  const { data: stores, isLoading } = useFeaturedStores(4);
+  const { data: stores, isLoading: storesLoading } = useFeaturedStores(PRODUCT_LIMIT);
+  const { data: products, isLoading: productsLoading } = useFeaturedProducts(PRODUCT_LIMIT);
 
-  // Lấy tối đa 4 store
-  const displayStores = (stores ?? []).slice(0, 4);
+  // Ưu tiên stores nếu backend trả về data thật, fallback sang products.
+  const isLoading = storesLoading && productsLoading;
+  const displayProducts: RecommendedProductResponse[] =
+    stores && stores.length > 0
+      ? []
+      : (products ?? []).slice(0, PRODUCT_LIMIT);
 
   // Loading skeleton
   if (isLoading) {
@@ -64,11 +96,14 @@ export function FeaturedStoresSection() {
             <MaterialSymbol name="chevron_right" size="sm" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 pt-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 pt-5">
+          {Array.from({ length: PRODUCT_LIMIT }).map((_, i) => (
+            <ProductCard
               key={i}
-              className="bg-surface-container-low rounded-xl p-4 h-48 animate-pulse"
+              variant="skeleton"
+              imageUrl=""
+              title=""
+              price={0}
             />
           ))}
         </div>
@@ -77,7 +112,7 @@ export function FeaturedStoresSection() {
   }
 
   // Empty state
-  if (displayStores.length === 0) {
+  if (displayProducts.length === 0 && (!stores || stores.length === 0)) {
     return (
       <section className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
         <div className="flex items-center justify-between pb-5 border-b border-surface-container">
@@ -125,82 +160,42 @@ export function FeaturedStoresSection() {
         </Link>
       </div>
 
-      {/* Grid stores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 pt-5">
-        {displayStores.map((store: FeaturedStoreResponse, idx: number) => {
-          const initial = getInitial(store.name);
-          const initialColor = INITIAL_COLORS[idx % INITIAL_COLORS.length];
-          const thumbnails = (store.productThumbnails ?? []).slice(0, 3);
+      {/* Grid products dùng ProductCard chuẩn */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 pt-5">
+        {displayProducts.map((product, index) => {
+          const props = mapToProductCardProps(product, index);
+          const hasDiscount = product.minPrice < product.maxPrice;
 
+          // Chọn variant theo Stitch design
+          if (product.label === "Freeship") {
+            return (
+              <Link key={product.id} href={`/products/${product.id}`}>
+                <ProductCard variant="freeship" {...props} />
+              </Link>
+            );
+          }
+          if (product.label && product.label !== "Freeship") {
+            return (
+              <Link key={product.id} href={`/products/${product.id}`}>
+                <ProductCard
+                  variant="voucher"
+                  {...props}
+                  voucherLabel={product.label}
+                />
+              </Link>
+            );
+          }
+          if (hasDiscount && props.discountPercent) {
+            return (
+              <Link key={product.id} href={`/products/${product.id}`}>
+                <ProductCard variant="discount" {...props} />
+              </Link>
+            );
+          }
           return (
-            <div
-              key={store.id}
-              className="bg-surface-container-low rounded-xl p-4 flex flex-col justify-between hover:shadow-md transition-shadow"
-            >
-              <div>
-                {/* Header: avatar + name + verified */}
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-full bg-surface-container-lowest flex items-center justify-center font-bold shadow-sm text-lg",
-                      initialColor
-                    )}
-                  >
-                    {initial}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                      <h4 className="text-label-lg text-on-surface font-bold truncate">
-                        {store.name}
-                      </h4>
-                      {store.verified && (
-                        <MaterialSymbol
-                          name="verified"
-                          size="[16px]"
-                          fill
-                          className="text-primary shrink-0"
-                        />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-on-surface-variant mt-0.5">
-                      <span className="text-amber-600 font-semibold">
-                        {t("stores.ratingPrefix")} {store.rating}
-                      </span>
-                      <span>·</span>
-                      <span>
-                        {formatFollowers(store.followers)} {t("stores.followersSuffix")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {/* 3 thumbnails */}
-                {thumbnails.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    {thumbnails.map((url, tIdx) => (
-                      <div
-                        key={tIdx}
-                        className="aspect-square rounded-lg bg-surface-container-lowest overflow-hidden"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          alt={`${store.name} thumbnail ${tIdx + 1}`}
-                          src={url}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="pt-4">
-                <Link
-                  href={`/shop/${store.id}`}
-                  className="block w-full py-1.5 rounded-lg bg-surface-container-lowest text-primary text-label-md hover:bg-primary hover:text-on-primary transition-colors text-center shadow-sm"
-                >
-                  {t("stores.viewShop")}
-                </Link>
-              </div>
-            </div>
+            <Link key={product.id} href={`/products/${product.id}`}>
+              <ProductCard variant="default" {...props} />
+            </Link>
           );
         })}
       </div>

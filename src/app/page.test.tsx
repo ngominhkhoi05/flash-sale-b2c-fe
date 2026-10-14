@@ -14,6 +14,49 @@ import { render, screen } from "@testing-library/react";
 import { HomepageView } from "./_homepage-view";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 
+// Mock homepage API hooks to avoid network calls in snapshot test
+vi.mock("@/features/homepage/hooks", () => ({
+  useHomeBanners: () => ({
+    data: {
+      mainSlides: [
+        { id: 1, type: "HERO", position: 1, imageUrl: "https://example.com/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      ],
+      sideBanners: [
+        { id: 2, type: "FREESHIP", position: 1, imageUrl: "", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      ],
+    },
+    isLoading: false,
+    isError: false,
+  }),
+  useCategories: () => ({
+    data: [
+      { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam", commissionRate: 0.1, description: "" },
+      { id: 2, name: "Điện thoại", slug: "dien-thoai", commissionRate: 0.1, description: "" },
+    ],
+    isLoading: false,
+    isError: false,
+  }),
+  useFlashSaleSlots: () => ({ data: [], isLoading: false, isError: false }),
+  usePlatformVouchers: () => ({ data: [], isLoading: false, isError: false }),
+  useFeaturedStores: () => ({ data: [], isLoading: false, isError: false }),
+  useFeaturedProducts: () => ({ data: [], isLoading: false, isError: false }),
+  useRecommendedProducts: () => ({
+    data: {
+      forYou: [
+        { id: 1, storeId: 1, storeName: "Shop A", name: "Product 1", imageUrl: "https://example.com/p1.jpg", minPrice: 99000, maxPrice: 199000, totalStock: 50, totalSold: 1200, label: null },
+        { id: 2, storeId: 1, storeName: "Shop A", name: "Product 2", imageUrl: "https://example.com/p2.jpg", minPrice: 89000, maxPrice: 149000, totalStock: 30, totalSold: 800, label: null },
+        { id: 3, storeId: 2, storeName: "Shop B", name: "Product 3", imageUrl: "https://example.com/p3.jpg", minPrice: 29000, maxPrice: 59000, totalStock: 5, totalSold: 500, label: "Freeship" },
+        { id: 4, storeId: 2, storeName: "Shop B", name: "Product 4", imageUrl: "https://example.com/p4.jpg", minPrice: 49000, maxPrice: 99000, totalStock: 20, totalSold: 250, label: "Voucher 50%" },
+        { id: 5, storeId: 3, storeName: "Shop C", name: "Product 5", imageUrl: "https://example.com/p5.jpg", minPrice: 199000, maxPrice: 199000, totalStock: 12, totalSold: 100, label: null },
+      ],
+      bestSellers: [],
+      hotDeals: [],
+    },
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 describe("HomepageView – snapshot pixel-match", () => {
   it("renders all 7 sections with expected headings", () => {
     const { container } = render(<HomepageView />, { wrapper: TestWrapper });

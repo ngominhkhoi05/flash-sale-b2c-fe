@@ -131,10 +131,13 @@ function handleAdmin(ctx: GuardContext): NextResponse | null {
  * Quyết định điều hướng cho Storefront protected routes (cần auth).
  *
  * Áp dụng cho:
- *  - /cart        (Giỏ hàng)
  *  - /vouchers     (Kho voucher cá nhân)
  *  - /account       (Tài khoản)
  *  - /orders        (Đơn hàng của tôi)
+ *
+ * Lưu ý: /cart KHÔNG có trong danh sách này – user có thể xem giỏ hàng
+ * (trống hoặc từ localStorage) mà không cần đăng nhập.
+ * Chỉ require auth khi thực hiện action (checkout, thêm sản phẩm).
  *
  * Nếu CHƯA đăng nhập → /login?redirect=<path hiện tại>.
  * Nếu đã đăng nhập → cho qua (AuthGuard ở client sẽ check lại role nếu cần).
@@ -148,7 +151,6 @@ function handleAdmin(ctx: GuardContext): NextResponse | null {
  * @see .cursor/rules/routing-guards.mdc – quy ước auth-guard
  */
 const STOREFRONT_PROTECTED_PREFIXES = [
-  "/cart",
   "/vouchers",
   "/account",
   "/orders",

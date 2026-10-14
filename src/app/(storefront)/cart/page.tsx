@@ -1,10 +1,12 @@
 /**
  * Trang Giỏ hàng (Storefront) — `/cart`.
- * Stub page: render AuthGuard + EmptyState + skeleton.
- * UI đầy đủ sẽ làm sau khi backend cung cấp GET /api/v1/cart.
+ * Yêu cầu đăng nhập: khi chưa auth → redirect về /login?redirect=/cart.
+ * AuthGuard render skeleton khi chưa hydrated (tránh flash redirect).
  *
- * @see src/components/auth/AuthGuard.tsx – bảo vệ client-side
+ * TODO(api): khi backend cung cấp GET /api/v1/cart, tích hợp useCartItems()
+ *
  * @see src/features/cart/hooks.ts – useCartItems, useCartCount
+ * @see src/components/auth/AuthGuard.tsx – client-side auth guard
  */
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
@@ -38,16 +40,26 @@ function CartContent() {
   );
 }
 
+/** Skeleton fallback cho AuthGuard khi chưa hydration. */
+function CartSkeleton() {
+  return (
+    <div
+      className="mx-auto max-w-3xl py-8 animate-pulse"
+      data-testid="cart-skeleton"
+    >
+      <div className="mb-6 h-8 w-48 rounded bg-surface-container" />
+      <div className="space-y-3">
+        <div className="h-20 rounded-lg bg-surface-container" />
+        <div className="h-20 rounded-lg bg-surface-container" />
+        <div className="h-20 rounded-lg bg-surface-container" />
+      </div>
+    </div>
+  );
+}
+
 export default function GioHangPage() {
   return (
-    <AuthGuard
-      fallback={
-        <div className="mx-auto max-w-3xl py-8">
-          <div className="mb-6 h-8 w-48 animate-pulse rounded bg-surface-container" />
-          <div className="h-64 animate-pulse rounded-xl bg-surface-container" />
-        </div>
-      }
-    >
+    <AuthGuard fallback={<CartSkeleton />}>
       <CartContent />
     </AuthGuard>
   );

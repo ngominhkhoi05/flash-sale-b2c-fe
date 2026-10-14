@@ -4,64 +4,96 @@
  * RecommendedSection – Stitch "GỢI Ý HÔM NAY" (Section #7).
  *
  * Gồm:
- * - Sticky tabs (Dành cho bạn / Bán chạy / Ưu đãi sốc)
+ * - Sticky tabs (Dành cho bạn / Bán chạy / Ưu đãi sốc) – UI only
  * - Lưới sản phẩm (2-5 cols responsive) load từ API
  *
- * Data: GET /api/v1/products/recommended?tab=for_you|best_seller|hot_deal
+ * Data (ưu tiên):
+ * - GET /api/v1/products/recommended?tab=... (chuẩn)
+ * - Fallback: GET /api/v1/products?size=20&sort=createdAt,desc
  *
  * Pixel-match reference:
  * Stitch HTML lines 719-end (grid 5 cols × 4 rows = 20 cards)
+ *
+ * UI: Dùng ProductCard component chuẩn (11+ biến thể) để đảm bảo
+ * pixel-match với Stitch design.
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { MaterialSymbol } from "@/components/ui/material-symbol";
-import { cn } from "@/lib/utils";
 import { useRecommendedProducts } from "@/features/homepage/hooks";
 import {
   RecommendedTabs,
-  type RecommendedTab as UiTab,
   TAB_TO_API,
+  type RecommendedTab as UiTab,
 } from "./RecommendedTabs";
+import {
+  ProductCard,
+  type ProductCardBaseProps,
+} from "@/components/storefront/ProductCard";
 
 const INITIAL_TAB: UiTab = "forYou";
 
-function formatVND(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "0₫";
-  return new Intl.NumberFormat("vi-VN").format(value) + "₫";
-}
+/**
+ * Map UI tab key → backend RecommendedProductsResponse key.
+ * - forYou     → forYou
+ * - bestSellers → bestSellers
+ * - hotDeals   → hotDeals
+ */
+const UI_TAB_TO_RESPONSE_KEY: Record<
+  UiTab,
+  "forYou" | "bestSellers" | "hotDeals"
+> = {
+  forYou: "forYou",
+  bestSellers: "bestSellers",
+  hotDeals: "hotDeals",
+};
 
-function formatVNDShort(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "0";
-  if (value >= 1_000_000) {
-    const mil = value / 1_000_000;
-    return (Math.round(mil * 10) / 10).toString() + "tr";
-  }
-  if (value >= 1_000) {
-    return Math.round(value / 1_000) + "K";
-  }
-  return value.toString();
-}
+function mapToProductCardProps(
+  product: {
+    id: number;
+    name: string;
+    imageUrl: string;
+    minPrice: number;
+    maxPrice: number;
+    totalSold?: number | null;
+    storeName: string;
+    label?: string | null;
+  },
+  index: number,
+): ProductCardBaseProps {
+  const hasDiscount = product.minPrice < product.maxPrice;
+  const discountPercent = hasDiscount
+    ? Math.round(((product.maxPrice - product.minPrice) / product.maxPrice) * 100)
+    : undefined;
 
-function compactNumber(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "tr";
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  return n.toString();
+  return {
+    imageUrl: product.imageUrl,
+    imageAlt: product.name,
+    title: product.name,
+    price: product.minPrice,
+    originalPrice: hasDiscount ? product.maxPrice : undefined,
+    discountPercent,
+    rating: undefined, // API chưa trả rating
+    soldCount: product.totalSold ?? undefined,
+    location: product.storeName,
+    onClick: undefined,
+  };
 }
 
 export function RecommendedSection() {
   const t = useTranslations("storefront.home");
   const [activeTab, setActiveTab] = useState<UiTab>(INITIAL_TAB);
 
-  const apiTab = TAB_TO_API[activeTab];
-  const { data, isLoading, isError } = useRecommendedProducts(apiTab, undefined, 20);
+  // Gọi API /api/v1/products/recommended với tab tương ứng (UI tab → API tab).
+  const { data: response, isLoading, isError } = useRecommendedProducts(
+    TAB_TO_API[activeTab],
+  );
 
-  const products = data?.[activeTab === "forYou"
-    ? "forYou"
-    : activeTab === "bestSellers"
-      ? "bestSellers"
-      : "hotDeals"
-  ] ?? [];
+  // Lấy đúng list theo UI tab từ response.
+  const products = useMemo(() => {
+    if (!response) return [];
+    return response[UI_TAB_TO_RESPONSE_KEY[activeTab]] ?? [];
+  }, [response, activeTab]);
 
   return (
     <section className="space-y-4">
@@ -78,17 +110,13 @@ export function RecommendedSection() {
         {/* Loading skeleton */}
         {isLoading &&
           Array.from({ length: 10 }).map((_, i) => (
-            <div
+            <ProductCard
               key={`skel-${i}`}
-              className="bg-white border border-surface-container rounded-xl overflow-hidden"
-              data-testid={`recommended-skel-${i}`}
-            >
-              <div className="w-full aspect-square bg-surface-container animate-pulse" />
-              <div className="p-3 space-y-2">
-                <div className="h-3 w-3/4 bg-surface-container rounded animate-pulse" />
-                <div className="h-3 w-1/2 bg-surface-container rounded animate-pulse" />
-              </div>
-            </div>
+              variant="skeleton"
+              imageUrl=""
+              title=""
+              price={0}
+            />
           ))}
 
         {/* Error state */}
@@ -111,88 +139,41 @@ export function RecommendedSection() {
           </div>
         )}
 
-        {/* Data */}
+        {/* Data dùng ProductCard chuẩn */}
         {!isLoading && !isError && products.length > 0 &&
-          products.map((product) => {
+          products.map((product, index) => {
+            const props = mapToProductCardProps(product, index);
             const hasDiscount = product.minPrice < product.maxPrice;
-            const priceLabel = hasDiscount
-              ? `${formatVNDShort(product.minPrice)}-${formatVNDShort(product.maxPrice)}`
-              : formatVNDShort(product.minPrice);
-            const fullPrice = formatVND(product.minPrice);
-            const productHref = `/san-pham/${product.id}`;
 
+            // Chọn variant theo Stitch design
+            if (product.label === "Freeship") {
+              return (
+                <Link key={product.id} href={`/products/${product.id}`}>
+                  <ProductCard variant="freeship" {...props} />
+                </Link>
+              );
+            }
+            if (product.label && product.label !== "Freeship") {
+              return (
+                <Link key={product.id} href={`/products/${product.id}`}>
+                  <ProductCard
+                    variant="voucher"
+                    {...props}
+                    voucherLabel={product.label}
+                  />
+                </Link>
+              );
+            }
+            if (hasDiscount && props.discountPercent) {
+              return (
+                <Link key={product.id} href={`/products/${product.id}`}>
+                  <ProductCard variant="discount" {...props} />
+                </Link>
+              );
+            }
             return (
-              <Link
-                key={product.id}
-                href={productHref}
-                className="group relative bg-white border border-surface-container rounded-xl overflow-hidden flex flex-col justify-between hover:border-primary hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 h-full"
-              >
-                <div>
-                  <div className="relative w-full aspect-square bg-surface-container overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      alt={product.name}
-                      src={product.imageUrl}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {/* Voucher label bottom-left */}
-                    {product.label && (
-                      <div
-                        className={cn(
-                          "absolute bottom-2 left-2 h-5 px-1.5 rounded flex items-center gap-1 shadow-sm",
-                          product.label === "Freeship"
-                            ? "bg-secondary text-white"
-                            : "bg-primary text-white"
-                        )}
-                      >
-                        <MaterialSymbol
-                          name={
-                            product.label === "Freeship"
-                              ? "local_shipping"
-                              : "confirmation_number"
-                          }
-                          size="[12px]"
-                        />
-                        <span className="text-[11px] font-semibold leading-none">
-                          {product.label}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <h3
-                      className="text-[14px] font-normal text-on-surface line-clamp-2 min-h-[40px] leading-snug group-hover:text-primary transition-colors"
-                      title={product.name}
-                    >
-                      {product.name}
-                    </h3>
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                      <span
-                        className={cn(
-                          "text-[16px] font-semibold leading-none",
-                          hasDiscount ? "text-tertiary" : "text-on-surface"
-                        )}
-                      >
-                        {priceLabel}
-                      </span>
-                      {hasDiscount && (
-                        <span className="text-[12px] text-on-surface-variant line-through leading-none">
-                          {fullPrice}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center text-[12px] text-on-surface-variant gap-1">
-                      <MaterialSymbol
-                        name="store"
-                        size="[14px]"
-                        className="text-on-surface-variant"
-                      />
-                      <span className="truncate">{product.storeName}</span>
-                      <span className="text-outline">•</span>
-                      <span>Đã bán {compactNumber(product.totalSold)}</span>
-                    </div>
-                  </div>
-                </div>
+              <Link key={product.id} href={`/products/${product.id}`}>
+                <ProductCard variant="default" {...props} />
               </Link>
             );
           })}

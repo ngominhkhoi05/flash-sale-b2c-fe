@@ -325,6 +325,13 @@
         "orders": "Đơn hàng",
         "account": "Tài khoản",
         "login": "Đăng nhập"
+      },
+      "userMenu": {
+        "openMenu": "Mở menu người dùng",
+        "myAccount": "Tài khoản của tôi",
+        "account": "Tài khoản của tôi",
+        "logout": "Đăng xuất",
+        "loggingOut": "Đang đăng xuất…"
       }
     },
     "cart": {
@@ -343,6 +350,8 @@
         "confirmation": "Xác nhận"
       },
       "userMenu": {
+        "openMenu": "Mở menu người dùng",
+        "myAccount": "Tài khoản của tôi",
         "account": "Tài khoản của tôi",
         "logout": "Đăng xuất",
         "loggingOut": "Đang đăng xuất…"
@@ -568,7 +577,8 @@
     },
     "home": {
       "hero": {
-        "ariaLabel": "Banner khuyến mãi nổi bật"
+        "ariaLabel": "Banner khuyến mãi nổi bật",
+        "empty": "Chưa có banner nào"
       },
       "sideBanners": {
         "freeshipTag": "Hỏa Tốc",
@@ -591,6 +601,7 @@
       "categoryGrid": {
         "title": "DANH MỤC NỔI BẬT",
         "seeAll": "Xem tất cả",
+        "empty": "Chưa có danh mục nào",
         "items": {
           "mensFashion": "Thời trang nam",
           "womensFashion": "Thời trang nữ",

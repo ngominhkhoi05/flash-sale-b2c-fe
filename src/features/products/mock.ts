@@ -386,4 +386,8 @@ export const mockProductsBySlug: Record<string, ProductDetail> = {
   [mockProductDetail.slug]: mockProductDetail,
 };
 
+export const mockProductIdToSlug: Record<number, string> = {
+  [mockProductDetail.id]: mockProductDetail.slug,
+};
+
 export const mockAllProductSlugs = Object.keys(mockProductsBySlug);

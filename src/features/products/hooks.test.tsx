@@ -1,13 +1,22 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, beforeEach } from "vitest";
-import { useRecommendedProducts, useProductDetail, productKeys } from "./hooks";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+import {
+  useRecommendedProducts,
+  useProductDetail,
+  useProductDetailBySlug,
+  productKeys,
+} from "./hooks";
 import type { RecommendedProduct } from "./types";
 import { mockProductDetail } from "./mock";
 
 const mockGetRecommended = vi.fn();
+const mockFetchBySlug = vi.fn();
+const mockFetchById = vi.fn();
 vi.mock("./api", () => ({
   getRecommendedProducts: (size: number) => mockGetRecommended(size),
+  fetchProductDetailBySlug: (slug: string) => mockFetchBySlug(slug),
+  fetchProductDetailById: (id: number) => mockFetchById(id),
 }));
 
 function withQueryClient() {
@@ -18,7 +27,11 @@ function withQueryClient() {
   return { wrapper, qc };
 }
 
-beforeEach(() => mockGetRecommended.mockReset());
+beforeEach(() => {
+  mockGetRecommended.mockReset();
+  mockFetchBySlug.mockReset();
+  mockFetchById.mockReset();
+});
 
 describe("productKeys", () => {
   it("builds canonical keys", () => {
@@ -69,38 +82,42 @@ describe("useRecommendedProducts", () => {
 });
 
 describe("useProductDetail", () => {
-  it("trả về mock data khi slug hợp lệ", async () => {
+  it("trả về data từ API khi slug hợp lệ", async () => {
+    mockFetchBySlug.mockResolvedValue(mockProductDetail);
     const { wrapper } = withQueryClient();
-    const { result } = renderHook(() => useProductDetail(mockProductDetail.slug), {
+    const { result } = renderHook(() => useProductDetailBySlug(mockProductDetail.slug), {
       wrapper,
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(mockProductDetail);
+    expect(mockFetchBySlug).toHaveBeenCalledWith(mockProductDetail.slug);
   });
 
-  it("trả về null khi slug không tồn tại", async () => {
+  it("throw lỗi khi slug không tồn tại (để component xử lý 404)", async () => {
+    const apiError = new Error("Not Found");
+    mockFetchBySlug.mockRejectedValue(apiError);
     const { wrapper } = withQueryClient();
-    const { result } = renderHook(() => useProductDetail("slug-khong-ton-tai"), {
+    const { result } = renderHook(() => useProductDetailBySlug("slug-khong-ton-tai"), {
       wrapper,
     });
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toBeNull();
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBe(apiError);
   });
 
   it("không fetch khi slug null/undefined (enabled=false)", async () => {
     const { wrapper } = withQueryClient();
-    const { result } = renderHook(() => useProductDetail(null), { wrapper });
+    const { result } = renderHook(() => useProductDetailBySlug(null), { wrapper });
 
-    // enabled=false → queryFn không chạy → isPending giữ nguyên
+    // enabled=false → queryFn không chạy → fetchStatus giữ idle
     expect(result.current.fetchStatus).toBe("idle");
     expect(result.current.data).toBeUndefined();
   });
 
   it("không fetch khi slug empty string (enabled=false)", async () => {
     const { wrapper } = withQueryClient();
-    const { result } = renderHook(() => useProductDetail(""), { wrapper });
+    const { result } = renderHook(() => useProductDetailBySlug(""), { wrapper });
 
     expect(result.current.fetchStatus).toBe("idle");
   });

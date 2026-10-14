@@ -21,20 +21,44 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useCallback } from "react";
-import { useHomeBanners } from "@/features/homepage/hooks";
+import { useCallback, useMemo } from "react";
+import { useHomeBanners, useFeaturedProducts } from "@/features/homepage/hooks";
 import { useCarousel } from "./useCarousel";
 import { cn } from "@/lib/utils";
 
 const AUTO_ROTATE_MS = 5000;
 const FADE_DURATION_MS = 700;
+const HERO_SLIDE_LIMIT = 4;
 
 export function HeroBannerSection() {
   const t = useTranslations("storefront.home");
-  const { data: banners, isLoading } = useHomeBanners();
+  const { data: banners, isLoading: bannersLoading } = useHomeBanners();
+  const { data: products, isLoading: productsLoading } = useFeaturedProducts(HERO_SLIDE_LIMIT);
 
-  const slides = banners?.mainSlides ?? [];
-  const sideBanners = banners?.sideBanners ?? [];
+  const isLoading = bannersLoading && productsLoading;
+
+  // Ưu tiên banner từ API; nếu empty thì fallback sang featured products.
+  const slides = useMemo(() => {
+    if (banners?.mainSlides && banners.mainSlides.length > 0) {
+      return banners.mainSlides.map((s) => ({
+        id: s.id,
+        imageUrl: s.imageUrl,
+        imageAlt: s.imageAlt,
+        ctaHref: s.ctaHref,
+        isProduct: false,
+      }));
+    }
+    if (products && products.length > 0) {
+      return products.slice(0, HERO_SLIDE_LIMIT).map((p) => ({
+        id: p.id,
+        imageUrl: p.imageUrl,
+        imageAlt: p.name,
+        ctaHref: `/products/${p.id}`,
+        isProduct: true,
+      }));
+    }
+    return [];
+  }, [banners, products]);
 
   const { currentIndex, goTo, pause, resume } = useCarousel({
     totalSlides: slides.length,
@@ -68,7 +92,61 @@ export function HeroBannerSection() {
     );
   }
 
-  // Get side banners by type
+  // Empty state - không có banner và không có products
+  if (slides.length === 0) {
+    return (
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+        <div className="lg:col-span-8 rounded-xl min-h-[340px] bg-surface-container flex items-center justify-center text-on-surface-variant">
+          <p>{t("hero.empty")}</p>
+        </div>
+        <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-3">
+          <div className="flex-1 rounded-xl min-h-[164px] bg-gradient-to-br from-primary-fixed to-secondary-fixed/50 flex flex-col justify-between shadow-sm p-5">
+            <div>
+              <span className="inline-flex items-center justify-center gap-1 text-label-sm uppercase px-2 py-0.5 rounded bg-secondary text-on-secondary mb-1.5">
+                {t("sideBanners.freeshipTag")}
+              </span>
+              <h3 className="text-headline-sm text-on-surface font-bold leading-snug">
+                {t("sideBanners.freeshipTitle")}
+              </h3>
+              <p className="text-body-sm text-on-surface-variant mt-0.5">
+                {t("sideBanners.freeshipDesc")}
+              </p>
+            </div>
+            <div className="pt-3">
+              <Link href="/vouchers?type=freeship">
+                <button className="px-4 py-1.5 rounded-lg bg-secondary text-on-secondary text-label-md hover:bg-on-secondary-container transition-colors shadow-sm">
+                  {t("sideBanners.freeshipCta")}
+                </button>
+              </Link>
+            </div>
+          </div>
+          <div className="flex-1 rounded-xl min-h-[164px] bg-gradient-to-br from-tertiary-soft to-pink-100 flex flex-col justify-between shadow-sm p-5">
+            <div>
+              <span className="inline-flex items-center justify-center gap-1 text-label-sm uppercase px-2 py-0.5 rounded bg-tertiary text-on-tertiary mb-1.5">
+                {t("sideBanners.voucherTag")}
+              </span>
+              <h3 className="text-headline-sm text-on-surface font-bold leading-snug">
+                {t("sideBanners.voucherTitle")}
+              </h3>
+              <p className="text-body-sm text-on-surface-variant mt-0.5">
+                {t("sideBanners.voucherDesc")}
+              </p>
+            </div>
+            <div className="pt-3">
+              <Link href="/vouchers?filter=new-shop">
+                <button className="px-4 py-1.5 rounded-lg bg-tertiary text-on-tertiary text-label-md hover:bg-tertiary-container transition-colors shadow-sm">
+                  {t("sideBanners.voucherCta")}
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Get side banners by type (từ API banner hoặc fallback hardcode)
+  const sideBanners = banners?.sideBanners ?? [];
   const freeshipBanner = sideBanners.find((b) => b.type === "FREESHIP");
   const voucherBanner = sideBanners.find((b) => b.type === "VOUCHER_NEW_SHOP");
 
