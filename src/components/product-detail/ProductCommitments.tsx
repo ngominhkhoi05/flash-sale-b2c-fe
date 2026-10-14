@@ -3,24 +3,61 @@
  * 3 commitment badges in a row: `grid grid-cols-3 gap-2 p-3 rounded-xl bg-surface-container-low`.
  * Each badge: icon (Material Symbol) + label.
  * Icon color: text-secondary for eco + verified_user, text-primary for published_with_changes.
+ *
+ * Render trực tiếp từ BE `BackendProductCommitment` (xem ProductDetail.commitments).
+ * Tối đa 3 badge (Stitch design): đổi trả / bảo hành / chính hãng.
  */
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { CommitmentBadge } from "@/features/products";
+import type { BackendProductCommitment } from "@/features/products";
 
 export interface ProductCommitmentsProps {
-  commitments: CommitmentBadge[];
+  commitments: BackendProductCommitment | null;
   className?: string;
+}
+
+interface Badge {
+  icon: "published_with_changes" | "verified_user" | "eco";
+  iconClass: string;
+  label: string;
+}
+
+function buildBadges(c: BackendProductCommitment): Badge[] {
+  const out: Badge[] = [];
+  if (c.return_days > 0) {
+    out.push({
+      icon: "published_with_changes",
+      iconClass: "text-primary",
+      label: `Đổi trả ${c.return_days} ngày`,
+    });
+  }
+  if (c.warranty_months > 0) {
+    out.push({
+      icon: "eco",
+      iconClass: "text-secondary",
+      label: `Bảo hành ${c.warranty_months} tháng`,
+    });
+  }
+  if (c.authentic_guarantee) {
+    out.push({
+      icon: "verified_user",
+      iconClass: "text-secondary",
+      label: "Chính hãng 100%",
+    });
+  }
+  return out;
 }
 
 export function ProductCommitments({
   commitments,
   className,
 }: ProductCommitmentsProps) {
-  if (commitments.length === 0) {
-    return null;
-  }
+  if (!commitments) return null;
+
+  const badges = buildBadges(commitments);
+  if (badges.length === 0) return null;
+
   return (
     <div
       className={cn(
@@ -28,17 +65,14 @@ export function ProductCommitments({
         className,
       )}
     >
-      {commitments.map((c, idx) => (
+      {badges.map((b) => (
         <div
-          key={`${c.icon}-${idx}`}
+          key={b.icon}
           className="flex flex-col items-center gap-1 p-1 text-center"
         >
-          <CommitmentIcon
-            name={c.icon}
-            className={c.iconClass ?? "text-on-surface"}
-          />
+          <CommitmentIcon name={b.icon} className={b.iconClass} />
           <span className="font-label-sm font-semibold leading-tight">
-            {c.label}
+            {b.label}
           </span>
         </div>
       ))}

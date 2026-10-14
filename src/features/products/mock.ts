@@ -17,7 +17,7 @@ import type {
   StoreProfile,
   ShopVoucher,
   ShippingInfo,
-  CommitmentBadge,
+  BackendProductCommitment,
   FlashSaleInfo,
   TierVariationConfig,
 } from "./types";
@@ -239,12 +239,14 @@ const SHIPPING: ShippingInfo = {
   estimatedDays: "1 - 2 ngày làm việc",
 };
 
-// ── Commitments (3) ───────────────────────────────────────────────────────
-const COMMITMENTS: CommitmentBadge[] = [
-  { icon: "eco", iconClass: "text-secondary", label: "100% Cotton Tự Nhiên" },
-  { icon: "published_with_changes", iconClass: "text-primary", label: "Đổi trả 30 ngày dễ dàng" },
-  { icon: "verified_user", iconClass: "text-secondary", label: "Bảo hành may 6 tháng" },
-];
+// ── Commitments (mirror BE shape) ─────────────────────────────────────────
+const COMMITMENTS: BackendProductCommitment = {
+  return_days: 30,
+  warranty_months: 6,
+  authentic_guarantee: true,
+  shipping_time_hours: 48,
+  free_shipping_threshold: 0,
+};
 
 // ── Description (2 paragraphs) ────────────────────────────────────────────
 const DESCRIPTION_RICH = [
