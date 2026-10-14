@@ -29,8 +29,7 @@ export interface ConfirmModalProps {
   isLoading?: boolean;
 }
 
-export function ConfirmModal({
-  isOpen,
+function ConfirmModalDialog({
   onClose,
   onConfirm,
   title,
@@ -48,24 +47,19 @@ export function ConfirmModal({
   checkboxLabel,
   confirmButtonText = "Xác nhận",
   isLoading = false,
-}: ConfirmModalProps) {
-  const [selectedReason, setSelectedReason] = useState("");
+}: Omit<ConfirmModalProps, "isOpen">) {
+  const [selectedReason, setSelectedReason] = useState(reasonOptions[0]?.value || "");
   const [noteText, setNoteText] = useState("");
   const [extraCheckbox, setExtraCheckbox] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setSelectedReason(reasonOptions[0]?.value || "");
-      setNoteText("");
-      setValidationError(null);
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-  }, [isOpen, reasonOptions]);
-
-  if (!isOpen) return null;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   function handleSubmit() {
     if (reasonOptions.length > 0 && !selectedReason) {
@@ -167,6 +161,11 @@ export function ConfirmModal({
                   onChange={(e) => setSelectedReason(e.target.value)}
                   className="w-full h-10 px-3 pr-8 rounded-lg bg-surface-bright font-body-sm text-xs text-on-surface appearance-none focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/40 cursor-pointer"
                 >
+                  {reasonPlaceholder && (
+                    <option value="" disabled>
+                      {reasonPlaceholder}
+                    </option>
+                  )}
                   {reasonOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
@@ -246,4 +245,9 @@ export function ConfirmModal({
       </div>
     </div>
   );
+}
+
+export function ConfirmModal(props: ConfirmModalProps) {
+  if (!props.isOpen) return null;
+  return <ConfirmModalDialog {...props} />;
 }
