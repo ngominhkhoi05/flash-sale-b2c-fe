@@ -41,14 +41,20 @@ function formatCountdown(msLeft: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Format ISO datetime → "HH:MM" (giờ local). */
+/**
+ * Format ISO datetime → "HH:MM" theo UTC (SSR-safe).
+ *
+ * Dùng UTC thay vì local time để tránh hydration mismatch khi server ở
+ * timezone khác client (vd: server UTC+7, client UTC+0). Vì mock chỉ dev
+ * và BE thật sẽ trả ISO từ server, dùng UTC đảm bảo output đồng nhất
+ * ở cả 2 phía.
+ */
 function formatTime(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const h = d.getUTCHours().toString().padStart(2, "0");
+  const m = d.getUTCMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────

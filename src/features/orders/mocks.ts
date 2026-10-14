@@ -58,14 +58,15 @@ export const mockOrderFailedView: OrderFailedView = {
   orderCodes: ["FS-261001-A7K2Q", "TZ-261001-B9X8M"],
   transactionId: "261001_000245",
   grandTotal: 1_292_000,
-  // Set heldUntil = now + 4 phút 15 giây (match Stitch mockup "Còn 04:15").
-  // Sử dụng Date.now() khi load module để countdown luôn bắt đầu từ 4:15.
-  heldUntil: new Date(Date.now() + 4 * 60 * 1000 + 15 * 1000).toISOString(),
+  // SSR-safe: heldUntil cố định = Stitch fixed time. Countdown chỉ chạy ở client
+  // (useEffect tick mỗi 1s) — server render "Còn MM:SS" với timestamp cố định,
+  // client tiếp tục update. Tránh hydration mismatch.
+  heldUntil: "2026-10-14T21:34:15Z",
   rejectionReason:
     "Tài khoản không đủ số dư hoặc đã quá thời gian xác thực OTP.",
   voucherWarning: {
     description: "voucher Flash Sale giảm 80K",
-    expiresAt: new Date(Date.now() + 4 * 60 * 1000 + 15 * 1000).toISOString(),
+    expiresAt: "2026-10-14T21:34:15Z",
   },
   address: {
     recipientName: "Nguyễn Văn An",
@@ -92,6 +93,6 @@ export const mockOrderExpiredView: OrderExpiredView = {
     "Voucher Vibe Mart FREESHIP50K đã được hoàn lại vào Ví Voucher của bạn.",
     "2 mã giảm giá shop (-20.000₫) đã được mở khóa để có thể sử dụng lại.",
   ],
-  expiredAt: new Date().toISOString(),
+  expiredAt: "2026-10-14T21:30:00Z", // SSR-safe: timestamp cố định (tránh hydration mismatch)
   holdDurationMinutes: 5,
 };
