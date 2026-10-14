@@ -135,7 +135,13 @@ export type MaterialSymbolName =
   | "hourglass_top"
   | "refresh"
   | "inventory_2"
-  | "timer";
+  | "timer"
+  // Expired order page (added 2026-10-14)
+  | "hourglass_disabled"
+  | "verified"
+  | "check_circle"
+  | "bolt"
+  | "shopping_cart";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;

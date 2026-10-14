@@ -8,7 +8,7 @@
  *  - ETA: "Dự kiến giao ngày mai"
  */
 
-import type { OrderSuccessView, OrderFailedView } from "./types";
+import type { OrderSuccessView, OrderFailedView, OrderExpiredView } from "./types";
 
 export const mockOrderSuccessView: OrderSuccessView = {
   orderCodes: ["FS-261001-A7K2Q", "TZ-261001-B9X8M"],
@@ -73,4 +73,25 @@ export const mockOrderFailedView: OrderFailedView = {
     fullAddress: "450 Lê Văn Việt, Tăng Nhơn Phú A, TP. Thủ Đức, TP.HCM",
   },
   paymentMethod: "ZALOPAY",
+};
+
+/**
+ * Mock data cho trang Đơn hàng đã hết hạn (`/checkout/expired`).
+ *
+ * Bám sát Stitch mockup (docs/superpowers/handoffs/don-hang-het-han.md):
+ *  - 2 đơn bị huỷ tự động: FS-261001-A7K2Q + TZ-261001-B9X8M
+ *  - Cart item count = 2 (Áo Polo + Cáp C-to-C)
+ *  - 2 quyền lợi đã phục hồi: voucher FREESHIP50K + 2 mã giảm giá shop
+ *  - Hold duration = 5 phút (mặc định hệ thống)
+ */
+export const mockOrderExpiredView: OrderExpiredView = {
+  orderCodes: ["FS-261001-A7K2Q", "TZ-261001-B9X8M"],
+  cartItemCount: 2,
+  cartItemSummary: "Áo Polo Oversize (UTC) & Cáp C-to-C (TechZone)",
+  restoredBenefits: [
+    "Voucher Vibe Mart FREESHIP50K đã được hoàn lại vào Ví Voucher của bạn.",
+    "2 mã giảm giá shop (-20.000₫) đã được mở khóa để có thể sử dụng lại.",
+  ],
+  expiredAt: new Date().toISOString(),
+  holdDurationMinutes: 5,
 };

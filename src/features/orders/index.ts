@@ -15,6 +15,7 @@ export {
   useCancelOrder,
   useOrderSuccessByCode,
   useOrderFailedByCode,
+  useOrderExpiredByCode,
   orderKeys,
 } from "./hooks";
 
@@ -34,8 +35,17 @@ export type {
   OrderSuccessAddress,
   OrderFailedView,
   OrderFailedVoucherWarning,
+  OrderExpiredView,
 } from "./types";
 
-export { adaptOrdersToSuccessView, adaptOrdersToFailedView } from "./types";
+export {
+  adaptOrdersToSuccessView,
+  adaptOrdersToFailedView,
+  adaptOrdersToExpiredView,
+} from "./types";
 
-export { mockOrderSuccessView, mockOrderFailedView } from "./mocks";
+export {
+  mockOrderSuccessView,
+  mockOrderFailedView,
+  mockOrderExpiredView,
+} from "./mocks";

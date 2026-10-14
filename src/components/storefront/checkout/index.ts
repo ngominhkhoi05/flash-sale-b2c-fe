@@ -17,3 +17,5 @@ export { QrPaymentModule } from "./QrPaymentModule";
 export { QrPaymentPageContent } from "./QrPaymentPageContent";
 export { FailedModule } from "./FailedModule";
 export { FailedPageContent } from "./FailedPageContent";
+export { ExpiredModule } from "./ExpiredModule";
+export { ExpiredPageContent } from "./ExpiredPageContent";

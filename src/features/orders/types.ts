@@ -165,3 +165,58 @@ export function adaptOrdersToFailedView(
     paymentMethod: first?.paymentMethod ?? "ZALOPAY",
   };
 }
+
+// ─── OrderExpiredView (trang `/checkout/expired`) ──────────────────────────
+
+/**
+ * Top-level view cho trang `/checkout/expired` (đơn hết hạn thanh toán).
+ *
+ * Sau khi hold timeout (5 phút mặc định), BE tự huỷ đơn + restore:
+ *  - Voucher VibeMart → trả về ví voucher user
+ *  - Voucher shop → mở khoá lại
+ *  - Stock sản phẩm → hoàn về kho shop
+ *  - Cart items → khôi phục (nếu còn hàng)
+ */
+export interface OrderExpiredView {
+  /** Mã các đơn đã bị huỷ tự động. */
+  orderCodes: string[];
+  /** Số sản phẩm trong giỏ sau khi restore (dùng cho CTA "Xem lại giỏ hàng (N sản phẩm)"). */
+  cartItemCount: number;
+  /** Chuỗi tóm tắt cart items, vd: "Áo Polo Oversize (UTC) & Cáp C-to-C (TechZone)". */
+  cartItemSummary: string;
+  /** Danh sách quyền lợi đã được phục hồi (mỗi phần tử là 1 câu tiếng Việt). */
+  restoredBenefits: string[];
+  /** Thời điểm hết hạn (ISO datetime từ BE). */
+  expiredAt: string;
+  /** Thời gian giữ chỗ (phút) — mặc định 5. */
+  holdDurationMinutes: number;
+}
+
+/**
+ * Adapter: tạo OrderExpiredView từ 1+ BackendOrderDetail.
+ *
+ * - cartItemCount = sum items.length
+ * - cartItemSummary = mặc định "(empty)" — BE sẽ trả về chuỗi thật
+ * - restoredBenefits = rỗng (BE sẽ build từ cancelled vouchers)
+ */
+export function adaptOrdersToExpiredView(
+  orders: BackendOrderDetail[],
+  options?: {
+    cartItemSummary?: string;
+    restoredBenefits?: string[];
+    holdDurationMinutes?: number;
+  },
+): OrderExpiredView {
+  const cartItemCount = orders.reduce((sum, o) => sum + o.items.length, 0);
+  return {
+    orderCodes: orders.map((o) => o.orderCode),
+    cartItemCount,
+    cartItemSummary:
+      options?.cartItemSummary ??
+      (orders.flatMap((o) => o.items.map((it) => it.productName)).join(" & ") ||
+        "(không có sản phẩm)"),
+    restoredBenefits: options?.restoredBenefits ?? [],
+    expiredAt: orders[0]?.cancelledAt ?? new Date().toISOString(),
+    holdDurationMinutes: options?.holdDurationMinutes ?? 5,
+  };
+}

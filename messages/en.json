@@ -512,6 +512,19 @@
         "errorTitle": "Unable to load payment info",
         "errorDescription": "Something went wrong while loading the transaction. Please try again."
       },
+      "expired": {
+        "statusBadge": "Status: Auto-cancelled",
+        "title": "Order expired",
+        "subtitle": "You did not complete payment within {minutes} minutes, so {orderCount} orders have been cancelled automatically. The products in your cart have been restocked.",
+        "restoredBenefitsTitle": "Benefits have been restored automatically:",
+        "inStockBadge": "Available at shop",
+        "flashSaleCta": "Back to Flash Sale",
+        "cartCta": "View cart ({count} items)",
+        "helpPrompt": "Need help with your order?",
+        "helpCta": "Contact 24/7 support",
+        "errorTitle": "Unable to load expired order",
+        "errorDescription": "Something went wrong while loading the expired order. Please try again."
+      },
       "footer": {
         "copyright": "© 2026 Vibe Mart. All rights reserved.",
         "pciBadge": "PCI-DSS COMPLIANT",

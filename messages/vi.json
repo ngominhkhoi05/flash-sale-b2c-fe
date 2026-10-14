@@ -512,6 +512,19 @@
         "errorTitle": "Không thể tải thông tin thanh toán",
         "errorDescription": "Đã có lỗi khi tải chi tiết giao dịch. Vui lòng thử lại."
       },
+      "expired": {
+        "statusBadge": "Trạng thái: Đã hủy tự động",
+        "title": "Đơn hàng đã hết hạn",
+        "subtitle": "Bạn chưa hoàn tất thanh toán trong {minutes} phút nên {orderCount} đơn hàng đã tự động hủy. Sản phẩm trong giỏ đã được hoàn lại kho.",
+        "restoredBenefitsTitle": "Quyền lợi đã được phục hồi tự động:",
+        "inStockBadge": "Còn hàng tại shop",
+        "flashSaleCta": "Quay lại Flash Sale",
+        "cartCta": "Xem lại giỏ hàng ({count} sản phẩm)",
+        "helpPrompt": "Cần trợ giúp đơn hàng?",
+        "helpCta": "Liên hệ bộ phận CSKH 24/7",
+        "errorTitle": "Không thể tải thông tin đơn hàng",
+        "errorDescription": "Đã có lỗi khi tải chi tiết đơn hàng hết hạn. Vui lòng thử lại."
+      },
       "footer": {
         "copyright": "© 2026 Vibe Mart. Tất cả quyền được bảo lưu.",
         "pciBadge": "PCI-DSS COMPLIANT",
