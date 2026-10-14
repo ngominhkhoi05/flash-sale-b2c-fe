@@ -17,13 +17,20 @@ import { cn } from "@/lib/utils";
 import type { RecommendedProduct } from "@/features/products";
 
 export interface ProductRelatedStoresProps {
-  products: RecommendedProduct[];
+  /** BE có thể trả null/undefined khi không có sản phẩm liên quan.
+   *  Component tự defensive để không crash page. */
+  products: RecommendedProduct[] | null | undefined;
   className?: string;
+}
+
+function asArray<T>(input: T[] | null | undefined): T[] {
+  return Array.isArray(input) ? input : [];
 }
 
 export function ProductRelatedStores({ products, className }: ProductRelatedStoresProps) {
   const t = useTranslations("productDetail.related");
   const format = useFormatter();
+  const list = asArray(products);
 
   return (
     <div
@@ -45,11 +52,11 @@ export function ProductRelatedStores({ products, className }: ProductRelatedStor
         </Link>
       </div>
 
-      {products.length === 0 ? (
+      {list.length === 0 ? (
         <p className="text-body-sm text-outline">Chưa có sản phẩm cùng shop.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {products.map((product) => (
+          {list.map((product) => (
             <Link
               key={product.id}
               href={product.href}
