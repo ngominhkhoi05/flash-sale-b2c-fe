@@ -3,8 +3,14 @@ import type {
   AdminCampaign,
   AdminRealtimeMonitorData,
 } from "@/types/admin";
+import { getMockSlots } from "./flash-sale.mock";
 
 export function getMockAdminDashboard(): AdminDashboardData {
+  const activeSlot = getMockSlots().find((s) => s.status === "ACTIVE");
+  const now = Date.now();
+  const activeStart = activeSlot?.startTime || new Date(now - 45 * 60 * 1000).toISOString();
+  const activeEnd = activeSlot?.endTime || new Date(now + 2 * 3600 * 1000 + 15 * 60 * 1000).toISOString();
+
   return {
     kpis: [
       {
@@ -53,10 +59,10 @@ export function getMockAdminDashboard(): AdminDashboardData {
       },
     ],
     activeCampaign: {
-      id: 102,
-      name: "Phiên Giờ Vàng 12:00 đang diễn ra",
-      startTime: new Date(Date.now() - 3600000).toISOString(),
-      endTime: new Date(Date.now() + 4 * 3600000 + 32 * 60000).toISOString(),
+      id: activeSlot?.id || 102,
+      name: activeSlot ? `Phiên ${activeSlot.name} đang diễn ra` : "Phiên Giờ Vàng đang diễn ra",
+      startTime: activeStart,
+      endTime: activeEnd,
       confirmedOrders: 2315,
       totalRevenue: 1828750000,
     },
@@ -64,13 +70,14 @@ export function getMockAdminDashboard(): AdminDashboardData {
   };
 }
 
+const initialSlots = getMockSlots();
 export const mockAdminCampaigns: AdminCampaign[] = [
   {
     id: 101,
     name: "Sáng Khởi Động Siêu Sale",
-    slotName: "09:00 - 11:30",
-    startTime: new Date(Date.now() - 4 * 3600000).toISOString(),
-    endTime: new Date(Date.now() - 1 * 3600000).toISOString(),
+    slotName: initialSlots[0]?.name || "09:00 - Sáng Khởi Động",
+    startTime: initialSlots[0]?.startTime || new Date(Date.now() - 3 * 3600000).toISOString(),
+    endTime: initialSlots[0]?.endTime || new Date(Date.now() - 45 * 60000).toISOString(),
     status: "ENDED",
     productCount: 16,
     totalAllocatedStock: 800,
@@ -80,9 +87,9 @@ export const mockAdminCampaigns: AdminCampaign[] = [
   {
     id: 102,
     name: "Giờ Vàng Trưa Giá Sốc",
-    slotName: "12:00 - 15:00",
-    startTime: new Date(Date.now() - 1 * 3600000).toISOString(),
-    endTime: new Date(Date.now() + 4 * 3600000 + 32 * 60000).toISOString(),
+    slotName: initialSlots[1]?.name || "12:00 - Giờ Vàng Siêu Sale",
+    startTime: initialSlots[1]?.startTime || new Date(Date.now() - 45 * 60000).toISOString(),
+    endTime: initialSlots[1]?.endTime || new Date(Date.now() + 2 * 3600000 + 15 * 60000).toISOString(),
     status: "ACTIVE",
     productCount: 24,
     totalAllocatedStock: 1200,
@@ -92,9 +99,9 @@ export const mockAdminCampaigns: AdminCampaign[] = [
   {
     id: 103,
     name: "Chiều Cao Điểm Săn Deal",
-    slotName: "15:00 - 18:00",
-    startTime: new Date(Date.now() + 4 * 3600000 + 32 * 60000).toISOString(),
-    endTime: new Date(Date.now() + 7 * 3600000).toISOString(),
+    slotName: initialSlots[2]?.name || "15:00 - Chiều Cao Điểm",
+    startTime: initialSlots[2]?.startTime || new Date(Date.now() + 2 * 3600000 + 15 * 60000).toISOString(),
+    endTime: initialSlots[2]?.endTime || new Date(Date.now() + 5 * 3600000 + 15 * 60000).toISOString(),
     status: "UPCOMING",
     productCount: 20,
     totalAllocatedStock: 950,
@@ -104,9 +111,9 @@ export const mockAdminCampaigns: AdminCampaign[] = [
   {
     id: 104,
     name: "Tan Ca Đón Bão Sale",
-    slotName: "18:00 - 21:00",
-    startTime: new Date(Date.now() + 7 * 3600000).toISOString(),
-    endTime: new Date(Date.now() + 10 * 3600000).toISOString(),
+    slotName: initialSlots[3]?.name || "18:00 - Tan Ca Săn Deal",
+    startTime: initialSlots[3]?.startTime || new Date(Date.now() + 5 * 3600000 + 15 * 60000).toISOString(),
+    endTime: initialSlots[3]?.endTime || new Date(Date.now() + 8 * 3600000 + 15 * 60000).toISOString(),
     status: "UPCOMING",
     productCount: 18,
     totalAllocatedStock: 850,
@@ -116,11 +123,16 @@ export const mockAdminCampaigns: AdminCampaign[] = [
 ];
 
 export function getMockRealtimeMonitoringData(): AdminRealtimeMonitorData {
+  const activeSlot = getMockSlots().find((s) => s.status === "ACTIVE");
+  const now = Date.now();
+  const startTime = activeSlot?.startTime || new Date(now - 45 * 60 * 1000).toISOString();
+  const endTime = activeSlot?.endTime || new Date(now + 2 * 3600 * 1000 + 15 * 60 * 1000).toISOString();
+
   return {
-    slotId: 102,
-    slotName: "Phiên Giờ Vàng 12:00 - 15:00",
-    startTime: new Date(Date.now() - 3600000).toISOString(),
-    endTime: new Date(Date.now() + 4 * 3600000 + 32 * 60000).toISOString(),
+    slotId: activeSlot?.id || 102,
+    slotName: activeSlot ? `Phiên ${activeSlot.name}` : "Phiên Giờ Vàng 12:00 - 15:00",
+    startTime,
+    endTime,
     totalOrders: 2315,
     orderVelocityPerSecond: 14.8,
     redisConnections: 42,

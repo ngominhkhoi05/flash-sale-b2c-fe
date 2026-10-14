@@ -7,55 +7,78 @@ import type {
 
 /**
  * Sinh danh sách khung giờ Flash Sale động
- * Slot 2 luôn là ACTIVE và còn khoảng 4 giờ 30 phút để countdown hiển thị đẹp như thiết kế Stitch.
+ * Tính toán mốc thời gian logic từ Date.now(), không hard-code khoảng thời gian cố định.
  */
 export function getMockSlots(): FlashSaleSlot[] {
   const now = Date.now();
-  const oneHour = 3600 * 1000;
+  const slotDurationMs = 3 * 3600 * 1000; // 3 tiếng mỗi khung giờ
+
+  // Slot ACTIVE bắt đầu trước thời điểm hiện tại 45 phút, kết thúc sau đó
+  const activeStart = now - 45 * 60 * 1000;
+  const activeEnd = activeStart + slotDurationMs;
 
   return [
     {
       id: 101,
       name: "09:00 - Sáng Khởi Động",
-      startTime: new Date(now - 4 * oneHour).toISOString(),
-      endTime: new Date(now - 1 * oneHour).toISOString(),
+      startTime: new Date(activeStart - slotDurationMs).toISOString(),
+      endTime: new Date(activeStart).toISOString(),
       status: "ENDED",
       totalProducts: 16,
     },
     {
       id: 102,
       name: "12:00 - Giờ Vàng Siêu Sale",
-      startTime: new Date(now - 1 * oneHour).toISOString(),
-      // Còn ~4h 32m 04s đếm ngược giống Stitch UI
-      endTime: new Date(now + 4 * oneHour + 32 * 60 * 1000 + 4000).toISOString(),
+      startTime: new Date(activeStart).toISOString(),
+      endTime: new Date(activeEnd).toISOString(),
       status: "ACTIVE",
       totalProducts: 24,
     },
     {
       id: 103,
       name: "15:00 - Chiều Cao Điểm",
-      startTime: new Date(now + 4 * oneHour + 32 * 60 * 1000 + 4000).toISOString(),
-      endTime: new Date(now + 7 * oneHour).toISOString(),
+      startTime: new Date(activeEnd).toISOString(),
+      endTime: new Date(activeEnd + slotDurationMs).toISOString(),
       status: "UPCOMING",
       totalProducts: 20,
     },
     {
       id: 104,
       name: "18:00 - Tan Ca Săn Deal",
-      startTime: new Date(now + 7 * oneHour).toISOString(),
-      endTime: new Date(now + 10 * oneHour).toISOString(),
+      startTime: new Date(activeEnd + slotDurationMs).toISOString(),
+      endTime: new Date(activeEnd + 2 * slotDurationMs).toISOString(),
       status: "UPCOMING",
       totalProducts: 18,
     },
     {
       id: 105,
       name: "21:00 - Đêm Tiệc Giá Sốc",
-      startTime: new Date(now + 10 * oneHour).toISOString(),
-      endTime: new Date(now + 13 * oneHour).toISOString(),
+      startTime: new Date(activeEnd + 2 * slotDurationMs).toISOString(),
+      endTime: new Date(activeEnd + 3 * slotDurationMs).toISOString(),
       status: "UPCOMING",
       totalProducts: 25,
     },
   ];
+}
+
+/**
+ * Hàm tiện ích tính toán thời gian đếm ngược trực tiếp từ Date.now() và endTime của slot
+ */
+export function calculateRemainingTime(endTimeIso: string, currentTimeMs: number = Date.now()) {
+  const diffMs = Math.max(0, new Date(endTimeIso).getTime() - currentTimeMs);
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return {
+    hours,
+    minutes,
+    seconds,
+    totalSeconds,
+    isEnded: totalSeconds <= 0,
+    formatted: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
+  };
 }
 
 /**
