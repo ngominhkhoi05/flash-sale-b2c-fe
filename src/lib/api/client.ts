@@ -90,19 +90,28 @@ import type {
 } from "@/types/admin";
 import type { ServerTimeResponse } from "@/types/api";
 
-/** Lấy User ID tạm thời cho header X-User-Id theo quy ước đồ án */
+/** Lấy User ID tạm thời cho header X-User-Id theo quy ước đồ án (an toàn với SSR) */
 export function getCurrentUserId(): string {
-  if (typeof window !== "undefined") {
-    const saved = window.localStorage.getItem("fs_mock_user_id");
-    if (saved) return saved;
+  if (typeof window === "undefined") {
+    return "1001";
   }
-  return "1001";
+  try {
+    const saved = window.localStorage.getItem("fs_mock_user_id");
+    return saved || "1001";
+  } catch {
+    // Bỏ qua lỗi truy cập localStorage (chế độ ẩn danh, restricted iframe hoặc cookie disabled)
+    return "1001";
+  }
 }
 
-/** Đặt User ID tạm thời để kiểm thử */
+/** Đặt User ID tạm thời để kiểm thử (chỉ chạy phía client) */
 export function setMockUserId(userId: string): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem("fs_mock_user_id", userId);
+  try {
+    window.localStorage.setItem("fs_mock_user_id", userId);
+  } catch {
+    // Bỏ qua lỗi ghi localStorage phía client
+  }
 }
 
 /** Kiểm tra chế độ Mock data (chỉ bật khi NEXT_PUBLIC_USE_MOCKS === "true") */
