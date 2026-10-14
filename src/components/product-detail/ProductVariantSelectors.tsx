@@ -95,6 +95,11 @@ export function ProductVariantSelectors({
                   aria-disabled={s.disabled}
                 >
                   {s.label}
+                  {s.disabled && (
+                    <span className="ml-1 text-[10px] font-medium text-ink-3 no-underline">
+                      (Hết hàng)
+                    </span>
+                  )}
                 </button>
               );
             })}

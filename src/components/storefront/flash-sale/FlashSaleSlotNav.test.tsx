@@ -2,10 +2,15 @@
  * Smoke test cho FlashSaleSlotNav – 5 slot với active highlight.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FlashSaleSlotNav } from "./FlashSaleSlotNav";
+
+// Cố định "now" để test isTomorrowSlot deterministic theo local day.
+// 2026-10-14 10:00 +07:00 = 2026-10-14 03:00 UTC.
+// Khi đó slot 5 (15 Oct 03:00 UTC = 15 Oct 10:00 +07:00) là "Ngày mai" theo local.
+const FIXED_NOW = new Date("2026-10-14T03:00:00.000Z");
 
 function mkSlot(
   id: number,
@@ -35,10 +40,21 @@ const slots = [
   mkSlot(2, "2026-10-13T09:00:00.000Z", "ACTIVE"),
   mkSlot(3, "2026-10-13T12:00:00.000Z", "UPCOMING"),
   mkSlot(4, "2026-10-13T15:00:00.000Z", "UPCOMING"),
-  mkSlot(5, "2026-10-14T03:00:00.000Z", "UPCOMING"),
+  // Slot 5 ở 15 Oct (chứ không phương 14) để chắc chắn "Ngày mai" theo local day,
+  // kết hợp vi.useFakeTimers để cố định "now" = 2026-10-14 10:00 local (xem
+  // beforeEach). Tránh phụ thuộc vào ngày thực tế khi chạy test.
+  mkSlot(5, "2026-10-15T03:00:00.000Z", "UPCOMING"),
 ];
 
 describe("FlashSaleSlotNav", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FIXED_NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("renders 5 slot buttons", () => {
     render(<FlashSaleSlotNav slots={slots} activeSlotId={2} />);
     const buttons = screen.getAllByRole("button");
@@ -67,6 +83,10 @@ describe("FlashSaleSlotNav", () => {
   });
 
   it("invokes onSelect when user clicks a slot", async () => {
+    // Test này cần real timers vì userEvent tương tác với DOM trực tiếp.
+    // Fake timers bị tắt cục bộ, sau đó bật lại để giữ deterministic cho
+    // các test khác trong describe.
+    vi.useRealTimers();
     const onSelect = vi.fn();
     const user = userEvent.setup();
     render(
@@ -76,5 +96,8 @@ describe("FlashSaleSlotNav", () => {
     const slot3 = screen.getAllByRole("button")[2];
     await user.click(slot3);
     expect(onSelect).toHaveBeenCalledWith(3);
+    // Bật lại fake timers cho cleanup của describe
+    vi.useFakeTimers();
+    vi.setSystemTime(FIXED_NOW);
   });
 });
