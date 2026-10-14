@@ -7,9 +7,11 @@ import {
   getOrders,
   getOrderById,
   cancelOrderById,
+  getOrdersByCode,
   type GetOrdersParams,
   type BackendOrderDetail,
 } from "./api";
+import type { OrderSuccessView, OrderFailedView, OrderExpiredView } from "./types";
 
 // ─── Query keys ──────────────────────────────────────────────────────────────
 
@@ -56,6 +58,74 @@ export function useOrderById(orderId: number | undefined) {
     },
     enabled: orderId !== undefined && orderId !== null,
     staleTime: 1000 * 30, // 30s
+  });
+}
+
+/**
+ * useOrderFailedByCode – fetch aggregate view cho trang `/checkout/failed`.
+ *
+ * Input: orderCode (string, có thể CSV: "FS-001,TZ-002")
+ * Output: OrderFailedView (transactionId, grandTotal, heldUntil, rejectionReason, ...)
+ *
+ * Empty orderCode → query disabled, return undefined.
+ * Error → query.isError (caller render ErrorState).
+ */
+export function useOrderFailedByCode(orderCode: string) {
+  return useQuery<OrderFailedView>({
+    queryKey: [...orderKeys.all, "failed", orderCode] as const,
+    queryFn: () => getOrdersByCode(orderCode).then(async () => {
+      // TODO(api): Khi BE có endpoint `GET /api/v1/orders/{code}/failed-detail`
+      // thì thay bằng call riêng. Hiện tại dùng cùng getOrdersByCode + adapt
+      // sang failed view tại PageContent layer.
+      throw new Error(
+        "useOrderFailedByCode: chưa wire BE — dùng mock tại FailedPageContent",
+      );
+    }),
+    enabled: orderCode.length > 0,
+    staleTime: 1000 * 30,
+  });
+}
+
+/**
+ * useOrderExpiredByCode – fetch aggregate view cho trang `/checkout/expired`.
+ *
+ * Input: orderCode (string, có thể CSV: "FS-001,TZ-002")
+ * Output: OrderExpiredView (cartItemCount, cartItemSummary, restoredBenefits, ...)
+ *
+ * Empty orderCode → query disabled, return undefined.
+ * Error → query.isError (caller render ErrorState).
+ */
+export function useOrderExpiredByCode(orderCode: string) {
+  return useQuery<OrderExpiredView>({
+    queryKey: [...orderKeys.all, "expired", orderCode] as const,
+    queryFn: () => getOrdersByCode(orderCode).then(async () => {
+      // TODO(api): Khi BE có endpoint `GET /api/v1/orders/{code}/expired-detail`
+      // thì thay bằng call riêng. Hiện tại dùng cùng getOrdersByCode + adapt
+      // sang expired view tại PageContent layer.
+      throw new Error(
+        "useOrderExpiredByCode: chưa wire BE — dùng mock tại ExpiredPageContent",
+      );
+    }),
+    enabled: orderCode.length > 0,
+    staleTime: 1000 * 30,
+  });
+}
+
+/**
+ * useOrderSuccessByCode – fetch aggregate view cho trang `/checkout/success`.
+ *
+ * Input: orderCode (string, có thể CSV: "FS-001,TZ-002")
+ * Output: OrderSuccessView (orders + grandTotal + address + ...)
+ *
+ * Empty orderCode → query disabled, return undefined.
+ * Error → query.isError (caller render ErrorState).
+ */
+export function useOrderSuccessByCode(orderCode: string) {
+  return useQuery<OrderSuccessView>({
+    queryKey: [...orderKeys.all, "success", orderCode] as const,
+    queryFn: () => getOrdersByCode(orderCode),
+    enabled: orderCode.length > 0,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -107,3 +177,12 @@ export type {
   BackendOrderPageResponse,
   GetOrdersParams,
 } from "./api";
+
+export type {
+  OrderSuccessView,
+  OrderSuccessRow,
+  OrderSuccessAddress,
+  OrderFailedView,
+  OrderFailedVoucherWarning,
+  OrderExpiredView,
+} from "./types";

@@ -1,0 +1,98 @@
+/**
+ * Mock data cho trang Đặt hàng thành công (`/checkout/success`).
+ *
+ * Bám sát Stitch mockup (docs/superpowers/handoffs/dat-hang-thanh-cong.md):
+ *  - 2 đơn: UTC Fashion Mall (FS-261001-A7K2Q) + TechZone Official (TZ-261001-B9X8M)
+ *  - Tổng thanh toán: 1.292.000₫
+ *  - Địa chỉ: Nguyễn Văn An, 450 Lê Văn Việt, TP. Thủ Đức
+ *  - ETA: "Dự kiến giao ngày mai"
+ */
+
+import type { OrderSuccessView, OrderFailedView, OrderExpiredView } from "./types";
+
+export const mockOrderSuccessView: OrderSuccessView = {
+  orderCodes: ["FS-261001-A7K2Q", "TZ-261001-B9X8M"],
+  grandTotal: 1_292_000,
+  totalItems: 3,
+  totalOrders: 2,
+  address: {
+    recipientName: "Nguyễn Văn An",
+    phone: "0901 234 567",
+    fullAddress: "450 Lê Văn Việt, Tăng Nhơn Phú A, TP. Thủ Đức, TP.HCM",
+  },
+  orders: [
+    {
+      orderCode: "FS-261001-A7K2Q",
+      storeId: 1,
+      storeName: "UTC Fashion Mall",
+      storeBadge: "Mall",
+      amount: 538_000,
+      paymentStatus: "SUCCESS",
+      paymentMethod: "ZALOPAY",
+    },
+    {
+      orderCode: "TZ-261001-B9X8M",
+      storeId: 2,
+      storeName: "TechZone Official",
+      storeBadge: "OfficialMall",
+      amount: 754_000,
+      paymentStatus: "SUCCESS",
+      paymentMethod: "ZALOPAY",
+    },
+  ],
+  estimatedDeliveryLabel: "Dự kiến giao ngày mai",
+};
+
+/**
+ * Mock data cho trang Thanh toán chưa thành công (`/checkout/failed`).
+ *
+ * Bám sát Stitch mockup (docs/superpowers/handoffs/thanh-toan-chua-thanh-cong.md):
+ *  - 2 đơn: UTC Fashion Mall + TechZone Official
+ *  - Mã giao dịch: 261001_000245
+ *  - Tổng tiền: 1.292.000₫ (hiển thị đỏ)
+ *  - Lý do: "Tài khoản không đủ số dư hoặc đã quá thời gian xác thực OTP"
+ *  - Có voucher Flash Sale giảm 80K sắp hết hạn
+ *  - Held until = now + 4:15 (match Stitch countdown "Còn 04:15")
+ */
+export const mockOrderFailedView: OrderFailedView = {
+  orderCodes: ["FS-261001-A7K2Q", "TZ-261001-B9X8M"],
+  transactionId: "261001_000245",
+  grandTotal: 1_292_000,
+  // SSR-safe: heldUntil cố định = Stitch fixed time. Countdown chỉ chạy ở client
+  // (useEffect tick mỗi 1s) — server render "Còn MM:SS" với timestamp cố định,
+  // client tiếp tục update. Tránh hydration mismatch.
+  heldUntil: "2026-10-14T21:34:15Z",
+  rejectionReason:
+    "Tài khoản không đủ số dư hoặc đã quá thời gian xác thực OTP.",
+  voucherWarning: {
+    description: "voucher Flash Sale giảm 80K",
+    expiresAt: "2026-10-14T21:34:15Z",
+  },
+  address: {
+    recipientName: "Nguyễn Văn An",
+    phone: "0901 234 567",
+    fullAddress: "450 Lê Văn Việt, Tăng Nhơn Phú A, TP. Thủ Đức, TP.HCM",
+  },
+  paymentMethod: "ZALOPAY",
+};
+
+/**
+ * Mock data cho trang Đơn hàng đã hết hạn (`/checkout/expired`).
+ *
+ * Bám sát Stitch mockup (docs/superpowers/handoffs/don-hang-het-han.md):
+ *  - 2 đơn bị huỷ tự động: FS-261001-A7K2Q + TZ-261001-B9X8M
+ *  - Cart item count = 2 (Áo Polo + Cáp C-to-C)
+ *  - 2 quyền lợi đã phục hồi: voucher FREESHIP50K + 2 mã giảm giá shop
+ *  - Hold duration = 5 phút (mặc định hệ thống)
+ */
+export const mockOrderExpiredView: OrderExpiredView = {
+  orderCodes: ["FS-261001-A7K2Q", "TZ-261001-B9X8M"],
+  cartItemCount: 2,
+  cartItemSummary: "Áo Polo Oversize (UTC) & Cáp C-to-C (TechZone)",
+  restoredBenefits: [
+    "Voucher Vibe Mart FREESHIP50K đã được hoàn lại vào Ví Voucher của bạn.",
+    "2 mã giảm giá shop (-20.000₫) đã được mở khóa để có thể sử dụng lại.",
+  ],
+  expiredAt: "2026-10-14T21:30:00Z", // SSR-safe: timestamp cố định (tránh hydration mismatch)
+  holdDurationMinutes: 5,
+};

@@ -77,6 +77,11 @@ export type MaterialSymbolName =
   | "shopping_bag"
   | "watch"
   | "two_wheeler"
+  | "storefront"
+  | "signal_cellular_alt"
+  | "wifi"
+  | "battery_full"
+  | "help"
   // Flash Sale / vouchers
   | "local_fire_department"
   | "savings"
@@ -125,7 +130,18 @@ export type MaterialSymbolName =
   | "search_off"
   | "filter_alt_off"
   | "chevron_left"
-  | "trending_up";
+  | "trending_up"
+  // Failed payment page (added 2026-10-14)
+  | "hourglass_top"
+  | "refresh"
+  | "inventory_2"
+  | "timer"
+  // Expired order page (added 2026-10-14)
+  | "hourglass_disabled"
+  | "verified"
+  | "check_circle"
+  | "bolt"
+  | "shopping_cart";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
