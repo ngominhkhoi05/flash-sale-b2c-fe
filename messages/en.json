@@ -327,7 +327,7 @@
         "login": "Log in"
       },
       "userMenu": {
-        "openMenu": "Open menu",
+        "openMenu": "Open user menu",
         "myAccount": "My account",
         "account": "My account",
         "logout": "Sign out",
@@ -350,7 +350,7 @@
         "confirmation": "Confirmation"
       },
       "userMenu": {
-        "openMenu": "Open menu",
+        "openMenu": "Open user menu",
         "myAccount": "My account",
         "account": "My account",
         "logout": "Sign out",
