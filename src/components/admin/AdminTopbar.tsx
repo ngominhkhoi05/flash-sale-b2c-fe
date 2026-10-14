@@ -10,6 +10,7 @@ const BREADCRUMB_MAP: Record<string, string> = {
   "/admin/products": "Sản phẩm toàn sàn",
   "/admin/categories": "Danh mục & hoa hồng",
   "/admin/flash-sale": "Khung giờ Flash Sale",
+  "/admin/flash-sale/approvals": "Duyệt sản phẩm",
   "/admin/flash-sale/monitor": "Giám sát realtime",
 };
 
