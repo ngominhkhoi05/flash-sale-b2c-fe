@@ -11,9 +11,10 @@
  *  - KHÔNG render `StorefrontHeader` / `StorefrontFooter` / `MobileBottomNav`.
  *  - `CheckoutStepper` tách khỏi `<header>` (a11y: progress indicator không
  *    thuộc landmark header) — render ở layout, nằm ngay dưới header.
- *  - Header `fixed top-0` (80px) + stepper có `mt-[80px]` (bằng header
- *    height) → stepper không bị header đè. Main có `pt-[152px]` (80 header
- *    + 60 stepper + 12 gap) để nội dung luôn bắt đầu dưới stepper.
+ *  - Header `sticky top-0` (80px) + stepper trong flow (~60px) — layout tự
+ *    nhiên giữ spacing. KHÔNG cần padding-top ở main. Mọi vùng (header,
+ *    stepper, page content, footer) dùng chung `max-w-[1240px] px-4
+ *    lg:px-8` để thẳng hàng lề trái/phải.
  *  - `max-w-[1240px]` giữ padding desktop giống các trang storefront khác.
  */
 import type { ReactNode } from "react";
@@ -26,7 +27,7 @@ export default function CheckoutLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <CheckoutHeader />
       <CheckoutStepper />
-      <main className="flex-1 pt-[152px]">{children}</main>
+      <main className="flex-1">{children}</main>
       <CheckoutFooter />
     </div>
   );

@@ -31,7 +31,7 @@ export function CheckoutHeader() {
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b border-slate-100">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b border-slate-100">
       <div className="h-20 max-w-[1240px] mx-auto px-4 lg:px-8 flex items-center justify-between gap-4">
         {/* ── Brand + breadcrumb ────────────────────────────────── */}
         <div className="flex items-center gap-3 shrink-0">

@@ -203,7 +203,7 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
 
   return (
     <section
-      className="max-w-[880px] w-full mx-auto px-4 sm:px-6"
+      className="max-w-[1240px] w-full mx-auto px-4 lg:px-8"
       data-testid="qr-payment-module"
     >
       <div className="bg-surface-container-lowest rounded-xl shadow-md overflow-hidden grid grid-cols-1 md:grid-cols-2">
