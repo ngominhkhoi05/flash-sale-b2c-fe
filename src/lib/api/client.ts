@@ -105,12 +105,9 @@ export function setMockUserId(userId: string): void {
   window.localStorage.setItem("fs_mock_user_id", userId);
 }
 
-/** Kiểm tra chế độ Mock data */
+/** Kiểm tra chế độ Mock data (chỉ bật khi NEXT_PUBLIC_USE_MOCKS === "true") */
 export function isMockMode(): boolean {
-  if (process.env.NEXT_PUBLIC_USE_MOCKS !== undefined) {
-    return process.env.NEXT_PUBLIC_USE_MOCKS === "true";
-  }
-  return true;
+  return process.env.NEXT_PUBLIC_USE_MOCKS === "true";
 }
 
 export type ApiFetchOptions = Omit<RequestInit, "body"> & {
@@ -287,12 +284,6 @@ export async function apiFetch<T>(
       if (attempt > retries) break;
       await delay(500 * attempt);
     }
-  }
-
-  // Fallback sang mock nếu mạng lỗi và đang ở mock mode
-  if (isMockMode()) {
-    const fallbackMock = dispatchMock<T>(path, init.method || "GET", json, query as Record<string, unknown>);
-    if (fallbackMock !== null) return fallbackMock;
   }
 
   if (lastError instanceof Error) throw lastError;

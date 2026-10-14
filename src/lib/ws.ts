@@ -12,6 +12,11 @@ export function getWsUrl(): string {
   return raw.replace(/\/$/, "");
 }
 
+/** Chỉ kích hoạt giả lập WS khi NEXT_PUBLIC_USE_MOCKS === "true" */
+export function isMockWsMode(): boolean {
+  return process.env.NEXT_PUBLIC_USE_MOCKS === "true";
+}
+
 class FlashSaleWebSocketClient {
   private client: Client | null = null;
   private status: WsConnectionStatus = "DISCONNECTED";
@@ -73,15 +78,21 @@ class FlashSaleWebSocketClient {
       onStompError: (frame) => {
         console.warn("STOMP error frame:", frame.headers["message"]);
         this.setStatus("ERROR");
-        this.startMockSimulation();
+        if (isMockWsMode()) {
+          this.startMockSimulation();
+        }
       },
       onWebSocketClose: () => {
         this.setStatus("DISCONNECTED");
-        this.startMockSimulation();
+        if (isMockWsMode()) {
+          this.startMockSimulation();
+        }
       },
       onWebSocketError: () => {
         this.setStatus("ERROR");
-        this.startMockSimulation();
+        if (isMockWsMode()) {
+          this.startMockSimulation();
+        }
       },
       debug: () => {
         // Tắt log debug STOMP để tránh nhiễu console
@@ -93,7 +104,9 @@ class FlashSaleWebSocketClient {
       this.client.activate();
     } catch {
       this.setStatus("ERROR");
-      this.startMockSimulation();
+      if (isMockWsMode()) {
+        this.startMockSimulation();
+      }
     }
   }
 
@@ -176,6 +189,7 @@ class FlashSaleWebSocketClient {
    * Tự động trừ 1 tồn kho của ngẫu nhiên sản phẩm mỗi 3-5 giây để kiểm thử giao diện
    */
   private startMockSimulation(): void {
+    if (!isMockWsMode()) return;
     if (this.mockIntervalId) return;
 
     this.mockIntervalId = setInterval(() => {
