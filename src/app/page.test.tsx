@@ -41,7 +41,17 @@ vi.mock("@/features/homepage/hooks", () => ({
   useFeaturedStores: () => ({ data: [], isLoading: false, isError: false }),
   useFeaturedProducts: () => ({ data: [], isLoading: false, isError: false }),
   useRecommendedProducts: () => ({
-    data: { forYou: [], bestSellers: [], hotDeals: [] },
+    data: {
+      forYou: [
+        { id: 1, storeId: 1, storeName: "Shop A", name: "Product 1", imageUrl: "https://example.com/p1.jpg", minPrice: 99000, maxPrice: 199000, totalStock: 50, totalSold: 1200, label: null },
+        { id: 2, storeId: 1, storeName: "Shop A", name: "Product 2", imageUrl: "https://example.com/p2.jpg", minPrice: 89000, maxPrice: 149000, totalStock: 30, totalSold: 800, label: null },
+        { id: 3, storeId: 2, storeName: "Shop B", name: "Product 3", imageUrl: "https://example.com/p3.jpg", minPrice: 29000, maxPrice: 59000, totalStock: 5, totalSold: 500, label: "Freeship" },
+        { id: 4, storeId: 2, storeName: "Shop B", name: "Product 4", imageUrl: "https://example.com/p4.jpg", minPrice: 49000, maxPrice: 99000, totalStock: 20, totalSold: 250, label: "Voucher 50%" },
+        { id: 5, storeId: 3, storeName: "Shop C", name: "Product 5", imageUrl: "https://example.com/p5.jpg", minPrice: 199000, maxPrice: 199000, totalStock: 12, totalSold: 100, label: null },
+      ],
+      bestSellers: [],
+      hotDeals: [],
+    },
     isLoading: false,
     isError: false,
   }),
