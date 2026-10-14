@@ -290,10 +290,10 @@ export function CheckoutPageContent({
 
   return (
     <div
-      className="bg-background min-h-screen pt-0 pb-32 md:pb-16"
+      className="bg-background min-h-screen pb-32 md:pb-16"
       data-testid="checkout-page"
     >
-      <div className="max-w-[1240px] mx-auto px-4 lg:px-8">
+      <div className="max-w-[1240px] mx-auto px-4 lg:px-8 pt-6 pb-8">
         {isInitialLoading ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-8 flex flex-col gap-6">
