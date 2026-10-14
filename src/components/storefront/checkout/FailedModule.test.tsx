@@ -94,18 +94,21 @@ describe("FailedModule", () => {
     expect(screen.getByTestId("failed-countdown-text")).toBeInTheDocument();
   });
 
-  it("renders countdown formatted mm:ss sau khi hydrate", () => {
+  it("renders countdown formatted mm:ss sau khi hydrate + interval fire", () => {
     vi.useFakeTimers();
     // Đặt system time cố định để Date.now() trong useEffect cũng cố định.
     vi.setSystemTime(new Date("2026-10-14T21:30:00Z"));
     render(<FailedModule order={makeView(255)} onSelectCod={vi.fn()} />);
-    // Trigger useEffect setNow(Date.now()) + interval.
+    // Ban đầu: placeholder "--:--" (vì setNow không được gọi synchronously
+    // trong useEffect — Next 16 / React 19 rule `react-hooks/set-state-in-effect`).
+    expect(screen.getByText("Còn --:--")).toBeInTheDocument();
+    // Sau 1s, interval fire đầu tiên → setNow(Date.now()) → render thật.
     act(() => {
-      vi.advanceTimersByTime(0);
+      vi.advanceTimersByTime(1000);
     });
-    // Sau hydrate: target = 21:30:00 + 4:15 = 21:34:15, now = 21:30:00
-    // → msLeft = 4:15 = 255000ms → "04:15"
-    expect(screen.getByText("Còn 04:15")).toBeInTheDocument();
+    // target = 21:30:00 + 4:15 = 21:34:15, now = 21:30:01
+    // → msLeft = 4:14 = 254000ms → "04:14"
+    expect(screen.getByText("Còn 04:14")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -114,19 +117,22 @@ describe("FailedModule", () => {
     vi.setSystemTime(new Date("2026-10-14T21:30:00Z"));
     const base = 255; // 4:15
     render(<FailedModule order={makeView(base)} onSelectCod={vi.fn()} />);
-    // Trigger useEffect để set now + bật interval.
-    act(() => {
-      vi.advanceTimersByTime(0);
-    });
-    const initial = screen.getByText(/0[34]:\d\d/).textContent;
-    expect(initial).toBe("Còn 04:15");
+    // Initial: placeholder (vì setNow chưa chạy).
+    expect(screen.getByText("Còn --:--")).toBeInTheDocument();
 
+    // Sau 1s: interval đầu tiên fire → render "Còn 04:14".
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    const after = screen.getByText(/0[34]:\d\d/).textContent;
+    const initial = screen.getByText("Còn 04:14").textContent;
+
+    // Sau thêm 1s: interval thứ 2 fire → render "Còn 04:13".
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    const after = screen.getByText("Còn 04:13").textContent;
     expect(initial).not.toBe(after);
-    expect(after).toBe("Còn 04:14");
+    expect(after).toBe("Còn 04:13");
     vi.useRealTimers();
   });
 
@@ -185,13 +191,21 @@ describe("FailedModule", () => {
     vi.useFakeTimers();
     const base = 255; // 4:15
     render(<FailedModule order={makeView(base)} onSelectCod={vi.fn()} />);
+    // Initial: placeholder (vì setNow chưa chạy synchronously).
+    expect(screen.getByText("Còn --:--")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     const initial = screen.getByText(/0[34]:\d\d/).textContent;
+    expect(initial).toBe("Còn 04:14");
 
     act(() => {
       vi.advanceTimersByTime(1000);
     });
     const after = screen.getByText(/0[34]:\d\d/).textContent;
     expect(initial).not.toBe(after);
+    expect(after).toBe("Còn 04:13");
     vi.useRealTimers();
   });
 });

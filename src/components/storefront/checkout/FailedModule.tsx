@@ -74,8 +74,12 @@ function CountdownPill({
   // Sau khi hydrate, useEffect set now + tick mỗi 1s. Tránh hydration mismatch
   // vì server không gọi Date.now() tại thời điểm render.
   const [now, setNow] = useState<number | null>(null);
+  // LƯU: KHÔNG gọi setNow(Date.now()) synchronously trong effect body vì
+  // Next 16 / React 19 rule `react-hooks/set-state-in-effect` cấm
+  // (cascading renders). Interval đầu tiên sẽ fire sau 1s → setNow() trong
+  // callback interval (rule OK vì đó là "subscribe cho external timer").
+  // Trade-off: 1 giây đầu sau hydrate hiển thị "--:--" rồi mới tick.
   useEffect(() => {
-    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
