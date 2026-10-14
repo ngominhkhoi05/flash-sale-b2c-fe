@@ -366,7 +366,7 @@ export function CheckoutPageContent({
 
             {/* ── Right column (sticky) ───────────────────────── */}
             <div className="lg:col-span-4">
-              <div className="lg:sticky lg:top-[156px] flex flex-col gap-4">
+              <div className="lg:sticky lg:top-[168px] flex flex-col gap-4">
                 <CheckoutOrderSummary
                   lines={summaryLines}
                   grandTotal={formatVND(grandTotal)}

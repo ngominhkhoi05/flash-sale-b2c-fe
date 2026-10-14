@@ -22,8 +22,8 @@ const STEPS: CheckoutStep[] = [
 
 export function CheckoutStepper() {
   return (
-    <div className="bg-white">
-      <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between relative">
+      <div className="bg-white mt-[80px]">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between relative">
         {/* Track line */}
         <span
           aria-hidden
