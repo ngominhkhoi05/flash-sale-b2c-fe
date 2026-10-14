@@ -233,9 +233,6 @@ export function getMockFlashSaleSessionById(id: number): AdminFlashSaleSession |
 export function createMockFlashSaleSession(
   input: CreateFlashSaleSessionInput
 ): AdminFlashSaleSession {
-  const [sh, sm] = input.startTime.split(":").map(Number);
-  const [eh, em] = input.endTime.split(":").map(Number);
-
   const startD = new Date(`${input.date}T${input.startTime}:00`);
   const endD = new Date(`${input.date}T${input.endTime}:00`);
 
