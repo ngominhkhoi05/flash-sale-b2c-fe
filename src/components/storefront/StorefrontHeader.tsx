@@ -83,11 +83,11 @@ export function StorefrontHeader({
           <Link href={ROUTES.HOME} className="flex items-center gap-2 shrink-0">
             <Image
               alt="Vibe Mart"
-              src="/images/vibe-mart-logo.png"
-              width={32}
-              height={32}
+              src="/images/vibe-mart-logo-lockup-light.png"
+              width={128}
+              height={36}
               priority
-              className="h-9 w-9 object-contain"
+              className="h-9 w-auto object-contain"
             />
           </Link>
           <div className="ml-auto flex items-center gap-3">
@@ -274,11 +274,11 @@ export function StorefrontHeader({
             >
               <Image
                 alt="Vibe Mart"
-                src="/images/vibe-mart-logo.png"
-                width={32}
-                height={32}
+                src="/images/vibe-mart-logo-lockup-light.png"
+                width={128}
+                height={36}
                 priority
-                className="h-9 w-9 object-contain"
+                className="h-9 w-auto object-contain"
               />
             </Link>
 
