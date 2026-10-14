@@ -36,6 +36,11 @@ export type MaterialSymbolName =
   | "mail"
   | "phone_iphone"
   | "android"
+  | "content_copy"
+  | "warning"
+  | "alarm_off"
+  | "task_alt"
+  | "layers"
   // Quick actions / categories
   | "bolt"
   | "confirmation_number"

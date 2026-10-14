@@ -2,6 +2,7 @@
 export { CheckoutAddressCard } from "./CheckoutAddressCard";
 export { CheckoutHeader } from "./CheckoutHeader";
 export { CheckoutStepper } from "./CheckoutStepper";
+export { CheckoutQrHeader } from "./CheckoutQrHeader";
 export { CheckoutSplitOrderBanner } from "./CheckoutSplitOrderBanner";
 export { CheckoutShopItem } from "./CheckoutShopItem";
 export { CheckoutShopCard } from "./CheckoutShopCard";
@@ -13,3 +14,5 @@ export type { CheckoutOrderSummaryLine } from "./CheckoutOrderSummary";
 export { AddressPickerModal } from "./AddressPickerModal";
 export { VoucherPickerModal } from "./VoucherPickerModal";
 export { CheckoutPageContent } from "./CheckoutPageContent";
+export { QrPaymentModule } from "./QrPaymentModule";
+export { QrPaymentPageContent } from "./QrPaymentPageContent";

@@ -9,6 +9,7 @@ export type {
   ApplyVoucherResponse,
   SubmitOrderRequest,
   OrderSubmitResponse,
+  QrOrderDetail,
 } from "./types";
 export {
   getCheckout,
@@ -18,6 +19,7 @@ export {
   getAvailableVouchers,
   getPlatformVouchers,
   getShopVouchers,
+  getOrderForQr,
 } from "./api";
 export {
   checkoutKeys,
@@ -26,10 +28,12 @@ export {
   useAvailableVouchers,
   useApplyVoucherMutation,
   useSubmitOrderMutation,
+  useOrderForQr,
 } from "./hooks";
 export {
   mockCheckoutData,
   mockAddresses,
   mockShopVouchers,
   mockPlatformVouchers,
+  mockQrOrderDetail,
 } from "./mocks";

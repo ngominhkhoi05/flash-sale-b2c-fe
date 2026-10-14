@@ -433,7 +433,36 @@
         }
       },
       "empty": "No items to checkout",
-      "loading": "Loading checkout…"
+      "loading": "Loading checkout…",
+      "qrPayment": {
+        "title": "Scan the code to pay",
+        "zaloPayBadge": "ZaloPay",
+        "vietQrBadge": "VietQR",
+        "pciBadge": "PCI-DSS secured",
+        "heldOrder": "hold",
+        "heldFor": "Your order is held for {time} minutes",
+        "bankSupport": "Supports ZaloPay & 35+ VietQR banks",
+        "step1": "Open ZaloPay or any banking app",
+        "step2": "Tap the QR code scanner icon",
+        "step3": "Verify the amount {amount} and confirm",
+        "waiting": "Waiting for you to scan and pay...",
+        "vibeMartCheckout": "Checkout",
+        "orderCodeLabel": "Tx ID:",
+        "copyOrderCode": "Copy code",
+        "copySuccess": "Transaction code copied",
+        "copyError": "Failed to copy code",
+        "totalLabel": "Grand total ({count} orders):",
+        "savingsLabel": "Save 50k",
+        "detailsTitle": "Details of {count} combined orders",
+        "scanOnce": "1 scan",
+        "expiryAlert": "If not completed before the timer ends, {count} orders will be cancelled and Flash Sale stock will be returned.",
+        "completedCta": "I have completed payment",
+        "completedToast": "Payment received. Redirecting to your order...",
+        "changeMethod": "← Use a different payment method",
+        "mall": "Mall",
+        "official": "Official",
+        "codeLabel": "Code:"
+      }
     },
     "voucher": {
       "title": "My Vouchers",
