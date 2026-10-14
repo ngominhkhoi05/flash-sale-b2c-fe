@@ -169,3 +169,55 @@ describe("ProductVariantSelectors", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("ProductVariantSelectors – defensive guards (BE nullable)", () => {
+  const COLORS = [
+    { name: "Trắng Tinh Khôi", bgClass: "bg-slate-100" },
+    { name: "Đen Huyền Bí", bgClass: "bg-slate-900" },
+  ];
+  const SIZES = [
+    { label: "S" },
+    { label: "M" },
+    { label: "L" },
+    { label: "XL", disabled: true },
+  ];
+
+  it("does NOT crash when colors is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductVariantSelectors
+          colors={undefined as unknown as Array<{ name: string; bgClass: string }>}
+          sizes={SIZES}
+          onColorChange={() => {}}
+          onSizeChange={() => {}}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when sizes is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductVariantSelectors
+          colors={COLORS}
+          sizes={undefined as unknown as Array<{ label: string; disabled?: boolean }>}
+          onColorChange={() => {}}
+          onSizeChange={() => {}}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when both colors and sizes are null (BE explicit null)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductVariantSelectors
+          colors={null as unknown as Array<{ name: string; bgClass: string }>}
+          sizes={null as unknown as Array<{ label: string; disabled?: boolean }>}
+          onColorChange={() => {}}
+          onSizeChange={() => {}}
+        />,
+      ),
+    ).not.toThrow();
+  });
+});

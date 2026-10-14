@@ -140,3 +140,73 @@ describe("ProductReviewsCard", () => {
     expect(screen.getByTestId("product-reviews-card")).toHaveClass("my-custom-class");
   });
 });
+
+describe("ProductReviewsCard – defensive guards (BE nullable)", () => {
+  const baseProps = {
+    reviews: MOCK_REVIEWS,
+    ratingAvg: 4.8,
+    ratingCount: 326,
+  };
+
+  test("does NOT crash when reviews is undefined (BE missing field)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductReviewsCard
+          {...baseProps}
+          reviews={undefined as unknown as Review[]}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  test("does NOT crash when reviews is null (BE explicit null)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductReviewsCard
+          {...baseProps}
+          reviews={null as unknown as Review[]}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  test("does NOT crash when ratingAvg is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductReviewsCard
+          {...baseProps}
+          ratingAvg={undefined as unknown as number}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  test("does NOT crash when ratingCount is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductReviewsCard
+          {...baseProps}
+          ratingCount={undefined as unknown as number}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  test("does NOT crash when review.mediaUrls is undefined (BE partial)", () => {
+    const reviewsMissingMedia = [
+      {
+        ...MOCK_REVIEWS[0],
+        mediaUrls: undefined as unknown as string[],
+      },
+    ];
+    expect(() =>
+      renderWithIntl(
+        <ProductReviewsCard
+          reviews={reviewsMissingMedia}
+          ratingAvg={5}
+          ratingCount={1}
+        />,
+      ),
+    ).not.toThrow();
+  });
+});
