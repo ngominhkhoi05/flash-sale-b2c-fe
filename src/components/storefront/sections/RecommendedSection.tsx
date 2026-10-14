@@ -131,14 +131,14 @@ export function RecommendedSection() {
             // Chọn variant theo Stitch design
             if (product.label === "Freeship") {
               return (
-                <Link key={product.id} href={`/san-pham/${product.id}`}>
+                <Link key={product.id} href={`/products/${product.id}`}>
                   <ProductCard variant="freeship" {...props} />
                 </Link>
               );
             }
             if (product.label && product.label !== "Freeship") {
               return (
-                <Link key={product.id} href={`/san-pham/${product.id}`}>
+                <Link key={product.id} href={`/products/${product.id}`}>
                   <ProductCard
                     variant="voucher"
                     {...props}
@@ -149,13 +149,13 @@ export function RecommendedSection() {
             }
             if (hasDiscount && props.discountPercent) {
               return (
-                <Link key={product.id} href={`/san-pham/${product.id}`}>
+                <Link key={product.id} href={`/products/${product.id}`}>
                   <ProductCard variant="discount" {...props} />
                 </Link>
               );
             }
             return (
-              <Link key={product.id} href={`/san-pham/${product.id}`}>
+              <Link key={product.id} href={`/products/${product.id}`}>
                 <ProductCard variant="default" {...props} />
               </Link>
             );

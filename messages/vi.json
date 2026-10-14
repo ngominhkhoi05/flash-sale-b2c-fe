@@ -325,6 +325,13 @@
         "orders": "Đơn hàng",
         "account": "Tài khoản",
         "login": "Đăng nhập"
+      },
+      "userMenu": {
+        "openMenu": "Mở menu",
+        "myAccount": "Tài khoản của tôi",
+        "account": "Tài khoản của tôi",
+        "logout": "Đăng xuất",
+        "loggingOut": "Đang đăng xuất…"
       }
     },
     "cart": {
@@ -343,6 +350,8 @@
         "confirmation": "Xác nhận"
       },
       "userMenu": {
+        "openMenu": "Mở menu",
+        "myAccount": "Tài khoản của tôi",
         "account": "Tài khoản của tôi",
         "logout": "Đăng xuất",
         "loggingOut": "Đang đăng xuất…"

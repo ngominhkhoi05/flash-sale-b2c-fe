@@ -75,7 +75,7 @@ describe("FeaturedStoresSection (fallback to featured products)", () => {
       label: null,
     }));
     const { container } = renderWithProviders(<FeaturedStoresSection />);
-    const links = container.querySelectorAll('a[href^="/san-pham/"]');
+    const links = container.querySelectorAll('a[href^="/products/"]');
     expect(links.length).toBe(4);
   });
 
@@ -93,7 +93,7 @@ describe("FeaturedStoresSection (fallback to featured products)", () => {
       label: null,
     }));
     const { container } = renderWithProviders(<FeaturedStoresSection />);
-    const links = container.querySelectorAll('a[href^="/san-pham/"]');
+    const links = container.querySelectorAll('a[href^="/products/"]');
     expect(links.length).toBe(4);
   });
 

@@ -53,7 +53,7 @@ export function HeroBannerSection() {
         id: p.id,
         imageUrl: p.imageUrl,
         imageAlt: p.name,
-        ctaHref: `/san-pham/${p.id}`,
+        ctaHref: `/products/${p.id}`,
         isProduct: true,
       }));
     }

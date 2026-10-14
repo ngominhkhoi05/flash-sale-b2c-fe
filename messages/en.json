@@ -325,6 +325,13 @@
         "orders": "Orders",
         "account": "Account",
         "login": "Log in"
+      },
+      "userMenu": {
+        "openMenu": "Open menu",
+        "myAccount": "My account",
+        "account": "My account",
+        "logout": "Sign out",
+        "loggingOut": "Signing out…"
       }
     },
     "cart": {
@@ -343,6 +350,8 @@
         "confirmation": "Confirmation"
       },
       "userMenu": {
+        "openMenu": "Open menu",
+        "myAccount": "My account",
         "account": "My account",
         "logout": "Sign out",
         "loggingOut": "Signing out…"

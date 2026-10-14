@@ -6,7 +6,7 @@
  * - Loading skeleton
  * - Error state
  * - Empty state
- * - Click product → /san-pham/<id>
+ * - Click product → /products/<id>
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -71,11 +71,11 @@ describe("RecommendedSection (using useFeaturedProducts)", () => {
       label: null,
     }));
     const { container } = renderWithProviders(<RecommendedSection />);
-    const links = container.querySelectorAll('a[href^="/san-pham/"]');
+    const links = container.querySelectorAll('a[href^="/products/"]');
     expect(links.length).toBe(20);
   });
 
-  it("product card link points to /san-pham/<id>", () => {
+  it("product card link points to /products/<id>", () => {
     mockProducts.value = [
       {
         id: 42,
@@ -92,7 +92,7 @@ describe("RecommendedSection (using useFeaturedProducts)", () => {
     ];
     renderWithProviders(<RecommendedSection />);
     const link = screen.getByRole("link", { name: /Product 42/i });
-    expect(link).toHaveAttribute("href", "/san-pham/42");
+    expect(link).toHaveAttribute("href", "/products/42");
   });
 
   it("shows loading skeleton when isLoading", () => {
