@@ -23,4 +23,4 @@ export {
   useProductDetail,
   productKeys,
 } from "./hooks";
-export { mockProductDetail, mockProductsBySlug, mockAllProductSlugs } from "./mock";
+export { mockProductDetail, mockProductsBySlug, mockProductIdToSlug, mockAllProductSlugs } from "./mock";

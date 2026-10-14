@@ -12,9 +12,13 @@
  *
  * Note: Header/Footer/MobileBottomNav đã có trong layout cha (storefront/layout.tsx)
  */
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
-import { mockProductDetail } from "@/features/products";
+import {
+  mockProductDetail,
+  mockProductIdToSlug,
+  mockProductsBySlug,
+} from "@/features/products";
 import { setRequestLocale } from "next-intl/server";
 
 interface PageProps {
@@ -27,26 +31,40 @@ export default async function ProductDetailRoute({ params }: PageProps) {
   // Locale for static rendering
   setRequestLocale("vi");
 
+  // Nếu người dùng truy cập /products/<id> (numeric), redirect sang slug SEO
+  if (/^\d+$/.test(slug)) {
+    const id = Number(slug);
+    const realSlug = mockProductIdToSlug[id];
+    if (realSlug) {
+      redirect(`/products/${realSlug}`);
+    }
+    notFound();
+  }
+
   // Mock data lookup - in production sẽ gọi API
-  // For now: chỉ trả mock khi slug khớp
-  if (slug !== mockProductDetail.slug) {
+  const product = mockProductsBySlug[slug];
+  if (!product) {
     notFound();
   }
 
   return (
     <main className="pt-4 md:pt-6">
-      <ProductDetailPage product={mockProductDetail} />
+      <ProductDetailPage product={product} />
     </main>
   );
 }
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
-  if (slug !== mockProductDetail.slug) {
+  if (/^\d+$/.test(slug)) {
+    return { title: "Đang chuyển hướng..." };
+  }
+  const product = mockProductsBySlug[slug];
+  if (!product) {
     return { title: "Không tìm thấy sản phẩm" };
   }
   return {
-    title: `${mockProductDetail.name} | Vibe Mart`,
-    description: mockProductDetail.description.slice(0, 160),
+    title: `${product.name} | Vibe Mart`,
+    description: product.description.slice(0, 160),
   };
 }
