@@ -1,4 +1,4 @@
-export type FlashSaleSlotStatus = "UPCOMING" | "ACTIVE" | "ENDED";
+export type FlashSaleSlotStatus = "UPCOMING" | "REGISTRATION_OPEN" | "ACTIVE" | "ENDED";
 
 export interface FlashSaleSlot {
   id: number;
@@ -7,6 +7,36 @@ export interface FlashSaleSlot {
   endTime: string;   // ISO 8601
   status: FlashSaleSlotStatus;
   totalProducts?: number;
+}
+
+export interface AdminFlashSaleSession {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // ISO 8601
+  endTime: string;   // ISO 8601
+  timeRangeDisplay: string; // e.g. "12:00 - 14:00"
+  holdSeconds: number; // default 300
+  registrationDeadline: string; // ISO 8601
+  approvedSkusCount: number;
+  pendingSkusCount: number;
+  totalSkusCount: number;
+  soldQuantity: number;
+  allocatedQuantity: number;
+  status: FlashSaleSlotStatus;
+  createdAt?: string;
+}
+
+export interface CreateFlashSaleSessionInput {
+  name: string;
+  description?: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  holdSeconds: number;
+  registrationDeadline: string; // YYYY-MM-DDTHH:mm or ISO
 }
 
 export interface FlashSaleItem {
