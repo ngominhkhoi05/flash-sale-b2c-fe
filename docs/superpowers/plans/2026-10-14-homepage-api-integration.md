@@ -5,141 +5,133 @@
 **Owner**: FE agent
 **Stack**: Next 16.3.8 · React 19.2 · TS 5.x · Tailwind 4.x · TanStack Query
 
+> **Revise log (2026-10-14 14:30)**: Plan ban đầu giả định `/banners/home`, `/stores/featured`, `/products/recommended` KHÔNG CÓ trong backend và cần fallback. Sau khi verify Swagger tại `http://180.93.137.28/v3/api-docs`, **cả 3 endpoint đều CÓ** — cập nhật plan để dùng API thẳng, không cần fallback.
+
 ## 1. Scope
 
 Wire 4 sections của trang chủ Storefront với backend API thật:
 
-1. **CategoryGridSection** — thay 8 items hardcoded → gọi `GET /api/v1/categories`
-2. **HeroBannerSection** — endpoint `/banners/home` KHÔNG CÓ trong backend → fallback lấy top 3-5 featured products
-3. **FeaturedStoresSection** — endpoint `/stores/featured` KHÔNG CÓ → dùng `GET /api/v1/stores/{id}` cho từng storeId được define (TODO: backend cần thêm endpoint)
-4. **RecommendedSection** — endpoint `/products/recommended` KHÔNG CÓ → fallback `GET /api/v1/products` với pagination để lấy 20 sản phẩm nổi bật
+1. **CategoryGridSection** — `GET /api/v1/categories` → lấy 8 đầu
+2. **HeroBannerSection** — `GET /api/v1/banners/home` → mainSlides (5 slide)
+3. **FeaturedStoresSection** — `GET /api/v1/stores/featured?limit=4`
+4. **RecommendedSection** — `GET /api/v1/products/recommended?tab=all` → 3 tab (for_you, best_seller, hot_deal)
 
-3 sections đã wire đúng giữ nguyên (FlashSale, Voucher, QuickActions không cần API).
+3 sections còn lại (FlashSale, Voucher, QuickActions) **không thuộc scope** plan này.
 
 ## 2. Tham khảo
 
 - `docs/api-document.md` (1.786 dòng) — backend OpenAPI spec
 - `docs/superpowers/plans/2026-10-14-api-audit-config.md` (đã merge) — báo cáo audit
-- `src/features/homepage/api.ts` — function hiện tại (4 hook sai endpoint)
-- `src/features/homepage/hooks.ts` — TanStack Query hooks
-- `src/components/storefront/sections/*.tsx` — 7 sections của trang chủ
+- Backend Swagger thực tế: `http://180.93.137.28/v3/api-docs` (verified 2026-10-14 14:25)
+- `src/features/homepage/api.ts` — function hiện tại
+- `src/features/homepage/hooks.ts` — TanStack Query hooks hiện tại
+- `src/components/storefront/sections/*.tsx` — 7 sections trang chủ
 - `.cursor/rules/api-data.mdc` — convention API layer
+- `.cursor/rules/flash-sale-b2c-api.mdc` — index các rule API
 
-## 3. Files sẽ thay đổi
+## 3. Endpoint thật từ Swagger (verified)
+
+| Section | Endpoint BE | Response DTO |
+|---|---|---|
+| CategoryGrid | `GET /api/v1/categories` | `ApiResponseListCategoryResponse` → `CategoryResponse[]` |
+| HeroBanner | `GET /api/v1/banners/home` | `ApiResponseHomeBannersResponse` → `{ mainSlides: BannerResponse[], sideBanners: BannerResponse[] }` |
+| FeaturedStores | `GET /api/v1/stores/featured?limit=4` | `ApiResponseListFeaturedStoreResponse` → `FeaturedStoreResponse[]` |
+| Recommended | `GET /api/v1/products/recommended?tab=all` | `ApiResponseRecommendedProductsResponse` → `{ forYou, bestSellers, hotDeals }: RecommendedProductResponse[]` |
+
+Tất cả đều public (không cần auth).
+
+## 4. Files sẽ thay đổi
 
 | File | Loại | Logic? | Cần test? |
 |---|---|---|---|
-| `src/features/homepage/api.ts` | SỬA — thêm `fetchCategories`, `fetchFeaturedProducts`; sửa `fetchHomeBanners`/`fetchFeaturedStores`/`fetchRecommendedProducts` fallback | ✅ | ✅ |
-| `src/features/homepage/hooks.ts` | SỬA — thêm `useCategories`, `useFeaturedProducts`; sửa các hook hiện tại (giữ nguyên interface) | ✅ | ✅ |
-| `src/features/homepage/types.ts` | MỚI — extract types ra file riêng | ✅ | ✅ |
-| `src/features/homepage/index.ts` | SỬA — re-export types + hooks | ❌ (re-export) | ❌ |
-| `src/components/storefront/sections/HeroBannerSection.tsx` | SỬA — fallback featured products khi banner API fail | ✅ | ✅ |
-| `src/components/storefront/sections/CategoryGridSection.tsx` | SỬA — thay hardcode bằng `useCategories()` | ✅ | ✅ |
-| `src/components/storefront/sections/FeaturedStoresSection.tsx` | SỬA — fallback sang `useFeaturedProducts()` | ✅ | ✅ |
-| `src/components/storefront/sections/RecommendedSection.tsx` | SỬA — đổi sang `useFeaturedProducts()` (gộp data) | ✅ | ✅ |
-| `src/components/storefront/sections/FlashSaleStripSection.tsx` | KHÔNG ĐỔI | — | — |
-| `src/components/storefront/sections/VoucherGridSection.tsx` | KHÔNG ĐỔI | — | — |
-| `src/components/storefront/sections/QuickActionsSection.tsx` | KHÔNG ĐỔI (no API) | — | — |
-| `src/app/page.test.tsx` | CẬP NHẬT — mock API mới | ✅ | ✅ |
-| `src/components/storefront/sections/*/*.test.tsx` | CẬP NHẬT — mock API mới | ✅ | ✅ |
-| `messages/vi.json` + `messages/en.json` | SỬA — thêm i18n keys cho section sử dụng categories | ❌ (i18n) | ❌ |
+| `src/features/homepage/types.ts` | MỚI — DTO khớp BE | ✅ | ✅ |
+| `src/features/homepage/api.ts` | SỬA — gọi 4 endpoint BE | ✅ | ✅ |
+| `src/features/homepage/hooks.ts` | SỬA — 4 hook `useQuery` mới | ✅ | ✅ |
+| `src/features/homepage/index.ts` | SỬA — re-export types | ❌ | ❌ |
+| `src/features/homepage/api.test.ts` | SỬA — test cho 4 endpoint | ✅ | — (đã có) |
+| `src/components/storefront/sections/CategoryGridSection.tsx` | SỬA — `useCategories()` | ✅ | ✅ |
+| `src/components/storefront/sections/CategoryGridSection.test.tsx` | CẬP NHẬT mock | ✅ | — (đã có) |
+| `src/components/storefront/sections/HeroBannerSection.tsx` | SỬA — `useHomeBanners()` | ✅ | ✅ |
+| `src/components/storefront/sections/HeroBannerSection.test.tsx` | CẬP NHẬT mock | ✅ | — (đã có) |
+| `src/components/storefront/sections/FeaturedStoresSection.tsx` | SỬA — `useFeaturedStores()` | ✅ | ✅ |
+| `src/components/storefront/sections/FeaturedStoresSection.test.tsx` | CẬP NHẬT mock | ✅ | — (đã có) |
+| `src/components/storefront/sections/RecommendedSection.tsx` | SỬA — `useRecommendedProducts(tab)` | ✅ | ✅ |
+| `src/components/storefront/sections/RecommendedSection.test.tsx` | CẬP NHẬT mock | ✅ | — (đã có) |
+| `src/app/page.test.tsx` | CẬP NHẬT mock | ✅ | — (đã có) |
+| `src/app/page.tsx` | CÓ THỂ SỬA nếu cần | ✅ | ✅ |
+| `messages/vi.json` + `messages/en.json` | CÓ THỂ THÊM key nếu cần | ❌ | ❌ |
 
-**Tổng cộng**: ~14 file thay đổi (8 logic + 2 i18n + 4 test).
+**Tổng cộng**: ~14 file thay đổi.
 
-## 4. Subplan
+## 5. Subplan (chia nhỏ để dispatch)
 
-### Phase A — Backend DTO + Adapter (TDD)
+### Subplan 1 — API layer (TDD)
+1. **TEST FIRST** (`api.test.ts`): parse DTO cho 4 endpoint
+2. Tạo `src/features/homepage/types.ts` (extract DTO từ Swagger)
+3. Implement `src/features/homepage/api.ts` (gọi `apiFetch`)
+4. Run test → PASS
 
-1. **TEST FIRST**: viết `homepage.api.test.ts` cho:
-   - `fetchCategories()` parse response đúng
-   - `fetchFeaturedProducts()` parse product list
-   - `fetchHomeBanners()` fallback khi API trả 404
-2. Implement API functions trong `src/features/homepage/api.ts`
-3. Run test → PASS
+### Subplan 2 — Hooks layer (TDD)
+5. **TEST FIRST** (`hooks.test.tsx`): query key, queryFn, isLoading, isError
+6. Implement `src/features/homepage/hooks.ts` (4 useQuery)
+7. Run test → PASS
 
-### Phase B — Hooks (TDD)
+### Subplan 3 — UI Sections (TDD)
+8. Update test + implement `CategoryGridSection.tsx`
+9. Update test + implement `HeroBannerSection.tsx`
+10. Update test + implement `FeaturedStoresSection.tsx`
+11. Update test + implement `RecommendedSection.tsx`
 
-4. **TEST FIRST**: viết `homepage.hooks.test.tsx` cho:
-   - `useCategories()` returns data
-   - `useFeaturedProducts()` returns data
-   - `useHomeBanners()` fallback to mock khi API 404
-5. Implement trong `src/features/homepage/hooks.ts`
-6. Run test → PASS
+### Subplan 4 — Verify
+12. Update `src/app/page.test.tsx` (mock 4 hook)
+13. `npm run test` → all PASS
+14. `npm run lint` → PASS
+15. `npm run tsc --noEmit` → PASS
+16. `npm run build` → PASS
 
-### Phase C — UI Sections (TDD)
-
-7. **TEST FIRST**: update `CategoryGridSection.test.tsx`:
-   - Render categories từ API
-   - Loading state
-   - Error state
-   - Empty state
-8. Implement CategoryGridSection → dùng `useCategories()`
-9. **TEST FIRST**: update `HeroBannerSection.test.tsx`:
-   - Render featured products khi banner fail
-   - Loading state
-10. Implement HeroBannerSection fallback
-11. **TEST FIRST**: update `FeaturedStoresSection.test.tsx`:
-    - Render products từ `useFeaturedProducts()` thay vì stores
-    - Loading/empty state
-12. Implement FeaturedStoresSection
-13. **TEST FIRST**: update `RecommendedSection.test.tsx`:
-    - Render products từ `useFeaturedProducts()`
-14. Implement RecommendedSection
-
-### Phase D — i18n + Page test
-
-15. Update `messages/vi.json` + `messages/en.json` (thêm key `categoryGrid.items.*` từ API response — không cần thêm vì dùng fallback label)
-16. Update `src/app/page.test.tsx` (mock tất cả API hooks)
-
-### Phase E — Verify
-
-17. `npm run lint` → PASS
-18. `npm run tsc --noEmit` → PASS
-19. `npm run test` → all PASS
-20. `npm run build` → PASS
-
-## 5. Test Strategy
+## 6. Test Strategy
 
 | Test | Coverage |
 |---|---|
-| `homepage.api.test.ts` | Parse DTO + fallback khi 404 |
-| `homepage.hooks.test.tsx` | Query key, queryFn, fallback, error state |
+| `api.test.ts` | Parse DTO cho 4 endpoint |
+| `hooks.test.tsx` | Query key, queryFn, isLoading, isError, data shape |
 | `CategoryGridSection.test.tsx` | Render categories, loading, error, empty |
-| `HeroBannerSection.test.tsx` | Render featured products fallback |
-| `FeaturedStoresSection.test.tsx` | Render products (không phải stores) |
-| `RecommendedSection.test.tsx` | Render products với tab |
+| `HeroBannerSection.test.tsx` | Render banners, loading, error |
+| `FeaturedStoresSection.test.tsx` | Render stores, loading, error |
+| `RecommendedSection.test.tsx` | Render 3 tab, switching tab |
 | `page.test.tsx` | Homepage render toàn bộ section |
 
 **TDD gate**: KHÔNG sửa code trước khi có test đỏ (rule §5.1 testing-required.mdc).
 
-## 6. Rủi ro
+## 7. Rủi ro
 
-- **Mock data shape mismatch**: khi fallback, types phải khớp giữa products và stores/cards. Cần adapter cẩn thận.
-- **i18n labels**: categories từ API không có labelKey, phải dùng `t(category.slug)` hoặc fallback theo id.
-- **Hero fallback UX**: 5 slide từ featured products có thể không đẹp bằng banner thật. Acceptable cho dev mock.
-- **CategoryGrid item count**: backend `/categories` có thể trả nhiều hơn 8 → chỉ lấy 8 đầu + "Xem tất cả".
-- **API spec 2026-10-07**: backend có thể đã update. Verify Swagger khi backend available.
+- **API thật có CORS / timeout** → cần `apiFetch` retry 1 lần + error boundary.
+- **Type mismatch** giữa DTO swagger và hiện trạng component: `CategoryResponse` chỉ có `id, name, slug, commissionRate, description` — không có `icon`. CategoryGrid hiện dùng `icon` → cần map slug → icon.
+- **Banner fallback** khi BE down: chưa có fallback strategy. Acceptable cho dev: hiện skeleton.
+- **FeaturedStoreResponse** không có `slug` (chỉ có `id`) → link `/shop/[id]` tạm OK, sau sẽ cần BE bổ sung.
+- **RecommendedProductResponse** không có `slug` → link `/products/{id}` (đã fix redirect id → slug ở turn trước).
 
-## 7. Out of scope
+## 8. Out of scope
 
 - Backend modifications (FE-only task)
-- Banner CMS UI (chưa có)
-- Store featured flag (`isFeatured` boolean) — chưa có backend
-- Search bar wire (đã có ở search feature)
+- Search bar wire
 - Mobile-specific homepage
+- Section `FlashSaleStripSection` (đã wire riêng ở task khác)
+- Section `VoucherGridSection` (đã wire riêng)
+- Section `QuickActionsSection` (no API)
 
-## 8. Commit Strategy
+## 9. Commit Strategy
 
-- 4 commits theo concern (Phase A → B → C → D):
-  1. `feat(homepage): add real API integration with fallback`
-  2. `feat(homepage): wire CategoryGrid to API`
-  3. `feat(homepage): wire Hero/Featured/Recommended fallback`
-  4. `test(homepage): update page.tsx integration test`
+- 4 commits theo concern:
+  1. `feat(homepage): add API DTO types and apiFetch wrappers`
+  2. `feat(homepage): add TanStack Query hooks for homepage data`
+  3. `feat(homepage): wire CategoryGrid and HeroBanner to API`
+  4. `feat(homepage): wire FeaturedStores and Recommended to API`
 
 Mỗi commit tự pass 7 mốc pre-commit checklist.
 
-## 9. Liên kết
+## 10. Liên kết
 
 - Audit plan: `docs/superpowers/plans/2026-10-14-api-audit-config.md`
 - API spec: `docs/api-document.md`
-- Backend Swagger: `http://180.93.137.28/swagger-ui/index.html#` (hiện không truy cập được từ agent)
+- Backend Swagger (verified): `http://180.93.137.28/v3/api-docs`

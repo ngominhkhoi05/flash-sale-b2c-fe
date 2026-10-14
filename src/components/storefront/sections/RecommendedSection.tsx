@@ -20,9 +20,10 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useFeaturedProducts } from "@/features/homepage/hooks";
+import { useRecommendedProducts } from "@/features/homepage/hooks";
 import {
   RecommendedTabs,
+  TAB_TO_API,
   type RecommendedTab as UiTab,
 } from "./RecommendedTabs";
 import {
@@ -31,7 +32,21 @@ import {
 } from "@/components/storefront/ProductCard";
 
 const INITIAL_TAB: UiTab = "forYou";
-const PRODUCT_LIMIT = 20;
+
+/**
+ * Map UI tab key → backend RecommendedProductsResponse key.
+ * - forYou     → forYou
+ * - bestSellers → bestSellers
+ * - hotDeals   → hotDeals
+ */
+const UI_TAB_TO_RESPONSE_KEY: Record<
+  UiTab,
+  "forYou" | "bestSellers" | "hotDeals"
+> = {
+  forYou: "forYou",
+  bestSellers: "bestSellers",
+  hotDeals: "hotDeals",
+};
 
 function mapToProductCardProps(
   product: {
@@ -69,20 +84,16 @@ export function RecommendedSection() {
   const t = useTranslations("storefront.home");
   const [activeTab, setActiveTab] = useState<UiTab>(INITIAL_TAB);
 
-  const { data: products, isLoading, isError } = useFeaturedProducts(PRODUCT_LIMIT);
+  // Gọi API /api/v1/products/recommended với tab tương ứng (UI tab → API tab).
+  const { data: response, isLoading, isError } = useRecommendedProducts(
+    TAB_TO_API[activeTab],
+  );
 
-  // Client-side filter theo tab (khi backend chưa có /products/recommended).
-  // Sau này backend có endpoint này → chuyển sang useRecommendedProducts với 3 dataset.
-  const filteredProducts = useMemo(() => {
-    const all = products ?? [];
-    if (activeTab === "bestSellers") {
-      return [...all].sort((a, b) => (b.totalSold ?? 0) - (a.totalSold ?? 0));
-    }
-    if (activeTab === "hotDeals") {
-      return all.filter((p) => p.minPrice < p.maxPrice);
-    }
-    return all;
-  }, [products, activeTab]);
+  // Lấy đúng list theo UI tab từ response.
+  const products = useMemo(() => {
+    if (!response) return [];
+    return response[UI_TAB_TO_RESPONSE_KEY[activeTab]] ?? [];
+  }, [response, activeTab]);
 
   return (
     <section className="space-y-4">
@@ -99,7 +110,13 @@ export function RecommendedSection() {
         {/* Loading skeleton */}
         {isLoading &&
           Array.from({ length: 10 }).map((_, i) => (
-            <ProductCard key={`skel-${i}`} variant="skeleton" />
+            <ProductCard
+              key={`skel-${i}`}
+              variant="skeleton"
+              imageUrl=""
+              title=""
+              price={0}
+            />
           ))}
 
         {/* Error state */}
@@ -113,7 +130,7 @@ export function RecommendedSection() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && filteredProducts.length === 0 && (
+        {!isLoading && !isError && products.length === 0 && (
           <div
             className="col-span-full text-center py-12 text-on-surface-variant"
             data-testid="recommended-empty"
@@ -123,8 +140,8 @@ export function RecommendedSection() {
         )}
 
         {/* Data dùng ProductCard chuẩn */}
-        {!isLoading && !isError && filteredProducts.length > 0 &&
-          filteredProducts.map((product, index) => {
+        {!isLoading && !isError && products.length > 0 &&
+          products.map((product, index) => {
             const props = mapToProductCardProps(product, index);
             const hasDiscount = product.minPrice < product.maxPrice;
 

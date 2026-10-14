@@ -40,7 +40,7 @@ function mapToProductCardProps(
     : undefined;
 
   // Chọn variant phù hợp với Stitch design
-  let variant: ProductCardBaseProps["onClick"] = undefined;
+  const variant: ProductCardBaseProps["onClick"] = undefined;
   if (product.label === "Freeship") {
     // Freeship card - variant freeship
   } else if (product.label && product.label !== "Freeship") {
@@ -98,7 +98,13 @@ export function FeaturedStoresSection() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 pt-5">
           {Array.from({ length: PRODUCT_LIMIT }).map((_, i) => (
-            <ProductCard key={i} variant="skeleton" />
+            <ProductCard
+              key={i}
+              variant="skeleton"
+              imageUrl=""
+              title=""
+              price={0}
+            />
           ))}
         </div>
       </section>
