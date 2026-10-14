@@ -10,6 +10,7 @@
  */
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ROUTES } from "@/lib/constants";
@@ -23,7 +24,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLogoutMutation } from "@/features/auth";
-import { CheckoutStepper } from "./CheckoutStepper";
 
 export function CheckoutHeader() {
   const t = useTranslations("storefront.header");
@@ -32,7 +32,7 @@ export function CheckoutHeader() {
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b border-slate-100">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-[0_1px_8px_rgba(15,23,42,0.06)] border-b border-slate-100">
       <div className="h-20 max-w-[1240px] mx-auto px-4 lg:px-8 flex items-center justify-between gap-4">
         {/* ── Brand + breadcrumb ────────────────────────────────── */}
         <div className="flex items-center gap-3 shrink-0">
@@ -41,12 +41,14 @@ export function CheckoutHeader() {
             className="flex items-center gap-2 group"
             aria-label="Trang chủ Vibe Mart"
           >
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-lg shadow-sm group-hover:scale-105 transition-transform">
-              V
-            </div>
-            <span className="font-bold text-lg text-primary tracking-tight hidden sm:inline">
-              Vibe Mart
-            </span>
+            <Image
+              alt="Vibe Mart"
+              src="/images/vibe-mart-logo-lockup-light.png"
+              width={128}
+              height={36}
+              priority
+              className="h-9 w-auto object-contain"
+            />
           </Link>
           <span className="h-6 w-px bg-outline-variant/60 rounded-full" />
           <span className="font-semibold text-on-surface text-base hidden sm:inline">
@@ -154,8 +156,9 @@ export function CheckoutHeader() {
         </div>
       </div>
 
-      {/* ── Stepper dưới header (mobile + desktop đều thấy) ──── */}
-      <CheckoutStepper />
+      {/* Stepper dưới header đã được render bởi (checkout)/layout.tsx
+          (a11y: progress indicator không thuộc landmark <header>).
+          Page này chỉ chứa nội dung chính. */}
     </header>
   );
 }

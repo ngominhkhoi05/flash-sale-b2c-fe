@@ -13,3 +13,5 @@ export type { CheckoutOrderSummaryLine } from "./CheckoutOrderSummary";
 export { AddressPickerModal } from "./AddressPickerModal";
 export { VoucherPickerModal } from "./VoucherPickerModal";
 export { CheckoutPageContent } from "./CheckoutPageContent";
+export { QrPaymentModule } from "./QrPaymentModule";
+export { QrPaymentPageContent } from "./QrPaymentPageContent";

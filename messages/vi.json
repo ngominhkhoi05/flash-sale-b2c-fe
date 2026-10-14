@@ -433,7 +433,44 @@
         }
       },
       "empty": "Không có sản phẩm để thanh toán",
-      "loading": "Đang tải trang thanh toán…"
+      "loading": "Đang tải trang thanh toán…",
+      "qrPayment": {
+        "title": "Quét mã để thanh toán",
+        "zaloPayBadge": "ZaloPay",
+        "vietQrBadge": "VietQR",
+        "pciBadge": "Bảo mật PCI-DSS",
+        "heldOrder": "giữ đơn",
+        "heldFor": "Giữ hàng cho bạn trong {time} phút",
+        "bankSupport": "Hỗ trợ ZaloPay & 35+ ngân hàng quét VietQR",
+        "step1": "Mở app ZaloPay hoặc ứng dụng ngân hàng",
+        "step2": "Chọn biểu tượng Quét mã QR trên màn hình",
+        "step3": "Kiểm tra số tiền {amount} & Xác nhận",
+        "waiting": "Đang chờ bạn quét mã và thanh toán...",
+        "vibeMartCheckout": "Checkout",
+        "orderCodeLabel": "Mã GD:",
+        "copyOrderCode": "Sao chép mã",
+        "copySuccess": "Đã sao chép mã giao dịch",
+        "copyError": "Không thể sao chép mã",
+        "totalLabel": "Tổng thanh toán ({count} đơn):",
+        "savingsLabel": "Tiết kiệm 50k",
+        "detailsTitle": "Chi tiết {count} đơn hàng gộp",
+        "scanOnce": "1 lần quét",
+        "expiryAlert": "Nếu không hoàn tất trước khi hết giờ, {count} đơn hàng sẽ tự động hủy và các sản phẩm giá Flash Sale sẽ được hoàn lại kho.",
+        "completedCta": "Tôi đã hoàn tất thanh toán",
+        "completedToast": "Đã ghi nhận thanh toán. Đang chuyển sang trang đơn hàng...",
+        "changeMethod": "← Đổi phương thức thanh toán khác",
+        "mall": "Mall",
+        "official": "Chính hãng",
+        "codeLabel": "Mã:"
+      },
+      "footer": {
+        "copyright": "© 2026 Vibe Mart. Tất cả quyền được bảo lưu.",
+        "pciBadge": "PCI-DSS COMPLIANT",
+        "terms": "Điều khoản dịch vụ",
+        "privacy": "Chính sách bảo mật",
+        "paymentGuide": "Hướng dẫn thanh toán",
+        "helpCenter": "Trung tâm trợ giúp"
+      }
     },
     "voucher": {
       "title": "Kho voucher của tôi",

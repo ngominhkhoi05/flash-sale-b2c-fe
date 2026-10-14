@@ -16,12 +16,14 @@ import {
   getAddresses as getAddressesApi,
   getAvailableVouchers as getAvailableVouchersApi,
   getCheckout as getCheckoutApi,
+  getOrderForQr as getOrderForQrApi,
   submitOrder as submitOrderApi,
 } from "./api";
 import type {
   Address,
   ApplyVoucherResponse,
   CheckoutData,
+  QrOrderDetail,
   SubmitOrderRequest,
   Voucher,
 } from "./types";
@@ -32,6 +34,8 @@ export const checkoutKeys = {
   addresses: () => [...checkoutKeys.all, "addresses"] as const,
   vouchers: (scope: "SHOP" | "PLATFORM", storeId?: number) =>
     [...checkoutKeys.all, "vouchers", scope, storeId] as const,
+  qrOrder: (orderCode: string) =>
+    [...checkoutKeys.all, "qrOrder", orderCode] as const,
 };
 
 /**
@@ -108,3 +112,17 @@ export function useSubmitOrderMutation() {
 
 // Re-export ApplyVoucherResponse for backwards compatibility
 export type { ApplyVoucherResponse };
+
+/**
+ * useOrderForQr – fetch the held order detail for the ZaloPay QR
+ * payment page (`/checkout/qr`). Pass an empty `orderCode` to skip
+ * the fetch (e.g. before the URL param is parsed).
+ */
+export function useOrderForQr(orderCode: string) {
+  return useQuery<QrOrderDetail>({
+    queryKey: checkoutKeys.qrOrder(orderCode),
+    queryFn: () => getOrderForQrApi(orderCode),
+    enabled: orderCode.length > 0,
+    staleTime: 30_000,
+  });
+}

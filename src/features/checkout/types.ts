@@ -157,3 +157,30 @@ export interface OrderSubmitResponse {
   status: "PENDING_PAYMENT" | "PAID" | "FAILED";
   orderIds: number[];
 }
+
+// ─── QR payment page types ────────────────────────────────────────────────
+
+/**
+ * Per-shop summary shown on the ZaloPay QR page right column.
+ * Mirrors `QrOrderDetail.shopOrders` in api.ts.
+ */
+export interface QrShopOrder {
+  storeId: number;
+  storeName: string;
+  storeBadge?: "Mall" | "OfficialMall" | "";
+  orderCode: string;
+  amount: number;
+  itemSummary: string;
+}
+
+/**
+ * Top-level detail used by the QR payment page.
+ * Re-exported from api.ts so feature consumers don't import from api directly.
+ */
+export interface QrOrderDetail {
+  orderCode: string;
+  qrCodeUrl: string;
+  expiresAt: string;
+  amount: number;
+  shopOrders: QrShopOrder[];
+}

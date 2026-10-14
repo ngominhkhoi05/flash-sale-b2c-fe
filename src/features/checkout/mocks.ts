@@ -7,6 +7,7 @@ import type {
   Address,
   CheckoutData,
   CheckoutShopGroup,
+  QrOrderDetail,
   Voucher,
 } from "./types";
 
@@ -172,4 +173,38 @@ export const mockCheckoutData: CheckoutData = {
   paymentMethod: "ZALOPAY",
   totalItems: 3,
   totalOrders: 2,
+};
+
+/**
+ * Mock QrOrderDetail for `/checkout/qr` page.
+ *
+ * The held order expires 5 minutes from "now" — the page will tick the
+ * countdown down and clamp at 00:00 (rule §8 mục 1 — server time).
+ */
+const HELD_EXPIRY = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+export const mockQrOrderDetail: QrOrderDetail = {
+  orderCode: "261001_000245",
+  // Inline SVG (1×1 transparent placeholder) – production sẽ là PNG/SVG data URL
+  qrCodeUrl:
+    "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ffffff'/%3E%3C/svg%3E",
+  expiresAt: HELD_EXPIRY,
+  amount: 1_292_000,
+  shopOrders: [
+    {
+      storeId: 1,
+      storeName: "UTC Fashion Mall",
+      storeBadge: "Mall",
+      orderCode: "FS-261001-A7K2Q",
+      amount: 538_000,
+      itemSummary: "Áo thun cotton oversize, Quần short thể thao",
+    },
+    {
+      storeId: 2,
+      storeName: "TechZone Official",
+      storeBadge: "OfficialMall",
+      orderCode: "TZ-261001-B9X8M",
+      amount: 754_000,
+      itemSummary: "Tai nghe không dây Bluetooth XYZ Pro",
+    },
+  ],
 };

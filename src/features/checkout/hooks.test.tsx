@@ -18,6 +18,7 @@ import {
   useAvailableVouchers,
   useApplyVoucherMutation,
   useSubmitOrderMutation,
+  useOrderForQr,
 } from "./hooks";
 import type { CheckoutData } from "./types";
 
@@ -27,6 +28,7 @@ const mockGetAddresses = vi.fn();
 const mockGetAvailableVouchers = vi.fn();
 const mockApplyVoucher = vi.fn();
 const mockSubmitOrder = vi.fn();
+const mockGetOrderForQr = vi.fn();
 
 vi.mock("./api", () => ({
   getCheckout: () => mockGetCheckout(),
@@ -36,6 +38,7 @@ vi.mock("./api", () => ({
   applyVoucher: (input: unknown) => mockApplyVoucher(input),
   submitOrder: (payload: unknown, key: string) =>
     mockSubmitOrder(payload, key),
+  getOrderForQr: (orderCode: string) => mockGetOrderForQr(orderCode),
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -72,6 +75,7 @@ beforeEach(() => {
     mockGetAvailableVouchers,
     mockApplyVoucher,
     mockSubmitOrder,
+    mockGetOrderForQr,
   ].forEach((m) => m.mockReset());
 });
 
@@ -231,5 +235,50 @@ describe("useSubmitOrderMutation", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: checkoutKeys.all,
     });
+  });
+});
+
+describe("useOrderForQr", () => {
+  it("fetches order detail with qrCodeUrl and expiresAt", async () => {
+    const MOCK_ORDER_DETAIL = {
+      orderCode: "FS-261001-A7K2Q",
+      qrCodeUrl: "data:image/svg+xml;base64,...",
+      expiresAt: "2026-10-14T10:00:00Z",
+      amount: 1_292_000,
+      shopOrders: [
+        {
+          storeId: 1,
+          storeName: "UTC Fashion Mall",
+          storeBadge: "Mall" as const,
+          orderCode: "FS-261001-A7K2Q",
+          amount: 538_000,
+          itemSummary: "Áo thun cotton oversize, Quần short thể thao",
+        },
+        {
+          storeId: 2,
+          storeName: "TechZone Official",
+          storeBadge: "OfficialMall" as const,
+          orderCode: "TZ-261001-B9X8M",
+          amount: 754_000,
+          itemSummary: "Tai nghe không dây Bluetooth XYZ Pro",
+        },
+      ],
+    };
+    mockGetOrderForQr.mockResolvedValue(MOCK_ORDER_DETAIL);
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useOrderForQr("FS-261001-A7K2Q"), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGetOrderForQr).toHaveBeenCalledWith("FS-261001-A7K2Q");
+    expect(result.current.data).toEqual(MOCK_ORDER_DETAIL);
+  });
+
+  it("does not fetch when orderCode is empty", () => {
+    const { wrapper } = withQueryClient();
+    renderHook(() => useOrderForQr(""), { wrapper });
+    expect(mockGetOrderForQr).not.toHaveBeenCalled();
   });
 });

@@ -408,5 +408,22 @@ export async function getCheckout(): Promise<CheckoutData> {
   return adaptCartToCheckout(cart, addresses, "ZALOPAY");
 }
 
+// ─── QR payment page data layer ───────────────────────────────────────────
+
+import type { QrOrderDetail } from "./types";
+
+export type { QrOrderDetail } from "./types";
+
+/**
+ * GET /api/v1/orders/{orderCode}/qr – fetch the held order detail used
+ * to render the QR payment page. Falls back to a mock if the backend
+ * route is not yet available (rule §7 — wire to real API when ready).
+ */
+export async function getOrderForQr(orderCode: string): Promise<QrOrderDetail> {
+  return apiFetch<QrOrderDetail>(
+    `/api/v1/orders/${encodeURIComponent(orderCode)}/qr`,
+  );
+}
+
 // ─── Re-export types for external use ──────────────────────────────────────
 export type { BackendCartResponse, BackendAddress, BackendVoucher };

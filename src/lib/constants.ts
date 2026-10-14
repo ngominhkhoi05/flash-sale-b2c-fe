@@ -16,6 +16,8 @@ export const TOAST_DURATION_MS = 4000;
 export const WS_RECONNECT_DELAY_MS = 3000;
 export const POLLING_INTERVAL_MS = 3000; // ZaloPay polling (rule §8 mục 5)
 export const HELD_ORDER_DURATION_MS = 5 * 60 * 1000; // 5 phút giữ chỗ (server xác nhận)
+/** Alias cho trang QR – đồng bộ với HELD_ORDER_DURATION_MS. */
+export const QR_HOLD_DURATION_MS = HELD_ORDER_DURATION_MS;
 
 // =========================================================
 // Local storage keys
