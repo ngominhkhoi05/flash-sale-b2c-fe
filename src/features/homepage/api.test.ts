@@ -12,7 +12,9 @@ import { ApiError } from "@/lib/api";
 import {
   fetchCategories,
   fetchFeaturedProducts,
+  fetchFeaturedStores,
   fetchHomeBanners,
+  fetchRecommendedProducts,
 } from "./api";
 
 const mockFetch = vi.fn();
@@ -189,5 +191,156 @@ describe("fetchHomeBanners (fallback)", () => {
     const result = await fetchHomeBanners();
     expect(result.mainSlides).toHaveLength(1);
     expect(result.mainSlides[0]?.imageUrl).toBe("https://example.com/b1.jpg");
+  });
+});
+
+describe("fetchFeaturedStores", () => {
+  it("parses backend FeaturedStoreResponse array", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        data: [
+          {
+            id: 1,
+            name: "Shop A",
+            logoUrl: "https://example.com/logo-a.png",
+            verified: true,
+            rating: 4.8,
+            totalRatings: 1200,
+            followers: 5400,
+            productThumbnails: [
+              "https://example.com/p1.jpg",
+              "https://example.com/p2.jpg",
+            ],
+            totalProducts: 42,
+            createdAt: "2026-10-01T00:00:00Z",
+          },
+          {
+            id: 2,
+            name: "Shop B",
+            logoUrl: "https://example.com/logo-b.png",
+            verified: false,
+            rating: 4.5,
+            totalRatings: 800,
+            followers: 2100,
+            productThumbnails: [],
+            totalProducts: 18,
+            createdAt: "2026-09-15T00:00:00Z",
+          },
+        ],
+      }),
+    );
+
+    const result = await fetchFeaturedStores(4);
+    expect(result).toHaveLength(2);
+    expect(result[0]?.id).toBe(1);
+    expect(result[0]?.name).toBe("Shop A");
+    expect(result[0]?.verified).toBe(true);
+  });
+
+  it("passes limit query param to backend", async () => {
+    mockFetch.mockResolvedValueOnce(makeResponse(200, { data: [] }));
+
+    await fetchFeaturedStores(4);
+    const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toContain("limit=4");
+  });
+
+  it("throws ApiError when backend returns 500", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(500, { message: "Internal error" }),
+    );
+
+    await expect(fetchFeaturedStores(4)).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("fetchRecommendedProducts", () => {
+  it("parses backend RecommendedProductsResponse (tab=all)", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        data: {
+          forYou: [
+            {
+              id: 1,
+              storeId: 1,
+              storeName: "Shop A",
+              name: "Product 1",
+              imageUrl: "https://example.com/p1.jpg",
+              minPrice: 99000,
+              maxPrice: 199000,
+              totalStock: 50,
+              totalSold: 1200,
+              label: "Mới",
+            },
+          ],
+          bestSellers: [
+            {
+              id: 2,
+              storeId: 1,
+              storeName: "Shop A",
+              name: "Best Seller",
+              imageUrl: "https://example.com/p2.jpg",
+              minPrice: 49000,
+              maxPrice: 99000,
+              totalStock: 20,
+              totalSold: 5500,
+              label: "Bán chạy",
+            },
+          ],
+          hotDeals: [
+            {
+              id: 3,
+              storeId: 2,
+              storeName: "Shop B",
+              name: "Hot Deal",
+              imageUrl: "https://example.com/p3.jpg",
+              minPrice: 29000,
+              maxPrice: 59000,
+              totalStock: 5,
+              totalSold: 800,
+              label: "Flash sale",
+            },
+          ],
+        },
+      }),
+    );
+
+    const result = await fetchRecommendedProducts("all");
+    expect(result.forYou).toHaveLength(1);
+    expect(result.bestSellers).toHaveLength(1);
+    expect(result.hotDeals).toHaveLength(1);
+    expect(result.forYou[0]?.name).toBe("Product 1");
+  });
+
+  it("passes tab and limit query params to backend", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        data: { forYou: [], bestSellers: [], hotDeals: [] },
+      }),
+    );
+
+    await fetchRecommendedProducts("best_seller", undefined, 8);
+    const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+    expect(calledUrl).toContain("tab=best_seller");
+    expect(calledUrl).toContain("limit=8");
+  });
+
+  it("returns empty lists when backend returns empty arrays", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        data: { forYou: [], bestSellers: [], hotDeals: [] },
+      }),
+    );
+
+    const result = await fetchRecommendedProducts("all");
+    expect(result).toEqual({ forYou: [], bestSellers: [], hotDeals: [] });
+  });
+
+  it("throws ApiError when backend returns 500", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(500, { message: "Internal error" }),
+    );
+
+    await expect(fetchRecommendedProducts("all")).rejects.toBeInstanceOf(ApiError);
   });
 });
