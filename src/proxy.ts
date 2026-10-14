@@ -117,6 +117,10 @@ function handleSeller(ctx: GuardContext): NextResponse | null {
 function handleAdmin(ctx: GuardContext): NextResponse | null {
   const { req, role, pathname } = ctx;
   if (!pathname.startsWith("/admin")) return null;
+  // Cho phép truy cập trực tiếp khi bật chế độ mock (dev-only, không chặn login)
+  if (process.env.NEXT_PUBLIC_USE_MOCKS === "true") {
+    return null;
+  }
   if (!role) return redirect(buildLoginRedirect(req), req);
   if (role !== ROLES.ADMIN) {
     const url = req.nextUrl.clone();
