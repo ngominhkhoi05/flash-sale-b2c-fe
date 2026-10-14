@@ -87,3 +87,23 @@ describe("ProductBestSellers", () => {
     expect(screen.getByTestId("product-best-sellers")).toHaveClass("my-custom-class");
   });
 });
+
+describe("ProductBestSellers – defensive guards (BE nullable)", () => {
+  test("does NOT crash when products is undefined (BE missing field)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductBestSellers products={undefined as unknown as RecommendedProduct[]} />,
+      ),
+    ).not.toThrow();
+    expect(screen.getByTestId("product-best-sellers")).toBeInTheDocument();
+  });
+
+  test("does NOT crash when products is null (BE explicit null)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductBestSellers products={null as unknown as RecommendedProduct[]} />,
+      ),
+    ).not.toThrow();
+    expect(screen.getByTestId("product-best-sellers")).toBeInTheDocument();
+  });
+});
