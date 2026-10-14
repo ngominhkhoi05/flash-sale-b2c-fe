@@ -1,6 +1,8 @@
 /**
- * CheckoutStepper – thanh 3 bước ngay dưới CheckoutHeader.
+ * CheckoutStepper – card 3 bước ngay dưới CheckoutHeader.
  * Bước 1 (Giỏ hàng ✓) → Bước 2 (Thanh toán, active) → Bước 3 (Hoàn tất).
+ * Render dạng "card" (bg-surface-container-lowest + rounded-xl + shadow-md)
+ * giống các card khác trong flow checkout, căn giữa viewport với max-w-3xl.
  * Stitch reference: ui-code-dump.md L39–80.
  */
 "use client";
@@ -22,8 +24,8 @@ const STEPS: CheckoutStep[] = [
 
 export function CheckoutStepper() {
   return (
-      <div className="bg-white mt-[80px]">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between relative">
+    <div className="mt-[80px] px-4">
+      <div className="max-w-3xl mx-auto bg-surface-container-lowest rounded-xl shadow-md px-4 py-3 flex items-center justify-between relative">
         {/* Track line */}
         <span
           aria-hidden
