@@ -1,8 +1,10 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getApprovalCounts } from "@/lib/mocks";
 
 interface NavItem {
   key: string;
@@ -93,6 +95,27 @@ const NAV_GROUPS: NavGroup[] = [
  */
 export function AdminSidebar() {
   const pathname = usePathname();
+  const [pendingSkuCount, setPendingSkuCount] = useState<number>(14);
+
+  useEffect(() => {
+    try {
+      setPendingSkuCount(getApprovalCounts().pending);
+    } catch {
+      // fallback
+    }
+
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      if (typeof customEvent.detail === "number") {
+        setPendingSkuCount(customEvent.detail);
+      }
+    };
+
+    window.addEventListener("admin:sku-pending-count", handler);
+    return () => {
+      window.removeEventListener("admin:sku-pending-count", handler);
+    };
+  }, []);
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 bg-inverse-surface border-r border-outline-variant/30 z-50 flex flex-col justify-between overflow-y-auto select-none">
@@ -129,6 +152,13 @@ export function AdminSidebar() {
                       : pathname?.startsWith(item.href)
                   );
 
+                  const itemBadge =
+                    item.key === "fs-approvals"
+                      ? pendingSkuCount > 0
+                        ? String(pendingSkuCount)
+                        : undefined
+                      : item.badge;
+
                   const content = (
                     <>
                       <div className="flex items-center gap-space-sm min-w-0">
@@ -137,7 +167,7 @@ export function AdminSidebar() {
                         </span>
                         <span className="truncate">{item.label}</span>
                       </div>
-                      {item.badge && (
+                      {itemBadge && (
                         <span
                           className={cn(
                             "px-1.5 py-0.5 rounded text-[11px] font-bold leading-none shrink-0",
@@ -146,7 +176,7 @@ export function AdminSidebar() {
                               : "bg-surface-container text-secondary"
                           )}
                         >
-                          {item.badge}
+                          {itemBadge}
                         </span>
                       )}
                       {item.badgeVariant === "pulse" && (
