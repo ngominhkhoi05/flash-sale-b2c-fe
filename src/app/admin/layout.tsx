@@ -1,21 +1,28 @@
 import type { ReactNode } from "react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { PortalTopbar } from "@/components/common/PortalTopbar";
+import { AdminTopbar } from "@/components/admin/AdminTopbar";
 import { MinWidthGuard } from "@/components/common/MinWidthGuard";
 
-/** Layout Admin Console – chỉ desktop (≥1280px, rule §10). */
+/**
+ * AdminLayout – Layout Admin Console chuẩn Stitch (chỉ desktop ≥ 1280px).
+ */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-page">
-      <PortalTopbar title="Admin Console" />
-      <div className="mx-auto flex w-full max-w-[1440px]">
+    <MinWidthGuard
+      minWidth={1280}
+      fallbackMessage="Vui lòng sử dụng màn hình máy tính (≥ 1280px) để truy cập Admin Console."
+    >
+      <div className="min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased">
         <AdminSidebar />
-        <main className="min-h-[calc(100vh-3.5rem)] flex-1 p-4 lg:p-6">
-          <MinWidthGuard minWidth={1280} fallbackMessage="Vui lòng dùng máy tính để truy cập Admin Console.">
-            {children}
-          </MinWidthGuard>
-        </main>
+        <div className="pl-60 min-h-screen flex flex-col">
+          <AdminTopbar />
+          <main className="relative pt-16 bg-surface min-h-screen flex-1">
+            <div className="w-full px-space-lg lg:px-margin py-space-lg max-w-[1440px] mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </MinWidthGuard>
   );
 }

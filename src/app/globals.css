@@ -12,10 +12,10 @@
  * để component có thể từ từ migrate.
  * ========================================================= */
 @theme {
-  /* === Primary (Storefront / Ocean Blue) === */
-  --color-primary: #0284c7;
-  --color-primary-hover: #0369a1;
-  --color-primary-active: #075985;
+  /* === Primary (Storefront & Admin / Ocean Blue from Stitch) === */
+  --color-primary: #006194;
+  --color-primary-hover: #004b73;
+  --color-primary-active: #00314d;
   --color-primary-fixed: #cce5ff;
   --color-primary-fixed-dim: #93ccff;
   --color-primary-soft: #e0f2fe;
@@ -27,11 +27,11 @@
   --color-on-primary-soft: #003d5c;
 
   /* Semantic alias (cho code dùng brand) */
-  --color-brand: #0284c7;
-  --color-brand-hover: #0369a1;
+  --color-brand: #006194;
+  --color-brand-hover: #004b73;
   --color-brand-soft: #e0f2fe;
 
-  /* === Secondary (Admin Slate / Muted) === */
+  /* === Secondary (Admin Slate / Muted from Stitch) === */
   --color-secondary: #545f73;
   --color-secondary-hover: #3c475a;
   --color-secondary-fixed: #d8e3fb;
@@ -43,9 +43,9 @@
   --color-on-secondary-fixed: #111c2d;
   --color-on-secondary-fixed-variant: #3c475a;
 
-  /* === Tertiary (Flash Sale / Crimson Urgency) === */
-  --color-tertiary: #e11d48;
-  --color-tertiary-hover: #be123c;
+  /* === Tertiary (Flash Sale / Crimson from Stitch) === */
+  --color-tertiary: #ba0035;
+  --color-tertiary-hover: #920028;
   --color-tertiary-fixed: #ffdada;
   --color-tertiary-fixed-dim: #ffb3b6;
   --color-tertiary-soft: #ffe4e6;
@@ -56,13 +56,13 @@
   --color-on-tertiary-fixed-variant: #920028;
 
   /* Semantic alias (cho code dùng sale) */
-  --color-sale: #e11d48;
-  --color-sale-hover: #be123c;
+  --color-sale: #ba0035;
+  --color-sale-hover: #920028;
   --color-sale-soft: #ffe4e6;
-  --color-sale-container: #ffe4e6;
+  --color-sale-container: #e21e49;
   --color-sale-border: #fecdd3;
 
-  /* === Neutral / Surface === */
+  /* === Neutral / Surface from Stitch === */
   --color-background: #f8f9ff;
   --color-canvas: #f8fafc;
   --color-surface: #f8f9ff;
@@ -90,16 +90,24 @@
   --color-ink-2: #3f4850;
   --color-ink-3: #707881;
 
-  /* === Status === */
+  /* === Status & Soft Badges === */
   --color-success: #16a34a;
-  --color-warning: #f59e0b;
+  --color-success-soft: #dcfce7;
+  --color-on-success-soft: #166534;
+
+  --color-warning: #d97706;
+  --color-warning-soft: #fef3c7;
+  --color-on-warning-soft: #92400e;
+
   --color-danger: #dc2626;
-  --color-danger-soft: #ffdad6;
+  --color-danger-soft: #fee2e2;
+  --color-on-danger-soft: #991b1b;
+
   --color-error: #ba1a1a;
   --color-error-container: #ffdad6;
   --color-on-error: #ffffff;
   --color-on-error-container: #93000a;
-  --color-info: #0284c7;
+  --color-info: #006194;
   --color-star: #f59e0b;
 
   /* === Admin Console === */
