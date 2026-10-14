@@ -95,15 +95,15 @@ const NAV_GROUPS: NavGroup[] = [
  */
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [pendingSkuCount, setPendingSkuCount] = useState<number>(14);
+  const [pendingSkuCount, setPendingSkuCount] = useState<number>(() => {
+    try {
+      return getApprovalCounts().pending;
+    } catch {
+      return 14;
+    }
+  });
 
   useEffect(() => {
-    try {
-      setPendingSkuCount(getApprovalCounts().pending);
-    } catch {
-      // fallback
-    }
-
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<number>;
       if (typeof customEvent.detail === "number") {

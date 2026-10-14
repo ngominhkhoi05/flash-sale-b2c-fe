@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -46,17 +46,12 @@ export default function AdminSkuApprovalsPage() {
   }, [sessions, selectedSessionId]);
 
   // 2. SKU items & counts
-  const [items, setItems] = useState<SkuApprovalItem[]>([]);
-  const [counts, setCounts] = useState<SkuApprovalCounts>({
-    pending: 14,
-    approved: 32,
-    rejected: 4,
-  });
-
-  useEffect(() => {
-    setItems(getMockSkuApprovals());
-    setCounts(getApprovalCounts());
-  }, []);
+  const [items, setItems] = useState<SkuApprovalItem[]>(() =>
+    getMockSkuApprovals()
+  );
+  const [counts, setCounts] = useState<SkuApprovalCounts>(() =>
+    getApprovalCounts()
+  );
 
   const refreshData = () => {
     setItems(getMockSkuApprovals());
@@ -75,14 +70,39 @@ export default function AdminSkuApprovalsPage() {
   // 5. Selection State for Batch Actions
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // Reset selection when tab or filters change
-  useEffect(() => {
-    setSelectedIds([]);
-  }, [activeTab, searchQuery, shopTypeFilter, categoryFilter, discountFilter]);
-
   // 6. Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+
+  const handleTabChange = (tab: SkuApprovalStatus) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
+
+  const handleShopTypeChange = (val: string) => {
+    setShopTypeFilter(val);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
+
+  const handleCategoryChange = (val: string) => {
+    setCategoryFilter(val);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
+
+  const handleDiscountChange = (val: string) => {
+    setDiscountFilter(val);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
 
   // Filter items
   const filteredItems = useMemo(() => {
@@ -393,10 +413,7 @@ export default function AdminSkuApprovalsPage() {
           <div className="flex items-center gap-space-xs p-1 bg-surface-container-low rounded-xl">
             <button
               type="button"
-              onClick={() => {
-                setActiveTab("PENDING");
-                setCurrentPage(1);
-              }}
+              onClick={() => handleTabChange("PENDING")}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg font-headline-md text-[13px] transition-all",
                 activeTab === "PENDING"
@@ -419,10 +436,7 @@ export default function AdminSkuApprovalsPage() {
 
             <button
               type="button"
-              onClick={() => {
-                setActiveTab("APPROVED");
-                setCurrentPage(1);
-              }}
+              onClick={() => handleTabChange("APPROVED")}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg font-headline-md text-[13px] transition-all",
                 activeTab === "APPROVED"
@@ -445,10 +459,7 @@ export default function AdminSkuApprovalsPage() {
 
             <button
               type="button"
-              onClick={() => {
-                setActiveTab("REJECTED");
-                setCurrentPage(1);
-              }}
+              onClick={() => handleTabChange("REJECTED")}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg font-headline-md text-[13px] transition-all",
                 activeTab === "REJECTED"
@@ -491,10 +502,7 @@ export default function AdminSkuApprovalsPage() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Tìm theo tên sản phẩm, mã SKU..."
               className="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface placeholder:text-secondary focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all border border-outline-variant/30"
             />
@@ -504,10 +512,7 @@ export default function AdminSkuApprovalsPage() {
           <div className="lg:col-span-3 relative">
             <select
               value={shopTypeFilter}
-              onChange={(e) => {
-                setShopTypeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleShopTypeChange(e.target.value)}
               className="w-full h-10 px-3 pr-8 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer border border-outline-variant/30"
             >
               <option value="">Tất cả gian hàng (Mall &amp; Thường)</option>
@@ -524,10 +529,7 @@ export default function AdminSkuApprovalsPage() {
           <div className="lg:col-span-3 relative">
             <select
               value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className="w-full h-10 px-3 pr-8 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer border border-outline-variant/30"
             >
               <option value="">Tất cả danh mục ngành hàng</option>
@@ -545,10 +547,7 @@ export default function AdminSkuApprovalsPage() {
           <div className="lg:col-span-2 relative">
             <select
               value={discountFilter}
-              onChange={(e) => {
-                setDiscountFilter(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleDiscountChange(e.target.value)}
               className="w-full h-10 px-3 pr-8 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer border border-outline-variant/30"
             >
               <option value="">Mức giảm giá</option>

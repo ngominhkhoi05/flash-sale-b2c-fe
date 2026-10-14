@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 interface SkuApproveModalProps {
   isOpen: boolean;
@@ -25,19 +25,19 @@ export function SkuApproveModal({
 }: SkuApproveModalProps) {
   const [commission, setCommission] = useState<string>("");
 
-  useEffect(() => {
-    if (isOpen) {
-      setCommission("");
-    }
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const remaining = Math.max(0, originalStock - allocatedStock);
 
+  const handleClose = () => {
+    setCommission("");
+    onClose();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const val = commission.trim() === "" ? undefined : parseFloat(commission);
+    setCommission("");
     onConfirm(val);
   };
 
@@ -45,7 +45,7 @@ export function SkuApproveModal({
     <div
       className="fixed inset-0 z-50 bg-[#0F172A]/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all">
@@ -66,7 +66,7 @@ export function SkuApproveModal({
           <button
             type="button"
             className="w-8 h-8 rounded-lg hover:bg-surface-container text-secondary hover:text-on-surface flex items-center justify-center transition-colors"
-            onClick={onClose}
+            onClick={handleClose}
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -159,7 +159,7 @@ export function SkuApproveModal({
             <button
               type="button"
               className="px-4 py-2 rounded-lg hover:bg-surface-container text-secondary font-headline-md text-body-md font-medium transition-colors"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Hủy
             </button>
