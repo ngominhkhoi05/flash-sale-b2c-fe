@@ -14,6 +14,39 @@ import { render, screen } from "@testing-library/react";
 import { HomepageView } from "./_homepage-view";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 
+// Mock homepage API hooks to avoid network calls in snapshot test
+vi.mock("@/features/homepage/hooks", () => ({
+  useHomeBanners: () => ({
+    data: {
+      mainSlides: [
+        { id: 1, type: "HERO", position: 1, imageUrl: "https://example.com/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      ],
+      sideBanners: [
+        { id: 2, type: "FREESHIP", position: 1, imageUrl: "", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      ],
+    },
+    isLoading: false,
+    isError: false,
+  }),
+  useCategories: () => ({
+    data: [
+      { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam", commissionRate: 0.1, description: "" },
+      { id: 2, name: "Điện thoại", slug: "dien-thoai", commissionRate: 0.1, description: "" },
+    ],
+    isLoading: false,
+    isError: false,
+  }),
+  useFlashSaleSlots: () => ({ data: [], isLoading: false, isError: false }),
+  usePlatformVouchers: () => ({ data: [], isLoading: false, isError: false }),
+  useFeaturedStores: () => ({ data: [], isLoading: false, isError: false }),
+  useFeaturedProducts: () => ({ data: [], isLoading: false, isError: false }),
+  useRecommendedProducts: () => ({
+    data: { forYou: [], bestSellers: [], hotDeals: [] },
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
 describe("HomepageView – snapshot pixel-match", () => {
   it("renders all 7 sections with expected headings", () => {
     const { container } = render(<HomepageView />, { wrapper: TestWrapper });

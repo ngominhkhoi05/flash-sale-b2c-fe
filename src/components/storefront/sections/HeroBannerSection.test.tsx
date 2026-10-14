@@ -30,6 +30,11 @@ vi.mock("@/features/homepage/hooks", () => ({
     isLoading: false,
     isError: false,
   }),
+  useFeaturedProducts: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 function makeQueryClient() {

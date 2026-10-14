@@ -4,27 +4,29 @@
  * RecommendedSection – Stitch "GỢI Ý HÔM NAY" (Section #7).
  *
  * Gồm:
- * - Sticky tabs (Dành cho bạn / Bán chạy / Ưu đãi sốc)
+ * - Sticky tabs (Dành cho bạn / Bán chạy / Ưu đãi sốc) – UI only
  * - Lưới sản phẩm (2-5 cols responsive) load từ API
  *
- * Data: GET /api/v1/products/recommended?tab=for_you|best_seller|hot_deal
+ * Data (ưu tiên):
+ * - GET /api/v1/products/recommended?tab=... (chuẩn)
+ * - Fallback: GET /api/v1/products?size=20&sort=createdAt,desc
  *
  * Pixel-match reference:
  * Stitch HTML lines 719-end (grid 5 cols × 4 rows = 20 cards)
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
-import { cn } from "@/lib/utils";
-import { useRecommendedProducts } from "@/features/homepage/hooks";
+import { useFeaturedProducts } from "@/features/homepage/hooks";
 import {
   RecommendedTabs,
   type RecommendedTab as UiTab,
-  TAB_TO_API,
 } from "./RecommendedTabs";
+import { cn } from "@/lib/utils";
 
 const INITIAL_TAB: UiTab = "forYou";
+const PRODUCT_LIMIT = 20;
 
 function formatVND(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return "0₫";
@@ -53,15 +55,20 @@ export function RecommendedSection() {
   const t = useTranslations("storefront.home");
   const [activeTab, setActiveTab] = useState<UiTab>(INITIAL_TAB);
 
-  const apiTab = TAB_TO_API[activeTab];
-  const { data, isLoading, isError } = useRecommendedProducts(apiTab, undefined, 20);
+  const { data: products, isLoading, isError } = useFeaturedProducts(PRODUCT_LIMIT);
 
-  const products = data?.[activeTab === "forYou"
-    ? "forYou"
-    : activeTab === "bestSellers"
-      ? "bestSellers"
-      : "hotDeals"
-  ] ?? [];
+  // Client-side filter theo tab (khi backend chưa có /products/recommended).
+  // Sau này backend có endpoint này → chuyển sang useRecommendedProducts với 3 dataset.
+  const filteredProducts = useMemo(() => {
+    const all = products ?? [];
+    if (activeTab === "bestSellers") {
+      return [...all].sort((a, b) => (b.totalSold ?? 0) - (a.totalSold ?? 0));
+    }
+    if (activeTab === "hotDeals") {
+      return all.filter((p) => p.minPrice < p.maxPrice);
+    }
+    return all;
+  }, [products, activeTab]);
 
   return (
     <section className="space-y-4">
@@ -102,7 +109,7 @@ export function RecommendedSection() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && products.length === 0 && (
+        {!isLoading && !isError && filteredProducts.length === 0 && (
           <div
             className="col-span-full text-center py-12 text-on-surface-variant"
             data-testid="recommended-empty"
@@ -112,8 +119,8 @@ export function RecommendedSection() {
         )}
 
         {/* Data */}
-        {!isLoading && !isError && products.length > 0 &&
-          products.map((product) => {
+        {!isLoading && !isError && filteredProducts.length > 0 &&
+          filteredProducts.map((product) => {
             const hasDiscount = product.minPrice < product.maxPrice;
             const priceLabel = hasDiscount
               ? `${formatVNDShort(product.minPrice)}-${formatVNDShort(product.maxPrice)}`

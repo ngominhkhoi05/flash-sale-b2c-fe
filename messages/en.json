@@ -568,7 +568,8 @@
     },
     "home": {
       "hero": {
-        "ariaLabel": "Featured promotion banner"
+        "ariaLabel": "Featured promotion banner",
+        "empty": "No banners yet"
       },
       "sideBanners": {
         "freeshipTag": "Express",
@@ -591,6 +592,7 @@
       "categoryGrid": {
         "title": "FEATURED CATEGORIES",
         "seeAll": "See all",
+        "empty": "No categories yet",
         "items": {
           "mensFashion": "Men's Fashion",
           "womensFashion": "Women's Fashion",

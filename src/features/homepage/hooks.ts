@@ -14,12 +14,14 @@ import {
   fetchFlashSaleSlots,
   fetchPlatformVouchers,
   fetchFeaturedStores,
+  fetchFeaturedProducts,
   fetchRecommendedProducts,
   type HomeBannersResponse,
   type CategoryResponse,
   type PublicFlashSaleSlotResponse,
   type VoucherResponse,
   type FeaturedStoreResponse,
+  type RecommendedProductResponse,
   type RecommendedProductsResponse,
   type RecommendedTab,
 } from "./api";
@@ -33,6 +35,8 @@ export const homepageKeys = {
   flashSaleSlots: () => [...homepageKeys.all, "flash-sale-slots"] as const,
   vouchers: () => [...homepageKeys.all, "vouchers"] as const,
   featuredStores: () => [...homepageKeys.all, "featured-stores"] as const,
+  featuredProducts: (size?: number) =>
+    [...homepageKeys.all, "featured-products", size ?? 20] as const,
   recommended: (tab?: string) =>
     [...homepageKeys.all, "recommended", tab ?? "all"] as const,
 };
@@ -41,7 +45,7 @@ export const homepageKeys = {
 
 /**
  * Fetch home page banners (hero + side banners).
- * Cache: 15 phút.
+ * Cache: 15 phút. Trả empty khi backend chưa có endpoint.
  */
 export function useHomeBanners() {
   return useQuery({
@@ -56,7 +60,7 @@ export function useHomeBanners() {
  * Cache: 30 phút.
  */
 export function useCategories() {
-  return useQuery({
+  return useQuery<CategoryResponse[]>({
     queryKey: homepageKeys.categories(),
     queryFn: fetchCategories,
     staleTime: 1000 * 60 * 30, // 30 minutes
@@ -89,13 +93,25 @@ export function usePlatformVouchers() {
 
 /**
  * Fetch featured stores (Vibe Mall).
- * Cache: 30 phút.
+ * Cache: 30 phút. Trả empty khi backend chưa có endpoint.
  */
 export function useFeaturedStores(limit = 4) {
-  return useQuery({
+  return useQuery<FeaturedStoreResponse[]>({
     queryKey: homepageKeys.featuredStores(),
     queryFn: () => fetchFeaturedStores(limit),
     staleTime: 1000 * 60 * 30, // 30 minutes
+  });
+}
+
+/**
+ * Fetch featured products (fallback nguồn cho HeroBanner / FeaturedStores / Recommended).
+ * Cache: 5 phút.
+ */
+export function useFeaturedProducts(size = 20) {
+  return useQuery<RecommendedProductResponse[]>({
+    queryKey: homepageKeys.featuredProducts(size),
+    queryFn: () => fetchFeaturedProducts({ size }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
 
@@ -118,12 +134,5 @@ export function useRecommendedProducts(
 // ─── Re-export types ─────────────────────────────────────────────────────────
 
 export type {
-  HomeBannersResponse,
-  CategoryResponse,
-  PublicFlashSaleSlotResponse,
-  PublicFlashSaleItemResponse,
-  VoucherResponse,
-  FeaturedStoreResponse,
   RecommendedProductResponse,
-  RecommendedProductsResponse,
 } from "./api";

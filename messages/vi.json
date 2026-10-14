@@ -568,7 +568,8 @@
     },
     "home": {
       "hero": {
-        "ariaLabel": "Banner khuyến mãi nổi bật"
+        "ariaLabel": "Banner khuyến mãi nổi bật",
+        "empty": "Chưa có banner nào"
       },
       "sideBanners": {
         "freeshipTag": "Hỏa Tốc",
@@ -591,6 +592,7 @@
       "categoryGrid": {
         "title": "DANH MỤC NỔI BẬT",
         "seeAll": "Xem tất cả",
+        "empty": "Chưa có danh mục nào",
         "items": {
           "mensFashion": "Thời trang nam",
           "womensFashion": "Thời trang nữ",

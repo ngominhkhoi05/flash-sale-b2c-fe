@@ -1,18 +1,27 @@
 /**
  * Homepage API – gọi backend cho các section trang chủ Storefront.
  *
- * API endpoints:
- * - GET /api/v1/banners/home        → Hero + side banners
- * - GET /api/v1/categories           → Danh mục
- * - GET /api/v1/flash-sales/slots   → Flash sale slots
- * - GET /api/v1/vouchers/platform   → Platform vouchers
- * - GET /api/v1/stores/featured     → Featured stores (Vibe Mall)
- * - GET /api/v1/products/recommended → Recommended products
+ * Endpoints (từ docs/api-document.md, cập nhật 2026-10-07):
+ * - GET /api/v1/banners/home        → Hero + side banners (❌ backend CHƯA CÓ → try/catch fallback)
+ * - GET /api/v1/categories           → Danh mục (✅ Public)
+ * - GET /api/v1/flash-sales/slots   → Flash sale slots (✅ Public)
+ * - GET /api/v1/vouchers/platform   → Platform vouchers (✅ Public)
+ * - GET /api/v1/stores/featured     → Featured stores (❌ backend CHƯA CÓ → try/catch fallback)
+ * - GET /api/v1/products/recommended → Recommended products (❌ backend CHƯA CÓ → try/catch fallback)
+ * - GET /api/v1/products             → Product search/filter (✅ Public, dùng làm nguồn featured)
+ *
+ * FALLBACK STRATEGY (FE-2026-10-14):
+ * - fetchHomeBanners / fetchFeaturedStores / fetchRecommendedProducts:
+ *   thử endpoint, nếu 404 thì trả về empty/zero để UI hiển thị empty state.
+ * - fetchFeaturedProducts (MỚI): gọi /api/v1/products với sort=createdAt,desc
+ *   làm nguồn featured chung cho HeroBanner / FeaturedStores / Recommended.
+ *
+ * Khi backend bổ sung các endpoint còn thiếu, fallback sẽ tự động nhận data thật.
  *
  * Contract: http://180.93.137.28/swagger-ui (OpenAPI 3.1)
  */
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 
 // ─── Banner types ─────────────────────────────────────────────────────────────
 
@@ -36,7 +45,15 @@ export interface HomeBannersResponse {
 }
 
 export async function fetchHomeBanners(): Promise<HomeBannersResponse> {
-  return apiFetch<HomeBannersResponse>("/api/v1/banners/home");
+  try {
+    return await apiFetch<HomeBannersResponse>("/api/v1/banners/home");
+  } catch (err) {
+    // Backend chưa có endpoint /banners/home → trả empty để UI fallback sang featured products.
+    if (err instanceof ApiError && err.status === 404) {
+      return { mainSlides: [], sideBanners: [] };
+    }
+    throw err;
+  }
 }
 
 // ─── Category types ───────────────────────────────────────────────────────────
@@ -126,9 +143,17 @@ export interface FeaturedStoreResponse {
 export async function fetchFeaturedStores(
   limit = 4
 ): Promise<FeaturedStoreResponse[]> {
-  return apiFetch<FeaturedStoreResponse[]>("/api/v1/stores/featured", {
-    query: { limit },
-  });
+  try {
+    return await apiFetch<FeaturedStoreResponse[]>("/api/v1/stores/featured", {
+      query: { limit },
+    });
+  } catch (err) {
+    // Backend chưa có endpoint /stores/featured → trả empty.
+    if (err instanceof ApiError && err.status === 404) {
+      return [];
+    }
+    throw err;
+  }
 }
 
 // ─── Recommended Products types ───────────────────────────────────────────────
@@ -159,10 +184,49 @@ export async function fetchRecommendedProducts(
   categoryId?: number,
   limit = 10
 ): Promise<RecommendedProductsResponse> {
-  return apiFetch<RecommendedProductsResponse>(
-    "/api/v1/products/recommended",
-    {
-      query: { tab, ...(categoryId ? { categoryId } : {}), limit },
+  try {
+    return await apiFetch<RecommendedProductsResponse>(
+      "/api/v1/products/recommended",
+      {
+        query: { tab, ...(categoryId ? { categoryId } : {}), limit },
+      },
+    );
+  } catch (err) {
+    // Backend chưa có endpoint /products/recommended → trả 3 list rỗng.
+    if (err instanceof ApiError && err.status === 404) {
+      return { forYou: [], bestSellers: [], hotDeals: [] };
     }
-  );
+    throw err;
+  }
+}
+
+// ─── Featured Products (fallback) ────────────────────────────────────────────
+
+/** PageResponse wrapper từ backend. */
+interface ProductPageResponse {
+  items: RecommendedProductResponse[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  isFirst: boolean;
+  isLast: boolean;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+/**
+ * fetchFeaturedProducts – dùng làm nguồn fallback cho HeroBanner / FeaturedStores / Recommended.
+ * Backend: GET /api/v1/products?size=20&sort=createdAt,desc
+ * Khi backend bổ sung /products/recommended hoặc /banners/home, hook sẽ ưu tiên dùng data thật.
+ */
+export async function fetchFeaturedProducts(options: {
+  size?: number;
+  sort?: string;
+} = {}): Promise<RecommendedProductResponse[]> {
+  const { size = 20, sort = "createdAt,desc" } = options;
+  const res = await apiFetch<ProductPageResponse>("/api/v1/products", {
+    query: { size, sort },
+  });
+  return res.items ?? [];
 }
