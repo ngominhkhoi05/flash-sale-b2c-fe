@@ -14,15 +14,18 @@
  * Types below mirror the contract we expect — wire to real API when ready.
  */
 
-/** Saved address (snapshot of UserResponse.addresses). */
+/** Saved address (snapshot from /api/v1/users/addresses → AddressResponse).
+ * Field names match backend Swagger 2026-10-14: contactName, detailAddress, province. */
 export interface Address {
   id: number;
-  recipientName: string;
+  contactName: string;
   phone: string;
-  street: string;
-  ward: string;
+  province: string;
   district: string;
-  city: string;
+  ward: string;
+  detailAddress: string;
+  latitude?: number | null;
+  longitude?: number | null;
   isDefault: boolean;
 }
 
@@ -34,7 +37,9 @@ export interface CheckoutItem {
   variantId: number;
   productName: string;
   variantName: string;
-  imageUrl: string;
+  /** NOTE: Backend OrderItemResponse KHÔNG có imageUrl.
+   *  FE cần resolve ảnh từ product/variant API riêng. */
+  imageUrl: string | null;
   /** Đơn giá (có thể giảm nếu flash sale). */
   price: number;
   quantity: number;
@@ -49,11 +54,12 @@ export interface CheckoutShopGroup {
   storeName: string;
   /** Mall | Official Mall | '' */
   storeBadge?: "Mall" | "OfficialMall" | "";
-  /** ISO date hoặc label hiển thị luôn ("Ngày mai, 14:00 - 18:00"). */
-  estimatedDeliveryLabel: string;
-  /** Hiển thị kiểu giao ("Giao Hỏa Tốc" | "Tiết kiệm"). */
-  shippingMethodLabel: string;
-  shippingFee: number;
+  /** NOTE: BE có thể không return — tạm nullable */
+  estimatedDeliveryLabel?: string;
+  /** NOTE: BE có thể không return — tạm nullable */
+  shippingMethodLabel?: string;
+  /** NOTE: BE có thể không return — tạm default 0 */
+  shippingFee?: number;
   items: CheckoutItem[];
   /** shopSubtotal = sum(itemSubtotal). */
   shopSubtotal: number;
