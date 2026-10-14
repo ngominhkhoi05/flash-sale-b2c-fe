@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * CategoryGridSection – Stitch "DANH MỤC NỔI BẬT" (Section #3).
  *

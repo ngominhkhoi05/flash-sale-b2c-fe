@@ -45,7 +45,8 @@ function formatVNDShort(value: number): string {
   return value.toString();
 }
 
-function compactNumber(n: number): string {
+function compactNumber(n: number | undefined | null): string {
+  if (n == null) return "0";
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "tr";
   if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
   return n.toString();
