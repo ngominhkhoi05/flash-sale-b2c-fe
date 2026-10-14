@@ -10,6 +10,7 @@
  */
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ROUTES } from "@/lib/constants";
@@ -40,12 +41,14 @@ export function CheckoutHeader() {
             className="flex items-center gap-2 group"
             aria-label="Trang chủ Vibe Mart"
           >
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary font-bold text-lg shadow-sm group-hover:scale-105 transition-transform">
-              V
-            </div>
-            <span className="font-bold text-lg text-primary tracking-tight hidden sm:inline">
-              Vibe Mart
-            </span>
+            <Image
+              alt="Vibe Mart"
+              src="/images/vibe-mart-logo-lockup-light.png"
+              width={128}
+              height={36}
+              priority
+              className="h-9 w-auto object-contain"
+            />
           </Link>
           <span className="h-6 w-px bg-outline-variant/60 rounded-full" />
           <span className="font-semibold text-on-surface text-base hidden sm:inline">

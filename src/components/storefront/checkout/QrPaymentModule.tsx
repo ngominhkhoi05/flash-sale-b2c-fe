@@ -21,6 +21,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -285,6 +286,13 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
             {/* Header: Brand + order code */}
             <div className="flex items-center justify-between pb-4">
               <div className="flex items-center gap-1.5">
+                <Image
+                  alt="Vibe Mart"
+                  src="/images/vibe-mart-logo-mark-light.png"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 object-contain"
+                />
                 <span className="font-bold text-primary text-headline-sm">
                   Vibe Mart
                 </span>
