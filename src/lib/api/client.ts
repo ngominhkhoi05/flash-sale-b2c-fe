@@ -66,6 +66,53 @@ export function clearRefreshToken(): void {
   window.sessionStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
+import {
+  getMockServerTime,
+  getMockSlots,
+  mockFlashSaleItems,
+  mockUpcomingItems,
+  handleMockBuyNow,
+  getMockAdminDashboard,
+  mockAdminCampaigns,
+  getMockRealtimeMonitoringData,
+} from "@/lib/mocks";
+import type {
+  FlashSaleSlot,
+  FlashSaleItem,
+  BuyNowRequest,
+  BuyNowResponse,
+} from "@/types/flash-sale";
+import type {
+  AdminDashboardData,
+  AdminCampaign,
+  AdminCampaignFormData,
+  AdminRealtimeMonitorData,
+} from "@/types/admin";
+import type { ServerTimeResponse } from "@/types/api";
+
+/** Lấy User ID tạm thời cho header X-User-Id theo quy ước đồ án */
+export function getCurrentUserId(): string {
+  if (typeof window !== "undefined") {
+    const saved = window.localStorage.getItem("fs_mock_user_id");
+    if (saved) return saved;
+  }
+  return "1001";
+}
+
+/** Đặt User ID tạm thời để kiểm thử */
+export function setMockUserId(userId: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem("fs_mock_user_id", userId);
+}
+
+/** Kiểm tra chế độ Mock data */
+export function isMockMode(): boolean {
+  if (process.env.NEXT_PUBLIC_USE_MOCKS !== undefined) {
+    return process.env.NEXT_PUBLIC_USE_MOCKS === "true";
+  }
+  return true;
+}
+
 export type ApiFetchOptions = Omit<RequestInit, "body"> & {
   /** Query params (sẽ stringify an toàn). */
   query?: Record<string, string | number | boolean | undefined | null>;
@@ -75,6 +122,8 @@ export type ApiFetchOptions = Omit<RequestInit, "body"> & {
   withAuth?: boolean;
   /** Tự retry khi 5xx (mặc định: 0). */
   retries?: number;
+  /** Bỏ qua mock data ngay cả khi mock mode đang bật */
+  skipMock?: boolean;
 };
 
 interface BackendEnvelope<T> {
@@ -150,17 +199,29 @@ function delay(ms: number) {
 /**
  * apiFetch – client chính cho mọi request (rule §7, rule api-data).
  * - Gắn Authorization từ localStorage (fs_access_token).
+ * - Gắn X-User-Id theo quy ước đồ án.
  * - Tự set Content-Type cho JSON.
- * - Chuẩn hoá response về ApiResponse<T> hoặc ném ApiError.
+ * - Hỗ trợ mock data tự động trong dev mode khi BE chưa sẵn sàng.
+ * - Chuẩn hoá response về data hoặc ném ApiError.
  */
 export async function apiFetch<T>(
   path: string,
   options: ApiFetchOptions = {}
 ): Promise<T> {
-  const { query, json, headers, retries = 0, withAuth = true, ...init } = options;
+  const { query, json, headers, retries = 0, withAuth = true, skipMock = false, ...init } = options;
+
+  // Nếu bật mock mode và không bị ép skip, kiểm tra mock data
+  if (isMockMode() && !skipMock) {
+    const mockData = dispatchMock<T>(path, init.method || "GET", json, query as Record<string, unknown>);
+    if (mockData !== null) {
+      await delay(120); // Giả lập độ trễ mạng nhẹ
+      return mockData;
+    }
+  }
 
   const finalHeaders: Record<string, string> = {
     Accept: "application/json",
+    "X-User-Id": getCurrentUserId(), // Quy ước theo yêu cầu
     ...(headers as Record<string, string> | undefined),
   };
 
@@ -227,10 +288,122 @@ export async function apiFetch<T>(
       await delay(500 * attempt);
     }
   }
+
+  // Fallback sang mock nếu mạng lỗi và đang ở mock mode
+  if (isMockMode()) {
+    const fallbackMock = dispatchMock<T>(path, init.method || "GET", json, query as Record<string, unknown>);
+    if (fallbackMock !== null) return fallbackMock;
+  }
+
   if (lastError instanceof Error) throw lastError;
   throw new ApiError({
     status: 0,
     code: "NETWORK_ERROR",
-    message: "Mất kết nối mạng",
+    message: "Mất kết nối mạng hoặc máy chủ không phản hồi",
   });
 }
+
+/**
+ * Dispatcher dữ liệu Mock cho các endpoint trọng tâm
+ */
+function dispatchMock<T>(
+  endpoint: string,
+  method: string,
+  body?: unknown,
+  params?: Record<string, unknown>
+): T | null {
+  const path = endpoint.split("?")[0].replace(/^\/api\/v1/, "").replace(/^\/api/, "");
+
+  // 1. Endpoint lấy giờ server
+  if (path === "/time" || endpoint.includes("/time")) {
+    return getMockServerTime() as unknown as T;
+  }
+
+  // 2. Danh sách khung giờ Flash Sale
+  if (path === "/flash-sale/slots") {
+    return getMockSlots() as unknown as T;
+  }
+
+  // 3. Khung giờ Flash Sale đang ACTIVE
+  if (path === "/flash-sale/slots/active") {
+    const slots = getMockSlots();
+    const active = slots.find((s) => s.status === "ACTIVE") || slots[1];
+    return active as unknown as T;
+  }
+
+  // 4. Danh sách sản phẩm Flash Sale theo slot
+  if (path.startsWith("/flash-sale/items") || endpoint.includes("/flash-sale/items")) {
+    const slotId = Number(params?.slotId) || 102;
+    const items = slotId === 103 ? mockUpcomingItems : mockFlashSaleItems;
+    return items as unknown as T;
+  }
+
+  // 5. Mua ngay Flash Sale
+  if (path === "/flash-sale/orders" && method === "POST") {
+    const result = handleMockBuyNow(body as BuyNowRequest);
+    return result as unknown as T;
+  }
+
+  // 6. Admin KPI Dashboard
+  if (path === "/admin/dashboard/kpi" || path === "/admin/dashboard") {
+    return getMockAdminDashboard() as unknown as T;
+  }
+
+  // 7. Admin Campaigns (Khung giờ)
+  if (path === "/admin/flash-sale/campaigns") {
+    if (method === "POST") {
+      const form = body as AdminCampaignFormData;
+      const newCampaign: AdminCampaign = {
+        id: Date.now(),
+        name: form.name,
+        slotName: "Chiến dịch mới tạo",
+        startTime: form.startTime,
+        endTime: form.endTime,
+        status: "UPCOMING",
+        productCount: 1,
+        totalAllocatedStock: form.allocatedStock,
+        totalSoldStock: 0,
+        revenue: 0,
+      };
+      mockAdminCampaigns.push(newCampaign);
+      return newCampaign as unknown as T;
+    }
+    return mockAdminCampaigns as unknown as T;
+  }
+
+  // 8. Admin Giám sát realtime
+  if (path === "/admin/flash-sale/monitoring") {
+    return getMockRealtimeMonitoringData() as unknown as T;
+  }
+
+  return null;
+}
+
+// === Export các hàm gọi API tiện lợi ===
+export const api = {
+  get: <T>(url: string, opts?: ApiFetchOptions) => apiFetch<T>(url, { ...opts, method: "GET" }),
+  post: <T>(url: string, json?: unknown, opts?: ApiFetchOptions) =>
+    apiFetch<T>(url, { ...opts, method: "POST", json }),
+  put: <T>(url: string, json?: unknown, opts?: ApiFetchOptions) =>
+    apiFetch<T>(url, { ...opts, method: "PUT", json }),
+  delete: <T>(url: string, opts?: ApiFetchOptions) =>
+    apiFetch<T>(url, { ...opts, method: "DELETE" }),
+
+  // Domain API functions
+  getServerTime: () => api.get<ServerTimeResponse>("/api/time"),
+  getFlashSaleSlots: () => api.get<FlashSaleSlot[]>("/api/v1/flash-sale/slots"),
+  getActiveSlot: () => api.get<FlashSaleSlot>("/api/v1/flash-sale/slots/active"),
+  getFlashSaleItems: (slotId: number) =>
+    api.get<FlashSaleItem[]>("/api/v1/flash-sale/items", { query: { slotId } }),
+  buyNow: (data: BuyNowRequest) => api.post<BuyNowResponse>("/api/v1/flash-sale/orders", data),
+
+  // Admin API functions
+  getAdminDashboard: () => api.get<AdminDashboardData>("/api/v1/admin/dashboard/kpi"),
+  getAdminCampaigns: () => api.get<AdminCampaign[]>("/api/v1/admin/flash-sale/campaigns"),
+  createAdminCampaign: (data: AdminCampaignFormData) =>
+    api.post<AdminCampaign>("/api/v1/admin/flash-sale/campaigns", data),
+  getAdminRealtimeMonitor: (slotId?: number) =>
+    api.get<AdminRealtimeMonitorData>("/api/v1/admin/flash-sale/monitoring", {
+      query: { slotId },
+    }),
+};
