@@ -94,40 +94,35 @@ const sampleOrder: OrderSuccessView = {
   estimatedDeliveryLabel: "Dự kiến giao ngày mai",
 };
 describe("SuccessModule", () => {
-  it("renders badge and title (desktop + mobile)", () => {
+  it("renders badge and title exactly once (responsive single layout)", () => {
     render(<SuccessModule order={sampleOrder} />);
-    // Badge và title xuất hiện 2 lần (1 desktop + 1 mobile mockup)
-    expect(screen.getAllByText("TRẠNG THÁI: THÀNH CÔNG").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Đặt hàng thành công!").length).toBeGreaterThanOrEqual(2);
+    // Render 1 lần duy nhất, dùng Tailwind md: để thay đổi padding/size theo viewport.
+    expect(screen.getAllByText("TRẠNG THÁI: THÀNH CÔNG")).toHaveLength(1);
+    expect(screen.getAllByText("Đặt hàng thành công!")).toHaveLength(1);
   });
 
-  it("renders both store names (desktop + mobile)", () => {
+  it("renders both store names exactly once", () => {
     render(<SuccessModule order={sampleOrder} />);
-    // Mỗi tên xuất hiện 2 lần (1 desktop + 1 mobile)
-    expect(screen.getAllByText("UTC Fashion Mall").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("TechZone Official").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("UTC Fashion Mall")).toHaveLength(1);
+    expect(screen.getAllByText("TechZone Official")).toHaveLength(1);
   });
 
-  it("renders grand total 1.292.000₫ ở cả desktop và mobile", () => {
+  it("renders grand total 1.292.000₫ exactly once", () => {
     render(<SuccessModule order={sampleOrder} />);
-    const totals = screen.getAllByText("1.292.000₫");
-    expect(totals.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("1.292.000₫")).toHaveLength(1);
   });
 
-  it("renders address with recipient + phone", () => {
+  it("renders address with recipient + phone exactly once", () => {
     render(<SuccessModule order={sampleOrder} />);
-    // Mỗi phần tử xuất hiện 2 lần (desktop + mobile)
-    expect(screen.getAllByText(/Nguyễn Văn An/).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/0901 234 567/).length).toBeGreaterThanOrEqual(2);
-    expect(
-      screen.getAllByText(/450 Lê Văn Việt/).length,
-    ).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/Nguyễn Văn An/)).toHaveLength(1);
+    expect(screen.getAllByText(/0901 234 567/)).toHaveLength(1);
+    expect(screen.getAllByText(/450 Lê Văn Việt/)).toHaveLength(1);
   });
 
   it("'Xem đơn hàng' CTA links to /orders/<orderCode>", () => {
     render(<SuccessModule order={sampleOrder} />);
     const viewLinks = screen.getAllByRole("link", { name: /Xem đơn hàng/ });
-    expect(viewLinks.length).toBeGreaterThanOrEqual(1);
+    expect(viewLinks).toHaveLength(1);
     viewLinks.forEach((link) => {
       expect(link).toHaveAttribute("href", "/orders/FS-261001-A7K2Q");
     });
@@ -138,7 +133,7 @@ describe("SuccessModule", () => {
     const continueLinks = screen.getAllByRole("link", {
       name: /Tiếp tục mua sắm/,
     });
-    expect(continueLinks.length).toBeGreaterThanOrEqual(1);
+    expect(continueLinks).toHaveLength(1);
     continueLinks.forEach((link) => {
       expect(link).toHaveAttribute("href", "/");
     });
@@ -151,10 +146,14 @@ describe("SuccessModule", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders mobile preview badge", () => {
-    render(<SuccessModule order={sampleOrder} />);
+  it("does NOT render a 390px device frame or mobile preview separator", () => {
+    // Mobile preview separator đã bị bỏ — chỉ render 1 success-module duy nhất.
+    const { container } = render(<SuccessModule order={sampleOrder} />);
     expect(
-      screen.getByText(/Bản xem trước Giao diện Mobile/),
-    ).toBeInTheDocument();
+      container.querySelector('[data-testid="success-mobile-mockup"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Bản xem trước Giao diện Mobile/),
+    ).not.toBeInTheDocument();
   });
 });

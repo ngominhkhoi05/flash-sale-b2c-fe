@@ -131,3 +131,36 @@ Làm giao diện trang **Đặt hàng thành công** (`/checkout/success`) theo 
 - Stitch design: `docs/superpowers/handoffs/dat-hang-thanh-cong.md`
 - Backend gap report: `docs/superpowers/handoffs/2026-10-13-backend-gap-report.md`
 - Orders feature hiện tại: `src/features/orders/api.ts` (đã có 2026-10-14)
+
+---
+
+## 9. Refactor — bỏ mockup mobile song song, dùng 1 layout responsive
+
+> **Added**: 2026-10-14 21:35 UTC+7 (sau khi user review giao diện thật)
+> **Mục đích**: Stitch dev dump có 2 mockup side-by-side (desktop 560px + mobile 390px). Theo docs/CLAUDE.md mục 10 + handoff `dat-hang-thanh-cong.md`, production chỉ render 1 layout responsive. Mobile mockup bị trùng nội dung → dư thừa trên trang thật, gây nhầm lẫn cho người dùng.
+
+### 9.1 Thay đổi
+
+| File | Loại | Mô tả |
+|---|---|---|
+| `src/components/storefront/checkout/SuccessModule.tsx` | SỬA | Gộp 2 layout (desktop + mobile) thành 1 component responsive. Desktop: card 560px, padding `p-8`, title `text-headline-lg`. Mobile: full-width card, padding `p-4`, title `text-headline-sm`. Dùng `md:` breakpoint. |
+| `src/components/storefront/checkout/SuccessModule.test.tsx` | SỬA | Xoá assertion `.length >= 2` (chỉ render 1 lần). Xoá test "renders mobile preview badge" (separator bị bỏ). |
+| `src/components/storefront/checkout/AddressBlock.tsx` | SỬA | Bỏ prop `isMobile` — chỉ dùng 1 variant. |
+| `src/components/storefront/checkout/CtaGroup.tsx` | SỬA | Bỏ prop `isMobile` — dùng 1 variant, padding thay đổi theo breakpoint. |
+| `messages/vi.json` + `messages/en.json` | SỬA | Xoá key `mobilePreviewBadge` (separator bị bỏ). Có thể giữ `subtitleMobile` để dùng khi viewport nhỏ, hoặc dùng chung `subtitle`. |
+
+### 9.2 Subplan (chia theo concern)
+
+- **Subplan A — Update test RED**: viết test mới trước (kỳ vọng chỉ 1 instance/badge/title), test cũ fail.
+- **Subplan B — Refactor component**: gộp 2 layout, xoá prop `isMobile`, xoá separator + mobile mockup frame.
+- **Subplan C — Cleanup i18n**: xoá key `mobilePreviewBadge` nếu không dùng, quyết định giữ `subtitleMobile` hay dùng chung.
+
+Cả 3 subplan thuộc cùng 1 concern (refactor mobile mockup) → chạy tuần tự, 1 commit cuối.
+
+### 9.3 Test strategy sau refactor
+
+- Test cũ "badge/title xuất hiện 2 lần" → cập nhật thành "xuất hiện đúng 1 lần".
+- Test cũ "store names xuất hiện 2 lần" → "đúng 1 lần".
+- Test cũ "renders mobile preview badge" → xoá (không còn separator).
+- Test CTA, address, total, subtitle giữ nguyên (vẫn đúng 1 lần).
+- Manual: mở `/checkout/success` ở desktop (1280px) → 1 card 560px centered, KHÔNG thấy mockup 390px bên dưới. Resize về 375px → card full-width, padding nhỏ lại.
