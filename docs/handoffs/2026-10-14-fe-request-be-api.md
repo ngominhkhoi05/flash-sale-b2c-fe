@@ -249,88 +249,108 @@ GET /api/v1/admin/flash-sales/slots?startDate=2026-10-12&endDate=2026-10-18&stat
 
 ## PHẦN 2: Storefront & User Portal (Các tính năng cần bổ sung)
 
-### 2.1 Tìm kiếm sản phẩm
+### 2.1 Tìm kiếm sản phẩm `[✅ ĐÃ HOÀN THÀNH - PR feat/product-search]`
 
 | FE cần | Endpoint | Method | Ghi chú |
 |---|---|:---:|---|
-| Tìm kiếm sản phẩm toàn sàn | `/api/v1/products/search` | `GET` | BE hiện chỉ có `/api/v1/products` (list + filter đơn giản) |
+| Tìm kiếm sản phẩm toàn sàn | `/api/v1/products/search` | `GET` | ✅ **Đã xong**. Hỗ trợ FTS tiếng Việt (PostgreSQL `to_tsvector`), phân trang, bộ lọc đa chiều (facets). |
+
+> **Branch:** `feat/product-search` | **PR:** [feat/product-search](https://github.com/ngominhkhoi05/flash-sale-b2c-UTC2/pull/new/feat/product-search)
 
 **Request Query Params:**
 ```
 GET /api/v1/products/search?q=ao+thun&page=0&pageSize=20&sort=best_selling&categoryId=12&minPrice=100000&maxPrice=500000&minRating=4
 ```
 
-**Response mong muốn:**
+**Response thực tế từ BE:**
 ```json
 {
-  "items": [
-    {
-      "id": 1,
-      "name": "Áo thun nam Cotton Compact",
-      "imageUrl": "https://...",
-      "price": 299000,
-      "originalPrice": 399000,
-      "rating": 4.8,
-      "totalSold": 1240,
-      "storeName": "Coolmate Official",
-      "storeBadge": "Vibe Mall",
-      "voucherLabel": "Giảm 15K"
+  "success": true,
+  "code": 200,
+  "message": "Tìm kiếm sản phẩm thành công",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "name": "Áo thun nam Cotton Compact",
+        "imageUrl": "https://res.cloudinary.com/...",
+        "price": 299000,
+        "originalPrice": 399000,
+        "rating": 4.8,
+        "totalSold": 1240,
+        "storeName": "Coolmate Official",
+        "storeBadge": "OfficialMall",
+        "voucherLabel": "Giảm 15K"
+      }
+    ],
+    "total": 248,
+    "page": 0,
+    "pageSize": 20,
+    "facets": {
+      "categories": [{ "id": 12, "name": "Thời trang nam", "count": 42 }],
+      "priceRanges": [{ "min": 100000, "max": 300000, "count": 86 }],
+      "ratings": [5, 4, 3]
     }
-  ],
-  "total": 248,
-  "page": 0,
-  "pageSize": 20,
-  "facets": {
-    "categories": [{ "id": 12, "name": "Thời trang nam", "count": 42 }],
-    "priceRanges": [{ "min": 100000, "max": 300000, "count": 86 }],
-    "ratings": [5, 4, 3]
-  }
+  },
+  "timestamp": "2026-10-14T19:00:00Z"
 }
 ```
 
 ---
 
-### 2.2 Kho voucher cá nhân
+### 2.2 Kho voucher cá nhân `[✅ ĐÃ HOÀN THÀNH - PR feat/voucher-wallet]`
 
 | FE cần | Endpoint | Method | Ghi chú |
 |---|---|:---:|---|
-| Danh sách voucher đã lưu của tôi | `/api/v1/vouchers/mine` | `GET` | Hiển thị trang "Kho Voucher" của người mua |
-| Lưu voucher vào kho | `/api/v1/vouchers/mine` | `POST` | Body: `{ "code": "VIBEMART10" }` |
+| Danh sách voucher đã lưu của tôi | `/api/v1/vouchers/mine` | `GET` | ✅ **Đã xong**. Trả về các voucher user đã lưu, kèm `savedAt`, `isUsed`. |
+| Lưu voucher vào kho | `/api/v1/vouchers/mine` | `POST` | ✅ **Đã xong**. Body: `{ "code": "VIBEMART10" }`. Chống lưu trùng, kiểm tra hạn dùng. |
+
+> **Branch:** `feat/voucher-wallet` | **PR:** [feat/voucher-wallet](https://github.com/ngominhkhoi05/flash-sale-b2c-UTC2/pull/new/feat/voucher-wallet)
 
 **Response `GET /api/v1/vouchers/mine`:**
 ```json
-[
-  {
-    "id": 1,
-    "code": "VIBEMART10",
-    "label": "Giảm 10K cho đơn từ 400K",
-    "scope": "PLATFORM",
-    "storeId": null,
-    "storeName": null,
-    "discountType": "FIXED",
-    "discountValue": 10000,
-    "maxDiscount": 10000,
-    "minOrderAmount": 400000,
-    "userUsageLimit": 1,
-    "usedQuantity": 0,
-    "totalQuantity": 500,
-    "startTime": "2026-10-01T00:00:00Z",
-    "endTime": "2026-10-31T23:59:59Z",
-    "status": "ACTIVE"
-  }
-]
+{
+  "success": true,
+  "code": 200,
+  "message": "Lấy danh sách voucher thành công",
+  "data": [
+    {
+      "id": 1,
+      "code": "VIBEMART10",
+      "label": "Giảm 10K cho đơn từ 400K",
+      "scope": "PLATFORM",
+      "storeId": null,
+      "storeName": null,
+      "discountType": "FIXED",
+      "discountValue": 10000,
+      "maxDiscount": 10000,
+      "minOrderAmount": 400000,
+      "userUsageLimit": 1,
+      "usedQuantity": 0,
+      "totalQuantity": 500,
+      "startTime": "2026-10-01T00:00:00Z",
+      "endTime": "2026-10-31T23:59:59Z",
+      "status": "ACTIVE",
+      "isUsed": false,
+      "savedAt": "2026-10-14T10:00:00Z"
+    }
+  ],
+  "timestamp": "2026-10-14T19:00:00Z"
+}
 ```
 
 ---
 
-### 2.3 Quên mật khẩu & Reset Password
+### 2.3 Quên mật khẩu & Reset Password `[✅ ĐÃ HOÀN THÀNH - PR feat/auth-password-reset]`
 
 | FE cần | Endpoint | Method | Ghi chú |
 |---|---|:---:|---|
-| Gửi email đặt lại mật khẩu | `/api/v1/auth/forgot-password` | `POST` | Body: `{ "email": "user@example.com" }` |
-| Đặt lại mật khẩu bằng token | `/api/v1/auth/reset-password` | `POST` | Body: `{ "token": "...", "newPassword": "..." }` |
+| Gửi email đặt lại mật khẩu | `/api/v1/auth/forgot-password` | `POST` | ✅ **Đã xong**. Body: `{ "email": "user@example.com" }`. Rate limit 3 req/15 phút/email, log mail token ra console. |
+| Đặt lại mật khẩu bằng token | `/api/v1/auth/reset-password` | `POST` | ✅ **Đã xong**. Body: `{ "token": "...", "newPassword": "..." }`. Token 1 lần (TTL 15m), mã hóa SHA-256. |
 
-> *Ghi chú:* FE đã có UI hoàn chỉnh tại `src/app/(auth)/forgot-password/page.tsx` và `src/app/(auth)/reset-password/page.tsx`.
+> **Branch:** `feat/auth-password-reset` | **PR:** [feat/auth-password-reset](https://github.com/ngominhkhoi05/flash-sale-b2c-UTC2/pull/new/feat/auth-password-reset)
+
+> *Ghi chú:* FE đã có UI hoàn chỉnh tại `src/app/(auth)/forgot-password/page.tsx` và `src/app/(auth)/reset-password/page.tsx`, có thể kết nối ngay.
 
 ---
 
@@ -355,26 +375,47 @@ GET /api/v1/products/search?q=ao+thun&page=0&pageSize=20&sort=best_selling&categ
 
 ---
 
-### 2.5 Thông tin QR Payment cho trang thanh toán
+### 2.5 Thông tin QR Payment cho trang thanh toán `[✅ ĐÃ HOÀN THÀNH - PR feat/order-qr]`
 
 | FE cần | Endpoint | Method | Ghi chú |
 |---|---|:---:|---|
-| Chi tiết thanh toán QR | `/api/v1/orders/{id}/qr` | `GET` | Hỗ trợ hiển thị tách đơn multi-vendor và mã QR VietQR |
+| Chi tiết thanh toán QR | `/api/v1/orders/{orderCode}/qr` | `GET` | ✅ **Đã xong**. Hỗ trợ đơn đơn lẻ hoặc gộp đơn multi-vendor bằng danh sách mã phân tách dấu phẩy (vd: `ORD-A,ORD-B`). Sinh link VietQR chuẩn NAPAS 247. |
 
-**Response mong muốn:**
+> **Branch:** `feat/order-qr` | **PR:** [feat/order-qr](https://github.com/ngominhkhoi05/flash-sale-b2c-UTC2/pull/new/feat/order-qr)
+
+> **Lưu ý định danh:** Theo chuẩn thiết kế toàn dự án, endpoint sử dụng `{orderCode}` (chuỗi mã đơn, vd: `FS-261014-K8A1`) thay vì ID số, tránh rò rỉ ID tuần tự và đồng bộ với luồng checkout/tracking.
+
+**Response thực tế từ BE:**
 ```json
 {
-  "orderId": 401,
-  "orderCode": "FS-261014-K8A1",
-  "storeId": 88,
-  "storeName": "Coolmate Official",
-  "totalAmount": 149000,
-  "paymentExpiry": "2026-10-14T12:40:23.000Z",
-  "qrCodeUrl": "https://api.vietqr.io/...",
-  "accountNo": "0987654321",
-  "accountName": "VIBE MART MARKETPLACE",
-  "bankCode": "MBBANK",
-  "transferContent": "PAY FS261014K8A1"
+  "success": true,
+  "code": 200,
+  "message": "Lấy thông tin thanh toán QR thành công",
+  "data": {
+    "orderCode": "FS-261014-K8A1",
+    "amount": 149000,
+    "totalAmount": 149000,
+    "expiresAt": "2026-10-14T12:40:23.000Z",
+    "paymentExpiry": "2026-10-14T12:40:23.000Z",
+    "qrCodeUrl": "https://api.vietqr.io/image/970422-0987654321-compact2.png?amount=149000&addInfo=PAY+FS261014K8A1&accountName=VIBE+MART+MARKETPLACE",
+    "bankCode": "MBBANK",
+    "bankName": "Ngân hàng Quân Đội (MBBank)",
+    "accountNo": "0987654321",
+    "accountName": "VIBE MART MARKETPLACE",
+    "transferContent": "PAY FS261014K8A1",
+    "shopOrders": [
+      {
+        "orderId": 401,
+        "orderCode": "FS-261014-K8A1",
+        "storeId": 88,
+        "storeName": "Coolmate Official",
+        "storeBadge": "OfficialMall",
+        "amount": 149000,
+        "itemSummary": "Áo thun thể thao QuickDry × 1"
+      }
+    ]
+  },
+  "timestamp": "2026-10-14T19:00:00Z"
 }
 ```
 
@@ -413,14 +454,18 @@ Cần bổ sung các trường:
 - Bổ sung `orderCode` (`string`): Mã đơn hàng sinh ra (ví dụ: `FS-261014-K8A1`).
 - Bổ sung `remainingStock` (`number`): Lượng tồn kho còn lại của SKU trên Redis ngay sau lệnh reserve.
 
-### 3.4 Giỏ hàng (`CartStoreGroup`, `CartItem`, `CartResponse`)
-- `CartStoreGroup`: Bổ sung `storeBadge`, `shippingFee`, `estimatedDeliveryLabel`.
-- `CartItemResponse`: Bổ sung `productId`, `stockQuantity` (để cảnh báo hết hàng).
-- `CartResponse`: Bổ sung `subtotal`, `totalShippingFee`.
+### 3.4 Giỏ hàng (`CartStoreGroup`, `CartItem`, `CartResponse`) `[✅ ĐÃ HOÀN THÀNH - PR feat/dto-fields]`
+> **Branch:** `feat/dto-fields` | **PR:** [feat/dto-fields](https://github.com/ngominhkhoi05/flash-sale-b2c-UTC2/pull/new/feat/dto-fields)
 
-### 3.5 Đơn hàng (`OrderItemResponse`, `OrderResponse`)
-- `OrderItemResponse`: Bổ sung `imageUrl`.
-- `OrderResponse`: Chuẩn hóa dùng `expiresAt` (ISO timestamp).
+- `CartStoreGroup`: Đã bổ sung `storeBadge` (OfficialMall/Mall/""), `shippingFee`, `estimatedDeliveryLabel`, `shippingMethodLabel`.
+- `CartItemResponse`: Đã bổ sung `productId`, `stockQuantity` (giúp FE cảnh báo hết hàng/vượt tồn).
+- `CartResponse`: Đã bổ sung `subtotal`, `totalShippingFee`, `totalAmount`.
+
+### 3.5 Đơn hàng (`OrderItemResponse`, `OrderResponse`) `[✅ ĐÃ HOÀN THÀNH - PR feat/dto-fields & feat/order-qr]`
+> **Branch:** `feat/dto-fields` & `feat/order-qr`
+
+- `OrderItemResponse`: Đã bổ sung `imageUrl` (nạp batch qua `ImageService` chống N+1).
+- `OrderResponse`: Đã chuẩn hóa dùng `expiresAt` (ISO timestamp) đồng thời giữ `paymentExpiry` để tương thích ngược 100% với FE.
 
 ---
 
@@ -486,10 +531,10 @@ Cần bổ sung các trường:
 - [ ] 14. Thêm GET /api/time trả serverTime ISO + timestampMs
 
 ### Nhóm Storefront & User Portal
-- [ ] 15. Thêm GET /api/v1/products/search (params: q, page, pageSize, sort, categoryId, minPrice, maxPrice, minRating)
-- [ ] 16. Thêm GET /api/v1/vouchers/mine & POST /api/v1/vouchers/mine { code }
-- [ ] 17. Thêm POST /api/v1/auth/forgot-password & POST /api/v1/auth/reset-password
-- [ ] 18. Thêm GET /api/v1/orders/{id}/qr (trả thông tin mã QR VietQR theo shop)
-- [ ] 19. Thêm POST /api/v1/reviews & POST /api/v1/reviews/{id}/images
-- [ ] 20. Bổ sung các field còn thiếu trong DTO: CartStoreGroup, CartItem, OrderItem
+- [x] 15. Thêm GET /api/v1/products/search (params: q, page, pageSize, sort, categoryId, minPrice, maxPrice, minRating) - [PR #47 feat/product-search]
+- [x] 16. Thêm GET /api/v1/vouchers/mine & POST /api/v1/vouchers/mine { code } - [PR #48 feat/voucher-wallet]
+- [x] 17. Thêm POST /api/v1/auth/forgot-password & POST /api/v1/auth/reset-password - [PR #49 feat/auth-password-reset]
+- [x] 18. Thêm GET /api/v1/orders/{orderCode}/qr (trả thông tin mã QR VietQR theo shop, hỗ trợ multi-vendor) - [PR #50 feat/order-qr]
+- [ ] 19. Thêm POST /api/v1/reviews & POST /api/v1/reviews/{id}/images (Chưa làm đợt này)
+- [x] 20. Bổ sung các field còn thiếu trong DTO: CartStoreGroup, CartItem, OrderItem - [PR #51 feat/dto-fields]
 ```
