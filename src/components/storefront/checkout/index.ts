@@ -2,7 +2,6 @@
 export { CheckoutAddressCard } from "./CheckoutAddressCard";
 export { CheckoutHeader } from "./CheckoutHeader";
 export { CheckoutStepper } from "./CheckoutStepper";
-export { CheckoutQrHeader } from "./CheckoutQrHeader";
 export { CheckoutSplitOrderBanner } from "./CheckoutSplitOrderBanner";
 export { CheckoutShopItem } from "./CheckoutShopItem";
 export { CheckoutShopCard } from "./CheckoutShopCard";

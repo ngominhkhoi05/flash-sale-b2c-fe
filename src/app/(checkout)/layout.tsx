@@ -4,7 +4,7 @@
  * Lý do tách khỏi `(storefront)/layout.tsx`:
  *  - Checkout flow KHÔNG dùng header/footer Storefront chung
  *    (xem rule §9 bảng mục điều hướng: "header compact, ẩn bottom nav").
- *  - Mỗi trang tự render header riêng (`CheckoutHeader` / `CheckoutQrHeader`).
+ *  - Mỗi trang dùng chung `CheckoutHeader` (kể cả /checkout/qr).
  *  - Layout này chỉ wrap `<CheckoutFooter>` chung + main container.
  *
  * Lưu ý:

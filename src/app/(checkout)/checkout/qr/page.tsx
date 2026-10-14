@@ -5,7 +5,8 @@
  * screen 203897a8, project 15206106541998912100).
  *
  * Layout:
- *  - Header riêng (`CheckoutQrHeader`) — render trong page vì khác `CheckoutHeader`
+ *  - Dùng chung `CheckoutHeader` với /checkout (xem mục 5 `docs/CLAUDE.md` —
+ *    tái sử dụng component dùng chung, không tạo header riêng cho QR)
  *  - Stepper 3 bước (1. Giỏ hàng ✓ → 2. Đặt hàng ✓ → 3. Thanh toán ZaloPay QR)
  *  - Module 2 cột (QR + countdown | order details + CTA) — `QrPaymentPageContent`
  *  - Footer chung (`CheckoutFooter`) — wrap bởi `(checkout)/layout.tsx`
@@ -16,7 +17,7 @@
  *  - Page là Server Component. `?orderCode=<…>` được parse ở server.
  *    Nếu thiếu / invalid → dùng mock để dev UI (rule §7 "không bịa API").
  */
-import { CheckoutQrHeader } from "@/components/storefront/checkout/CheckoutQrHeader";
+import { CheckoutHeader } from "@/components/storefront/checkout/CheckoutHeader";
 import { QrPaymentPageContent } from "@/components/storefront/checkout/QrPaymentPageContent";
 
 export const metadata = {
@@ -41,9 +42,9 @@ export default async function CheckoutQrPage({
 
   return (
     <>
-      <CheckoutQrHeader />
+      <CheckoutHeader />
       {/*
-        Stepper 3 bước đã có sẵn trong `CheckoutQrHeader` (dùng chung với /checkout
+        Stepper 3 bước đã có sẵn trong `CheckoutHeader` (dùng chung với /checkout
         theo mục 5 `docs/CLAUDE.md`); KHÔNG render lại ở page để tránh duplicate.
         Trước đây page có `<main>` riêng + stepper riêng → bị double stepper và
         nested `<main>` (vi phạm cấu trúc landmark). Layout `(checkout)/layout.tsx`
