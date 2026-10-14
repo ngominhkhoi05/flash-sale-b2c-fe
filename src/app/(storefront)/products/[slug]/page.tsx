@@ -3,22 +3,25 @@
  *
  * /products/[slug] - Hiển thị chi tiết sản phẩm với Stitch pixel-perfect layout.
  *
- * Data flow (mock phase):
+ * Data flow (backend API):
  *   1. Get `slug` from async params (Next 16).
- *   2. Fetch product detail via mock (sẽ replace bằng BE API khi ready).
- *   3. Render <ProductDetailPage> (Client Component) với mock data.
+ *   2. Nếu slug là numeric id → gọi `GET /api/v1/products/{id}` để resolve slug SEO → redirect.
+ *   3. Nếu slug không phải số → gọi `GET /api/v1/products/slug/{slug}` → render.
+ *   4. 404 khi API trả NOT_FOUND → render not-found page.
  *
  * Xem plan: docs/superpowers/plans/2026-10-12-product-detail-page-stitch.md
+ *           docs/superpowers/plans/2026-10-14-product-detail-api.md
  *
  * Note: Header/Footer/MobileBottomNav đã có trong layout cha (storefront/layout.tsx)
  */
 import { notFound, redirect } from "next/navigation";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
 import {
-  mockProductDetail,
-  mockProductIdToSlug,
-  mockProductsBySlug,
+  fetchProductDetailById,
+  fetchProductDetailBySlug,
+  type ProductDetail,
 } from "@/features/products";
+import { ApiError } from "@/lib/api";
 import { setRequestLocale } from "next-intl/server";
 
 interface PageProps {
@@ -31,40 +34,61 @@ export default async function ProductDetailRoute({ params }: PageProps) {
   // Locale for static rendering
   setRequestLocale("vi");
 
-  // Nếu người dùng truy cập /products/<id> (numeric), redirect sang slug SEO
-  if (/^\d+$/.test(slug)) {
-    const id = Number(slug);
-    const realSlug = mockProductIdToSlug[id];
-    if (realSlug) {
-      redirect(`/products/${realSlug}`);
-    }
+  // Tách fetch ra ngoài try/catch để tránh "JSX in try/catch" warning.
+  // Trả về `ProductDetail | "redirect" | "notFound"` rồi render ở ngoài.
+  const result = await loadProduct(slug);
+
+  if (result === "notFound") {
     notFound();
   }
-
-  // Mock data lookup - in production sẽ gọi API
-  const product = mockProductsBySlug[slug];
-  if (!product) {
-    notFound();
+  if (result === "redirect") {
+    // loadProduct đã throw NEXT_REDIRECT, code không tới đây.
+    return null;
   }
 
   return (
     <main className="pt-4 md:pt-6">
-      <ProductDetailPage product={product} />
+      <ProductDetailPage product={result} />
     </main>
   );
 }
 
+type LoadResult = ProductDetail | "redirect" | "notFound";
+
+async function loadProduct(slug: string): Promise<LoadResult> {
+  try {
+    // Trường hợp 1: slug là numeric id → resolve sang slug SEO và redirect.
+    if (/^\d+$/.test(slug)) {
+      const id = Number(slug);
+      const product = await fetchProductDetailById(id);
+      redirect(`/products/${product.slug}`);
+      return "redirect"; // unreachable, redirect() throws
+    }
+
+    // Trường hợp 2: slug SEO → fetch chi tiết.
+    return await fetchProductDetailBySlug(slug);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      return "notFound";
+    }
+    throw err;
+  }
+}
+
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
+
   if (/^\d+$/.test(slug)) {
     return { title: "Đang chuyển hướng..." };
   }
-  const product = mockProductsBySlug[slug];
-  if (!product) {
+
+  try {
+    const product = await fetchProductDetailBySlug(slug);
+    return {
+      title: `${product.name} | Vibe Mart`,
+      description: product.description.slice(0, 160),
+    };
+  } catch {
     return { title: "Không tìm thấy sản phẩm" };
   }
-  return {
-    title: `${product.name} | Vibe Mart`,
-    description: product.description.slice(0, 160),
-  };
 }
