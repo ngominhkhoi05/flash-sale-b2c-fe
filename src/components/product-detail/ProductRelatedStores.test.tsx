@@ -93,3 +93,24 @@ describe("ProductRelatedStores", () => {
     expect(screen.getByTestId("product-related-stores")).toHaveClass("my-custom-class");
   });
 });
+
+describe("ProductRelatedStores – defensive guards (BE nullable)", () => {
+  test("does NOT crash when products is undefined (BE missing field)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductRelatedStores products={undefined as unknown as RecommendedProduct[]} />,
+      ),
+    ).not.toThrow();
+    // Empty state should still render.
+    expect(screen.getByTestId("product-related-stores")).toBeInTheDocument();
+  });
+
+  test("does NOT crash when products is null (BE explicit null)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductRelatedStores products={null as unknown as RecommendedProduct[]} />,
+      ),
+    ).not.toThrow();
+    expect(screen.getByTestId("product-related-stores")).toBeInTheDocument();
+  });
+});

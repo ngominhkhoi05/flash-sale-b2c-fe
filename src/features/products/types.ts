@@ -71,9 +71,11 @@ export interface ProductDetail {
   features: ProductFeature[];
   descriptionRich: string[];
   storeProfile: StoreProfile;
-  vouchers: ShopVoucher[];
+  vouchers: ShopVoucher[] | null;
   shipping: ShippingInfo;
-  commitments: CommitmentBadge[];
+  /** Mirror `ProductCommitmentsResponse` của BE (xem Swagger). BE có thể
+   * trả về `null` khi store chưa cấu hình cam kết. */
+  commitments: BackendProductCommitment | null;
 }
 
 export interface ProductImage {
@@ -201,6 +203,32 @@ export interface CommitmentBadge {
   icon: string;
   iconClass: string;
   label: string;
+}
+
+/**
+ * BackendProductCommitment – mirror `ProductCommitmentsResponse` của BE.
+ *
+ * Ví dụ response thật:
+ * ```json
+ * {
+ *   "return_days": 7,
+ *   "warranty_months": 3,
+ *   "authentic_guarantee": true,
+ *   "shipping_time_hours": 48,
+ *   "free_shipping_threshold": 0
+ * }
+ * ```
+ *
+ * FE render tối đa 3 badge (theo Stitch design): đổi trả / bảo hành /
+ * chính hãng. Các field còn lại (`shipping_time_hours`,
+ * `free_shipping_threshold`) đã được dùng ở `ShippingInfo` section.
+ */
+export interface BackendProductCommitment {
+  return_days: number;
+  warranty_months: number;
+  authentic_guarantee: boolean;
+  shipping_time_hours: number;
+  free_shipping_threshold: number;
 }
 
 export type ProductVariantMode = "standard" | "flash";

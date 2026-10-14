@@ -128,9 +128,11 @@ export function ProductStoreCard({ store, className }: ProductStoreCardProps) {
 }
 
 /**
- * Format 42500 → "42.5k" (Vietnamese thousand separator + k suffix).
+ * Format 42500 → "42,5k" (Vietnamese thousand separator + k suffix).
+ * Defensive: n có thể undefined/null từ BE partial response.
  */
-function formatCount(n: number): string {
+function formatCount(n: number | null | undefined): string {
+  if (n == null) return "0";
   if (n >= 1000) {
     const k = n / 1000;
     return `${k.toFixed(1).replace(".", ",").replace(",0", "")}k`;
@@ -141,9 +143,12 @@ function formatCount(n: number): string {
 /**
  * Format joinedAt ISO → short Vietnamese duration like "2 năm".
  * Uses whole years / months / days to match the Stitch sample "2 năm".
+ * Defensive: empty/invalid ISO → trả rỗng thay vì NaN.
  */
-function formatJoinedDuration(iso: string): string {
+function formatJoinedDuration(iso: string | null | undefined): string {
+  if (!iso) return "";
   const joined = new Date(iso);
+  if (Number.isNaN(joined.getTime())) return "";
   const now = new Date();
   const diffMs = now.getTime() - joined.getTime();
   if (Number.isNaN(diffMs)) return "";

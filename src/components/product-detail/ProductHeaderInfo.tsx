@@ -27,10 +27,11 @@ export interface ProductHeaderInfoTags {
 export interface ProductHeaderInfoProps {
   tags: ProductHeaderInfoTags;
   title: string;
-  ratingAvg: number;
-  ratingCount: number;
-  soldCount: number;
-  questionCount: number;
+  /** Defensive: BE có thể trả null/undefined. */
+  ratingAvg: number | null | undefined;
+  ratingCount: number | null | undefined;
+  soldCount: number | null | undefined;
+  questionCount: number | null | undefined;
   className?: string;
 }
 
@@ -87,13 +88,13 @@ export function ProductHeaderInfo({
             <StarIcon className="h-4 w-4 text-base" filled />
           </div>
           <span className="font-semibold text-on-surface">
-            {ratingAvg}
+            {ratingAvg == null ? "—" : ratingAvg}
           </span>
           <NextLink
             href="#reviews-section"
             className="text-outline underline transition-colors hover:text-primary"
           >
-            {tRating("reviews", { count: ratingCount })}
+            {tRating("reviews", { count: ratingCount ?? 0 })}
           </NextLink>
         </div>
         <span className="text-outline-variant">|</span>
@@ -105,7 +106,7 @@ export function ProductHeaderInfo({
         </div>
         <span className="text-outline-variant">|</span>
         <div className="text-outline">
-          {tRating("questions", { count: questionCount })}
+          {tRating("questions", { count: questionCount ?? 0 })}
         </div>
       </div>
     </div>
@@ -115,8 +116,10 @@ export function ProductHeaderInfo({
 /**
  * Format sold count as "2,1k" for 2100, "1,4k" for 1400, "890" for <1000.
  * Uses Vietnamese thousand separator (dot) and decimal comma.
+ * Defensive: n có thể null/undefined từ BE.
  */
-function formatSoldCount(n: number): string {
+function formatSoldCount(n: number | null | undefined): string {
+  if (n == null) return "0";
   if (n >= 1000) {
     const k = n / 1000;
     // For 2,1k (1 decimal place) format

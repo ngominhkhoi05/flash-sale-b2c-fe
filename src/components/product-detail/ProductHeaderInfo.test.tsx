@@ -123,3 +123,58 @@ describe("ProductHeaderInfo", () => {
     expect(screen.getByText(/76 câu hỏi/)).toBeInTheDocument();
   });
 });
+
+describe("ProductHeaderInfo – defensive guards (BE nullable)", () => {
+  const baseProps = {
+    tags: {},
+    title: "Áo thun unisex cotton",
+    ratingAvg: 4.8,
+    ratingCount: 326,
+    soldCount: 2100,
+    questionCount: 76,
+  };
+
+  it("does NOT crash when soldCount is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductHeaderInfo
+          {...baseProps}
+          soldCount={undefined as unknown as number}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when soldCount is null (BE explicit null)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductHeaderInfo
+          {...baseProps}
+          soldCount={null as unknown as number}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when ratingCount is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductHeaderInfo
+          {...baseProps}
+          ratingCount={undefined as unknown as number}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when questionCount is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductHeaderInfo
+          {...baseProps}
+          questionCount={undefined as unknown as number}
+        />,
+      ),
+    ).not.toThrow();
+  });
+});

@@ -17,13 +17,16 @@ import { cn } from "@/lib/utils";
 import type { ShopVoucher } from "@/features/products";
 
 export interface ProductVouchersProps {
-  vouchers: ShopVoucher[];
+  vouchers: ShopVoucher[] | null;
   className?: string;
 }
 
 export function ProductVouchers({ vouchers, className }: ProductVouchersProps) {
   const t = useTranslations("productDetail.vouchers");
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
+
+  // BE có thể trả null khi store chưa cấu hình voucher.
+  if (!vouchers || vouchers.length === 0) return null;
 
   function toggleSave(id: number) {
     setSavedIds((prev) => {
@@ -36,8 +39,6 @@ export function ProductVouchers({ vouchers, className }: ProductVouchersProps) {
       return next;
     });
   }
-
-  if (vouchers.length === 0) return null;
 
   return (
     <div

@@ -2,60 +2,63 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProductCommitments } from "./ProductCommitments";
 import { TestWrapper } from "@/__tests__/test-wrapper";
-import type { CommitmentBadge } from "@/features/products";
+import type { BackendProductCommitment } from "@/features/products";
 
 function renderWithIntl(ui: React.ReactElement) {
   return render(<TestWrapper>{ui}</TestWrapper>);
 }
 
-const MOCK_COMMITMENTS: CommitmentBadge[] = [
-  {
-    icon: "eco",
-    iconClass: "text-secondary",
-    label: "100% Cotton Tự Nhiên",
-  },
-  {
-    icon: "published_with_changes",
-    iconClass: "text-primary",
-    label: "Đổi trả 30 ngày dễ dàng",
-  },
-  {
-    icon: "verified_user",
-    iconClass: "text-secondary",
-    label: "Bảo hành may 6 tháng",
-  },
-];
+const MOCK_BE_COMMITMENTS: BackendProductCommitment = {
+  return_days: 7,
+  warranty_months: 3,
+  authentic_guarantee: true,
+  shipping_time_hours: 48,
+  free_shipping_threshold: 0,
+};
 
-describe("ProductCommitments", () => {
-  it("renders all 3 commitment badges with labels", () => {
+describe("ProductCommitments (BE shape)", () => {
+  it("renders return-days badge when return_days > 0", () => {
     renderWithIntl(
-      <ProductCommitments commitments={MOCK_COMMITMENTS} />,
+      <ProductCommitments commitments={MOCK_BE_COMMITMENTS} />,
     );
-    expect(screen.getByText("100% Cotton Tự Nhiên")).toBeInTheDocument();
-    expect(
-      screen.getByText("Đổi trả 30 ngày dễ dàng"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Bảo hành may 6 tháng")).toBeInTheDocument();
+    // Số ngày đổi trả phải xuất hiện trong text
+    expect(screen.getByText(/7/)).toBeInTheDocument();
   });
 
-  it("renders 3 SVG icons (one per commitment)", () => {
+  it("renders warranty badge when warranty_months > 0", () => {
     renderWithIntl(
-      <ProductCommitments commitments={MOCK_COMMITMENTS} />,
+      <ProductCommitments commitments={MOCK_BE_COMMITMENTS} />,
     );
-    const svgs = document.querySelectorAll("svg");
-    expect(svgs.length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText(/3/)).toBeInTheDocument();
   });
 
-  it("renders 0 badges when commitments array is empty", () => {
-    renderWithIntl(<ProductCommitments commitments={[]} />);
-    expect(screen.queryByText(/Cotton/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Đổi trả/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Bảo hành/i)).not.toBeInTheDocument();
+  it("renders authentic badge when authentic_guarantee is true", () => {
+    renderWithIntl(
+      <ProductCommitments commitments={MOCK_BE_COMMITMENTS} />,
+    );
+    // Badge chính hãng có icon verified_user và text "Chính hãng"
+    expect(screen.getByText(/chính hãng/i)).toBeInTheDocument();
   });
 
-  it("renders nothing inside when commitments array is empty (no icons either)", () => {
+  it("does NOT render when commitments is null", () => {
     const { container } = renderWithIntl(
-      <ProductCommitments commitments={[]} />,
+      <ProductCommitments commitments={null} />,
+    );
+    // Không có badge nào hiển thị
+    expect(container.querySelectorAll("svg").length).toBe(0);
+  });
+
+  it("does NOT render any badge when all flags are 0/false", () => {
+    const { container } = renderWithIntl(
+      <ProductCommitments
+        commitments={{
+          return_days: 0,
+          warranty_months: 0,
+          authentic_guarantee: false,
+          shipping_time_hours: 0,
+          free_shipping_threshold: 0,
+        }}
+      />,
     );
     expect(container.querySelectorAll("svg").length).toBe(0);
   });

@@ -14,6 +14,7 @@ export type {
   ShopVoucher,
   ShippingInfo,
   CommitmentBadge,
+  BackendProductCommitment,
   ProductVariantMode,
   TierVariationConfig,
 } from "./types";

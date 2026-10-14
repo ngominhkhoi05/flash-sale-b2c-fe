@@ -8,10 +8,10 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export interface ProductVariantSelectorsProps {
-  /** Available colors. */
-  colors: Array<{ name: string; bgClass: string }>;
+  /** Available colors. Defensive: BE có thể trả null. */
+  colors: Array<{ name: string; bgClass: string }> | null | undefined;
   /** Available sizes; entry can be disabled (out of stock). */
-  sizes: Array<{ label: string; disabled?: boolean }>;
+  sizes: Array<{ label: string; disabled?: boolean }> | null | undefined;
   /** Currently selected color name. */
   selectedColor?: string;
   /** Currently selected size label. */
@@ -33,6 +33,8 @@ export function ProductVariantSelectors({
   className,
 }: ProductVariantSelectorsProps) {
   const t = useTranslations("productDetail.selectors");
+  const colorList = Array.isArray(colors) ? colors : [];
+  const sizeList = Array.isArray(sizes) ? sizes : [];
 
   return (
     <div className={cn("flex flex-col gap-4", className)} data-testid="product-variant-selectors">
@@ -42,7 +44,7 @@ export function ProductVariantSelectors({
           {t("color")}
         </span>
         <div className="flex flex-wrap gap-2.5">
-          {colors.map((c) => {
+          {colorList.map((c) => {
             const active = selectedColor === c.name;
             return (
               <button
@@ -73,7 +75,7 @@ export function ProductVariantSelectors({
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2.5">
-            {sizes.map((s) => {
+            {sizeList.map((s) => {
               const active = selectedSize === s.label && !s.disabled;
               return (
                 <button

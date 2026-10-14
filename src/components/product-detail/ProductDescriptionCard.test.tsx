@@ -125,3 +125,79 @@ describe("ProductDescriptionCard", () => {
     expect(rows[3]).toHaveClass("opacity-60");
   });
 });
+
+describe("ProductDescriptionCard – defensive guards (BE nullable)", () => {
+  it("does NOT crash when descriptionRich is undefined (BE missing field)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={undefined as unknown as string[]}
+          features={FEATURES}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when descriptionRich is null (BE explicit null)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={null as unknown as string[]}
+          features={FEATURES}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when descriptionRich is a single string (BE joined)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={"Một chuỗi HTML duy nhất" as unknown as string[]}
+          features={FEATURES}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+    // Normalize: string → wrap thành array, render 1 paragraph.
+    expect(screen.getByText(/Một chuỗi HTML duy nhất/)).toBeInTheDocument();
+  });
+
+  it("renders 2 paragraphs when descriptionRich is an array of 2 strings", () => {
+    renderWithIntl(
+      <ProductDescriptionCard
+        descriptionRich={["Đoạn 1", "Đoạn 2"]}
+        features={FEATURES}
+        sizeChart={SIZE_CHART}
+      />,
+    );
+    expect(screen.getByText(/Đoạn 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Đoạn 2/)).toBeInTheDocument();
+  });
+
+  it("does NOT crash when features is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={undefined as unknown as ProductFeature[]}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when sizeChart is undefined (BE missing)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={FEATURES}
+          sizeChart={undefined as unknown as SizeChartRow[]}
+        />,
+      ),
+    ).not.toThrow();
+  });
+});

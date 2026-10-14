@@ -60,3 +60,19 @@ describe("ProductVouchers – mocked i18n snapshot", () => {
     spy.mockRestore();
   });
 });
+
+describe("ProductVouchers – null/empty handling", () => {
+  it("renders nothing when vouchers is null (BE nullable)", () => {
+    const { container } = renderWithIntl(
+      <ProductVouchers vouchers={null} />,
+    );
+    expect(container.querySelectorAll('[data-testid="product-vouchers"]').length).toBe(0);
+  });
+
+  it("renders nothing when vouchers is empty array", () => {
+    const { container } = renderWithIntl(
+      <ProductVouchers vouchers={[]} />,
+    );
+    expect(container.querySelectorAll('[data-testid="product-vouchers"]').length).toBe(0);
+  });
+});

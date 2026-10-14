@@ -21,9 +21,10 @@ import { cn } from "@/lib/utils";
 import type { Review } from "@/features/products";
 
 export interface ProductReviewsCardProps {
-  reviews: Review[];
-  ratingAvg: number;
-  ratingCount: number;
+  reviews: Review[] | null | undefined;
+  /** Defensive: BE có thể trả null. */
+  ratingAvg: number | null | undefined;
+  ratingCount: number | null | undefined;
   className?: string;
 }
 
@@ -100,7 +101,7 @@ function ReviewItem({ review }: { review: Review }) {
           </div>
         )}
         <p className="text-body-md text-on-surface">{review.content}</p>
-        {review.mediaUrls.length > 0 && (
+        {review.mediaUrls && review.mediaUrls.length > 0 && (
           <div className="flex items-center gap-2 pt-1">
             {review.mediaUrls.map((url, idx) => (
               <div
@@ -139,8 +140,11 @@ export function ProductReviewsCard({
   className,
 }: ProductReviewsCardProps) {
   const t = useTranslations("productDetail.reviews");
+  const list = Array.isArray(reviews) ? reviews : [];
+  const safeRatingAvg = ratingAvg == null ? 0 : ratingAvg;
+  const safeRatingCount = ratingCount == null ? 0 : ratingCount;
 
-  if (reviews.length === 0) {
+  if (list.length === 0) {
     return (
       <div
         data-testid="product-reviews-card"
@@ -175,10 +179,10 @@ export function ProductReviewsCard({
       <div className="flex flex-col items-center gap-6 rounded-xl bg-surface-container-low p-5 md:flex-row">
         <div className="flex shrink-0 flex-col items-center justify-center border-outline-variant/30 pr-0 text-center md:border-r md:pr-6">
           <span className="text-display-lg text-4xl font-bold text-primary">
-            {ratingAvg.toFixed(1)}
+            {safeRatingAvg.toFixed(1)}
           </span>
-          <StarRating rating={Math.round(ratingAvg)} size="lg" />
-          <span className="text-label-sm text-outline">{ratingCount} lượt đánh giá</span>
+          <StarRating rating={Math.round(safeRatingAvg)} size="lg" />
+          <span className="text-label-sm text-outline">{safeRatingCount} lượt đánh giá</span>
         </div>
 
         {/* Filter Chips */}
@@ -187,7 +191,7 @@ export function ProductReviewsCard({
             type="button"
             className="rounded-lg bg-surface-container-lowest px-3.5 py-1.5 text-label-sm font-bold text-primary shadow-sm outline outline-2 outline-primary"
           >
-            Tất cả ({ratingCount})
+            Tất cả ({safeRatingCount})
           </button>
           {[5, 4, 3, 2, 1].map((star) => (
             <button
@@ -210,7 +214,7 @@ export function ProductReviewsCard({
 
       {/* Reviews List */}
       <div className="flex flex-col gap-6">
-        {reviews.map((review) => (
+        {list.map((review) => (
           <ReviewItem key={review.id} review={review} />
         ))}
       </div>

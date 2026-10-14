@@ -19,10 +19,28 @@ import { cn } from "@/lib/utils";
 import type { ProductFeature, SizeChartRow } from "@/features/products";
 
 export interface ProductDescriptionCardProps {
-  descriptionRich: string[];
-  features: ProductFeature[];
-  sizeChart: SizeChartRow[];
+  /** BE có thể trả string[] (đã split), string (đã join), null hoặc thiếu.
+   *  Component tự defensive để không crash page. */
+  descriptionRich: string[] | string | null | undefined;
+  features: ProductFeature[] | null | undefined;
+  sizeChart: SizeChartRow[] | null | undefined;
   className?: string;
+}
+
+/** Normalize descriptionRich từ nhiều shape BE có thể trả:
+ *  - string[] → giữ nguyên
+ *  - string   → wrap [html] (BE join sẵn)
+ *  - null/undefined → [] (render không có paragraph, không crash) */
+function normalizeRich(
+  input: string[] | string | null | undefined,
+): string[] {
+  if (Array.isArray(input)) return input;
+  if (typeof input === "string" && input.length > 0) return [input];
+  return [];
+}
+
+function asArray<T>(input: T[] | null | undefined): T[] {
+  return Array.isArray(input) ? input : [];
 }
 
 export function ProductDescriptionCard({
@@ -32,6 +50,9 @@ export function ProductDescriptionCard({
   className,
 }: ProductDescriptionCardProps) {
   const t = useTranslations("productDetail.description");
+  const richList = normalizeRich(descriptionRich);
+  const featureList = asArray(features);
+  const sizeList = asArray(sizeChart);
 
   return (
     <div
@@ -50,7 +71,7 @@ export function ProductDescriptionCard({
         className="prose flex max-w-none flex-col gap-3 font-body-md leading-relaxed text-on-surface-variant"
         data-testid="description-paragraphs"
       >
-        {descriptionRich.map((html, idx) => (
+        {richList.map((html, idx) => (
           <p
             key={idx}
             dangerouslySetInnerHTML={{ __html: html }}
@@ -60,7 +81,7 @@ export function ProductDescriptionCard({
 
       {/* 3 feature cards */}
       <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-3">
-        {features.map((feature, idx) => (
+        {featureList.map((feature, idx) => (
           <div
             key={`${feature.icon}-${idx}`}
             className="flex flex-col gap-2 rounded-xl bg-surface-container-low p-4"
@@ -101,7 +122,7 @@ export function ProductDescriptionCard({
               </tr>
             </thead>
             <tbody className="divide-y-0 text-on-surface-variant font-body-sm">
-              {sizeChart.map((row, idx) => {
+              {sizeList.map((row, idx) => {
                 const isOOS = row.isOutOfStock;
                 const isCurrent = row.isCurrent;
                 return (

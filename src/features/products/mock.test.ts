@@ -70,8 +70,9 @@ describe("mockProductDetail", () => {
     expect(mockProductDetail.relatedBestSellers).toHaveLength(3);
   });
 
-  it("có 3 commitment badges", () => {
-    expect(mockProductDetail.commitments).toHaveLength(3);
+  it("có commitments object với return_days > 0", () => {
+    expect(mockProductDetail.commitments).not.toBeNull();
+    expect(mockProductDetail.commitments!.return_days).toBeGreaterThan(0);
   });
 
   it("có 2 vouchers", () => {
