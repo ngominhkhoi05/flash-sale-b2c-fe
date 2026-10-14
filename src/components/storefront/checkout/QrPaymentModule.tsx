@@ -356,7 +356,7 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
                       <div className="flex items-center gap-1.5">
                         <span
                           className={cn(
-                            "px-1.5 py-0.5 rounded font-semibold text-label-sm",
+                            "px-1 py-px rounded font-semibold text-[10px]",
                             s.storeBadge === "OfficialMall"
                               ? "bg-secondary text-on-secondary"
                               : "bg-tertiary text-on-tertiary",
