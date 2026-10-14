@@ -6,12 +6,14 @@ export {
   getOrders,
   getOrderById,
   cancelOrderById,
+  getOrdersByCode,
 } from "./api";
 
 export {
   useOrders,
   useOrderById,
   useCancelOrder,
+  useOrderSuccessByCode,
   orderKeys,
 } from "./hooks";
 
@@ -24,3 +26,13 @@ export type {
   GetOrdersParams,
   CancelOrderRequest,
 } from "./api";
+
+export type {
+  OrderSuccessView,
+  OrderSuccessRow,
+  OrderSuccessAddress,
+} from "./types";
+
+export { adaptOrdersToSuccessView } from "./types";
+
+export { mockOrderSuccessView } from "./mocks";

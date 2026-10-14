@@ -472,6 +472,27 @@
         "official": "Official",
         "codeLabel": "Code:"
       },
+      "success": {
+        "badge": "STATUS: SUCCESS",
+        "title": "Order placed successfully!",
+        "subtitle": "Thank you! {count} orders have been sent to the shops and are being prepared for delivery.",
+        "subtitleMobile": "{count} orders sent to the shops and being prepared for delivery.",
+        "paidBadge": "Paid",
+        "codeLabel": "Code:",
+        "paymentMethodZaloPay": "ZaloPay QR",
+        "totalLabel": "Grand total",
+        "estimatedDelivery": "Expected delivery tomorrow",
+        "viewOrdersCta": "View orders",
+        "continueShoppingCta": "Continue shopping",
+        "mobilePreviewBadge": "Mobile UI preview (390px)",
+        "mallBadge": "Mall",
+        "officialBadge": "Official",
+        "errorTitle": "Unable to load order",
+        "errorDescription": "Something went wrong while loading your order. Please try again.",
+        "retryCta": "Retry",
+        "emptyTitle": "Order not found",
+        "emptyDescription": "The order you're looking for doesn't exist or has already been processed."
+      },
       "footer": {
         "copyright": "© 2026 Vibe Mart. All rights reserved.",
         "pciBadge": "PCI-DSS COMPLIANT",

@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * CheckoutFooter – footer gọn dùng chung cho flow checkout (`/checkout`, `/checkout/qr`).
  *

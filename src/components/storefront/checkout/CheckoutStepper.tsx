@@ -8,6 +8,8 @@
  */
 "use client";
 
+import { usePathname } from "next/navigation";
+
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +25,32 @@ const STEPS: CheckoutStep[] = [
   { id: 3, label: "Hoàn tất", state: "upcoming" },
 ];
 
+/**
+ * Lấy activeStep dựa trên URL pathname.
+ *  - /checkout/success → 3 (Hoàn tất)
+ *  - /checkout/qr → 2 (Thanh toán, đang chờ QR)
+ *  - /checkout → 2 (Thanh toán, mặc định)
+ *  - mặc định → 2
+ */
+function deriveActiveStep(pathname: string | null): 1 | 2 | 3 {
+  if (!pathname) return 2;
+  if (pathname.startsWith("/checkout/success")) return 3;
+  if (pathname.startsWith("/checkout")) return 2;
+  return 2;
+}
+
 export function CheckoutStepper() {
+  const pathname = usePathname();
+  const activeStep = deriveActiveStep(pathname);
+
+  const steps: CheckoutStep[] = STEPS.map((step) => {
+    if (step.id < activeStep) return { ...step, state: "done" };
+    if (step.id === activeStep) return { ...step, state: "active" };
+    return { ...step, state: "upcoming" };
+  });
+
+  const trackPercent =
+    activeStep === 1 ? 0 : activeStep === 2 ? 50 : 100;
   return (
     <div className="bg-background pt-4">
       <div className="max-w-[1240px] mx-auto px-4 lg:px-8">
@@ -36,11 +63,11 @@ export function CheckoutStepper() {
             <span
               aria-hidden
               className="block h-full bg-secondary rounded-full"
-              style={{ width: "50%" }}
+              style={{ width: `${trackPercent}%` }}
             />
           </span>
 
-          {STEPS.map((step) => {
+          {steps.map((step) => {
             const isDone = step.state === "done";
             const isActive = step.state === "active";
             return (

@@ -77,6 +77,11 @@ export type MaterialSymbolName =
   | "shopping_bag"
   | "watch"
   | "two_wheeler"
+  | "storefront"
+  | "signal_cellular_alt"
+  | "wifi"
+  | "battery_full"
+  | "help"
   // Flash Sale / vouchers
   | "local_fire_department"
   | "savings"

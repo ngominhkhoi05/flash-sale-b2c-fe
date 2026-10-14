@@ -7,9 +7,11 @@ import {
   getOrders,
   getOrderById,
   cancelOrderById,
+  getOrdersByCode,
   type GetOrdersParams,
   type BackendOrderDetail,
 } from "./api";
+import type { OrderSuccessView } from "./types";
 
 // ─── Query keys ──────────────────────────────────────────────────────────────
 
@@ -56,6 +58,24 @@ export function useOrderById(orderId: number | undefined) {
     },
     enabled: orderId !== undefined && orderId !== null,
     staleTime: 1000 * 30, // 30s
+  });
+}
+
+/**
+ * useOrderSuccessByCode – fetch aggregate view cho trang `/checkout/success`.
+ *
+ * Input: orderCode (string, có thể CSV: "FS-001,TZ-002")
+ * Output: OrderSuccessView (orders + grandTotal + address + ...)
+ *
+ * Empty orderCode → query disabled, return undefined.
+ * Error → query.isError (caller render ErrorState).
+ */
+export function useOrderSuccessByCode(orderCode: string) {
+  return useQuery<OrderSuccessView>({
+    queryKey: [...orderKeys.all, "success", orderCode] as const,
+    queryFn: () => getOrdersByCode(orderCode),
+    enabled: orderCode.length > 0,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -107,3 +127,9 @@ export type {
   BackendOrderPageResponse,
   GetOrdersParams,
 } from "./api";
+
+export type {
+  OrderSuccessView,
+  OrderSuccessRow,
+  OrderSuccessAddress,
+} from "./types";

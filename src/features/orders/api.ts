@@ -185,3 +185,49 @@ export async function cancelOrderById(
     }
   );
 }
+
+/**
+ * GET nhiều order detail theo orderCode.
+ *
+ * BE hiện không có endpoint `GET /api/v1/orders?code=...`,
+ * nên ta dùng flow:
+ *   1. Lấy danh sách orders (page=0, size=20) — lọc client side
+ *   2. Với mỗi orderCode match → gọi `getOrderById(id)`
+ *   3. Aggregate thành OrderSuccessView qua `adaptOrdersToSuccessView`
+ *
+ * Lưu ý:
+ *  - orderCode có thể là CSV ("FS-001,TZ-002") khi user đặt nhiều shop.
+ *  - Nếu không tìm thấy order nào → trả về view rỗng (không throw).
+ *
+ * TODO(api): Khi BE có `GET /api/v1/orders/by-codes?codes=...` thì
+ * thay bằng 1 call duy nhất.
+ */
+import { adaptOrdersToSuccessView, type OrderSuccessView } from "./types";
+
+export async function getOrdersByCode(
+  orderCode: string
+): Promise<OrderSuccessView> {
+  const codes = orderCode
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  if (codes.length === 0) {
+    return adaptOrdersToSuccessView([]);
+  }
+
+  // 1. Lấy danh sách orders (page=0, size lớn để chắc chắn tìm thấy).
+  const list = await apiFetch<BackendOrderPageResponse>("/api/v1/orders", {
+    method: "GET",
+    query: { page: 0, size: 50 },
+  });
+
+  // 2. Lọc ra các order có orderCode khớp.
+  const matched = list.items.filter((o) => codes.includes(o.orderCode));
+
+  // 3. Fetch detail từng order (parallel).
+  const details = await Promise.all(
+    matched.map((o) => getOrderById(o.id))
+  );
+
+  return adaptOrdersToSuccessView(details);
+}
