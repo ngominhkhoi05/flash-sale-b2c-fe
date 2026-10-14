@@ -49,7 +49,7 @@ export function CheckoutShopCard({
           {group.storeBadge && (
             <span
               className={cn(
-                "font-semibold text-[9px] uppercase tracking-wider px-1 py-px rounded",
+                "font-semibold text-label-sm uppercase tracking-wider px-1.5 py-0.5 rounded",
                 group.storeBadge === "OfficialMall"
                   ? "bg-primary text-on-primary"
                   : "bg-tertiary-container text-on-tertiary-container",
