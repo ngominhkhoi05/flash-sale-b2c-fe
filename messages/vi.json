@@ -462,6 +462,14 @@
         "mall": "Mall",
         "official": "Chính hãng",
         "codeLabel": "Mã:"
+      },
+      "footer": {
+        "copyright": "© 2026 Vibe Mart. Tất cả quyền được bảo lưu.",
+        "pciBadge": "PCI-DSS COMPLIANT",
+        "terms": "Điều khoản dịch vụ",
+        "privacy": "Chính sách bảo mật",
+        "paymentGuide": "Hướng dẫn thanh toán",
+        "helpCenter": "Trung tâm trợ giúp"
       }
     },
     "voucher": {

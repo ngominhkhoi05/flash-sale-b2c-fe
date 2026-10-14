@@ -462,6 +462,14 @@
         "mall": "Mall",
         "official": "Official",
         "codeLabel": "Code:"
+      },
+      "footer": {
+        "copyright": "© 2026 Vibe Mart. All rights reserved.",
+        "pciBadge": "PCI-DSS COMPLIANT",
+        "terms": "Terms of service",
+        "privacy": "Privacy policy",
+        "paymentGuide": "Payment guide",
+        "helpCenter": "Help center"
       }
     },
     "voucher": {
