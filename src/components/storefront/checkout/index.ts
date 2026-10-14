@@ -15,3 +15,5 @@ export { VoucherPickerModal } from "./VoucherPickerModal";
 export { CheckoutPageContent } from "./CheckoutPageContent";
 export { QrPaymentModule } from "./QrPaymentModule";
 export { QrPaymentPageContent } from "./QrPaymentPageContent";
+export { FailedModule } from "./FailedModule";
+export { FailedPageContent } from "./FailedPageContent";

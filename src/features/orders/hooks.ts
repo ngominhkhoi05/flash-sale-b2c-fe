@@ -11,7 +11,7 @@ import {
   type GetOrdersParams,
   type BackendOrderDetail,
 } from "./api";
-import type { OrderSuccessView } from "./types";
+import type { OrderSuccessView, OrderFailedView } from "./types";
 
 // ─── Query keys ──────────────────────────────────────────────────────────────
 
@@ -58,6 +58,31 @@ export function useOrderById(orderId: number | undefined) {
     },
     enabled: orderId !== undefined && orderId !== null,
     staleTime: 1000 * 30, // 30s
+  });
+}
+
+/**
+ * useOrderFailedByCode – fetch aggregate view cho trang `/checkout/failed`.
+ *
+ * Input: orderCode (string, có thể CSV: "FS-001,TZ-002")
+ * Output: OrderFailedView (transactionId, grandTotal, heldUntil, rejectionReason, ...)
+ *
+ * Empty orderCode → query disabled, return undefined.
+ * Error → query.isError (caller render ErrorState).
+ */
+export function useOrderFailedByCode(orderCode: string) {
+  return useQuery<OrderFailedView>({
+    queryKey: [...orderKeys.all, "failed", orderCode] as const,
+    queryFn: () => getOrdersByCode(orderCode).then(async () => {
+      // TODO(api): Khi BE có endpoint `GET /api/v1/orders/{code}/failed-detail`
+      // thì thay bằng call riêng. Hiện tại dùng cùng getOrdersByCode + adapt
+      // sang failed view tại PageContent layer.
+      throw new Error(
+        "useOrderFailedByCode: chưa wire BE — dùng mock tại FailedPageContent",
+      );
+    }),
+    enabled: orderCode.length > 0,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -132,4 +157,6 @@ export type {
   OrderSuccessView,
   OrderSuccessRow,
   OrderSuccessAddress,
+  OrderFailedView,
+  OrderFailedVoucherWarning,
 } from "./types";

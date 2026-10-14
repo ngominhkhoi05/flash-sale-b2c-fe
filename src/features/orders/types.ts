@@ -88,3 +88,80 @@ export function adaptOrdersToSuccessView(
     estimatedDeliveryLabel: "Dự kiến giao ngày mai",
   };
 }
+
+// ─── OrderFailedView (trang `/checkout/failed`) ─────────────────────────────
+
+/**
+ * Voucher warning hiển thị trên trang failed khi user chưa thanh toán
+ * nhưng có voucher Flash Sale sắp hết hạn.
+ */
+export interface OrderFailedVoucherWarning {
+  /** Mô tả voucher, vd: "voucher Flash Sale giảm 80K" */
+  description: string;
+  /** ISO datetime — deadline giữ voucher */
+  expiresAt: string;
+}
+
+/** Top-level view cho trang `/checkout/failed`. */
+export interface OrderFailedView {
+  orderCodes: string[];
+  /** Mã giao dịch từ payment gateway, vd: "261001_000245" */
+  transactionId: string;
+  /** Tổng tiền (hiển thị đỏ) */
+  grandTotal: number;
+  /** Thời điểm hết hạn giữ chỗ (ISO datetime từ BE) */
+  heldUntil: string;
+  /** Lý do từ chối từ BE, vd: "Tài khoản không đủ số dư..." */
+  rejectionReason: string;
+  /** Voucher sắp hết hạn (optional) */
+  voucherWarning?: OrderFailedVoucherWarning;
+  /** Snapshot địa chỉ giao hàng (giống success view) */
+  address: OrderSuccessAddress;
+  /** Phương thức thanh toán user đang thử (để hiện icon + label) */
+  paymentMethod: "ZALOPAY" | "COD";
+}
+
+/**
+ * Adapter: tạo OrderFailedView từ 1+ BackendOrderDetail.
+ *
+ * - transactionId: tổng hợp từ orderCode đầu tiên (placeholder khi BE chưa có field riêng)
+ * - heldUntil: lấy từ `expiresAt` của order đầu tiên
+ * - rejectionReason: lấy từ `cancelReason` (BE tạm dùng để note lý do từ chối) — TODO(api)
+ * - grandTotal: sum totalAmount
+ * - paymentMethod: lấy từ order đầu tiên
+ */
+export function adaptOrdersToFailedView(
+  orders: BackendOrderDetail[],
+  options?: {
+    transactionId?: string;
+    rejectionReason?: string;
+    voucherWarning?: OrderFailedVoucherWarning;
+    fallbackAddress?: BackendOrderAddress;
+  },
+): OrderFailedView {
+  const first = orders[0];
+  const addressSource = first?.shippingAddress ?? options?.fallbackAddress;
+  const grandTotal = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const firstCode = first?.orderCode ?? "UNKNOWN";
+
+  return {
+    orderCodes: orders.map((o) => o.orderCode),
+    transactionId:
+      options?.transactionId ?? `${firstCode.replace(/-/g, "")}_${Date.now().toString().slice(-6)}`,
+    grandTotal,
+    heldUntil: first?.expiresAt ?? new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    rejectionReason:
+      options?.rejectionReason ??
+      first?.cancelReason ??
+      "Giao dịch bị từ chối hoặc bị gián đoạn.",
+    voucherWarning: options?.voucherWarning,
+    address: addressSource
+      ? {
+          recipientName: addressSource.recipientName,
+          phone: addressSource.phone,
+          fullAddress: addressSource.fullAddress,
+        }
+      : { recipientName: "", phone: "", fullAddress: "" },
+    paymentMethod: first?.paymentMethod ?? "ZALOPAY",
+  };
+}

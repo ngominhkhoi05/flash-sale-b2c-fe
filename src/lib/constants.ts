@@ -323,6 +323,7 @@ export const ROUTES = {
   CART: "/cart",
   CHECKOUT: "/checkout",
   CHECKOUT_SUCCESS: "/checkout/success",
+  CHECKOUT_FAILED: "/checkout/failed",
   ORDERS: "/orders",
   ORDER_DETAIL: (orderCode: string) => `/orders/${orderCode}`,
   ACCOUNT: "/account",

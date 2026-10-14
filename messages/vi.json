@@ -491,6 +491,27 @@
         "emptyTitle": "Không tìm thấy đơn hàng",
         "emptyDescription": "Đơn hàng bạn tìm không tồn tại hoặc đã được xử lý trước đó."
       },
+      "failed": {
+        "statusBadge": "TRẠNG THÁI: CẦN XỬ LÝ",
+        "countdownLabel": "Còn",
+        "expiredLabel": "Hết hạn giữ chỗ",
+        "title": "Thanh toán chưa thành công",
+        "subtitle": "Giao dịch bị từ chối hoặc bị gián đoạn. Đơn hàng của bạn vẫn được giữ đến {time}.",
+        "transactionIdLabel": "Mã giao dịch",
+        "totalLabel": "Tổng thanh toán",
+        "rejectionTitle": "Lý do từ chối:",
+        "reservedOrdersLabel": "Đơn hàng đang giữ chỗ ({count}):",
+        "copyButton": "Sao chép",
+        "voucherWarning": "Vui lòng hoàn tất trước {time} để không bỏ lỡ {voucher} đã áp dụng.",
+        "retryCta": "Thử thanh toán lại",
+        "codCta": "Chọn COD (Nhận hàng trả tiền)",
+        "supportGuide": "Hướng dẫn thanh toán",
+        "supportHotline": "Hỗ trợ: 1900 8888",
+        "copySuccess": "Đã sao chép mã giao dịch",
+        "copyError": "Không thể sao chép mã",
+        "errorTitle": "Không thể tải thông tin thanh toán",
+        "errorDescription": "Đã có lỗi khi tải chi tiết giao dịch. Vui lòng thử lại."
+      },
       "footer": {
         "copyright": "© 2026 Vibe Mart. Tất cả quyền được bảo lưu.",
         "pciBadge": "PCI-DSS COMPLIANT",

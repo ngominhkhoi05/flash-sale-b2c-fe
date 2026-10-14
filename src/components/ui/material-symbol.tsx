@@ -130,7 +130,12 @@ export type MaterialSymbolName =
   | "search_off"
   | "filter_alt_off"
   | "chevron_left"
-  | "trending_up";
+  | "trending_up"
+  // Failed payment page (added 2026-10-14)
+  | "hourglass_top"
+  | "refresh"
+  | "inventory_2"
+  | "timer";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
