@@ -290,7 +290,7 @@ export function CheckoutPageContent({
 
   return (
     <div
-      className="bg-background min-h-screen pt-[120px] md:pt-[152px] pb-32 md:pb-16"
+      className="bg-background min-h-screen pt-0 pb-32 md:pb-16"
       data-testid="checkout-page"
     >
       <div className="max-w-[1240px] mx-auto px-4 lg:px-8">
@@ -366,7 +366,7 @@ export function CheckoutPageContent({
 
             {/* ── Right column (sticky) ───────────────────────── */}
             <div className="lg:col-span-4">
-              <div className="lg:sticky lg:top-[200px] flex flex-col gap-4">
+              <div className="lg:sticky lg:top-[156px] flex flex-col gap-4">
                 <CheckoutOrderSummary
                   lines={summaryLines}
                   grandTotal={formatVND(grandTotal)}
