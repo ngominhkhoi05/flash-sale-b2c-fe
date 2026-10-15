@@ -76,7 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "TÀI CHÍNH",
     items: [
-      { key: "settlement", label: "Đối soát", icon: "payments", disabled: true },
+      { key: "settlement", label: "Đối soát", href: "/admin/reconciliation", icon: "payments" },
     ],
   },
   {
