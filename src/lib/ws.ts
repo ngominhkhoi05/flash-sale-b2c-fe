@@ -51,7 +51,7 @@ class FlashSaleWebSocketClient {
         try {
           listener(newStatus);
         } catch (err) {
-          console.error("Lỗi trong WsStatusListener:", err);
+          console.error("[ws.setStatus] WsStatusListener threw", err);
         }
       });
     }
@@ -76,7 +76,10 @@ class FlashSaleWebSocketClient {
         this.setStatus("DISCONNECTED");
       },
       onStompError: (frame) => {
-        console.warn("STOMP error frame:", frame.headers["message"]);
+        console.warn(
+          "[ws.onStompError] STOMP error frame:",
+          frame.headers["message"],
+        );
         this.setStatus("ERROR");
         if (isMockWsMode()) {
           this.startMockSimulation();
@@ -134,7 +137,7 @@ class FlashSaleWebSocketClient {
           const payload = JSON.parse(msg.body) as StockRealtimeUpdate;
           callback(payload);
         } catch (err) {
-          console.error("Lỗi parse WS stock message:", err);
+          console.error("[ws.subscribeStock] parse stock message failed", err);
         }
       });
     }
@@ -170,7 +173,10 @@ class FlashSaleWebSocketClient {
           const payload = JSON.parse(msg.body);
           callback(payload);
         } catch (err) {
-          console.error("Lỗi parse WS admin monitor message:", err);
+          console.error(
+            "[ws.subscribeAdminMonitoring] parse admin monitor message failed",
+            err,
+          );
         }
       });
     }
