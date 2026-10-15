@@ -70,7 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "MARKETING",
     items: [
-      { key: "vouchers", label: "Voucher sàn", icon: "confirmation_number", disabled: true },
+      { key: "vouchers", label: "Voucher sàn", href: "/admin/vouchers", icon: "confirmation_number" },
     ],
   },
   {
