@@ -9,17 +9,30 @@
  * chạy. Mỗi lần sau phải match y hệt — nếu khác, buộc phải update snapshot
  * bằng `npx vitest run -u`.
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { HomepageView } from "./_homepage-view";
 import { TestWrapper } from "@/__tests__/test-wrapper";
+
+// Pin Date.now() để FlashSaleStripSection countdown ổn định cho snapshot.
+// defaultEndsAt() dùng Date.now() + 24h, nếu không pin sẽ thay đổi mỗi lần
+// render → snapshot mismatch (flaky). 2026-10-15 22:00 UTC (giờ VN 05:00 next day)
+// → countdown hiển thị "28:00:00" (24h - ...).
+const FIXED_NOW = new Date("2026-10-15T22:00:00.000Z");
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(FIXED_NOW);
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 // Mock homepage API hooks to avoid network calls in snapshot test
 vi.mock("@/features/homepage/hooks", () => ({
   useHomeBanners: () => ({
     data: {
       mainSlides: [
-        { id: 1, type: "HERO", position: 1, imageUrl: "https://example.com/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 1, type: "HERO", position: 1, imageUrl: "https://cdn.vibemart.vn/banners/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
       ],
       sideBanners: [
         { id: 2, type: "FREESHIP", position: 1, imageUrl: "", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },

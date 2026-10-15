@@ -20,8 +20,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useHomeBanners, useFeaturedProducts } from "@/features/homepage/hooks";
 import { useCarousel } from "./useCarousel";
 import { cn } from "@/lib/utils";
@@ -73,13 +74,10 @@ export function HeroBannerSection() {
     return [];
   }, [banners, products]);
 
-  // Khi slide list thay đổi (BE trả list mới), reset failedImageIds để
-  // tránh giữ state stale từ banner cũ. Effect chỉ chạy khi slide keys
-  // thay đổi → tránh reset không cần thiết khi user chỉ switch tab.
-  const slideKeyString = slides.map((s) => s.id).join(",");
-  useEffect(() => {
-    setFailedImageIds(new Set());
-  }, [slideKeyString]);
+  // Note: failedImageIds KHÔNG cần reset khi slide list đổi. Khi BE trả
+  // list mới, id cũ không còn trong `slides` mới, nên `failedImageIds.has(slide.id)`
+  // chỉ check slide hiện tại → id cũ vô hại (orphan). Tránh được
+  // setState trong useEffect (cấm theo React 19 react-hooks/set-state-in-effect).
 
   const { currentIndex, goTo, pause, resume } = useCarousel({
     totalSlides: slides.length,
@@ -208,11 +206,13 @@ export function HeroBannerSection() {
               style={{ transitionDuration: `${FADE_DURATION_MS}ms` }}
             >
               {failedImageIds.has(slide.id) ? null : (
-                <img
+                <Image
                   alt={slide.imageAlt}
                   src={slide.imageUrl}
                   onError={() => handleImageError(slide.id)}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 66vw"
+                  className="object-cover"
                   data-testid={`hero-img-${idx}`}
                 />
               )}
