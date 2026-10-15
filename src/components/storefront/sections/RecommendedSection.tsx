@@ -59,7 +59,6 @@ function mapToProductCardProps(
     storeName: string;
     label?: string | null;
   },
-  index: number,
 ): ProductCardBaseProps {
   const hasDiscount = product.minPrice < product.maxPrice;
   const discountPercent = hasDiscount
@@ -90,9 +89,20 @@ export function RecommendedSection() {
   );
 
   // Lấy đúng list theo UI tab từ response.
+  // Dedupe theo id để phòng trường hợp backend trả duplicate rows
+  // (vd id=195 xuất hiện 2 lần) — sẽ gây duplicate-key warning trong dev.
   const products = useMemo(() => {
     if (!response) return [];
-    return response[UI_TAB_TO_RESPONSE_KEY[activeTab]] ?? [];
+    const list = response[UI_TAB_TO_RESPONSE_KEY[activeTab]] ?? [];
+    const seen = new Set<number>();
+    const unique: typeof list = [];
+    for (const p of list) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        unique.push(p);
+      }
+    }
+    return unique;
   }, [response, activeTab]);
 
   return (
@@ -141,21 +151,25 @@ export function RecommendedSection() {
 
         {/* Data dùng ProductCard chuẩn */}
         {!isLoading && !isError && products.length > 0 &&
-          products.map((product, index) => {
-            const props = mapToProductCardProps(product, index);
+          products.map((product) => {
+            const props = mapToProductCardProps(product);
             const hasDiscount = product.minPrice < product.maxPrice;
+            // Key phải unique & ổn định giữa các tab — dùng `${activeTab}-${id}`
+            // để khi switch tab React biết card nào là card nào (tránh remount
+            // ngoài ý muốn khi 2 tab có chung id nhưng nội dung khác nhau).
+            const cardKey = `${activeTab}-${product.id}`;
 
             // Chọn variant theo Stitch design
             if (product.label === "Freeship") {
               return (
-                <Link key={product.id} href={`/products/${product.id}`}>
+                <Link key={cardKey} href={`/products/${product.id}`}>
                   <ProductCard variant="freeship" {...props} />
                 </Link>
               );
             }
             if (product.label && product.label !== "Freeship") {
               return (
-                <Link key={product.id} href={`/products/${product.id}`}>
+                <Link key={cardKey} href={`/products/${product.id}`}>
                   <ProductCard
                     variant="voucher"
                     {...props}
@@ -166,13 +180,13 @@ export function RecommendedSection() {
             }
             if (hasDiscount && props.discountPercent) {
               return (
-                <Link key={product.id} href={`/products/${product.id}`}>
+                <Link key={cardKey} href={`/products/${product.id}`}>
                   <ProductCard variant="discount" {...props} />
                 </Link>
               );
             }
             return (
-              <Link key={product.id} href={`/products/${product.id}`}>
+              <Link key={cardKey} href={`/products/${product.id}`}>
                 <ProductCard variant="default" {...props} />
               </Link>
             );

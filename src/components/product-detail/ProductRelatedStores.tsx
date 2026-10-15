@@ -27,10 +27,23 @@ function asArray<T>(input: T[] | null | undefined): T[] {
   return Array.isArray(input) ? input : [];
 }
 
+/** Dedupe theo id để phòng backend trả duplicate rows → React warning. */
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    if (!seen.has(item.id)) {
+      seen.add(item.id);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
 export function ProductRelatedStores({ products, className }: ProductRelatedStoresProps) {
   const t = useTranslations("productDetail.related");
   const format = useFormatter();
-  const list = asArray(products);
+  const list = dedupeById(asArray(products));
 
   return (
     <div

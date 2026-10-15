@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProductBestSellers } from "@/components/product-detail/ProductBestSellers";
 import { TestWrapper } from "@/__tests__/test-wrapper";
@@ -105,5 +105,54 @@ describe("ProductBestSellers – defensive guards (BE nullable)", () => {
       ),
     ).not.toThrow();
     expect(screen.getByTestId("product-best-sellers")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Defensive: khi backend trả duplicate id trong cùng list, component
+ * PHẢI render 1 link duy nhất và KHÔNG phát React warning duplicate key.
+ */
+describe("ProductBestSellers – duplicate id defensive", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("renders only one link when API returns duplicate ids", () => {
+    const dup: RecommendedProduct = {
+      id: "9",
+      name: "Áo duplicate",
+      imageUrl: "https://example.com/dup.jpg",
+      imageAlt: "dup",
+      price: 100000,
+      href: "/products/dup",
+    };
+    renderWithIntl(
+      <ProductBestSellers products={[dup, dup, MOCK_BESTSELLERS[0]!]} />,
+    );
+    const dupLinks = screen.getAllByRole("link", { name: /Áo duplicate/i });
+    expect(dupLinks.length).toBe(1);
+    expect(screen.getByText("Áo Boxy Heavy Cotton")).toBeInTheDocument();
+  });
+
+  test("does NOT emit duplicate-key warning when ids collide", () => {
+    const dup: RecommendedProduct = {
+      id: "9",
+      name: "Áo duplicate",
+      imageUrl: "https://example.com/dup.jpg",
+      imageAlt: "dup",
+      price: 100000,
+      href: "/products/dup",
+    };
+    renderWithIntl(<ProductBestSellers products={[dup, dup]} />);
+    const dupKeyWarnings = consoleErrorSpy.mock.calls.filter((args) =>
+      String(args[0] ?? "").includes("two children with the same key"),
+    );
+    expect(dupKeyWarnings).toHaveLength(0);
   });
 });
