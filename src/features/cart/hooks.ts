@@ -13,6 +13,7 @@ import {
   type AddToCartRequest,
   type BackendCartResponse,
 } from "./api";
+import { useAuth } from "@/hooks/useAuth";
 
 /** Key cho list cart items – refetch khi invalidate ["cart"]. */
 export const cartKeys = {
@@ -24,12 +25,20 @@ export const cartKeys = {
 /**
  * useCart – lấy toàn bộ giỏ hàng.
  * Trả về BackendCartResponse với storeGroups.
+ *
+ * Guest guard: cart là protected endpoint (BE trả 401 nếu không có token).
+ * Khi user chưa login, hook KHÔNG gọi API và trả về `data: undefined` để UI
+ * render empty state thay vì hiển thị cart rỗng. Header vẫn có thể render
+ * badge số 0 nhờ useCartCount (cũng guard guest).
+ *
+ * Param `enabled` cho phép caller tắt query thêm (vd: khi cần suspend).
  */
 export function useCart(enabled = true) {
+  const { isAuthenticated } = useAuth();
   return useQuery<BackendCartResponse>({
     queryKey: cartKeys.items(),
     queryFn: () => getCart(),
-    enabled,
+    enabled: enabled && isAuthenticated,
     staleTime: 30_000,
   });
 }
@@ -136,13 +145,49 @@ export function useClearCart(options?: {
  * Select từ useCart để tránh gọi 2 query song song.
  * Dùng `select` để trả về `number` thay vì `BackendCartResponse | undefined` –
  * TanStack Query vẫn gọi queryFn 1 lần nhưng `data` luôn là number.
+ *
+ * Guest guard: khi user chưa login, hook trả về 0 và KHÔNG gọi API
+ * (cart là protected endpoint → BE trả 401). Tránh spam error console.
+ * `select` được apply với placeholderData để `data: 0` khi query bị disabled.
+ */
+/**
+ * useCartCount – số lượng item (badge trên header).
+ * Select từ useCart để tránh gọi 2 query song song.
+ * Dùng `select` để trả về `number` thay vì `BackendCartResponse | undefined` –
+ * TanStack Query vẫn gọi queryFn 1 lần nhưng `data` luôn là number.
+ *
+ * Guest guard: cart là protected endpoint (BE trả 401 nếu không có token).
+ * Khi user chưa login, hook KHÔNG gọi API → `data: 0`. Khi user login,
+ * hook fetch cart và trả về `data: totalItems`.
+ *
+ * Pattern: gọi useAuth() và useQuery() UNCONDITIONALLY (React rules of
+ * hooks), rồi dùng `enabled` để skip query khi guest. Dùng `select` để
+ * transform data từ BackendCartResponse → number; nếu query disabled
+ * (guest), `data` mặc định undefined → trả về 0 trong custom wrapper.
+ *
+ * Lý do không dùng initialData 0: khi `enabled: false`, TanStack Query
+ * KHÔNG apply initialData (chỉ apply khi query enabled nhưng chưa có data).
  */
 export function useCartCount(enabled = true) {
-  return useQuery<BackendCartResponse, Error, number>({
+  const { isAuthenticated } = useAuth();
+  const query = useQuery<BackendCartResponse, Error, number>({
     queryKey: cartKeys.items(),
     queryFn: () => getCart(),
-    enabled,
+    enabled: enabled && isAuthenticated,
     staleTime: 30_000,
     select: (cart) => cart.totalItems,
   });
+  // Khi query bị disabled (guest), `data` = undefined → trả 0 để UI
+  // không bị 'data is undefined' khi render badge.
+  if (!isAuthenticated) {
+    return {
+      ...query,
+      data: 0,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+    };
+  }
+  return query;
 }

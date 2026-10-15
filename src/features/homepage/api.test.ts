@@ -14,6 +14,7 @@ import {
   fetchFeaturedProducts,
   fetchFeaturedStores,
   fetchHomeBanners,
+  fetchPlatformVouchers,
   fetchRecommendedProducts,
 } from "./api";
 
@@ -342,5 +343,69 @@ describe("fetchRecommendedProducts", () => {
     );
 
     await expect(fetchRecommendedProducts("all")).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("fetchPlatformVouchers (guest guard)", () => {
+  it("returns empty array when backend returns 401 (guest user)", async () => {
+    // Guest mở trang chủ → homepage fetch vouchers → BE trả 401 vì
+    // /vouchers/platform yêu cầu auth. Hook phải fallback về [] để UI
+    // ẩn section voucher, không spam error console.
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(401, { message: "Unauthorized" }),
+    );
+
+    const result = await fetchPlatformVouchers();
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array when backend returns 404 (endpoint missing)", async () => {
+    // Tương tự fetchHomeBanners, BE có thể chưa implement endpoint →
+    // 404 → fallback [].
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(404, { message: "Not Found" }),
+    );
+
+    const result = await fetchPlatformVouchers();
+    expect(result).toEqual([]);
+  });
+
+  it("throws ApiError when backend returns 500 (server error không phải guard)", async () => {
+    // 5xx không phải guard case → throw để React Query hiển thị error UI.
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(500, { message: "Internal error" }),
+    );
+
+    await expect(fetchPlatformVouchers()).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("parses voucher array when backend returns data", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        data: [
+          {
+            id: 1,
+            code: "WELCOME10",
+            storeId: null,
+            discountType: "PERCENT",
+            discountValue: 10,
+            minOrderAmount: 100000,
+            maxDiscountAmount: 50000,
+            totalQuantity: 1000,
+            usedQuantity: 250,
+            userUsageLimit: 1,
+            startTime: "2026-10-01T00:00:00Z",
+            endTime: "2026-12-31T23:59:59Z",
+            status: "ACTIVE",
+            createdAt: "2026-09-30T00:00:00Z",
+          },
+        ],
+      }),
+    );
+
+    const result = await fetchPlatformVouchers();
+    expect(result).toHaveLength(1);
+    expect(result[0]?.code).toBe("WELCOME10");
+    expect(result[0]?.storeId).toBeNull();
   });
 });
