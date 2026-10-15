@@ -46,27 +46,32 @@ describe("createFlashSaleStompClient – no SockJS (migrate sang WebSocket thu�
   });
 
   it("webSocketFactory trả về native WebSocket (không phải SockJS)", () => {
-    // Spy constructor WebSocket để verify stomp.ts dùng class này
-    const webSocketSpy = vi
-      .spyOn(globalThis, "WebSocket")
-      .mockImplementation((() => ({
-        close: vi.fn(),
-        send: vi.fn(),
-      })) as unknown as typeof WebSocket);
+    // Spy constructor WebSocket để verify stomp.ts dùng class này.
+    // Dùng vi.fn() thay cho vi.spyOn(globalThis, "WebSocket") vì Vitest
+    // không hỗ trợ spy class constructor với type strict — return object
+    // mô phỏng các method mà webSocketFactory không gọi đến.
+    const webSocketSpy = vi.fn(() => ({
+      close: vi.fn(),
+      send: vi.fn(),
+    }));
+    const originalWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = webSocketSpy as unknown as typeof WebSocket;
 
-    createFlashSaleStompClient("test-token");
-    expect(mockClientInstances.length).toBe(1);
-    const config = mockClientInstances[0]?.config as {
-      webSocketFactory: () => unknown;
-    };
-    expect(config.webSocketFactory).toBeDefined();
+    try {
+      createFlashSaleStompClient("test-token");
+      expect(mockClientInstances.length).toBe(1);
+      const config = mockClientInstances[0]?.config as {
+        webSocketFactory: () => unknown;
+      };
+      expect(config.webSocketFactory).toBeDefined();
 
-    // Gọi factory → phải return 1 instance của WebSocket
-    const ws = config.webSocketFactory();
-    expect(webSocketSpy).toHaveBeenCalledTimes(1);
-    expect(ws).toBeDefined();
-
-    webSocketSpy.mockRestore();
+      // Gọi factory → phải return 1 instance của WebSocket
+      const ws = config.webSocketFactory();
+      expect(webSocketSpy).toHaveBeenCalledTimes(1);
+      expect(ws).toBeDefined();
+    } finally {
+      globalThis.WebSocket = originalWebSocket;
+    }
   });
 
   it("client activate được gọi ngay khi tạo (auto-connect)", () => {

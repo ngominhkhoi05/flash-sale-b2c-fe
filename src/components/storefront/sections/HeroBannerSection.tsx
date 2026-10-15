@@ -40,8 +40,9 @@ export function HeroBannerSection() {
   // Track slide id nào có image fail (404 / network error) → fallback sang
   // placeholder gradient. Set giữ state qua re-render; reset khi banner list
   // đổi (sneaky: dependency vào slides.length để clear khi BE trả list mới).
-  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
-  const handleImageError = useCallback((slideId: string) => {
+  // slide.id từ API là number (BannerResponse.id, RecommendedProductResponse.id).
+  const [failedImageIds, setFailedImageIds] = useState<Set<number>>(new Set());
+  const handleImageError = useCallback((slideId: number) => {
     setFailedImageIds((prev) => {
       if (prev.has(slideId)) return prev;
       const next = new Set(prev);
