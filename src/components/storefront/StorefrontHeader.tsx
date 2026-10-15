@@ -279,6 +279,12 @@ export function StorefrontHeader({
                 height={36}
                 priority
                 className="h-9 w-auto object-contain"
+                // Style: cho next/image biết CSS sẽ override 1 trong 2
+                // chiều (className "h-9" set height=36px, w-auto giữ width
+                // intrinsic). Không set inline thì React cảnh báo
+                // "Image with src has either width or height modified, but
+                // not the other".
+                style={{ width: "auto", height: "auto" }}
               />
             </Link>
 
