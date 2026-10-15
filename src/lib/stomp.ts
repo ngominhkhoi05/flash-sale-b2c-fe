@@ -1,12 +1,20 @@
 import { Client, type IMessage, type StompConfig } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { WS_RECONNECT_DELAY_MS } from "@/lib/constants";
 
 /**
  * STOMP client factory (rule websocket-realtime).
  * - Tự reconnect với backoff đơn giản.
- * - Truyền JWT qua query `?access_token=` cho Spring Security.
+ * - Truyền JWT qua connectHeaders (Authorization Bearer) cho Spring Security.
  * - KHÔNG xử lý nghiệp vụ ở đây; chỉ mount, subscribe/unsubscribe do hook làm.
+ *
+ * Lưu ý quan trọng (migrate 2026-10-15):
+ * - Trước đây dùng `new SockJS(wsUrl)` trong webSocketFactory. SockJS 1.x
+ *   attach 'unload' event listener → Chrome cảnh báo
+ *   `[Violation] Permissions policy violation: unload is not allowed`.
+ * - Migrate sang `new WebSocket(wsUrl)` thuần. Spring Boot hỗ trợ native
+ *   WebSocket endpoint qua @EnableWebSocketMessageBroker + STOMP.
+ *   Nếu BE chỉ hỗ trợ SockJS (vd: cũ < 2.0), cần đổi lại wsUrl sang
+ *   path /ws-native hoặc giữ SockJS.
  */
 export interface FlashSaleStompClient {
   client: Client;
@@ -19,15 +27,23 @@ function getWsUrl(): string {
   return raw.replace(/\/$/, "");
 }
 
+/**
+ * Convert ws:// hoặc wss:// từ http(s):// URL (Spring Boot mặc định
+ * dùng http(s):// cho cả WS endpoint; cần đổi scheme khi dùng native
+ * WebSocket vì browser yêu cầu ws(s):// protocol).
+ */
+function toNativeWsUrl(httpUrl: string): string {
+  return httpUrl.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
+}
+
 export function createFlashSaleStompClient(
   accessToken: string | null
 ): FlashSaleStompClient {
-  const wsUrl = getWsUrl();
+  const wsUrl = toNativeWsUrl(getWsUrl());
 
-  // SockJS tương thích tốt với Spring Boot; nếu backend chỉ hỗ trợ ws thuần,
-  // truyền brokerURL thay vì webSocketFactory.
   const config: StompConfig = {
-    webSocketFactory: () => new SockJS(wsUrl) as unknown as WebSocket,
+    // Native WebSocket — KHÔNG dùng SockJS (xem comment migrate ở đầu file).
+    webSocketFactory: () => new WebSocket(wsUrl),
     reconnectDelay: WS_RECONNECT_DELAY_MS,
     heartbeatIncoming: 10_000,
     heartbeatOutgoing: 10_000,

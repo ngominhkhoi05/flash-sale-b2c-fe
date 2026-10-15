@@ -236,3 +236,55 @@ describe("HeroBannerSection (API-driven)", () => {
     expect(slides.length).toBe(0);
   });
 });
+
+// ── Fallback khi imageUrl trỏ đến file 404 ────────────────────────────
+describe("HeroBannerSection – image 404 fallback", () => {
+  // Không dùng fake timers ở describe này vì onError chỉ fire khi <img>
+  // thực sự load fail (synthetic event qua fireEvent). waitFor cần real timers.
+  it("khi imageUrl trỏ đến file 404, hiển thị placeholder gradient thay <img>", async () => {
+    // Setup mock: 1 slide với imageUrl = path không tồn tại trong public/
+    // (vd: /banners/hero-1.jpg — public/banners/ không có).
+    mockBanners.value = {
+      mainSlides: [
+        {
+          id: 1,
+          type: "HERO",
+          position: 1,
+          imageUrl: "/banners/hero-1.jpg", // ← file không tồn tại
+          imageAlt: "Slide missing",
+          ctaHref: "/flash-sale",
+          ctaText: "Mua ngay",
+          isActive: true,
+          startDate: null,
+          endDate: null,
+          createdAt: "2026-01-01",
+        },
+      ],
+      sideBanners: [],
+    };
+
+    const { container, queryByTestId } = renderWithProviders(
+      <HeroBannerSection />,
+    );
+    const slideLink = container.querySelector(
+      '[data-testid="hero-slide-0"]',
+    ) as HTMLElement;
+    expect(slideLink).toBeTruthy();
+
+    const img = slideLink.querySelector(
+      '[data-testid="hero-img-0"]',
+    ) as HTMLImageElement;
+    expect(img).toBeTruthy();
+    // Trước khi error: img hiển thị bình thường
+    expect(queryByTestId("hero-placeholder-0")).toBeNull();
+
+    // Simulate browser fire 'error' event (React sẽ gọi onError handler)
+    await act(async () => {
+      fireEvent.error(img);
+    });
+
+    // Sau khi onError fire: img bị remove, placeholder xuất hiện
+    expect(queryByTestId("hero-img-0")).toBeNull();
+    expect(queryByTestId("hero-placeholder-0")).toBeTruthy();
+  });
+});

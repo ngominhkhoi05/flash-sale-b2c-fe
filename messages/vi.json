@@ -631,7 +631,8 @@
     "home": {
       "hero": {
         "ariaLabel": "Banner khuyến mãi nổi bật",
-        "empty": "Chưa có banner nào"
+        "empty": "Chưa có banner nào",
+        "unavailable": "Banner không khả dụng"
       },
       "sideBanners": {
         "freeshipTag": "Hỏa Tốc",
