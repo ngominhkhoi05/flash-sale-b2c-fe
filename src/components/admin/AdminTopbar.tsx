@@ -12,6 +12,9 @@ const BREADCRUMB_MAP: Record<string, string> = {
   "/admin/flash-sale": "Khung giờ Flash Sale",
   "/admin/flash-sale/approvals": "Duyệt sản phẩm",
   "/admin/flash-sale/monitor": "Giám sát realtime",
+  "/admin/vouchers": "Voucher sàn",
+  "/admin/reconciliation": "Đối soát tài chính",
+  "/admin/permissions": "Phân quyền & tính năng",
 };
 
 export function AdminTopbar() {
