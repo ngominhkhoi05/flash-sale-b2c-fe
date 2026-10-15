@@ -82,7 +82,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "HỆ THỐNG",
     items: [
-      { key: "permissions", label: "Phân quyền & tính năng", icon: "verified_user", disabled: true },
+      { key: "permissions", label: "Phân quyền & tính năng", href: "/admin/permissions", icon: "verified_user" },
     ],
   },
 ];
