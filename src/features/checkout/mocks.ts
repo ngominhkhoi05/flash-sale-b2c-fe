@@ -10,6 +10,7 @@ import type {
   QrOrderDetail,
   Voucher,
 } from "./types";
+import type { PaymentMethod, PaymentResponse } from "./payment.types";
 
 export const mockAddresses: Address[] = [
   {
@@ -198,13 +199,72 @@ export const mockQrOrderDetail: QrOrderDetail = {
       amount: 538_000,
       itemSummary: "Áo thun cotton oversize, Quần short thể thao",
     },
-    {
-      storeId: 2,
-      storeName: "TechZone Official",
-      storeBadge: "OfficialMall",
-      orderCode: "TZ-261001-B9X8M",
-      amount: 754_000,
-      itemSummary: "Tai nghe không dây Bluetooth XYZ Pro",
+{
+    storeId: 2,
+    storeName: "TechZone Official",
+    storeBadge: "OfficialMall",
+    orderCode: "TZ-261001-B9X8M",
+    amount: 754_000,
+    itemSummary: "Tai nghe không dây Bluetooth XYZ Pro",
     },
   ],
 };
+
+// ─── PaymentResponse mocks (ZaloPay integration) ─────────────────────────
+
+/** Mock cho paymentMethod = "UNPAID" — order chưa tạo payment intent. */
+export const mockUnpaidPayment: PaymentResponse = {
+  id: null,
+  orderId: 42,
+  orderCode: "261001_000245",
+  paymentMethod: "UNPAID",
+  transactionCode: null,
+  amount: 1_292_000,
+  qrCodeUrl: null,
+  paymentUrl: null,
+  status: "PENDING",
+  paidAt: null,
+  createdAt: "2026-10-16T10:25:00.000Z",
+};
+
+/** Mock cho paymentMethod = "ZALOPAY" + status = "PENDING" — đã tạo intent, chờ user quét. */
+export const mockPendingZaloPayPayment: PaymentResponse = {
+  id: 123,
+  orderId: 42,
+  orderCode: "261001_000245",
+  paymentMethod: "ZALOPAY",
+  transactionCode: "ZP1697356800000_42",
+  amount: 1_292_000,
+  qrCodeUrl:
+    "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ffffff'/%3E%3C/svg%3E",
+  paymentUrl: "https://sb-openapi.zalopay.vn/pay?token=mockToken123",
+  status: "PENDING",
+  paidAt: null,
+  createdAt: "2026-10-16T10:30:00.000Z",
+};
+
+/** Mock cho paymentMethod = "ZALOPAY" + status = "SUCCESS" — đã thanh toán. */
+export const mockSuccessZaloPayPayment: PaymentResponse = {
+  ...mockPendingZaloPayPayment,
+  status: "SUCCESS",
+  paidAt: "2026-10-16T10:32:00.000Z",
+};
+
+/** Mock cho paymentMethod = "ZALOPAY" + status = "EXPIRED" — quá hạn thanh toán. */
+export const mockExpiredZaloPayPayment: PaymentResponse = {
+  ...mockPendingZaloPayPayment,
+  status: "EXPIRED",
+  paidAt: null,
+};
+
+/** Helper lấy mock theo method + status. */
+export function mockPaymentByState(
+  state: "UNPAID" | "PENDING" | "SUCCESS" | "EXPIRED",
+  method: PaymentMethod = "ZALOPAY",
+): PaymentResponse {
+  if (state === "UNPAID") return { ...mockUnpaidPayment, paymentMethod: method };
+  if (state === "PENDING" && method === "ZALOPAY") return mockPendingZaloPayPayment;
+  if (state === "SUCCESS" && method === "ZALOPAY") return mockSuccessZaloPayPayment;
+  if (state === "EXPIRED") return mockExpiredZaloPayPayment;
+  return mockUnpaidPayment;
+}

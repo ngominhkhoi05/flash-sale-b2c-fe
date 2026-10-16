@@ -489,7 +489,18 @@
         "changeMethod": "← Use a different payment method",
         "mall": "Mall",
         "official": "Official",
-        "codeLabel": "Code:"
+        "codeLabel": "Code:",
+        "manualSync": "I've paid, check again",
+        "manualSyncing": "Checking...",
+        "openApp": "Open ZaloPay app",
+        "expiresIn": "Order expires in {minutes}:{seconds}",
+        "countdownZero": "Reservation expired",
+        "autoConfirmHint": "The system will confirm automatically after your payment. No further action needed.",
+        "qrAlt": "ZaloPay QR payment code",
+        "amountLabel": "Amount: {amount}",
+        "scanQr": "Scan the QR code to pay",
+        "missingQr": "Generating payment code...",
+        "redirecting": "Redirecting to ZaloPay..."
       },
       "success": {
         "badge": "STATUS: SUCCESS",
@@ -893,5 +904,41 @@
       "flashMaxQty": "During Flash Sale, each customer can order at most {max} items!",
       "saveSuccess": "Saved"
     }
+  },
+  "orders": {
+    "list": {
+      "title": "My orders",
+      "loading": "Loading orders…",
+      "empty": "You have no orders yet",
+      "emptyDescription": "Browse more products to place your first order."
+    },
+    "detail": {
+      "title": "Order detail",
+      "loading": "Loading order detail…",
+      "breadcrumb": "Orders",
+      "orderCodeLabel": "Order code:",
+      "createdAtLabel": "Placed on:",
+      "amountLabel": "Grand total",
+      "paymentMethodLabel": "Payment method",
+      "statusLabel": "Order status",
+      "expiresAtLabel": "Expires at:",
+      "itemsTitle": "Items ({count})",
+      "viewProduct": "View product",
+      "buyAgain": "Buy again",
+      "contactShop": "Contact shop",
+      "backToList": "← Back to orders",
+      "shareOrder": "Share order",
+      "notFoundTitle": "Order not found",
+      "notFoundDescription": "The order you are looking for does not exist or has been deleted.",
+      "loadErrorTitle": "Failed to load order",
+      "loadErrorDescription": "An error occurred while loading order details. Please try again.",
+      "retryCta": "Retry"
+    }
+  },
+  "paymentErrors": {
+    "ORDER_NOT_FOUND": "Order not found",
+    "ORDER_INVALID_STATUS_TRANSITION": "Order has already been processed and cannot change payment method",
+    "ORDER_NOT_OWNER": "You don't have permission to operate on this order",
+    "INTERNAL_SERVER_ERROR": "Payment system is under maintenance. Please try again later or choose another method"
   }
 }
