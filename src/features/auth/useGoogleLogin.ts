@@ -89,7 +89,11 @@ export function useGoogleLogin(
   const popupRef = useRef<Window | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statusRef = useRef<UseGoogleLoginReturn["status"]>("idle");
-  statusRef.current = status;
+
+  // Sync status → statusRef qua effect để tránh "Cannot update ref during render"
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   // Cleanup polling khi unmount
   useEffect(() => {
