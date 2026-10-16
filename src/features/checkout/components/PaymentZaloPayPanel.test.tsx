@@ -23,7 +23,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 // Mock next/image — render <img> bình thường để test DOM queries
 vi.mock("next/image", () => ({
@@ -43,7 +43,7 @@ vi.mock("next/link", () => ({
 }));
 
 // Mock next-intl — dùng vi.hoisted để tránh TDZ (vi.mock được hoist lên đầu)
-const { MOCK_TRANSLATIONS, mockTranslate } = vi.hoisted(() => {
+const { mockTranslate } = vi.hoisted(() => {
   // Component dùng useTranslations("storefront.checkout.qrPayment") rồi t("xxx")
   // → mock function nhận key ngắn, KHÔNG có namespace prefix
   const translations: Record<string, string> = {
@@ -81,7 +81,7 @@ const { MOCK_TRANSLATIONS, mockTranslate } = vi.hoisted(() => {
     }
     return value;
   };
-  return { MOCK_TRANSLATIONS: translations, mockTranslate: translate };
+  return { mockTranslate: translate };
 });
 
 vi.mock("next-intl", () => ({
