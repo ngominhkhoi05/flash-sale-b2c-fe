@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import viMessages from '@/../messages/vi.json';
 import enMessages from '@/../messages/en.json';
-import { OrdersTabs } from './OrdersTabs';
+import { OrdersTabs, type OrdersTabKey } from './OrdersTabs';
 
-  function renderWithLocale(locale: 'vi' | 'en', activeTab = 'all', onChange = vi.fn()) {
+function renderWithLocale(locale: 'vi' | 'en', activeTab: OrdersTabKey = 'all', onChange = vi.fn()) {
   const messages = locale === 'vi' ? viMessages : enMessages;
   return render(
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
