@@ -11,6 +11,8 @@ import {
   type GetOrdersParams,
   type BackendOrderDetail,
 } from "./api";
+import { submitReview } from "./review-api";
+import type { ReviewInput } from "./schemas/review";
 import type { OrderSuccessView, OrderFailedView, OrderExpiredView } from "./types";
 
 // ─── Query keys ──────────────────────────────────────────────────────────────
@@ -159,6 +161,41 @@ export function useCancelOrder(options?: {
     },
     onError: (error, variables) => {
       console.error("[orders.useCancelOrder]", {
+        error,
+        orderId: variables.orderId,
+      });
+      options?.onError?.(error, variables);
+    },
+  });
+}
+
+/**
+ * useSubmitReview – Gửi đánh giá sản phẩm cho đơn hàng đã hoàn thành.
+ *
+ * Flow:
+ * 1. User bấm "Gửi đánh giá" trong ReviewProductDialog → gọi mutation
+ * 2. POST /api/v1/orders/{id}/reviews với body (rating, comment, mediaUrls, anonymous)
+ * 3. Thành công → invalidate orders list (để refresh đơn hàng có review badge)
+ * 4. Thất bại → render toast error
+ */
+export function useSubmitReview(options?: {
+  onSuccess?: (data: { success: boolean; reviewId: number; message?: string }) => void;
+  onError?: (error: unknown, variables: { orderId: number; body: ReviewInput }) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ orderId, body }: { orderId: number; body: ReviewInput }) =>
+      submitReview(orderId, body),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: orderKeys.detail(variables.orderId),
+      });
+      options?.onSuccess?.(data);
+    },
+    onError: (error, variables) => {
+      console.error("[orders.useSubmitReview]", {
         error,
         orderId: variables.orderId,
       });
