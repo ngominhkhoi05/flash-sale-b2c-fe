@@ -7,11 +7,10 @@ import type {
   Address,
   CheckoutData,
   CheckoutShopGroup,
-  PaymentResponse,
   QrOrderDetail,
   Voucher,
 } from "./types";
-import type { PaymentMethod } from "./payment.types";
+import type { PaymentMethod, PaymentResponse } from "./payment.types";
 
 export const mockAddresses: Address[] = [
   {

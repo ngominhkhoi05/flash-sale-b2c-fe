@@ -23,6 +23,7 @@ import {
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import type { PaymentResponse } from "./payment.types";
 
 // ── Mock api layer ──────────────────────────────────────────────────────
 const mockCreateZaloPayPayment = vi.fn();
