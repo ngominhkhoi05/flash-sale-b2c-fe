@@ -39,7 +39,8 @@ interface BackendCartItem {
   price: number;
   quantity: number;
   subtotal: number;
-  // NOTE: stockQuantity sẽ được thêm ở subplan #4 (M.4)
+  /** Thêm trong Swagger 2026-10-17: stock tồn kho của variant (M.4). */
+  stockQuantity?: number;
 }
 
 interface BackendCartStoreGroup {
@@ -60,7 +61,10 @@ interface BackendCartResponse {
   subtotal: number;
   totalShippingFee: number;
   totalItems: number;
-  // NOTE: totalAmount + grandTotal sẽ được thêm ở subplan #4 (M.3)
+  /** Thêm trong Swagger 2026-10-17: tổng tiền hàng (subtotal). Optional cho backward compat. */
+  totalAmount?: number;
+  /** Thêm trong Swagger 2026-10-17: tổng cuối (subtotal + ship - discount). Optional. */
+  grandTotal?: number;
 }
 
 interface BackendAddress {
@@ -254,7 +258,12 @@ function adaptCartToCheckout(
   const goodsSubtotal = cart.subtotal;
   const shippingFee = cart.totalShippingFee;
   const totalDiscount = 0; // No vouchers applied yet
-  const grandTotal = goodsSubtotal + shippingFee - totalDiscount;
+  // M.3: Ưu tiên grandTotal từ BE (Swagger 2026-10-17). Fallback tính local
+  // nếu BE response chưa có (backward compat với version cũ).
+  const grandTotal =
+    cart.grandTotal !== undefined
+      ? cart.grandTotal
+      : goodsSubtotal + shippingFee - totalDiscount;
 
   return {
     id: String(cart.id),
@@ -462,4 +471,10 @@ export async function getOrderForQr(orderCode: string): Promise<QrOrderDetail> {
 }
 
 // ─── Re-export types for external use ──────────────────────────────────────
-export type { BackendCartResponse, BackendAddress, BackendVoucher };
+export type {
+  BackendCartResponse,
+  BackendCartItem,
+  BackendCartStoreGroup,
+  BackendAddress,
+  BackendVoucher,
+};

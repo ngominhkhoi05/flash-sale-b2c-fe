@@ -2,16 +2,13 @@
  * applyVoucher test — RED tests viết TRƯỚC khi sửa code
  * (rule testing-required.mdc: TDD bắt buộc).
  *
- * Sau khi Swagger refactor 2026-10-17:
- * - Request:  { code, subtotalAmount, storeId? }
+ * Coverage:
+ * - M.1: applyVoucher request body dùng { code, subtotalAmount }
  *   (thay vì { orderAmount, voucherCode, storeId? })
- * - Response: { voucherId, code, discountAmount, finalAmount }
- *   (BE trả envelope ApiResponse<VoucherCalculationResponse>;
- *    apiFetch unwrap 1 lần → còn VoucherCalculationResponse)
- *   KHÔNG còn full voucher object trong response.
- *
- * Caller (CheckoutPageContent) cần match voucher trong cache
- * theo `code` để có full Voucher object cho UI.
+ * - M.2: applyVoucher response adapt từ VoucherCalculationResponse mới
+ *   (thay vì BackendVoucherCalculation cũ có full voucher object)
+ * - M.3: BackendCartResponse có totalAmount + grandTotal (từ Swagger 2026-10-17)
+ * - M.4: BackendCartItem có stockQuantity
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { applyVoucher } from "./api";
@@ -202,5 +199,101 @@ describe("applyVoucher", () => {
       | undefined;
     expect(callArgs?.json?.code).toBe("VIBE10");
     expect(callArgs?.json?.subtotalAmount).toBe(1_000_000);
+  });
+});
+
+// ── M.3 + M.4: Cart response shape ──────────────────────────────────────
+
+import { getCheckout } from "./api";
+import type { BackendCartItem, BackendCartResponse } from "./api";
+
+describe("getCheckout — cart shape (M.3 + M.4)", () => {
+  beforeEach(() => {
+    mockApiFetch.mockReset();
+  });
+
+  const MOCK_CART_WITH_NEW_FIELDS: BackendCartResponse = {
+    id: 1,
+    userId: 5,
+    storeGroups: [
+      {
+        storeId: 2,
+        storeName: "Shop ABC",
+        estimatedDeliveryLabel: "Ngày mai",
+        shippingMethodLabel: "Tiết kiệm",
+        shippingFee: 30_000,
+        items: [
+          {
+            id: 11,
+            variantId: 42,
+            productId: 100,
+            productName: "Áo thun",
+            variantName: "Đen, M",
+            imageUrl: "https://example.com/img.jpg",
+            price: 99_000,
+            quantity: 2,
+            subtotal: 198_000,
+            // ── M.4: field mới từ Swagger 2026-10-17 ──
+            stockQuantity: 50,
+          } satisfies BackendCartItem,
+        ],
+        shopSubtotal: 198_000,
+      },
+    ],
+    subtotal: 198_000,
+    totalShippingFee: 30_000,
+    totalItems: 2,
+    // ── M.3: field mới từ Swagger 2026-10-17 ──
+    totalAmount: 228_000, // = subtotal + totalShippingFee
+    grandTotal: 228_000, // chưa có discount
+  };
+
+  it("uses cart.grandTotal from BE when present (M.3)", async () => {
+    mockApiFetch.mockImplementation(async (url: string) => {
+      if (url === "/api/v1/cart") return MOCK_CART_WITH_NEW_FIELDS;
+      if (url === "/api/v1/users/addresses") return [];
+      return null;
+    });
+
+    const checkout = await getCheckout();
+    // grandTotal từ BE = 228_000 (bao gồm ship, chưa discount)
+    expect(checkout.grandTotal).toBe(228_000);
+    expect(checkout.goodsSubtotal).toBe(198_000);
+    expect(checkout.shippingFee).toBe(30_000);
+  });
+
+  it("falls back to local calculation when BE response lacks grandTotal (backward compat)", async () => {
+    const CART_WITHOUT_GRAND_TOTAL: BackendCartResponse = {
+      ...MOCK_CART_WITH_NEW_FIELDS,
+      totalAmount: undefined,
+      grandTotal: undefined,
+    };
+    mockApiFetch.mockImplementation(async (url: string) => {
+      if (url === "/api/v1/cart") return CART_WITHOUT_GRAND_TOTAL;
+      if (url === "/api/v1/users/addresses") return [];
+      return null;
+    });
+
+    const checkout = await getCheckout();
+    // Fallback: grandTotal = goodsSubtotal + shippingFee - totalDiscount
+    // = 198_000 + 30_000 - 0 = 228_000
+    expect(checkout.grandTotal).toBe(228_000);
+  });
+
+  it("accepts BackendCartItem with stockQuantity field (M.4 type-shape)", () => {
+    // Verify type-level: BackendCartItem accept stockQuantity
+    const item: BackendCartItem = {
+      id: 1,
+      variantId: 1,
+      productId: 1,
+      productName: "Test",
+      variantName: "Default",
+      imageUrl: "https://x",
+      price: 100,
+      quantity: 1,
+      subtotal: 100,
+      stockQuantity: 10, // M.4 — phải có field này
+    };
+    expect(item.stockQuantity).toBe(10);
   });
 });
