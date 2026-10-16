@@ -44,10 +44,10 @@ export function CheckoutHeader() {
             <Image
               alt="Vibe Mart"
               src="/images/vibe-mart-logo-lockup-light.png"
-              width={128}
-              height={36}
+              width={120}
+              height={40}
               priority
-              className="h-9 w-auto object-contain"
+              className="shrink-0"
             />
           </Link>
           <span className="h-6 w-px bg-outline-variant/60 rounded-full" />

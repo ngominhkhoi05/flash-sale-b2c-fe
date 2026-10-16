@@ -80,17 +80,17 @@ export function StorefrontHeader({
         )}
       >
         <div className="mx-auto flex h-12 max-w-[1240px] items-center gap-3 px-4">
-          <Link href={ROUTES.HOME} className="flex items-center gap-2 shrink-0">
-            <Image
-              alt="Vibe Mart"
-              src="/images/vibe-mart-logo-lockup-light.png"
-              width={128}
-              height={36}
-              priority
-              className="h-9 w-auto object-contain"
-            />
-          </Link>
-          <div className="ml-auto flex items-center gap-3">
+            <Link href={ROUTES.HOME} className="flex items-center gap-2 shrink-0">
+              <Image
+                alt="Vibe Mart"
+                src="/images/vibe-mart-logo-lockup-light.png"
+                width={120}
+                height={40}
+                priority
+                className="shrink-0"
+              />
+            </Link>
+            <div className="ml-auto flex items-center gap-3">
             <Link
               href={ROUTES.SEARCH}
               aria-label={t("searchPlaceholder")}
@@ -275,10 +275,10 @@ export function StorefrontHeader({
               <Image
                 alt="Vibe Mart"
                 src="/images/vibe-mart-logo-lockup-light.png"
-                width={128}
-                height={36}
+                width={120}
+                height={40}
                 priority
-                className="h-9 w-auto object-contain"
+                className="shrink-0"
               />
             </Link>
 
