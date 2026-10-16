@@ -141,7 +141,15 @@ export type MaterialSymbolName =
   | "verified"
   | "check_circle"
   | "bolt"
-  | "shopping_cart";
+  | "shopping_cart"
+  // Orders list page (added 2026-10-16)
+  | "calendar_today"
+  | "arrow_drop_down"
+  | "near_me"
+  | "chat"
+  | "map"
+  | "rate_review"
+  | "arrow_back_ios_new";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
@@ -162,6 +170,7 @@ export interface MaterialSymbolProps {
     | "[16px]"
     | "[18px]"
     | "[20px]"
+    | "[22px]"
     | "[24px]"
     | "[28px]"
     | "[32px]"
