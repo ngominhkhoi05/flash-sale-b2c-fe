@@ -228,6 +228,16 @@
       "facebookRegister": "Sign up with Facebook",
       "githubRegister": "Sign up with GitHub"
     },
+    "google": {
+      "callback": {
+        "processing": "Completing sign-in...",
+        "pleaseWait": "Please do not close this window.",
+        "error": "Google sign-in failed",
+        "closing": "This window will close in a moment.",
+        "missingCode": "Did not receive authorization code from Google",
+        "errorUNKNOWN": "Something went wrong. Please try again."
+      }
+    },
     "password": {
       "strength": {
         "weak": "Weak",

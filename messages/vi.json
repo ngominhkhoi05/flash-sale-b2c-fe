@@ -228,6 +228,16 @@
       "facebookRegister": "Đăng ký bằng Facebook",
       "githubRegister": "Đăng ký bằng GitHub"
     },
+    "google": {
+      "callback": {
+        "processing": "Đang hoàn tất đăng nhập...",
+        "pleaseWait": "Vui lòng không đóng cửa sổ này.",
+        "error": "Đăng nhập Google thất bại",
+        "closing": "Cửa sổ sẽ tự đóng sau ít giây.",
+        "missingCode": "Không nhận được authorization code từ Google",
+        "errorUNKNOWN": "Đã có lỗi xảy ra. Vui lòng thử lại."
+      }
+    },
     "password": {
       "strength": {
         "weak": "Yếu",
