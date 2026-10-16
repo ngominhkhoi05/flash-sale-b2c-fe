@@ -134,8 +134,8 @@ function OrdersContent() {
       <h1 className="text-2xl font-bold text-on-surface mb-6">{t('pageTitle')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
-        {/* Sidebar */}
-        <div className="lg:col-span-3">
+        {/* Sidebar — below on mobile, left on desktop */}
+        <div className="lg:col-span-3 order-2 lg:order-1">
           <AccountSidebar
             activeItem="orders"
             displayName={user?.fullName}
@@ -143,8 +143,8 @@ function OrdersContent() {
           />
         </div>
 
-        {/* Main content */}
-        <section className="lg:col-span-9 flex flex-col gap-space-md">
+        {/* Main content — first on mobile, right on desktop */}
+        <section className="lg:col-span-9 flex flex-col gap-space-md order-1 lg:order-2">
           <OrdersTabs activeTab={activeTab} onTabChange={setActiveTab} counts={tabCounts} />
 
           {/* Search + time filter */}
