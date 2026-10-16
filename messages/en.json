@@ -216,7 +216,9 @@
       "invalidCredentials": "Incorrect email or password",
       "oauthNotImplemented": "Feature coming soon",
       "termsRequired": "You must agree to the terms to continue",
-      "registerFailed": "Registration failed"
+      "registerFailed": "Registration failed",
+      "googlePopupBlocked": "Your browser blocked the sign-in popup. Please allow popups and try again.",
+      "googleLoginFailed": "Google sign-in failed. Please try again."
     },
     "social": {
       "google": "Sign in with Google",

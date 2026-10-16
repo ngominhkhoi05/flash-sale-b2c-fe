@@ -216,7 +216,9 @@
       "invalidCredentials": "Email hoặc mật khẩu chưa đúng",
       "oauthNotImplemented": "Chức năng đang phát triển",
       "termsRequired": "Bạn cần đồng ý điều khoản để tiếp tục",
-      "registerFailed": "Đăng ký thất bại"
+      "registerFailed": "Đăng ký thất bại",
+      "googlePopupBlocked": "Trình duyệt đã chặn cửa sổ đăng nhập. Vui lòng cho phép popup và thử lại.",
+      "googleLoginFailed": "Đăng nhập bằng Google thất bại. Vui lòng thử lại."
     },
     "social": {
       "google": "Đăng nhập bằng Google",
