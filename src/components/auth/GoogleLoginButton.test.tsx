@@ -57,9 +57,9 @@ describe('GoogleLoginButton', () => {
     );
     const btn = screen.getByRole('button', { name: /đăng nhập bằng google/i });
     expect(btn).toBeInTheDocument();
-    // icon-only: h-10 w-10 (40x40)
+    // icon-only: h-10 (height only, width giãn theo cột grid như Facebook/GitHub)
     expect(btn).toHaveClass('h-10');
-    expect(btn).toHaveClass('w-10');
+    expect(btn).not.toHaveClass('w-10');
   });
 
   it('renders Google logo svg', () => {

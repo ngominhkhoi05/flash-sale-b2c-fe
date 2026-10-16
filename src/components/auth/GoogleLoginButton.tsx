@@ -77,7 +77,7 @@ export function GoogleLoginButton({
       aria-label={t(labelKey)}
       aria-busy={isLoading}
       data-testid="social-google"
-      className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-container-lowest shadow-sm transition-colors hover:bg-surface-container-low focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex h-10 items-center justify-center rounded-lg bg-surface-container-lowest shadow-sm transition-colors hover:bg-surface-container-low focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
       style={{ boxShadow: 'inset 0 0 0 1px #bfc7d2' }}
     >
       {isLoading ? (
