@@ -78,7 +78,7 @@ export function useLoginMutation() {
       setRefreshToken(res.refreshToken);
       const user = toAuthUser(res.user, res.accessToken);
       setUser(user);
-      toast.success("Đăng nhập thành công");
+      // Toast success/fail do component tự quyết định (i18n).
       // Invalidate auth + 3 nhóm data trên trang chủ (cart, voucher cá nhân, recommended)
       await Promise.all(
         POST_LOGIN_INVALIDATE_KEYS.map((key) =>
@@ -115,7 +115,7 @@ export function useRegisterMutation() {
       setRefreshToken(res.refreshToken);
       const user = toAuthUser(res.user, res.accessToken);
       setUser(user);
-      toast.success("Đăng ký thành công");
+      // Toast success/fail do component tự quyết định (i18n).
       // Invalidate auth + 3 nhóm data trên trang chủ
       await Promise.all(
         POST_LOGIN_INVALIDATE_KEYS.map((key) =>
