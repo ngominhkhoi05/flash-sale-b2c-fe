@@ -34,9 +34,28 @@
       "PAID": "Đã thanh toán",
       "CONFIRMED": "Đã xác nhận",
       "SHIPPING": "Đang giao",
+      "SHIPPED": "Đã giao hàng",
       "COMPLETED": "Hoàn thành",
+      "CANCELLED": "Đã huỷ",
       "CANCELLED_TIMEOUT": "Đã huỷ – quá hạn thanh toán",
       "CANCELLED_USER": "Đã huỷ"
+    }
+  },
+  "ws": {
+    "connectionState": {
+      "connecting": "Đang kết nối…",
+      "connected": "Trực tuyến",
+      "disconnected": "Mất kết nối",
+      "reconnecting": "Đang kết nối lại…"
+    },
+    "toast": {
+      "orderReserved": "Đặt hàng thành công. Mã đơn: {orderCode}",
+      "orderReservedDescription": "Hết hạn thanh toán: {expiresAt}",
+      "orderCancelledTimeout": "Đơn {orderCode} đã hết hạn và bị huỷ tự động",
+      "orderStatusChanged": "Đơn {orderCode} đã chuyển sang trạng thái {status}",
+      "paymentStatusChanged": "Thanh toán {orderCode}: {paymentStatus}",
+      "slotActivated": "Phiên Flash Sale #{slotId} đã bắt đầu",
+      "slotClosed": "Phiên Flash Sale #{slotId} đã kết thúc"
     }
   },
   "payment": {

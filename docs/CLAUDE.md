@@ -262,3 +262,81 @@ Trước khi tạo component mới, tìm trong `components/` xem đã có chưa.
    - [ ] Mọi chữ hiển thị là tiếng Việt, enum đã đổi sang nhãn
    - [ ] Đã dùng lại Header/Footer/ProductCard/Pagination có sẵn, tô đúng mục điều hướng
 6. **Báo cáo ngắn** sau mỗi lần làm: file đã tạo/sửa, component mới, các `TODO(api)` còn lại.
+
+---
+
+## 13. Tích hợp WebSocket (STOMP + SockJS) – BE WS Guide 2026-10-15
+
+> Source of truth: `docs/handoffs/fe-ws-integration-guide (1).md` (BE soạn 2026-10-15). Quy ước chi tiết ở `.cursor/rules/websocket-realtime.mdc`. Tóm tắt các điểm PHẢI nhớ:
+
+### 13.1 Endpoint & Auth
+
+- **Endpoint**: `${NEXT_PUBLIC_WS_URL}/ws` (mặc định `http://localhost:8080/ws`). KHÔNG thêm `/flash-sale` – BE handler tên `/ws`.
+- **Auth**: truyền JWT qua **query param** `?token=<access_token>`. KHÔNG dùng `Authorization` header (browser không cho set header khi upgrade WebSocket).
+- BE `HandshakeAuthInterceptor` đọc token từ query → set `Principal` cho `StompHeaderAccessor`.
+
+### 13.2 STOMP Destinations (10 event types)
+
+**Public topics (subscribe được khi chưa login):**
+
+| Topic | Event types |
+|---|---|
+| `/topic/flash-sale/slot/{slotId}/stock-update` | `STOCK_DECREMENTED`, `STOCK_RESTORED`, `STOCK_RETURNED_UNSOLD` |
+| `/topic/flash-sale/slot/{slotId}/status` | `SLOT_ACTIVATED`, `SLOT_CLOSED` |
+
+**Private queues (chỉ user đã login mới nhận được):**
+
+| Queue | Event types |
+|---|---|
+| `/user/queue/flash-sale/reservation-result` | `ORDER_RESERVED` |
+| `/user/queue/flash-sale/orders/{orderCode}/status` | `ORDER_STATUS_CHANGED`, `PAYMENT_STATUS_CHANGED` |
+| `/user/queue/flash-sale/orders/{orderCode}/updates` | `ORDER_CANCELLED_TIMEOUT` |
+
+Dùng helper `WS_DESTINATIONS` từ `src/features/flash-sale/types.ts` thay vì nhớ string.
+
+### 13.3 Connection lifecycle & Reconnect
+
+- Mount qua `WsConnectionProvider` (root layout) – KHÔNG mount trong page.
+- State machine: `idle → connecting → connected → (disconnected) → reconnecting`.
+- **Exponential backoff** (`WS_RECONNECT_BACKOFF_MS` = `[3000, 6000, 12000, 30000]` ms) – reset về 0 khi connect thành công.
+- Hiển thị chip trạng thái cho user (đặc biệt `"reconnecting"` khi đang trong flash-sale page).
+
+### 13.4 Hook API – `useFlashSaleWs`
+
+```ts
+// Ưu tiên dùng options object
+useFlashSaleWs({
+  enabled: true,
+  subscribeSlotIds: [12, 34],
+  subscribeOrderCodes: ["ORD-2026-001"],
+  onMessage: (event) => { /* xử lý custom */ },
+});
+
+// Backward-compatible (legacy)
+useFlashSaleWs("/topic/flash-sale/slot/12", (msg) => { /* ... */ });
+```
+
+- Hook **luôn** subscribe `/user/queue/flash-sale/reservation-result` nếu có token.
+- Tự subscribe/unsub khi `subscribeSlotIds` / `subscribeOrderCodes` đổi.
+
+### 13.5 Stock update – 2 layer
+
+- **TanStack Query cache** (server state): `STOCK_DECREMENTED` / `STOCK_RESTORED` / `STOCK_RETURNED_UNSOLD` → `queryClient.setQueryData(['flash-sale', 'slot', slotId, 'stock'], { remainingStock, version })`. Đây là source of truth cho `StockBar`.
+- **Zustand store** (`src/stores/flash-sale.store.ts` – UI state): chỉ track `watchingSlots`, `watchingOrders`, `lastReservation`. **KHÔNG** cache `remainingStock` ở store.
+
+### 13.6 Order event handling
+
+- `ORDER_RESERVED` → lưu `lastReservation` vào store + toast "Đặt hàng thành công" + redirect `/checkout/{orderCode}`.
+- `ORDER_CANCELLED_TIMEOUT` → toast "Đơn bị huỷ do quá hạn" + invalidate `useOrder`.
+- `ORDER_STATUS_CHANGED` / `PAYMENT_STATUS_CHANGED` → invalidate query + cập nhật `StatusBadge` (label tiếng Việt qua `order.status.*` i18n key).
+
+### 13.7 Heartbeat & nguyên tắc
+
+- Heartbeat incoming/outgoing: **10s** (BE spec).
+- WS = **notification**, KHÔNG phải source of truth. Stock/order critical state lấy từ REST.
+- KHÔNG log payload nhạy cảm (`orderCode` kèm `totalAmount` chỉ log ở dev).
+
+### 13.8 Test
+
+- Unit test: `src/lib/stomp.test.ts` (URL/token), `src/features/flash-sale/types.test.ts` (10 events + destinations), `src/hooks/useFlashSaleWs.test.ts` (subscribe/unsubscribe), `src/stores/flash-sale.store.test.ts` (snapshot state), `src/providers/WsConnectionProvider.test.tsx` (lifecycle + backoff).
+- E2E: KHÔNG (xem `no-overengineering.mdc`).
