@@ -31,6 +31,7 @@ vi.mock('sonner', () => ({
 
 // Mock auth feature
 const mockMutate = vi.fn();
+const mockGoogleLogin = vi.fn();
 vi.mock('@/features/auth', async () => {
   const actual = await vi.importActual<typeof import('@/features/auth')>(
     '@/features/auth'
@@ -43,6 +44,12 @@ vi.mock('@/features/auth', async () => {
       isError: false,
       error: null,
     }),
+    useGoogleLogin: () => ({
+      login: mockGoogleLogin,
+      status: 'idle',
+      error: null,
+      reset: vi.fn(),
+    }),
   };
 });
 
@@ -51,6 +58,7 @@ beforeEach(() => {
   toastSuccess.mockClear();
   routerPush.mockClear();
   mockMutate.mockClear();
+  mockGoogleLogin.mockClear();
 });
 
 function withQueryClient(ui: React.ReactNode) {
