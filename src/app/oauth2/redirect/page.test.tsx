@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import viMessages from '@/../messages/vi.json';
 import OAuth2RedirectPage from './page';
 
@@ -25,15 +25,28 @@ vi.mock('@/features/auth/google-api', async (importOriginal) => {
   };
 });
 
-// 3) sessionStorage (stub via prototype spy)
+// 3) sessionStorage (override trực tiếp window.sessionStorage thay vì spy prototype,
+// để cleanup deterministic giữa các test)
 const mockSessionStorageGet = vi.fn();
 const mockSessionStorageRemove = vi.fn();
-let sessionGetItemSpy: ReturnType<typeof vi.spyOn<Storage, 'getItem'>> | null = null;
-let sessionRemoveItemSpy: ReturnType<typeof vi.spyOn<Storage, 'removeItem'>> | null = null;
+const fakeSessionStorage = {
+  getItem: mockSessionStorageGet as unknown as Storage['getItem'],
+  setItem: vi.fn() as unknown as Storage['setItem'],
+  removeItem: mockSessionStorageRemove as unknown as Storage['removeItem'],
+  clear: vi.fn() as unknown as Storage['clear'],
+  key: vi.fn() as unknown as Storage['key'],
+  get length() {
+    return 0;
+  },
+};
 
-// 4) window.opener.postMessage
+// 4) window.opener.postMessage + window.close
 const mockPostMessage = vi.fn();
 const mockWindowClose = vi.fn();
+
+let originalOpener: Window['opener'];
+let originalClose: typeof window.close;
+let originalSessionStorage: Storage;
 
 beforeEach(() => {
   mockSearchParamsGet.mockReset();
@@ -47,50 +60,68 @@ beforeEach(() => {
   mockSearchParamsGet.mockReturnValue(null);
   mockSessionStorageGet.mockReturnValue('http://localhost:3000/oauth2/redirect');
 
-  // Stub window.opener
+  // Lưu + stub window.opener, window.close, window.sessionStorage
+  originalOpener = window.opener;
+  originalClose = window.close;
+  originalSessionStorage = window.sessionStorage;
   Object.defineProperty(window, 'opener', {
     value: { postMessage: mockPostMessage },
     writable: true,
     configurable: true,
   });
-  // Stub window.close
   window.close = mockWindowClose;
-  // Stub sessionStorage via prototype
-  sessionGetItemSpy = vi
-    .spyOn(Storage.prototype, 'getItem')
-    .mockImplementation(mockSessionStorageGet as unknown as typeof Storage.prototype.getItem);
-  sessionRemoveItemSpy = vi
-    .spyOn(Storage.prototype, 'removeItem')
-    .mockImplementation(mockSessionStorageRemove as unknown as typeof Storage.prototype.removeItem);
+  Object.defineProperty(window, 'sessionStorage', {
+    value: fakeSessionStorage,
+    writable: true,
+    configurable: true,
+  });
 });
 
 afterEach(() => {
-  sessionGetItemSpy?.mockRestore();
-  sessionRemoveItemSpy?.mockRestore();
+  // Restore everything we stubbed ở beforeEach
+  Object.defineProperty(window, 'opener', {
+    value: originalOpener,
+    writable: true,
+    configurable: true,
+  });
+  window.close = originalClose;
+  Object.defineProperty(window, 'sessionStorage', {
+    value: originalSessionStorage,
+    writable: true,
+    configurable: true,
+  });
 });
 
 function renderPage() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={qc}>
-      <NextIntlClientProvider locale="vi" messages={viMessages}>
-        <OAuth2RedirectPage />
-      </NextIntlClientProvider>
-    </QueryClientProvider>
-  );
+  let result: ReturnType<typeof render> | null = null;
+  act(() => {
+    result = render(
+      <QueryClientProvider client={qc}>
+        <NextIntlClientProvider locale="vi" messages={viMessages}>
+          <OAuth2RedirectPage />
+        </NextIntlClientProvider>
+      </QueryClientProvider>
+    );
+  });
+  // Flush initial state + useEffect scheduling
+  return result!;
 }
 
 describe('OAuth2RedirectPage', () => {
-  it('renders loading state initially', () => {
+  it('renders loading state initially', async () => {
     mockSearchParamsGet.mockImplementation((key: string) =>
       key === 'code' ? 'AUTH_CODE_XYZ' : null
     );
     renderPage();
-    expect(
-      screen.getByText(/đang hoàn tất đăng nhập|hoàn tất|pleaseWait/i)
-    ).toBeInTheDocument();
+    // Đợi effect chạy xong để DOM cập nhật
+    await waitFor(() => {
+      expect(
+        screen.getByText(/đang hoàn tất đăng nhập|hoàn tất|pleaseWait/i)
+      ).toBeInTheDocument();
+    });
   });
 
   it('reads code from search params and calls loginWithGoogle with redirectUri from sessionStorage', async () => {
@@ -225,9 +256,11 @@ describe('OAuth2RedirectPage', () => {
       );
     });
     // Error UI renders
-    expect(
-      screen.getByText(/đăng nhập thất bại|thất bại|error/i)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/đăng nhập thất bại|thất bại|error/i)
+      ).toBeInTheDocument();
+    });
 
     await new Promise((r) => setTimeout(r, 1600));
     expect(mockWindowClose).toHaveBeenCalled();
