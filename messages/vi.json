@@ -1034,6 +1034,8 @@
     "totalPayment": "Tổng thanh toán:",
     "cancelledAmount": "Số tiền hủy:",
     "itemCount": "{count, plural, =0 {Không có sản phẩm} =1 {1 sản phẩm} other {# sản phẩm}}",
+    "itemVariant": "Phân loại: {variant}",
+    "itemQty": "Số lượng: x{count}",
     "loading": "Đang tải đơn hàng...",
     "errorTitle": "Không tải được danh sách đơn hàng",
     "errorDescription": "Đã có lỗi xảy ra. Vui lòng thử lại.",
