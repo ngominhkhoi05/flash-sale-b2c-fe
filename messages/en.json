@@ -34,9 +34,28 @@
       "PAID": "Paid",
       "CONFIRMED": "Confirmed",
       "SHIPPING": "Shipping",
+      "SHIPPED": "Shipped",
       "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
       "CANCELLED_TIMEOUT": "Cancelled – payment timeout",
       "CANCELLED_USER": "Cancelled"
+    }
+  },
+  "ws": {
+    "connectionState": {
+      "connecting": "Connecting…",
+      "connected": "Live",
+      "disconnected": "Disconnected",
+      "reconnecting": "Reconnecting…"
+    },
+    "toast": {
+      "orderReserved": "Order placed. Code: {orderCode}",
+      "orderReservedDescription": "Payment expires at: {expiresAt}",
+      "orderCancelledTimeout": "Order {orderCode} expired and was cancelled automatically",
+      "orderStatusChanged": "Order {orderCode} moved to status {status}",
+      "paymentStatusChanged": "Payment for {orderCode}: {paymentStatus}",
+      "slotActivated": "Flash Sale #{slotId} has started",
+      "slotClosed": "Flash Sale #{slotId} has ended"
     }
   },
   "payment": {
