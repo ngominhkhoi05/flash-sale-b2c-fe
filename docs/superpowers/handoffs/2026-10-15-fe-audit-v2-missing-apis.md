@@ -2,10 +2,31 @@
 
 > **Từ**: FE team (flash-sale-b2c-fe)
 > **Đến**: BE team (flash-sale-b2c-UTC2)
-> **Ngày**: 2026-10-15
+> **Ngày**: 2026-10-15 (cập nhật 2026-10-17 theo audit lần 2)
 > **Nguồn Swagger**: http://180.93.137.28/swagger-ui/index.html# + http://180.93.137.28/v3/api-docs
-> **Snapshot**: `scripts/swagger-v2.json` (90KB, 74 paths, 102 schemas)
+> **Snapshot**: `scripts/swagger-v2.json` (95KB, 78 paths, 119 schemas) — đã commit trong branch `feat/api-audit-v2-integration` (worktree `wt-api-audit`)
 > **Bối cảnh**: FE vừa re-audit toàn bộ Swagger sau khi BE cập nhật. Phát hiện 8 endpoint FE chưa implement function (mặc dù BE đã có endpoint) + 7 SHAPE_MISMATCH cần confirm.
+
+---
+
+## Update 2026-10-17 — FE đã tự xử lý
+
+Trong sprint 2026-10-15 → 2026-10-17, FE đã tự implement/fix nhiều mục:
+
+| Mục handoff gốc | Trạng thái 2026-10-17 | Ghi chú |
+|---|---|---|
+| A.4 `DELETE /reservations/{id}` | ✅ **Đã có** `cancelReservation()` ở `src/features/flash-sale/api.ts:113` + test ở `api.test.ts:105` | Sprint orders/auth |
+| A.6 `PUT /users/me` | ✅ **Đã có** `updateProfile()` ở `src/features/user/api.ts:89` | Sprint profile |
+| A.7 `PUT /users/me/change-password` | ✅ **Đã có** `changePassword()` ở `src/features/user/api.ts:113` | Sprint profile |
+| B.1 (voucher request body) | ⏳ **ĐANG FIX** (subplan #3 trong plan `2026-10-17-api-audit-v2-integration.md`) | Đổi `orderAmount` → `subtotalAmount`, `voucherCode` → `code` |
+| B.2 (voucher response) | ⏳ **ĐANG FIX** (subplan #3) | Đọc `voucherId, code, discountAmount, finalAmount` |
+| B.3 (cart response fields) | ⏳ **ĐANG FIX** (subplan #4) | Thêm `totalAmount, grandTotal` vào `BackendCartResponse` |
+| B.4 (cart item fields) | ⏳ **ĐANG FIX** (subplan #4) | Thêm `stockQuantity` vào `BackendCartItem` |
+| B.5, B.6 (auth roles) | ⏳ **ĐANG FIX** (subplan #5) | Thêm `roles?: string[]` type-only (giữ logic JWT parse) |
+| A.1 `POST /auth/refresh-token` | ⏳ **ĐANG FIX** (subplan trong sprint auth-jwt) | Có 401 interceptor đang dùng — chỉ cần thêm function |
+| A.2 `POST /flash-sales/reservations` | ⏳ **ĐANG FIX** (subplan #1) | Thêm `createReservation()` |
+| A.5 `GET /flash-sales/items/active` | ⏳ **ĐANG FIX** (subplan #1) | Thêm `getActiveFlashSaleItems()` |
+| A.8 `POST /users/me/avatar` | ❌ **BỎ QUA** | BE chưa xác nhận form field name (`file` hay `avatar`?). FE sẽ đợi BE confirm trước khi implement |
 
 ---
 
