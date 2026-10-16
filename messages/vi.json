@@ -668,7 +668,24 @@
       "emptyDescription": "Vui lòng đăng nhập lại để tiếp tục.",
       "profile": "Hồ sơ",
       "orders": "Đơn hàng",
-      "logout": "Đăng xuất"
+      "logout": "Đăng xuất",
+      "sidebar": {
+        "editProfile": "Sửa hồ sơ",
+        "rewardsTitle": "Vibe Rewards",
+        "rewardsTier": "Hạng Vàng",
+        "rewardsPoints": "{points} điểm khả dụng",
+        "rewardsRedeem": "Đổi quà",
+        "rewardsNext": "Còn {points} điểm lên {tier}",
+        "rewardsGoal": "{points} điểm",
+        "nav": {
+          "myAccount": "Tài khoản của tôi",
+          "myOrders": "Đơn mua",
+          "vouchers": "Kho voucher",
+          "notifications": "Thông báo đơn hàng",
+          "sellerChannel": "Kênh người bán",
+          "sellerHot": "Hot"
+        }
+      }
     },
     "home": {
       "hero": {
@@ -945,6 +962,85 @@
       "loadErrorTitle": "Không thể tải đơn hàng",
       "loadErrorDescription": "Đã có lỗi khi tải chi tiết đơn hàng. Vui lòng thử lại.",
       "retryCta": "Thử lại"
+    }
+  },
+  "review": {
+    "title": "Đánh giá sản phẩm",
+    "orderLabel": "Đơn hàng #{code}",
+    "ratingLabel": "Chất lượng sản phẩm",
+    "ratingExcellent": "Tuyệt vời (5/5 sao)",
+    "commentLabel": "Nhận xét chi tiết",
+    "commentHint": "+100 Xu khi kèm ảnh & >50 từ",
+    "commentCounter": "{count}/500 ký tự",
+    "commentPlaceholder": "Chia sẻ trải nghiệm của bạn về sản phẩm...",
+    "mediaLabel": "Hình ảnh & Video thực tế",
+    "mediaAddButton": "+ Thêm ảnh / video",
+    "mediaHint": "Tối đa 5 ảnh (<10MB)",
+    "anonymous": "Đánh giá ẩn danh (Tên tài khoản sẽ hiển thị dạng n***n)",
+    "cancel": "Huỷ",
+    "submit": "Gửi đánh giá",
+    "submitSuccess": "Cảm ơn bạn đã đánh giá sản phẩm!",
+    "submitError": "Không thể gửi đánh giá. Vui lòng thử lại."
+  },
+  "sidebar": {
+    "editProfile": "Sửa hồ sơ",
+    "rewardsTitle": "Vibe Rewards",
+    "rewardsTier": "Hạng Vàng",
+    "rewardsPoints": "{points} điểm khả dụng",
+    "rewardsRedeem": "Đổi quà",
+    "rewardsNext": "Còn {points} điểm lên {tier}",
+    "rewardsGoal": "{points} điểm",
+    "nav": {
+      "myAccount": "Tài khoản của tôi",
+      "myOrders": "Đơn mua",
+      "vouchers": "Kho voucher",
+      "notifications": "Thông báo đơn hàng",
+      "sellerChannel": "Kênh người bán",
+      "sellerHot": "Hot"
+    }
+  },
+  "orders": {
+    "pageTitle": "Đơn mua của tôi",
+    "breadcrumbHome": "Trang chủ",
+    "breadcrumbAccount": "Tài khoản của tôi",
+    "breadcrumbCurrent": "Đơn mua",
+    "tabs": {
+      "all": "Tất cả",
+      "pendingPayment": "Chờ thanh toán",
+      "confirmed": "Đã xác nhận",
+      "shipping": "Đang giao",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy"
+    },
+    "searchPlaceholder": "Tìm theo mã đơn, tên shop hoặc sản phẩm...",
+    "searchButton": "Tìm",
+    "timeFilter": "Tất cả thời gian",
+    "viewShop": "Xem shop",
+    "countdown": {
+      "expiresIn": "Hết hạn sau {time} — Đơn sẽ tự hủy nếu chưa hoàn tất chuyển khoản / VNPAY / ZaloPay.",
+      "compact": "Đơn tự hủy sau {time}"
+    },
+    "cancel": "Huỷ đơn",
+    "payNow": "Thanh toán ngay",
+    "contactShop": "Liên hệ shop",
+    "trackOrder": "Xem lộ trình",
+    "reorder": "Mua lại",
+    "reviewNow": "Đánh giá ngay",
+    "shippingNotice": "{carrier} — Đang trung chuyển tới bưu cục {location}",
+    "eta": "Dự kiến giao: {time}",
+    "trackingLink": "Chi tiết vận đơn: {code}",
+    "completedNotice": "Đã giao thành công {time}. Bạn hài lòng chứ? Hãy để lại đánh giá nhé!",
+    "cancelledNotice": "Hệ thống tự động hủy do quá hạn thanh toán (5 phút). Voucher đã được hoàn lại ví voucher của bạn.",
+    "totalPayment": "Tổng thanh toán:",
+    "cancelledAmount": "Số tiền hủy:",
+    "itemCount": "{count, plural, =0 {Không có sản phẩm} =1 {1 sản phẩm} other {# sản phẩm}}",
+    "loading": "Đang tải đơn hàng...",
+    "errorTitle": "Không tải được danh sách đơn hàng",
+    "errorDescription": "Đã có lỗi xảy ra. Vui lòng thử lại.",
+    "empty": {
+      "title": "Bạn chưa có đơn hàng nào",
+      "description": "Hãy khám phá các sản phẩm và tiến hành đặt hàng.",
+      "action": "Khám phá sản phẩm"
     }
   },
   "paymentErrors": {
