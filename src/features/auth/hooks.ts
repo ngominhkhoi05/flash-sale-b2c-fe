@@ -41,7 +41,12 @@ const KEYS = {
  *
  * @see docs/superpowers/plans/2026-10-10-auth-guard-and-post-login-refresh.md
  */
-const POST_LOGIN_INVALIDATE_KEYS = [KEYS.me, KEYS.cart, KEYS.myVouchers, KEYS.recommended] as const;
+export const POST_LOGIN_INVALIDATE_KEYS = [
+  KEYS.me,
+  KEYS.cart,
+  KEYS.myVouchers,
+  KEYS.recommended,
+] as const;
 
 /**
  * Map UserResponse (backend) + JWT authorities → AuthUser (FE store).
