@@ -4,7 +4,6 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { ROUTES, ROLES } from "@/lib/constants";
-import { sanitizeRedirectPath } from "@/lib/auth/require-auth";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { AuthBrandPanel } from "@/components/auth/AuthBrandPanel";
 import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
@@ -53,9 +52,13 @@ function LoginContent() {
           <LoginForm />
           <SocialLoginButtons
             onGoogleSuccess={() => {
-              // Sau khi Google login thành công: ưu tiên redirect param
-              const r = sanitizeRedirectPath(searchParams.get("redirect"));
-              router.replace(r);
+              // Flow same-window redirect: callback này được gọi TRƯỚC khi
+              // browser navigate sang Google consent. KHÔNG nên redirect
+              // ngay tại đây — redirect thật sẽ do callback page
+              // `/auth/google/callback` xử lý sau khi Google trả về.
+              // Hiện tại callback page đã đọc sessionStorage.post_login_redirect
+              // (đã save ở GoogleLoginButton useEffect) để redirect đúng chỗ.
+              // Giữ callback rỗng để tương thích API, không có side effect.
             }}
           />
         </div>

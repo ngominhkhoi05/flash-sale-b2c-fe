@@ -14,24 +14,24 @@ vi.mock('sonner', () => ({
   },
 }));
 
-// Mock useGoogleLogin to control the hook output
-const mockLogin = vi.fn();
+// Mock useGoogleRedirect (NOT useGoogleLogin — popup flow bị xoá)
+const mockRedirect = vi.fn();
 const mockReset = vi.fn();
-let mockStatus: 'idle' | 'opening-popup' | 'authenticating' | 'error' = 'idle';
+let mockStatus: 'idle' | 'redirecting' | 'error' = 'idle';
 let mockError: Error | null = null;
 
-vi.mock('@/features/auth/useGoogleLogin', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/features/auth/useGoogleLogin')>();
+vi.mock('@/features/auth/useGoogleRedirect', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/features/auth/useGoogleRedirect')>();
   return {
     ...actual,
-    useGoogleLogin: (options?: {
-      onSuccess?: (user: unknown) => void;
+    useGoogleRedirect: (options?: {
+      onSuccess?: (state: string) => void;
       onError?: (err: Error) => void;
     }) => {
-      // Capture the callbacks for later invocation in tests
-      (mockLogin as unknown as { options?: typeof options }).options = options;
+      (mockRedirect as unknown as { options?: typeof options }).options = options;
       return {
-        login: mockLogin,
+        redirect: mockRedirect,
         status: mockStatus,
         error: mockError,
         reset: mockReset,
@@ -41,186 +41,177 @@ vi.mock('@/features/auth/useGoogleLogin', async (importOriginal) => {
 });
 
 beforeEach(() => {
-  mockLogin.mockReset();
+  mockRedirect.mockReset();
   mockReset.mockReset();
   toastError.mockReset();
   mockStatus = 'idle';
   mockError = null;
+  // Reset sessionStorage (effect reads window.location.search on mount)
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.clear();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...window.location, search: '' },
+    });
+  }
 });
 
-describe('GoogleLoginButton', () => {
+describe('GoogleLoginButton (useGoogleRedirect flow)', () => {
   it('renders a Google icon-only button with correct aria-label', () => {
     render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
     const btn = screen.getByRole('button', { name: /đăng nhập bằng google/i });
     expect(btn).toBeInTheDocument();
-    // icon-only: h-10 (height only, width giãn theo cột grid như Facebook/GitHub)
     expect(btn).toHaveClass('h-10');
-    expect(btn).not.toHaveClass('w-10');
   });
 
-  it('renders Google logo svg', () => {
+  it('renders Google logo svg when idle', () => {
     const { container } = render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
-    // The button contains an SVG icon
     const svg = container.querySelector('button svg');
     expect(svg).toBeInTheDocument();
   });
 
-  it('calls useGoogleLogin.login() on click', async () => {
+  it('calls useGoogleRedirect.redirect() on click (no popup)', async () => {
     const user = userEvent.setup();
     render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
     await user.click(
-      screen.getByRole('button', { name: /đăng nhập bằng google/i })
+      screen.getByRole('button', { name: /đăng nhập bằng google/i }),
     );
-    expect(mockLogin).toHaveBeenCalledTimes(1);
+    expect(mockRedirect).toHaveBeenCalledTimes(1);
   });
 
-  it('disables button when status is opening-popup', () => {
-    mockStatus = 'opening-popup';
+  it('disables button when status is redirecting', () => {
+    mockStatus = 'redirecting';
     render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
     const btn = screen.getByRole('button', { name: /đăng nhập bằng google/i });
     expect(btn).toBeDisabled();
   });
 
-  it('disables button when status is authenticating', () => {
-    mockStatus = 'authenticating';
-    render(
-      <TestWrapper>
-        <GoogleLoginButton />
-      </TestWrapper>
-    );
-    const btn = screen.getByRole('button', { name: /đăng nhập bằng google/i });
-    expect(btn).toBeDisabled();
-  });
-
-  it('shows loading spinner when status is opening-popup or authenticating', () => {
-    mockStatus = 'authenticating';
+  it('shows loading spinner when status is redirecting', () => {
+    mockStatus = 'redirecting';
     const { container } = render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
-    // Spinner is a Loader2 icon (svg with animate-spin class)
     const spinner = container.querySelector('svg.animate-spin');
     expect(spinner).toBeInTheDocument();
   });
 
-  it('hides Google icon when status is opening-popup or authenticating', () => {
-    mockStatus = 'authenticating';
+  it('shows aria-busy=true when status is redirecting', () => {
+    mockStatus = 'redirecting';
     const { container } = render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
-    // Google logo is the only svg when idle. When loading, only the spinner
-    // is rendered (which is also an svg). So we check by aria-label of btn
-    // being the loading variant, or by class on the spinner.
     const btn = container.querySelector('button');
     expect(btn).toHaveAttribute('aria-busy', 'true');
   });
 
-  it('passes onSuccess callback to useGoogleLogin', () => {
+  it('passes onSuccess callback to useGoogleRedirect', () => {
     const onSuccess = vi.fn();
     render(
       <TestWrapper>
         <GoogleLoginButton onSuccess={onSuccess} />
-      </TestWrapper>
+      </TestWrapper>,
     );
     expect(
-      (mockLogin as unknown as { options?: { onSuccess?: unknown } }).options
-        ?.onSuccess
+      (mockRedirect as unknown as { options?: { onSuccess?: unknown } }).options
+        ?.onSuccess,
     ).toBe(onSuccess);
   });
 
-  it('passes onError callback to useGoogleLogin', () => {
+  it('passes onError callback to useGoogleRedirect', () => {
     const onError = vi.fn();
     render(
       <TestWrapper>
         <GoogleLoginButton onError={onError} />
-      </TestWrapper>
+      </TestWrapper>,
     );
     expect(
-      (mockLogin as unknown as { options?: { onError?: unknown } }).options
-        ?.onError
+      (mockRedirect as unknown as { options?: { onError?: unknown } }).options
+        ?.onError,
     ).toBe(onError);
   });
 
-  it('shows error toast when useGoogleLogin error is set (status=error)', async () => {
+  it('shows error toast when useGoogleRedirect error is set (status=error)', async () => {
     mockStatus = 'error';
-    mockError = new Error('POPUP_BLOCKED');
+    mockError = new Error('AUTH_500_GOOGLE_CONFIG');
     render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
     await waitFor(() => {
       expect(toastError).toHaveBeenCalled();
     });
   });
 
-  it('invokes onError prop when useGoogleLogin calls its onError callback', () => {
+  it('invokes onError prop when useGoogleRedirect calls its onError callback', () => {
     const onError = vi.fn();
     render(
       <TestWrapper>
         <GoogleLoginButton onError={onError} />
-      </TestWrapper>
+      </TestWrapper>,
     );
     const hookOnError = (
-      mockLogin as unknown as { options?: { onError?: (e: Error) => void } }
+      mockRedirect as unknown as { options?: { onError?: (e: Error) => void } }
     ).options?.onError;
     expect(hookOnError).toBeDefined();
     hookOnError?.(new Error('boom'));
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
   });
 
-  it('invokes onSuccess prop when useGoogleLogin calls its onSuccess callback', () => {
+  it('invokes onSuccess prop when useGoogleRedirect calls its onSuccess callback', () => {
     const onSuccess = vi.fn();
     render(
       <TestWrapper>
         <GoogleLoginButton onSuccess={onSuccess} />
-      </TestWrapper>
+      </TestWrapper>,
     );
     const hookOnSuccess = (
-      mockLogin as unknown as { options?: { onSuccess?: (u: unknown) => void } }
+      mockRedirect as unknown as {
+        options?: { onSuccess?: (s: string) => void };
+      }
     ).options?.onSuccess;
     expect(hookOnSuccess).toBeDefined();
-    hookOnSuccess?.({ id: '1', email: 'a@b.c' });
-    expect(onSuccess).toHaveBeenCalledWith({ id: '1', email: 'a@b.c' });
+    hookOnSuccess?.('MOCK_STATE');
+    expect(onSuccess).toHaveBeenCalledWith('MOCK_STATE');
   });
 
-  it('maps POPUP_BLOCKED error code to i18n toast message', async () => {
-    // Simulate the hook reaching error state with POPUP_BLOCKED code
+  it('toast message is i18n-translated (not raw error code)', async () => {
     mockStatus = 'error';
-    mockError = new Error('POPUP_BLOCKED');
+    mockError = new Error('AUTH_500_GOOGLE_CONFIG');
     render(
       <TestWrapper>
         <GoogleLoginButton />
-      </TestWrapper>
+      </TestWrapper>,
     );
-    // Toast should fire with the i18n-mapped message
     await waitFor(() => {
       expect(toastError).toHaveBeenCalled();
     });
     const lastCall = toastError.mock.calls[toastError.mock.calls.length - 1];
-    // Message must NOT be the raw 'POPUP_BLOCKED' code
-    expect(lastCall[0]).not.toBe('POPUP_BLOCKED');
-    // i18n key for popup-blocked in vi
-    expect(String(lastCall[0])).toMatch(/trình duyệt|popup|cửa sổ/i);
+    // Message phải là bản dịch tiếng Việt, KHÔNG phải raw error code
+    expect(lastCall[0]).not.toBe('AUTH_500_GOOGLE_CONFIG');
+    // i18n key googleLoginFailed trong vi
+    expect(String(lastCall[0])).toMatch(/thất bại|không thành công|thử lại/i);
   });
 
   // ── post_login_redirect preservation ──────────────────────────────

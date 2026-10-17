@@ -4,8 +4,7 @@ import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { useGoogleLogin, POPUP_BLOCKED_CODE } from '@/features/auth/useGoogleLogin';
-import type { AuthUser } from '@/stores/auth.store';
+import { useGoogleRedirect } from '@/features/auth/useGoogleRedirect';
 import { sanitizeRedirectPath } from '@/lib/auth/require-auth';
 
 /** Key sessionStorage mà callback page đọc để redirect sau login. */
@@ -19,16 +18,14 @@ interface GoogleLoginButtonProps {
   variant?: 'login' | 'register';
 
   /**
-   * URL redirect về sau khi Google consent xong. Thường để default
-   * (build từ NEXT_PUBLIC_SITE_URL + '/oauth2/redirect') — chỉ override
-   * khi test E2E với custom origin.
+   * Callback khi authorizationUrl đã được set (FE sắp navigate sang Google).
+   * Page dùng để chuẩn bị state nếu cần.
+   *
+   * Lưu ý: với flow same-window redirect, callback này được gọi TRƯỚC
+   * khi browser navigate sang Google consent. Redirect thật sẽ do
+   * `/auth/google/callback` page xử lý sau khi Google trả về.
    */
-  redirectUri?: string;
-
-  /**
-   * Callback khi đăng nhập/đăng ký thành công. Page dùng để redirect.
-   */
-  onSuccess?: (user: AuthUser) => void;
+  onSuccess?: (state: string) => void;
 
   /**
    * Callback khi có lỗi. Default: hiển thị toast với message đã map i18n.
@@ -38,15 +35,19 @@ interface GoogleLoginButtonProps {
 
 /**
  * GoogleLoginButton – icon-only 40x40 button (Stitch screen 203897a8).
- * Wire với useGoogleLogin hook: mở popup Google consent, đợi message
- * từ /oauth2/redirect page, lưu token + user qua applyAuthResponse.
+ *
+ * Wire với useGoogleRedirect hook (same-window redirect flow, KHÔNG popup):
+ * 1. Bấm nút → hook gọi GET /api/v1/auth/google/url lấy authorizationUrl.
+ * 2. window.location.href = authorizationUrl → browser navigate thẳng sang
+ *    Google consent (cùng tab, top-level — không có trang trung gian).
+ * 3. Google redirect về /auth/google/callback?code=... → callback page
+ *    xử lý (đổi code lấy JWT, lưu token, redirect về returnTo).
  *
  * Chỉ dùng cho Google. Facebook/GitHub giữ nguyên stub trong
  * SocialLoginButtons (BE chỉ có Google endpoint).
  */
 export function GoogleLoginButton({
   variant = 'login',
-  redirectUri,
   onSuccess,
   onError,
 }: GoogleLoginButtonProps = {}) {
@@ -82,8 +83,7 @@ export function GoogleLoginButton({
     }
   }, []);
 
-  const { login, status, error } = useGoogleLogin({
-    redirectUri,
+  const { redirect, status, error } = useGoogleRedirect({
     onSuccess,
     onError,
   });
@@ -91,21 +91,19 @@ export function GoogleLoginButton({
   // Map lỗi từ hook → toast bằng i18n key
   useEffect(() => {
     if (status === 'error' && error) {
-      const key =
-        error.message === POPUP_BLOCKED_CODE
-          ? 'googlePopupBlocked'
-          : 'googleLoginFailed';
-      toast.error(tErr(key));
+      // Flow mới KHÔNG còn popup → chỉ dùng key "googleLoginFailed" chung
+      // (kế thừa từ flow cũ; không còn "googlePopupBlocked" vì không có popup).
+      toast.error(tErr('googleLoginFailed'));
     }
   }, [status, error, tErr]);
 
-  const isLoading = status === 'opening-popup' || status === 'authenticating';
+  const isLoading = status === 'redirecting';
   const labelKey = variant === 'register' ? 'googleRegister' : 'google';
 
   return (
     <button
       type="button"
-      onClick={() => void login()}
+      onClick={() => void redirect()}
       disabled={isLoading}
       aria-label={t(labelKey)}
       aria-busy={isLoading}
