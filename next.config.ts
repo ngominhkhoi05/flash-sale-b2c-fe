@@ -15,11 +15,19 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Cấu hình next/image để cho phép load ảnh avatar user từ backend CDN.
-  // Backend Spring Boot trả UserResponse.avatarUrl kiểu
-  // "https://cdn.vibemart.vn/users/<id>/avatar.png" và banner slides
-  // kiểu "https://cdn.vibemart.vn/banners/hero-1.jpg". Khi thêm domain
-  // thật, cập nhật hostname tại đây.
+  // Cấu hình next/image để cho phép load ảnh từ nhiều domain.
+  //
+  // Whitelist hiện tại:
+  // 1. cdn.vibemart.vn — mock CDN dùng cho dữ liệu giả lập khi
+  //    `NEXT_PUBLIC_USE_MOCK=true` (xem plan 2026-10-15-fix-runtime-console-issues).
+  // 2. lh3.googleusercontent.com — Google avatar URL trả về từ OAuth2.
+  // 3. vibe-mart-utc2.canluaz.io.vn — production domain. Khi backend trả
+  //    `imageUrl` dạng relative (vd "/banners/hero-1.jpg", "/users/1/avatar.png"),
+  //    `src/features/homepage/api.ts` ghép với `NEXT_PUBLIC_API_URL` để thành
+  //    absolute URL trỏ về hostname này. Next.js cần whitelist để tối ưu
+  //    ảnh qua `/_next/image`.
+  //
+  // Khi thêm domain thật mới, cập nhật hostname tại đây.
   images: {
     remotePatterns: [
       {
@@ -35,6 +43,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "vibe-mart-utc2.canluaz.io.vn",
         pathname: "/**",
       },
     ],
