@@ -222,4 +222,115 @@ describe('GoogleLoginButton', () => {
     // i18n key for popup-blocked in vi
     expect(String(lastCall[0])).toMatch(/trình duyệt|popup|cửa sổ/i);
   });
+
+  // ── post_login_redirect preservation ──────────────────────────────
+  // Flow: user vào /login?redirect=/cart → bấm Google → sau khi Google trả
+  // /auth/google/callback?code=... → callback page đọc sessionStorage
+  // "post_login_redirect" để redirect về /cart (không phải /).
+  describe('post_login_redirect preservation', () => {
+    it('lưu ?redirect= vào sessionStorage khi user click Google', async () => {
+      const user = userEvent.setup();
+      const sessionStorageMock = {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      };
+      Object.defineProperty(window, 'sessionStorage', {
+        configurable: true,
+        writable: true,
+        value: sessionStorageMock,
+      });
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        writable: true,
+        value: { ...window.location, search: '?redirect=/cart' },
+      });
+
+      render(
+        <TestWrapper>
+          <GoogleLoginButton />
+        </TestWrapper>
+      );
+      await user.click(
+        screen.getByRole('button', { name: /đăng nhập bằng google/i }),
+      );
+
+      // setItem phải được gọi với "post_login_redirect" = "/cart"
+      expect(sessionStorageMock.setItem).toHaveBeenCalledWith(
+        'post_login_redirect',
+        '/cart',
+      );
+    });
+
+    it('KHÔNG lưu sessionStorage khi URL không có ?redirect=', async () => {
+      const user = userEvent.setup();
+      const sessionStorageMock = {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      };
+      Object.defineProperty(window, 'sessionStorage', {
+        configurable: true,
+        writable: true,
+        value: sessionStorageMock,
+      });
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        writable: true,
+        value: { ...window.location, search: '' },
+      });
+
+      render(
+        <TestWrapper>
+          <GoogleLoginButton />
+        </TestWrapper>
+      );
+      await user.click(
+        screen.getByRole('button', { name: /đăng nhập bằng google/i }),
+      );
+
+      const calls = sessionStorageMock.setItem.mock.calls;
+      const postLoginCalls = calls.filter(
+        ([key]) => key === 'post_login_redirect',
+      );
+      expect(postLoginCalls).toHaveLength(0);
+    });
+
+    it('sanitize redirect path: KHÔNG lưu protocol-relative URL (//evil.com)', async () => {
+      const user = userEvent.setup();
+      const sessionStorageMock = {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      };
+      Object.defineProperty(window, 'sessionStorage', {
+        configurable: true,
+        writable: true,
+        value: sessionStorageMock,
+      });
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        writable: true,
+        value: { ...window.location, search: '?redirect=//evil.com' },
+      });
+
+      render(
+        <TestWrapper>
+          <GoogleLoginButton />
+        </TestWrapper>
+      );
+      await user.click(
+        screen.getByRole('button', { name: /đăng nhập bằng google/i }),
+      );
+
+      const calls = sessionStorageMock.setItem.mock.calls;
+      const postLoginCalls = calls.filter(
+        ([key]) => key === 'post_login_redirect',
+      );
+      if (postLoginCalls.length > 0) {
+        // Nếu lưu thì giá trị phải đã được sanitize (KHÔNG phải "//evil.com")
+        expect(postLoginCalls[0][1]).not.toBe('//evil.com');
+      }
+    });
+  });
 });

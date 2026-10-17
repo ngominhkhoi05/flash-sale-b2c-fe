@@ -6,6 +6,10 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useGoogleLogin, POPUP_BLOCKED_CODE } from '@/features/auth/useGoogleLogin';
 import type { AuthUser } from '@/stores/auth.store';
+import { sanitizeRedirectPath } from '@/lib/auth/require-auth';
+
+/** Key sessionStorage mà callback page đọc để redirect sau login. */
+const SESSION_STORAGE_POST_LOGIN_KEY = 'post_login_redirect';
 
 interface GoogleLoginButtonProps {
   /**
@@ -48,6 +52,35 @@ export function GoogleLoginButton({
 }: GoogleLoginButtonProps = {}) {
   const t = useTranslations('auth.social');
   const tErr = useTranslations('auth.errors');
+
+  /**
+   * Preserve `?redirect=` query (vd /login?redirect=/cart) sang sessionStorage
+   * để callback page `/auth/google/callback` đọc và redirect về đúng chỗ
+   * user muốn, thay vì default "/".
+   *
+   * Lưu NGAY khi mount (không đợi click) — vì flow Google OAuth:
+   *   1. User vào /login?redirect=/cart
+   *   2. Bấm Google → consent → redirect đi (5-30s)
+   *   3. Google redirect về /auth/google/callback?code=...
+   *   4. Callback page xử lý xong, đọc sessionStorage → redirect về /cart
+   *
+   * Nếu chỉ save khi click → user click xong, page navigate đi → effect
+   * unmount, save mất → callback không tìm thấy → redirect "/".
+   *
+   * Đọc `window.location.search` thay vì `useSearchParams` để tránh
+   * Next.js hook overhead và dễ test (mock window.location trực tiếp).
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('redirect');
+    const safe = sanitizeRedirectPath(raw);
+    // sanitizeRedirectPath trả ROUTES.HOME ("/") khi invalid → KHÔNG lưu
+    // vì sessionStorage đã có fallback "/" ở callback page rồi.
+    if (safe !== '/') {
+      window.sessionStorage.setItem(SESSION_STORAGE_POST_LOGIN_KEY, safe);
+    }
+  }, []);
 
   const { login, status, error } = useGoogleLogin({
     redirectUri,
