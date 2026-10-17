@@ -51,8 +51,12 @@ vi.mock("@/lib/constants", () => ({
 }));
 
 // Mock sonner to avoid toast warnings in test
+const { mockToastSuccess, mockToastError } = vi.hoisted(() => ({
+  mockToastSuccess: vi.fn(),
+  mockToastError: vi.fn(),
+}));
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: mockToastSuccess, error: mockToastError },
 }));
 
 // ── Mock JWT decoder ────────────────────────────────────────────────────
@@ -80,6 +84,8 @@ beforeEach(() => {
   mockSetUser.mockReset();
   mockSetAccessToken.mockReset();
   mockSetRefreshToken.mockReset();
+  mockToastSuccess.mockReset();
+  mockToastError.mockReset();
 });
 
 describe("useLoginMutation - post-login invalidation", () => {
@@ -275,6 +281,81 @@ describe("useRegisterMutation - post-register invalidation", () => {
         ["products", "recommended"],
       ]),
     );
+  });
+});
+
+// ── Toast policy: hook KHÔNG toast – component tự quyết định ─────────
+//
+// Bug trước (2026-10-16): useLoginMutation + useRegisterMutation gọi
+// toast.success trong onSuccess. Component (LoginForm, RegisterForm) cũng
+// gọi toast.success → user thấy 2 thông báo cùng lúc.
+//
+// Quy ước mới (theo error-handling mục 3 + auth-jwt mục 7):
+// - Hook KHÔNG toast. Hook chỉ phụ trách side-effect (token, store, invalidate).
+// - Component tự toast với i18n key + redirect theo role.
+// - useVerifyOtpMutation / useResendOtpMutation đã tuân thủ từ trước.
+describe("useLoginMutation - toast policy", () => {
+  it("KHÔNG gọi toast.success trong onSuccess (component tự quyết định)", async () => {
+    mockLoginRequest.mockResolvedValue({
+      accessToken: "at_x",
+      refreshToken: "rt_x",
+      tokenType: "Bearer",
+      expiresIn: 900,
+      user: {
+        id: 1,
+        email: "u@e.com",
+        fullName: "U",
+        phone: "0912345678",
+        avatarUrl: null,
+        status: "ACTIVE",
+        createdAt: "2026-10-10T00:00:00Z",
+      },
+    });
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useLoginMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({ email: "u@e.com", password: "password123" });
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockToastSuccess).not.toHaveBeenCalled();
+  });
+});
+
+describe("useRegisterMutation - toast policy", () => {
+  it("KHÔNG gọi toast.success trong onSuccess (component tự quyết định)", async () => {
+    mockRegisterRequest.mockResolvedValue({
+      accessToken: "at_new",
+      refreshToken: "rt_new",
+      tokenType: "Bearer",
+      expiresIn: 900,
+      user: {
+        id: 99,
+        email: "new@example.com",
+        fullName: "New",
+        phone: "0912345678",
+        avatarUrl: null,
+        status: "ACTIVE",
+        createdAt: "2026-10-10T00:00:00Z",
+      },
+    });
+
+    const { wrapper } = withQueryClient();
+    const { result } = renderHook(() => useRegisterMutation(), { wrapper });
+
+    await act(async () => {
+      result.current.mutate({
+        fullName: "New",
+        email: "new@example.com",
+        phone: "0912345678",
+        password: "password123",
+      });
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockToastSuccess).not.toHaveBeenCalled();
   });
 });
 
