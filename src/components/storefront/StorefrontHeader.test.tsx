@@ -293,7 +293,7 @@ describe("StorefrontHeader – user area", () => {
     );
     expect(avatarImg).toBeDefined();
     const src = avatarImg?.getAttribute("src") ?? "";
-    expect(src).toMatch(/\/images\/default-avatar(\.png|\.svg)/);
+    expect(src).toMatch(/\/images\/default-avatar(\.png|\.svg|\.jpg)/);
     expect(src).not.toMatch(/googleusercontent\.com/);
   });
 

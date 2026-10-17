@@ -230,6 +230,9 @@
     },
     "google": {
       "callback": {
+        "verifyingEmail": "Đang xác thực email của bạn...",
+        "verifyingSubtitle": "Hệ thống đang kiểm tra mã token kích hoạt. Vui lòng đợi trong giây lát.",
+        "tlsBadge": "Bảo mật chuẩn TLS 256-bit • Vibe Mart",
         "processing": "Đang hoàn tất đăng nhập...",
         "pleaseWait": "Vui lòng không đóng cửa sổ này.",
         "error": "Đăng nhập Google thất bại",

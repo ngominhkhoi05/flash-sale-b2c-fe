@@ -132,7 +132,7 @@ export function StorefrontHeader({
                     ) : (
                       <Image
                         alt="Ảnh đại diện mặc định"
-                        src="/images/default-avatar.svg"
+                        src="/images/default-avatar.jpg"
                         width={32}
                         height={32}
                         className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"
@@ -366,7 +366,7 @@ export function StorefrontHeader({
                       ) : (
                         <Image
                           alt="Ảnh đại diện mặc định"
-                          src="/images/default-avatar.svg"
+                          src="/images/default-avatar.jpg"
                           width={32}
                           height={32}
                           className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-container-high"

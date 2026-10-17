@@ -89,7 +89,7 @@
 
 **Goal:** Add all translation keys needed by orders list, review modal, account sidebar. Bilingual.
 
-**Step 1:** Add namespace `storefront.orders.*` to `vi.json` (place after existing `storefront.*` namespaces, alphabetically before `storefront.vouchers` if exists):
+**Step 1:** Add namespace `storefront.orders.*` to `vi.json` (top-level, after `storefront.*` group):
 
 ```json
 "orders": {
@@ -139,7 +139,7 @@
 }
 ```
 
-Add namespace `storefront.review.*` (modal):
+Add namespace `storefront.review.*` (modal, top-level):
 
 ```json
 "review": {
@@ -162,7 +162,7 @@ Add namespace `storefront.review.*` (modal):
 }
 ```
 
-Add namespace `storefront.account.sidebar.*`:
+Add namespace `storefront.account.sidebar.*` (extend existing `storefront.account` object):
 
 ```json
 "sidebar": {

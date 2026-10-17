@@ -106,7 +106,9 @@ export function CheckoutHeader() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       alt={user.fullName ?? "Avatar"}
-                      src={user.avatarUrl}
+                      src={user.avatarUrl || "/images/default-avatar.jpg"}
+                      width={32}
+                      height={32}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant"
                     />
                   ) : (
