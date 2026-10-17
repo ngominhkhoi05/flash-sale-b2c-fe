@@ -14,14 +14,15 @@ vi.mock('sonner', () => ({
   },
 }));
 
-// Mock useGoogleLogin to control the hook output
-const mockGoogleLogin = vi.fn();
-vi.mock('@/features/auth/useGoogleLogin', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/features/auth/useGoogleLogin')>();
+// Mock useGoogleRedirect (NOT useGoogleLogin — popup flow bị xoá)
+const mockGoogleRedirect = vi.fn();
+vi.mock('@/features/auth/useGoogleRedirect', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/features/auth/useGoogleRedirect')>();
   return {
     ...actual,
-    useGoogleLogin: () => ({
-      login: mockGoogleLogin,
+    useGoogleRedirect: () => ({
+      redirect: mockGoogleRedirect,
       status: 'idle',
       error: null,
       reset: vi.fn(),
@@ -31,7 +32,14 @@ vi.mock('@/features/auth/useGoogleLogin', async (importOriginal) => {
 
 beforeEach(() => {
   toastError.mockClear();
-  mockGoogleLogin.mockClear();
+  mockGoogleRedirect.mockClear();
+  if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...window.location, search: '' },
+    });
+  }
 });
 
 describe('SocialLoginButtons', () => {
@@ -39,7 +47,7 @@ describe('SocialLoginButtons', () => {
     render(
       <TestWrapper>
         <SocialLoginButtons />
-      </TestWrapper>
+      </TestWrapper>,
     );
     expect(screen.getByText(/hoặc tiếp tục với/i)).toBeInTheDocument();
   });
@@ -48,31 +56,31 @@ describe('SocialLoginButtons', () => {
     render(
       <TestWrapper>
         <SocialLoginButtons />
-      </TestWrapper>
+      </TestWrapper>,
     );
     expect(
-      screen.getByRole('button', { name: /Đăng nhập bằng Google/i })
+      screen.getByRole('button', { name: /Đăng nhập bằng Google/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Đăng nhập bằng Facebook/i })
+      screen.getByRole('button', { name: /Đăng nhập bằng Facebook/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Đăng nhập bằng GitHub/i })
+      screen.getByRole('button', { name: /Đăng nhập bằng GitHub/i }),
     ).toBeInTheDocument();
   });
 
-  it('gọi useGoogleLogin.login khi Google button clicked (KHÔNG toast)', async () => {
+  it('gọi useGoogleRedirect.redirect khi Google button clicked (KHÔNG toast)', async () => {
     const user = userEvent.setup();
     render(
       <TestWrapper>
         <SocialLoginButtons />
-      </TestWrapper>
+      </TestWrapper>,
     );
     await user.click(
-      screen.getByRole('button', { name: /Đăng nhập bằng Google/i })
+      screen.getByRole('button', { name: /Đăng nhập bằng Google/i }),
     );
-    expect(mockGoogleLogin).toHaveBeenCalledTimes(1);
-    // Google flow dùng popup + postMessage, không toast từ SocialLoginButtons
+    expect(mockGoogleRedirect).toHaveBeenCalledTimes(1);
+    // Google flow dùng same-window redirect, không toast từ SocialLoginButtons
     expect(toastError).not.toHaveBeenCalled();
   });
 
@@ -81,10 +89,10 @@ describe('SocialLoginButtons', () => {
     render(
       <TestWrapper>
         <SocialLoginButtons />
-      </TestWrapper>
+      </TestWrapper>,
     );
     await user.click(
-      screen.getByRole('button', { name: /Đăng nhập bằng Facebook/i })
+      screen.getByRole('button', { name: /Đăng nhập bằng Facebook/i }),
     );
     expect(toastError).toHaveBeenCalledWith('Chức năng đang phát triển');
   });
@@ -94,26 +102,22 @@ describe('SocialLoginButtons', () => {
     render(
       <TestWrapper>
         <SocialLoginButtons />
-      </TestWrapper>
+      </TestWrapper>,
     );
     await user.click(
-      screen.getByRole('button', { name: /Đăng nhập bằng GitHub/i })
+      screen.getByRole('button', { name: /Đăng nhập bằng GitHub/i }),
     );
     expect(toastError).toHaveBeenCalledWith('Chức năng đang phát triển');
   });
 
-  it('gọi onGoogleSuccess callback khi Google login thành công', async () => {
-    // Replace the mocked useGoogleLogin to invoke onSuccess synchronously
+  it('chấp nhận onGoogleSuccess callback prop (type: (state: string) => void)', () => {
     const onSuccess = vi.fn();
-    const { rerender } = render(
-      <TestWrapper>
-        <SocialLoginButtons onGoogleSuccess={onSuccess} />
-      </TestWrapper>
-    );
-    // The callback is forwarded to GoogleLoginButton → useGoogleLogin
-    // Verify by inspecting mockGoogleLogin setup wasn't replaced; we just
-    // ensure the prop is forwarded by checking the rendered tree compiles.
-    expect(onSuccess).toBeDefined();
-    void rerender;
+    expect(() =>
+      render(
+        <TestWrapper>
+          <SocialLoginButtons onGoogleSuccess={onSuccess} />
+        </TestWrapper>,
+      ),
+    ).not.toThrow();
   });
 });

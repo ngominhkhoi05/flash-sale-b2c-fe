@@ -3,7 +3,6 @@
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { GoogleLoginButton } from './GoogleLoginButton';
-import type { AuthUser } from '@/stores/auth.store';
 
 type Provider = 'google' | 'facebook' | 'github';
 
@@ -52,10 +51,11 @@ const STUB_PROVIDERS: Array<{
 
 interface SocialLoginButtonsProps {
   /**
-   * Callback khi Google OAuth2 thành công. Thường dùng để redirect
-   * theo role hoặc returnUrl.
+   * Callback khi authorizationUrl đã được set (FE sắp navigate sang Google).
+   * Với flow same-window redirect, callback này được gọi TRƯỚC khi browser
+   * navigate. Page không nên redirect ngay — chỉ chuẩn bị state nếu cần.
    */
-  onGoogleSuccess?: (user: AuthUser) => void;
+  onGoogleSuccess?: (state: string) => void;
 
   /**
    * Callback khi Google OAuth2 lỗi (không tính các lỗi Facebook/GitHub).
@@ -68,7 +68,8 @@ interface SocialLoginButtonsProps {
  * SocialLoginButtons – 3 nút OAuth (Google thật, Facebook/GitHub stub).
  * Stitch screen 203897a8: 3-col grid, h-10.
  *
- * - Google: dùng GoogleLoginButton (OAuth2 popup flow thật qua BE).
+ * - Google: dùng GoogleLoginButton (OAuth2 redirect flow thật qua BE).
+ *   KHÔNG popup, KHÔNG postMessage — chỉ window.location.href = authorizationUrl.
  * - Facebook/GitHub: hiển thị icon nhưng click → toast "Chức năng đang phát triển"
  *   vì BE chưa có endpoint cho 2 provider này.
  */
