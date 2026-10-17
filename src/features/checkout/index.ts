@@ -11,6 +11,12 @@ export type {
   OrderSubmitResponse,
   QrOrderDetail,
 } from "./types";
+export type {
+  PaymentResponse,
+  PaymentStatus,
+  PaymentStatusEvent,
+  ApiResponse as PaymentApiResponse,
+} from "./payment.types";
 export {
   getCheckout,
   getAddresses,
@@ -22,6 +28,12 @@ export {
   getOrderForQr,
 } from "./api";
 export {
+  paymentEndpoints,
+  createZaloPayPayment,
+  getOrderPayment as getOrderPaymentApi,
+  queryZaloPayPayment as queryZaloPayPaymentApi,
+} from "./payment.api";
+export {
   checkoutKeys,
   useCheckout,
   useAddresses,
@@ -30,6 +42,18 @@ export {
   useSubmitOrderMutation,
   useOrderForQr,
 } from "./hooks";
+export {
+  paymentKeys,
+  useCreateZaloPayPayment,
+  useOrderPayment,
+  useQueryZaloPayPayment,
+  useOrderPaymentByCode,
+} from "./usePayment";
+export {
+  isPendingPaymentStatus,
+  isSucceededPaymentStatus,
+  isFailedPaymentStatus,
+} from "./payment.types";
 export {
   mockCheckoutData,
   mockAddresses,

@@ -119,14 +119,26 @@ export interface CheckoutData {
   totalOrders: number;
 }
 
-/** Response từ API `POST /api/v1/checkout/apply-voucher`. */
+/** Response từ API `POST /api/v1/vouchers/apply` (Swagger 2026-10-17). */
 export interface ApplyVoucherResponse {
+  /** Voucher có áp dụng được không (discountAmount > 0). */
   applied: boolean;
-  voucher: Voucher;
-  /** Tổng cập nhật sau khi áp voucher. */
+  /** ID voucher từ BE. */
+  voucherId: number;
+  /** Mã voucher đã áp dụng. Caller dùng để match trong cache lấy full Voucher object. */
+  code: string;
+  /** Số tiền được giảm. */
+  discountAmount: number;
+  /** Tổng tiền cuối sau khi áp voucher. */
+  finalAmount: number;
+  // ── Backward-compat aliases (giữ cho caller cũ không phải sửa) ──
+  /** Alias của `finalAmount`. */
   grandTotal: number;
+  /** Alias của `discountAmount`. */
   totalDiscount: number;
-  /** Voucher không áp được vì lý do này (vd: "MIN_ORDER_NOT_MET"). */
+  /** Stub Voucher tối thiểu (id + code). Caller nên match trong cache để có full info. */
+  voucher: Voucher;
+  /** Lý do không áp được (optional, hiện BE không trả — để backward-compat). */
   reasonCode?: string;
 }
 

@@ -2,50 +2,19 @@
 
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { GoogleLoginButton } from './GoogleLoginButton';
+import type { AuthUser } from '@/stores/auth.store';
 
 type Provider = 'google' | 'facebook' | 'github';
 
-const PROVIDERS: Array<{
+const STUB_PROVIDERS: Array<{
   id: Provider;
-  labelKey: 'google' | 'facebook' | 'github';
+  labelKey: 'facebook' | 'github';
   icon: React.ReactNode;
-  ariaKey: 'google' | 'facebook' | 'github';
 }> = [
-  {
-    id: 'google',
-    labelKey: 'google',
-    ariaKey: 'google',
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        aria-hidden
-      >
-        <path
-          fill="#EA4335"
-          d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-        />
-        <path
-          fill="#4285F4"
-          d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5.1 3.7-8.9z"
-        />
-        <path
-          fill="#FBBC05"
-          d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-        />
-        <path
-          fill="#34A853"
-          d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
-        />
-      </svg>
-    ),
-  },
   {
     id: 'facebook',
     labelKey: 'facebook',
-    ariaKey: 'facebook',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -62,7 +31,6 @@ const PROVIDERS: Array<{
   {
     id: 'github',
     labelKey: 'github',
-    ariaKey: 'github',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -82,18 +50,37 @@ const PROVIDERS: Array<{
   },
 ];
 
+interface SocialLoginButtonsProps {
+  /**
+   * Callback khi Google OAuth2 thành công. Thường dùng để redirect
+   * theo role hoặc returnUrl.
+   */
+  onGoogleSuccess?: (user: AuthUser) => void;
+
+  /**
+   * Callback khi Google OAuth2 lỗi (không tính các lỗi Facebook/GitHub).
+   * Default: GoogleLoginButton tự hiển thị toast.
+   */
+  onGoogleError?: (error: Error) => void;
+}
+
 /**
- * SocialLoginButtons – 3 nút OAuth (Google, Facebook, GitHub).
- * Stitch screen 203897a8: 3-col grid, h-10, riêng SVG icons.
- * Click → toast "Chức năng đang phát triển" (TODO OAuth thật).
+ * SocialLoginButtons – 3 nút OAuth (Google thật, Facebook/GitHub stub).
+ * Stitch screen 203897a8: 3-col grid, h-10.
+ *
+ * - Google: dùng GoogleLoginButton (OAuth2 popup flow thật qua BE).
+ * - Facebook/GitHub: hiển thị icon nhưng click → toast "Chức năng đang phát triển"
+ *   vì BE chưa có endpoint cho 2 provider này.
  */
-export function SocialLoginButtons() {
-  const t = useTranslations('auth.social');
+export function SocialLoginButtons({
+  onGoogleSuccess,
+  onGoogleError,
+}: SocialLoginButtonsProps = {}) {
   const tErr = useTranslations('auth.errors');
   const tLogin = useTranslations('auth.login');
+  const tSocial = useTranslations('auth.social');
 
-  const handleClick = (provider: Provider) => {
-    // TODO(auth): gọi backend OAuth flow khi có endpoint
+  const handleStubClick = (provider: Provider) => {
     toast.error(tErr('oauthNotImplemented'));
     console.warn(`[auth.social] OAuth ${provider} clicked – TODO`);
   };
@@ -110,14 +97,19 @@ export function SocialLoginButtons() {
         </span>
       </div>
 
-      {/* 3-col grid */}
+      {/* 3-col grid: Google (real) + Facebook stub + GitHub stub */}
       <div className="grid grid-cols-3 gap-2">
-        {PROVIDERS.map((p) => (
+        <GoogleLoginButton
+          variant="login"
+          onSuccess={onGoogleSuccess}
+          onError={onGoogleError}
+        />
+        {STUB_PROVIDERS.map((p) => (
           <button
             key={p.id}
             type="button"
-            onClick={() => handleClick(p.id)}
-            aria-label={t(p.ariaKey)}
+            onClick={() => handleStubClick(p.id)}
+            aria-label={tSocial(p.labelKey)}
             data-testid={`social-${p.id}`}
             className="flex h-10 items-center justify-center rounded-lg bg-surface-container-lowest shadow-sm transition-colors hover:bg-surface-container-low focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             style={{ boxShadow: 'inset 0 0 0 1px #bfc7d2' }}

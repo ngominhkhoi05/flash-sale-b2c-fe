@@ -34,9 +34,28 @@
       "PAID": "Đã thanh toán",
       "CONFIRMED": "Đã xác nhận",
       "SHIPPING": "Đang giao",
+      "SHIPPED": "Đã giao hàng",
       "COMPLETED": "Hoàn thành",
+      "CANCELLED": "Đã huỷ",
       "CANCELLED_TIMEOUT": "Đã huỷ – quá hạn thanh toán",
       "CANCELLED_USER": "Đã huỷ"
+    }
+  },
+  "ws": {
+    "connectionState": {
+      "connecting": "Đang kết nối…",
+      "connected": "Trực tuyến",
+      "disconnected": "Mất kết nối",
+      "reconnecting": "Đang kết nối lại…"
+    },
+    "toast": {
+      "orderReserved": "Đặt hàng thành công. Mã đơn: {orderCode}",
+      "orderReservedDescription": "Hết hạn thanh toán: {expiresAt}",
+      "orderCancelledTimeout": "Đơn {orderCode} đã hết hạn và bị huỷ tự động",
+      "orderStatusChanged": "Đơn {orderCode} đã chuyển sang trạng thái {status}",
+      "paymentStatusChanged": "Thanh toán {orderCode}: {paymentStatus}",
+      "slotActivated": "Phiên Flash Sale #{slotId} đã bắt đầu",
+      "slotClosed": "Phiên Flash Sale #{slotId} đã kết thúc"
     }
   },
   "payment": {
@@ -197,7 +216,9 @@
       "invalidCredentials": "Email hoặc mật khẩu chưa đúng",
       "oauthNotImplemented": "Chức năng đang phát triển",
       "termsRequired": "Bạn cần đồng ý điều khoản để tiếp tục",
-      "registerFailed": "Đăng ký thất bại"
+      "registerFailed": "Đăng ký thất bại",
+      "googlePopupBlocked": "Trình duyệt đã chặn cửa sổ đăng nhập. Vui lòng cho phép popup và thử lại.",
+      "googleLoginFailed": "Đăng nhập bằng Google thất bại. Vui lòng thử lại."
     },
     "social": {
       "google": "Đăng nhập bằng Google",
@@ -206,6 +227,16 @@
       "googleRegister": "Đăng ký bằng Google",
       "facebookRegister": "Đăng ký bằng Facebook",
       "githubRegister": "Đăng ký bằng GitHub"
+    },
+    "google": {
+      "callback": {
+        "processing": "Đang hoàn tất đăng nhập...",
+        "pleaseWait": "Vui lòng không đóng cửa sổ này.",
+        "error": "Đăng nhập Google thất bại",
+        "closing": "Cửa sổ sẽ tự đóng sau ít giây.",
+        "missingCode": "Không nhận được authorization code từ Google",
+        "errorUNKNOWN": "Đã có lỗi xảy ra. Vui lòng thử lại."
+      }
     },
     "password": {
       "strength": {
@@ -470,7 +501,18 @@
         "changeMethod": "← Đổi phương thức thanh toán khác",
         "mall": "Mall",
         "official": "Chính hãng",
-        "codeLabel": "Mã:"
+        "codeLabel": "Mã:",
+        "manualSync": "Tôi đã thanh toán, kiểm tra lại",
+        "manualSyncing": "Đang kiểm tra...",
+        "openApp": "Mở app ZaloPay",
+        "expiresIn": "Đơn hết hạn sau {minutes}:{seconds}",
+        "countdownZero": "Đã hết thời gian giữ chỗ",
+        "autoConfirmHint": "Hệ thống sẽ tự xác nhận sau khi bạn thanh toán thành công. Không cần thao tác thêm.",
+        "qrAlt": "Mã QR thanh toán ZaloPay",
+        "amountLabel": "Số tiền: {amount}",
+        "scanQr": "Quét mã QR để thanh toán",
+        "missingQr": "Đang tạo mã thanh toán...",
+        "redirecting": "Đang chuyển sang ZaloPay..."
       },
       "success": {
         "badge": "TRẠNG THÁI: THÀNH CÔNG",
@@ -626,7 +668,24 @@
       "emptyDescription": "Vui lòng đăng nhập lại để tiếp tục.",
       "profile": "Hồ sơ",
       "orders": "Đơn hàng",
-      "logout": "Đăng xuất"
+      "logout": "Đăng xuất",
+      "sidebar": {
+        "editProfile": "Sửa hồ sơ",
+        "rewardsTitle": "Vibe Rewards",
+        "rewardsTier": "Hạng Vàng",
+        "rewardsPoints": "{points} điểm khả dụng",
+        "rewardsRedeem": "Đổi quà",
+        "rewardsNext": "Còn {points} điểm lên {tier}",
+        "rewardsGoal": "{points} điểm",
+        "nav": {
+          "myAccount": "Tài khoản của tôi",
+          "myOrders": "Đơn mua",
+          "vouchers": "Kho voucher",
+          "notifications": "Thông báo đơn hàng",
+          "sellerChannel": "Kênh người bán",
+          "sellerHot": "Hot"
+        }
+      }
     },
     "home": {
       "hero": {
@@ -875,5 +934,122 @@
       "flashMaxQty": "Trong sự kiện Flash Sale, mỗi khách chỉ được đặt tối đa {max} áo!",
       "saveSuccess": "Đã Lưu"
     }
+  },
+  "orders": {
+    "list": {
+      "title": "Đơn hàng của tôi",
+      "loading": "Đang tải đơn hàng…",
+      "empty": "Bạn chưa có đơn hàng nào",
+      "emptyDescription": "Hãy khám phá thêm sản phẩm để đặt đơn đầu tiên."
+    },
+    "detail": {
+      "title": "Chi tiết đơn hàng",
+      "loading": "Đang tải chi tiết đơn hàng…",
+      "breadcrumb": "Đơn hàng",
+      "orderCodeLabel": "Mã đơn:",
+      "createdAtLabel": "Ngày đặt:",
+      "amountLabel": "Tổng thanh toán",
+      "paymentMethodLabel": "Phương thức thanh toán",
+      "statusLabel": "Trạng thái đơn hàng",
+      "expiresAtLabel": "Hết hạn:",
+      "itemsTitle": "Sản phẩm ({count})",
+      "viewProduct": "Xem sản phẩm",
+      "buyAgain": "Mua lại",
+      "contactShop": "Liên hệ shop",
+      "backToList": "← Quay lại danh sách đơn",
+      "shareOrder": "Chia sẻ đơn hàng",
+      "notFoundTitle": "Không tìm thấy đơn hàng",
+      "notFoundDescription": "Đơn hàng bạn tìm không tồn tại hoặc đã bị xoá.",
+      "loadErrorTitle": "Không thể tải đơn hàng",
+      "loadErrorDescription": "Đã có lỗi khi tải chi tiết đơn hàng. Vui lòng thử lại.",
+      "retryCta": "Thử lại"
+    }
+  },
+  "review": {
+    "title": "Đánh giá sản phẩm",
+    "orderLabel": "Đơn hàng #{code}",
+    "ratingLabel": "Chất lượng sản phẩm",
+    "ratingExcellent": "Tuyệt vời (5/5 sao)",
+    "commentLabel": "Nhận xét chi tiết",
+    "commentHint": "+100 Xu khi kèm ảnh & >50 từ",
+    "commentCounter": "{count}/500 ký tự",
+    "commentPlaceholder": "Chia sẻ trải nghiệm của bạn về sản phẩm...",
+    "mediaLabel": "Hình ảnh & Video thực tế",
+    "mediaAddButton": "+ Thêm ảnh / video",
+    "mediaHint": "Tối đa 5 ảnh (<10MB)",
+    "anonymous": "Đánh giá ẩn danh (Tên tài khoản sẽ hiển thị dạng n***n)",
+    "cancel": "Huỷ",
+    "submit": "Gửi đánh giá",
+    "submitSuccess": "Cảm ơn bạn đã đánh giá sản phẩm!",
+    "submitError": "Không thể gửi đánh giá. Vui lòng thử lại."
+  },
+  "sidebar": {
+    "editProfile": "Sửa hồ sơ",
+    "rewardsTitle": "Vibe Rewards",
+    "rewardsTier": "Hạng Vàng",
+    "rewardsPoints": "{points} điểm khả dụng",
+    "rewardsRedeem": "Đổi quà",
+    "rewardsNext": "Còn {points} điểm lên {tier}",
+    "rewardsGoal": "{points} điểm",
+    "nav": {
+      "myAccount": "Tài khoản của tôi",
+      "myOrders": "Đơn mua",
+      "vouchers": "Kho voucher",
+      "notifications": "Thông báo đơn hàng",
+      "sellerChannel": "Kênh người bán",
+      "sellerHot": "Hot"
+    }
+  },
+  "orders": {
+    "pageTitle": "Đơn mua của tôi",
+    "breadcrumbHome": "Trang chủ",
+    "breadcrumbAccount": "Tài khoản của tôi",
+    "breadcrumbCurrent": "Đơn mua",
+    "tabs": {
+      "all": "Tất cả",
+      "pendingPayment": "Chờ thanh toán",
+      "confirmed": "Đã xác nhận",
+      "shipping": "Đang giao",
+      "completed": "Hoàn thành",
+      "cancelled": "Đã hủy"
+    },
+    "searchPlaceholder": "Tìm theo mã đơn, tên shop hoặc sản phẩm...",
+    "searchButton": "Tìm",
+    "timeFilter": "Tất cả thời gian",
+    "viewShop": "Xem shop",
+    "countdown": {
+      "expiresIn": "Hết hạn sau {time} — Đơn sẽ tự hủy nếu chưa hoàn tất chuyển khoản / VNPAY / ZaloPay.",
+      "compact": "Đơn tự hủy sau {time}"
+    },
+    "cancel": "Huỷ đơn",
+    "payNow": "Thanh toán ngay",
+    "contactShop": "Liên hệ shop",
+    "trackOrder": "Xem lộ trình",
+    "reorder": "Mua lại",
+    "reviewNow": "Đánh giá ngay",
+    "shippingNotice": "{carrier} — Đang trung chuyển tới bưu cục {location}",
+    "eta": "Dự kiến giao: {time}",
+    "trackingLink": "Chi tiết vận đơn: {code}",
+    "completedNotice": "Đã giao thành công {time}. Bạn hài lòng chứ? Hãy để lại đánh giá nhé!",
+    "cancelledNotice": "Hệ thống tự động hủy do quá hạn thanh toán (5 phút). Voucher đã được hoàn lại ví voucher của bạn.",
+    "totalPayment": "Tổng thanh toán:",
+    "cancelledAmount": "Số tiền hủy:",
+    "itemCount": "{count, plural, =0 {Không có sản phẩm} =1 {1 sản phẩm} other {# sản phẩm}}",
+    "itemVariant": "Phân loại: {variant}",
+    "itemQty": "Số lượng: x{count}",
+    "loading": "Đang tải đơn hàng...",
+    "errorTitle": "Không tải được danh sách đơn hàng",
+    "errorDescription": "Đã có lỗi xảy ra. Vui lòng thử lại.",
+    "empty": {
+      "title": "Bạn chưa có đơn hàng nào",
+      "description": "Hãy khám phá các sản phẩm và tiến hành đặt hàng.",
+      "action": "Khám phá sản phẩm"
+    }
+  },
+  "paymentErrors": {
+    "ORDER_NOT_FOUND": "Không tìm thấy đơn hàng",
+    "ORDER_INVALID_STATUS_TRANSITION": "Đơn hàng đã được xử lý, không thể thay đổi phương thức thanh toán",
+    "ORDER_NOT_OWNER": "Bạn không có quyền thao tác trên đơn hàng này",
+    "INTERNAL_SERVER_ERROR": "Hệ thống thanh toán đang bảo trì, vui lòng thử lại sau hoặc chọn phương thức khác"
   }
 }

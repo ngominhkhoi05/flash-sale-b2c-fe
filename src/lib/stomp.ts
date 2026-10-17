@@ -1,20 +1,24 @@
 import { Client, type IMessage, type StompConfig } from "@stomp/stompjs";
-import { WS_RECONNECT_DELAY_MS } from "@/lib/constants";
+import SockJS from "sockjs-client";
+import { WS_RECONNECT_BACKOFF_MS } from "@/lib/constants";
 
 /**
- * STOMP client factory (rule websocket-realtime).
- * - Tự reconnect với backoff đơn giản.
- * - Truyền JWT qua connectHeaders (Authorization Bearer) cho Spring Security.
- * - KHÔNG xử lý nghiệp vụ ở đây; chỉ mount, subscribe/unsubscribe do hook làm.
+ * STOMP client factory — BE contract 2026-10-15.
  *
- * Lưu ý quan trọng (migrate 2026-10-15):
- * - Trước đây dùng `new SockJS(wsUrl)` trong webSocketFactory. SockJS 1.x
- *   attach 'unload' event listener → Chrome cảnh báo
- *   `[Violation] Permissions policy violation: unload is not allowed`.
- * - Migrate sang `new WebSocket(wsUrl)` thuần. Spring Boot hỗ trợ native
- *   WebSocket endpoint qua @EnableWebSocketMessageBroker + STOMP.
- *   Nếu BE chỉ hỗ trợ SockJS (vd: cũ < 2.0), cần đổi lại wsUrl sang
- *   path /ws-native hoặc giữ SockJS.
+ * Source of truth: `docs/handoffs/fe-ws-integration-guide (1).md`.
+ *
+ * Spec:
+ * - Endpoint: `<NEXT_PUBLIC_WS_URL>/ws` (mặc định `http://localhost:8080/ws`).
+ *   KHÔNG thêm `/flash-sale` — Spring Boot WS handler tên `/ws`.
+ * - Auth: JWT truyền qua query param `?token=<access_token>`.
+ *   Browser KHÔNG cho set Authorization header khi upgrade WebSocket.
+ * - Heartbeat: 10s incoming, 10s outgoing (BE spec §2.4).
+ * - Reconnect: exponential backoff (3s → 6s → 12s → max 30s).
+ *   Hiện dùng `reconnectDelay: WS_RECONNECT_BACKOFF_MS[0]` (=3s) — STOMP 7.x chỉ
+ *   nhận number, exponential được implement ở handler tầng trên
+ *   (xem `WsConnectionProvider`).
+ *
+ * KHÔNG xử lý nghiệp vụ ở đây; chỉ mount, subscribe/unsubscribe do hook làm.
  */
 export interface FlashSaleStompClient {
   client: Client;
@@ -23,31 +27,35 @@ export interface FlashSaleStompClient {
 }
 
 function getWsUrl(): string {
+  // NEXT_PUBLIC_WS_URL có thể là host thuần (vd "http://localhost:8080")
+  // hoặc đã có /ws. Luôn normalize về `<base>/ws` + ?token=<JWT>.
   const raw = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:8080/ws";
   return raw.replace(/\/$/, "");
 }
 
-/**
- * Convert ws:// hoặc wss:// từ http(s):// URL (Spring Boot mặc định
- * dùng http(s):// cho cả WS endpoint; cần đổi scheme khi dùng native
- * WebSocket vì browser yêu cầu ws(s):// protocol).
- */
-function toNativeWsUrl(httpUrl: string): string {
-  return httpUrl.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
+function buildSockJsUrl(base: string, token: string | null): string {
+  // KHÔNG dùng Authorization header — browser không cho set khi upgrade WS.
+  // BE đọc token qua HandshakeAuthInterceptor từ query param `token=`.
+  if (!token) return base;
+  const separator = base.includes("?") ? "&" : "?";
+  return `${base}${separator}token=${encodeURIComponent(token)}`;
 }
 
 export function createFlashSaleStompClient(
   accessToken: string | null
 ): FlashSaleStompClient {
-  const wsUrl = toNativeWsUrl(getWsUrl());
+  const wsBase = getWsUrl();
 
   const config: StompConfig = {
-    // Native WebSocket — KHÔNG dùng SockJS (xem comment migrate ở đầu file).
-    webSocketFactory: () => new WebSocket(wsUrl),
-    reconnectDelay: WS_RECONNECT_DELAY_MS,
+    // Truyền token qua URL query param cho handshake interceptor
+    // (BE `HandshakeAuthInterceptor` đọc `token` query param).
+    webSocketFactory: () =>
+      new SockJS(buildSockJsUrl(wsBase, accessToken)) as unknown as WebSocket,
+    reconnectDelay: WS_RECONNECT_BACKOFF_MS[0],
     heartbeatIncoming: 10_000,
     heartbeatOutgoing: 10_000,
-    connectHeaders: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    // KHÔNG set Authorization header — dùng query param ở trên.
+    connectHeaders: {},
     debug: () => {
       // Tắt log mặc định để khỏi spam console – rule §11.
     },

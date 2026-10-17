@@ -34,9 +34,28 @@
       "PAID": "Paid",
       "CONFIRMED": "Confirmed",
       "SHIPPING": "Shipping",
+      "SHIPPED": "Shipped",
       "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
       "CANCELLED_TIMEOUT": "Cancelled – payment timeout",
       "CANCELLED_USER": "Cancelled"
+    }
+  },
+  "ws": {
+    "connectionState": {
+      "connecting": "Connecting…",
+      "connected": "Live",
+      "disconnected": "Disconnected",
+      "reconnecting": "Reconnecting…"
+    },
+    "toast": {
+      "orderReserved": "Order placed. Code: {orderCode}",
+      "orderReservedDescription": "Payment expires at: {expiresAt}",
+      "orderCancelledTimeout": "Order {orderCode} expired and was cancelled automatically",
+      "orderStatusChanged": "Order {orderCode} moved to status {status}",
+      "paymentStatusChanged": "Payment for {orderCode}: {paymentStatus}",
+      "slotActivated": "Flash Sale #{slotId} has started",
+      "slotClosed": "Flash Sale #{slotId} has ended"
     }
   },
   "payment": {
@@ -197,7 +216,9 @@
       "invalidCredentials": "Incorrect email or password",
       "oauthNotImplemented": "Feature coming soon",
       "termsRequired": "You must agree to the terms to continue",
-      "registerFailed": "Registration failed"
+      "registerFailed": "Registration failed",
+      "googlePopupBlocked": "Your browser blocked the sign-in popup. Please allow popups and try again.",
+      "googleLoginFailed": "Google sign-in failed. Please try again."
     },
     "social": {
       "google": "Sign in with Google",
@@ -206,6 +227,16 @@
       "googleRegister": "Sign up with Google",
       "facebookRegister": "Sign up with Facebook",
       "githubRegister": "Sign up with GitHub"
+    },
+    "google": {
+      "callback": {
+        "processing": "Completing sign-in...",
+        "pleaseWait": "Please do not close this window.",
+        "error": "Google sign-in failed",
+        "closing": "This window will close in a moment.",
+        "missingCode": "Did not receive authorization code from Google",
+        "errorUNKNOWN": "Something went wrong. Please try again."
+      }
     },
     "password": {
       "strength": {
@@ -470,7 +501,18 @@
         "changeMethod": "← Use a different payment method",
         "mall": "Mall",
         "official": "Official",
-        "codeLabel": "Code:"
+        "codeLabel": "Code:",
+        "manualSync": "I've paid, check again",
+        "manualSyncing": "Checking...",
+        "openApp": "Open ZaloPay app",
+        "expiresIn": "Order expires in {minutes}:{seconds}",
+        "countdownZero": "Reservation expired",
+        "autoConfirmHint": "The system will confirm automatically after your payment. No further action needed.",
+        "qrAlt": "ZaloPay QR payment code",
+        "amountLabel": "Amount: {amount}",
+        "scanQr": "Scan the QR code to pay",
+        "missingQr": "Generating payment code...",
+        "redirecting": "Redirecting to ZaloPay..."
       },
       "success": {
         "badge": "STATUS: SUCCESS",
@@ -626,7 +668,24 @@
       "emptyDescription": "Please sign in again to continue.",
       "profile": "Profile",
       "orders": "Orders",
-      "logout": "Sign Out"
+      "logout": "Sign Out",
+      "sidebar": {
+        "editProfile": "Edit profile",
+        "rewardsTitle": "Vibe Rewards",
+        "rewardsTier": "Gold tier",
+        "rewardsPoints": "{points} points available",
+        "rewardsRedeem": "Redeem",
+        "rewardsNext": "{points} points to {tier}",
+        "rewardsGoal": "{points} points",
+        "nav": {
+          "myAccount": "My account",
+          "myOrders": "My orders",
+          "vouchers": "My vouchers",
+          "notifications": "Order notifications",
+          "sellerChannel": "Seller channel",
+          "sellerHot": "Hot"
+        }
+      }
     },
     "home": {
       "hero": {
@@ -875,5 +934,122 @@
       "flashMaxQty": "During Flash Sale, each customer can order at most {max} items!",
       "saveSuccess": "Saved"
     }
+  },
+  "orders": {
+    "list": {
+      "title": "My orders",
+      "loading": "Loading orders…",
+      "empty": "You have no orders yet",
+      "emptyDescription": "Browse more products to place your first order."
+    },
+    "detail": {
+      "title": "Order detail",
+      "loading": "Loading order detail…",
+      "breadcrumb": "Orders",
+      "orderCodeLabel": "Order code:",
+      "createdAtLabel": "Placed on:",
+      "amountLabel": "Grand total",
+      "paymentMethodLabel": "Payment method",
+      "statusLabel": "Order status",
+      "expiresAtLabel": "Expires at:",
+      "itemsTitle": "Items ({count})",
+      "viewProduct": "View product",
+      "buyAgain": "Buy again",
+      "contactShop": "Contact shop",
+      "backToList": "← Back to orders",
+      "shareOrder": "Share order",
+      "notFoundTitle": "Order not found",
+      "notFoundDescription": "The order you are looking for does not exist or has been deleted.",
+      "loadErrorTitle": "Failed to load order",
+      "loadErrorDescription": "An error occurred while loading order details. Please try again.",
+      "retryCta": "Retry"
+    }
+  },
+  "review": {
+    "title": "Review product",
+    "orderLabel": "Order #{code}",
+    "ratingLabel": "Product quality",
+    "ratingExcellent": "Excellent (5/5)",
+    "commentLabel": "Detailed review",
+    "commentHint": "+100 Coins when photo & >50 words",
+    "commentCounter": "{count}/500 characters",
+    "commentPlaceholder": "Share your experience with this product...",
+    "mediaLabel": "Photos & Videos",
+    "mediaAddButton": "+ Add photo / video",
+    "mediaHint": "Up to 5 photos (<10MB)",
+    "anonymous": "Anonymous review (Your name will show as a***n)",
+    "cancel": "Cancel",
+    "submit": "Submit review",
+    "submitSuccess": "Thanks for reviewing this product!",
+    "submitError": "Failed to submit review. Please try again."
+  },
+  "sidebar": {
+    "editProfile": "Edit profile",
+    "rewardsTitle": "Vibe Rewards",
+    "rewardsTier": "Gold tier",
+    "rewardsPoints": "{points} points available",
+    "rewardsRedeem": "Redeem",
+    "rewardsNext": "{points} points to {tier}",
+    "rewardsGoal": "{points} points",
+    "nav": {
+      "myAccount": "My account",
+      "myOrders": "My orders",
+      "vouchers": "My vouchers",
+      "notifications": "Order notifications",
+      "sellerChannel": "Seller channel",
+      "sellerHot": "Hot"
+    }
+  },
+  "orders": {
+    "pageTitle": "My orders",
+    "breadcrumbHome": "Home",
+    "breadcrumbAccount": "My account",
+    "breadcrumbCurrent": "Orders",
+    "tabs": {
+      "all": "All",
+      "pendingPayment": "Pending payment",
+      "confirmed": "Confirmed",
+      "shipping": "Shipping",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "searchPlaceholder": "Search by order code, shop or product...",
+    "searchButton": "Search",
+    "timeFilter": "All time",
+    "viewShop": "View shop",
+    "countdown": {
+      "expiresIn": "Expires in {time} — Order will auto-cancel if payment is not completed via bank transfer / VNPAY / ZaloPay.",
+      "compact": "Auto-cancel in {time}"
+    },
+    "cancel": "Cancel order",
+    "payNow": "Pay now",
+    "contactShop": "Contact shop",
+    "trackOrder": "Track order",
+    "reorder": "Buy again",
+    "reviewNow": "Review now",
+    "shippingNotice": "{carrier} — In transit to {location}",
+    "eta": "Expected delivery: {time}",
+    "trackingLink": "Tracking: {code}",
+    "completedNotice": "Delivered successfully {time}. Happy with your order? Leave a review!",
+    "cancelledNotice": "Auto-cancelled due to payment timeout (5 minutes). Vouchers have been refunded to your wallet.",
+    "totalPayment": "Total payment:",
+    "cancelledAmount": "Cancelled amount:",
+    "itemCount": "{count, plural, =0 {No items} =1 {1 item} other {# items}}",
+    "itemVariant": "Variant: {variant}",
+    "itemQty": "Quantity: x{count}",
+    "loading": "Loading orders...",
+    "errorTitle": "Failed to load orders",
+    "errorDescription": "Something went wrong. Please try again.",
+    "empty": {
+      "title": "You have no orders yet",
+      "description": "Browse our products and place your first order.",
+      "action": "Browse products"
+    }
+  },
+  "paymentErrors": {
+    "ORDER_NOT_FOUND": "Order not found",
+    "ORDER_INVALID_STATUS_TRANSITION": "Order has already been processed and cannot change payment method",
+    "ORDER_NOT_OWNER": "You don't have permission to operate on this order",
+    "INTERNAL_SERVER_ERROR": "Payment system is under maintenance. Please try again later or choose another method"
   }
 }

@@ -13,7 +13,10 @@ export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 // Thời gian (ms) – dùng cho timeout/interval client
 // =========================================================
 export const TOAST_DURATION_MS = 4000;
+/** @deprecated Reconnect schedule giờ dùng WS_RECONNECT_BACKOFF_MS (BE guide §3.4). */
 export const WS_RECONNECT_DELAY_MS = 3000;
+/** Exponential reconnect schedule (ms) cho WebSocket – theo BE WS guide §3.4. */
+export const WS_RECONNECT_BACKOFF_MS = [3000, 6000, 12000, 30000] as const;
 export const POLLING_INTERVAL_MS = 3000; // ZaloPay polling (rule §8 mục 5)
 export const HELD_ORDER_DURATION_MS = 5 * 60 * 1000; // 5 phút giữ chỗ (server xác nhận)
 /** Alias cho trang QR – đồng bộ với HELD_ORDER_DURATION_MS. */
@@ -54,7 +57,9 @@ export const ORDER_STATUS = {
   PAID: "PAID",
   CONFIRMED: "CONFIRMED",
   SHIPPING: "SHIPPING",
+  SHIPPED: "SHIPPED",
   COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
   CANCELLED_TIMEOUT: "CANCELLED_TIMEOUT",
   CANCELLED_USER: "CANCELLED_USER",
 } as const;
@@ -65,7 +70,9 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PAID: "Đã thanh toán",
   CONFIRMED: "Đã xác nhận",
   SHIPPING: "Đang giao",
+  SHIPPED: "Đã giao hàng",
   COMPLETED: "Hoàn thành",
+  CANCELLED: "Đã huỷ",
   CANCELLED_TIMEOUT: "Đã huỷ – quá hạn thanh toán",
   CANCELLED_USER: "Đã huỷ",
 };
@@ -75,7 +82,9 @@ export const ORDER_STATUS_BADGE: Record<OrderStatus, string> = {
   PAID: "info",
   CONFIRMED: "info",
   SHIPPING: "info",
+  SHIPPED: "info",
   COMPLETED: "success",
+  CANCELLED: "neutral",
   CANCELLED_TIMEOUT: "neutral",
   CANCELLED_USER: "neutral",
 };

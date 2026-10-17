@@ -4,6 +4,7 @@ import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { ROUTES, ROLES } from "@/lib/constants";
+import { sanitizeRedirectPath } from "@/lib/auth/require-auth";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { AuthBrandPanel } from "@/components/auth/AuthBrandPanel";
 import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
@@ -50,7 +51,13 @@ function LoginContent() {
       <section className="flex w-full items-center justify-center md:w-[46%] lg:w-[45%]">
         <div className="flex w-full max-w-[420px] flex-col gap-0 rounded-xl bg-surface-container-lowest p-8 shadow-md sm:p-9">
           <LoginForm />
-          <SocialLoginButtons />
+          <SocialLoginButtons
+            onGoogleSuccess={() => {
+              // Sau khi Google login thành công: ưu tiên redirect param
+              const r = sanitizeRedirectPath(searchParams.get("redirect"));
+              router.replace(r);
+            }}
+          />
         </div>
       </section>
     </div>

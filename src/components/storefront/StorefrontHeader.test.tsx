@@ -312,8 +312,10 @@ describe("StorefrontHeader – user area", () => {
     const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
     expect(logoImg).toBeDefined();
     // next/image set width/height; raw <img> ở code cũ KHÔNG có
-    expect(logoImg?.getAttribute("width")).toBe("128");
-    expect(logoImg?.getAttribute("height")).toBe("36");
+    // Width/height phải khớp tỉ lệ ảnh gốc (1024:307 ≈ 3.33:1) để tránh bị
+    // browser scale giãn khi render. 120×40 = 3:1, gần với intrinsic ratio.
+    expect(logoImg?.getAttribute("width")).toBe("120");
+    expect(logoImg?.getAttribute("height")).toBe("40");
   });
 
   it("renders user.avatarUrl (when present) instead of the default avatar", () => {

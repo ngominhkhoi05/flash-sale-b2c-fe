@@ -1,106 +1,181 @@
 /**
  * Test cho createFlashSaleStompClient (src/lib/stomp.ts).
  *
- * Verify:
- * 1. SockJS đã được loại bỏ — webSocketFactory trả về native WebSocket.
- *    Trước đây dùng SockJS gây 'Permissions policy violation: unload is
- *    not allowed' warning trên console (do SockJS 1.x attach 'unload'
- *    event). Migrate sang WebSocket thuần để khắc phục.
- * 2. Client vẫn kết nối được với cùng API (createClient, activate, ...).
- * 3. Access token được truyền qua connectHeaders (Bearer).
+ * Spec từ `docs/handoffs/fe-ws-integration-guide (1).md`:
+ * - Endpoint: `ws://<host>/ws` (BE Spring Boot SockJS, KHÔNG `/ws/flash-sale`).
+ * - Auth: JWT truyền qua query param `?token=<access_token>` (browser không cho set
+ *   Authorization header khi upgrade WebSocket).
+ * - Heartbeat: 10s incoming, 10s outgoing.
+ * - Reconnect: exponential backoff (3s → 6s → 12s → max 30s).
  *
- * Note: ta KHÔNG test trực tiếp việc connect đến BE (cần mock WebSocket)
- * — chỉ verify cấu hình client đúng.
+ * Trước khi sửa code, test này phải FAIL trên implementation hiện tại.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock @stomp/stompjs — ta cần inspect StompConfig được truyền vào Client
-const mockClientInstances: Array<{
-  config: unknown;
-  activate: ReturnType<typeof vi.fn>;
-  deactivate: ReturnType<typeof vi.fn>;
-}> = [];
+// Track config + factory từ Client constructor.
+let capturedConfig: Record<string, unknown> | null = null;
+let capturedWebSocketFactory: (() => unknown) | null = null;
+const mockActivate = vi.fn();
+const mockDeactivate = vi.fn();
+const mockSubscribe = vi.fn().mockReturnValue({
+  unsubscribe: vi.fn(),
+});
+
 vi.mock("@stomp/stompjs", () => ({
-  Client: vi.fn().mockImplementation((config: unknown) => {
-    const instance = {
-      config,
-      activate: vi.fn(),
-      deactivate: vi.fn(),
+  Client: vi.fn().mockImplementation((config: Record<string, unknown>) => {
+    capturedConfig = config;
+    capturedWebSocketFactory =
+      (config.webSocketFactory as () => unknown) ?? null;
+    return {
+      activate: mockActivate,
+      deactivate: mockDeactivate,
+      subscribe: mockSubscribe,
+      connected: false,
+      onConnect: undefined,
     };
-    mockClientInstances.push(instance);
-    return instance;
   }),
 }));
 
-// Mock sockjs-client để verify nó KHÔNG được import khi chạy test này
-// (giả định module bị loại bỏ khỏi code).
+const mockSockJSConstructor = vi.fn();
 vi.mock("sockjs-client", () => ({
-  default: vi.fn(),
+  default: vi.fn().mockImplementation((url: string) => {
+    mockSockJSConstructor(url);
+    return { url, _isSockJS: true };
+  }),
 }));
 
-import { createFlashSaleStompClient } from "./stomp";
+beforeEach(() => {
+  vi.clearAllMocks();
+  capturedConfig = null;
+  capturedWebSocketFactory = null;
+});
 
-describe("createFlashSaleStompClient – no SockJS (migrate sang WebSocket thuần)", () => {
-  beforeEach(() => {
-    mockClientInstances.length = 0;
+afterEach(() => {
+  vi.resetModules();
+  delete process.env.NEXT_PUBLIC_WS_URL;
+});
+
+function getFactoryAndCall() {
+  if (!capturedWebSocketFactory) {
+    throw new Error("webSocketFactory chưa được set trong Client config");
+  }
+  // Gọi factory → trigger new SockJS(...) → ghi nhận URL.
+  capturedWebSocketFactory();
+  return mockSockJSConstructor.mock.calls.at(-1)?.[0] as string;
+}
+
+describe("createFlashSaleStompClient – endpoint", () => {
+  it("uses default http://localhost:8080/ws khi NEXT_PUBLIC_WS_URL không set", async () => {
+    delete process.env.NEXT_PUBLIC_WS_URL;
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("test-token");
+
+    const url = getFactoryAndCall();
+    expect(url).toContain("http://localhost:8080/ws");
   });
 
-  it("webSocketFactory trả về native WebSocket (không phải SockJS)", () => {
-    // Spy constructor WebSocket để verify stomp.ts dùng class này.
-    // Dùng vi.fn() thay cho vi.spyOn(globalThis, "WebSocket") vì Vitest
-    // không hỗ trợ spy class constructor với type strict — return object
-    // mô phỏng các method mà webSocketFactory không gọi đến.
-    const webSocketSpy = vi.fn(() => ({
-      close: vi.fn(),
-      send: vi.fn(),
-    }));
-    const originalWebSocket = globalThis.WebSocket;
-    globalThis.WebSocket = webSocketSpy as unknown as typeof WebSocket;
+  it("dùng NEXT_PUBLIC_WS_URL từ env, strip trailing slash", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "https://api.example.com/ws/";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("test-token");
 
-    try {
-      createFlashSaleStompClient("test-token");
-      expect(mockClientInstances.length).toBe(1);
-      const config = mockClientInstances[0]?.config as {
-        webSocketFactory: () => unknown;
-      };
-      expect(config.webSocketFactory).toBeDefined();
-
-      // Gọi factory → phải return 1 instance của WebSocket
-      const ws = config.webSocketFactory();
-      expect(webSocketSpy).toHaveBeenCalledTimes(1);
-      expect(ws).toBeDefined();
-    } finally {
-      globalThis.WebSocket = originalWebSocket;
-    }
+    const url = getFactoryAndCall();
+    expect(url.startsWith("https://new?")).toBe(false);
+    expect(url).toContain("https://api.example.com/ws");
   });
 
-  it("client activate được gọi ngay khi tạo (auto-connect)", () => {
+  it("KHÔNG thêm /flash-sale vào URL (rule cũ sai — BE dùng /ws chung)", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("test-token");
+
+    const url = getFactoryAndCall();
+    expect(url).not.toContain("/flash-sale");
+  });
+});
+
+describe("createFlashSaleStompClient – auth via query param", () => {
+  it("append ?token=<access_token> query param khi token được cung cấp", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("jwt-abc-123");
+
+    const url = getFactoryAndCall();
+    // URL có dạng `http://localhost:8080/ws?token=jwt-abc-123`
+    expect(url).toMatch(/token=jwt-abc-123/);
+  });
+
+  it("KHÔNG thêm ?token= khi token là null", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
     createFlashSaleStompClient(null);
-    expect(mockClientInstances.length).toBe(1);
-    expect(mockClientInstances[0]?.activate).toHaveBeenCalledTimes(1);
+
+    const url = getFactoryAndCall();
+    expect(url).not.toContain("token=");
   });
 
-  it("access token được truyền vào connectHeaders.Authorization khi có token", () => {
-    createFlashSaleStompClient("my-jwt-token");
-    const config = mockClientInstances[0]?.config as {
-      connectHeaders: Record<string, string>;
-    };
-    expect(config.connectHeaders.Authorization).toBe("Bearer my-jwt-token");
+  it("KHÔNG set Authorization header (browser upgrade-WS không cho)", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("jwt-abc-123");
+
+    const headers =
+      (capturedConfig?.connectHeaders as Record<string, string> | undefined) ??
+      {};
+    expect(headers).not.toHaveProperty("Authorization");
   });
 
-  it("KHÔNG có Authorization header khi accessToken = null", () => {
-    createFlashSaleStompClient(null);
-    const config = mockClientInstances[0]?.config as {
-      connectHeaders: Record<string, string>;
-    };
-    expect(config.connectHeaders.Authorization).toBeUndefined();
+  it("URL-encode token theo RFC 3986 (/ + ' ' = ...)", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("jwt/with+special=chars");
+
+    const url = getFactoryAndCall();
+    // `/` encode thành %2F, `+` thành %2B, `=` thành %3D
+    expect(url).toContain(encodeURIComponent("jwt/with+special=chars"));
+    expect(url).not.toContain("jwt/with+special=chars");
+  });
+});
+
+describe("createFlashSaleStompClient – heartbeat + reconnect", () => {
+  it("set heartbeat incoming/outgoing = 10s theo BE spec", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("token");
+
+    expect(capturedConfig?.heartbeatIncoming).toBe(10_000);
+    expect(capturedConfig?.heartbeatOutgoing).toBe(10_000);
   });
 
-  it("reconnect delay được set từ WS_RECONNECT_DELAY_MS (3000ms)", () => {
-    createFlashSaleStompClient(null);
-    const config = mockClientInstances[0]?.config as {
-      reconnectDelay: number;
-    };
-    expect(config.reconnectDelay).toBe(3000);
+  it("set reconnectDelay > 0 (BE yêu cầu exponential backoff)", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("token");
+
+    // @stomp/stompjs 7.x chỉ nhận number — exponential backoff có thể
+    // được implement qua nhiều cơ chế (reconnectDelay callback, custom logic).
+    // Spec tối thiểu: reconnectDelay > 0 để retry khi disconnect.
+    expect(typeof capturedConfig?.reconnectDelay).toBe("number");
+    expect(capturedConfig?.reconnectDelay as number).toBeGreaterThan(0);
+  });
+});
+
+describe("createFlashSaleStompClient – lifecycle", () => {
+  it("tự activate client khi tạo (auto-connect)", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    createFlashSaleStompClient("token");
+
+    expect(mockActivate).toHaveBeenCalledTimes(1);
+  });
+
+  it("disconnect() gọi client.deactivate", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "http://localhost:8080/ws";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    const conn = createFlashSaleStompClient("token");
+
+    conn.disconnect();
+
+    expect(mockDeactivate).toHaveBeenCalledTimes(1);
   });
 });

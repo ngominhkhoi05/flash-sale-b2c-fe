@@ -27,7 +27,7 @@ import type {
   Voucher,
 } from "./types";
 
-// ─── Backend DTO types (matching Swagger) ───────────────────────────────────
+// ─── Backend DTO types (matching Swagger 2026-10-17) ────────────────────────
 
 interface BackendCartItem {
   id: number;
@@ -39,6 +39,8 @@ interface BackendCartItem {
   price: number;
   quantity: number;
   subtotal: number;
+  /** Thêm trong Swagger 2026-10-17: stock tồn kho của variant (M.4). */
+  stockQuantity?: number;
 }
 
 interface BackendCartStoreGroup {
@@ -59,6 +61,10 @@ interface BackendCartResponse {
   subtotal: number;
   totalShippingFee: number;
   totalItems: number;
+  /** Thêm trong Swagger 2026-10-17: tổng tiền hàng (subtotal). Optional cho backward compat. */
+  totalAmount?: number;
+  /** Thêm trong Swagger 2026-10-17: tổng cuối (subtotal + ship - discount). Optional. */
+  grandTotal?: number;
 }
 
 interface BackendAddress {
@@ -85,17 +91,28 @@ interface BackendVoucher {
   endDate?: string;
 }
 
+/**
+ * Request body cho POST /vouchers/apply theo Swagger 2026-10-17.
+ * Required: code, subtotalAmount. Optional: storeId.
+ * (Trước đây FE gửi { orderAmount, voucherCode, storeId? } — đã refactor.)
+ */
 interface BackendApplyVoucherRequest {
-  orderAmount: number;
-  voucherCode: string;
+  code: string;
+  subtotalAmount: number;
   storeId?: number;
 }
 
+/**
+ * Response từ POST /vouchers/apply theo Swagger 2026-10-17.
+ * BE trả ApiResponse<VoucherCalculationResponse>, apiFetch unwrap 1 lần
+ * → FE nhận trực tiếp VoucherCalculationResponse.
+ * KHÔNG còn full voucher object — chỉ có id + code + 2 số tiền.
+ */
 interface BackendVoucherCalculation {
-  voucher: BackendVoucher;
+  voucherId: number;
+  code: string;
   discountAmount: number;
-  applicable: boolean;
-  reasonCode?: string;
+  finalAmount: number;
 }
 
 interface BackendOrderItem {
@@ -241,7 +258,12 @@ function adaptCartToCheckout(
   const goodsSubtotal = cart.subtotal;
   const shippingFee = cart.totalShippingFee;
   const totalDiscount = 0; // No vouchers applied yet
-  const grandTotal = goodsSubtotal + shippingFee - totalDiscount;
+  // M.3: Ưu tiên grandTotal từ BE (Swagger 2026-10-17). Fallback tính local
+  // nếu BE response chưa có (backward compat với version cũ).
+  const grandTotal =
+    cart.grandTotal !== undefined
+      ? cart.grandTotal
+      : goodsSubtotal + shippingFee - totalDiscount;
 
   return {
     id: String(cart.id),
@@ -320,7 +342,14 @@ export async function getAvailableVouchers(input: {
 
 /**
  * POST /api/v1/vouchers/apply – validate and preview voucher application.
- * Backend expects: { orderAmount, voucherCode, storeId? }
+ *
+ * Swagger 2026-10-17:
+ * - Request:  { code, subtotalAmount, storeId? } (required: code, subtotalAmount)
+ * - Response: { voucherId, code, discountAmount, finalAmount }
+ *
+ * FE tự build `applied` = (discountAmount > 0).
+ * Caller cần match voucher trong cache theo `code` để có full Voucher object
+ * cho UI (vì BE response KHÔNG trả full voucher).
  */
 export async function applyVoucher(input: {
   voucherCode: string;
@@ -328,26 +357,42 @@ export async function applyVoucher(input: {
   storeId?: number;
 }): Promise<ApplyVoucherResponse> {
   const body: BackendApplyVoucherRequest = {
-    orderAmount: input.orderAmount,
-    voucherCode: input.voucherCode,
-    storeId: input.storeId,
+    code: input.voucherCode,
+    subtotalAmount: input.orderAmount,
   };
-  const res = await apiFetch<{
-    data: BackendVoucherCalculation;
-  }>("/api/v1/vouchers/apply", {
-    method: "POST",
-    json: body,
-  });
-  const calc = res.data;
+  if (input.storeId !== undefined) {
+    body.storeId = input.storeId;
+  }
+
+  const calc = await apiFetch<BackendVoucherCalculation>(
+    "/api/v1/vouchers/apply",
+    {
+      method: "POST",
+      json: body,
+    },
+  );
+
+  const applied = calc.discountAmount > 0;
   return {
-    applied: calc.applicable,
-    voucher: adaptVoucher({
-      ...calc.voucher,
-      label: calc.voucher.label || calc.voucher.description,
-    }),
-    grandTotal: 0, // caller recomputes
+    applied,
+    voucherId: calc.voucherId,
+    code: calc.code,
+    discountAmount: calc.discountAmount,
+    finalAmount: calc.finalAmount,
+    // Backward-compat aliases:
+    grandTotal: calc.finalAmount,
     totalDiscount: calc.discountAmount,
-    reasonCode: calc.reasonCode,
+    // Stub Voucher tối thiểu để tránh null/undefined ở caller cũ.
+    // Caller NÊN match voucher trong cache theo `code` để có full info.
+    voucher: adaptVoucher(
+      {
+        id: calc.voucherId,
+        code: calc.code,
+        label: calc.code,
+        description: calc.code,
+      },
+      input.storeId ? "SHOP" : "PLATFORM",
+    ),
   };
 }
 
@@ -426,4 +471,10 @@ export async function getOrderForQr(orderCode: string): Promise<QrOrderDetail> {
 }
 
 // ─── Re-export types for external use ──────────────────────────────────────
-export type { BackendCartResponse, BackendAddress, BackendVoucher };
+export type {
+  BackendCartResponse,
+  BackendCartItem,
+  BackendCartStoreGroup,
+  BackendAddress,
+  BackendVoucher,
+};
