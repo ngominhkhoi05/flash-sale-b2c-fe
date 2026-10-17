@@ -25,10 +25,11 @@ const SESSION_STORAGE_POST_LOGIN_KEY = "post_login_redirect";
  * - Subtitle: "Hệ thống đang kiểm tra mã token kích hoạt. Vui lòng đợi trong giây lát."
  * - Trust badge (border-top): lock icon + "Bảo mật chuẩn TLS 256-bit • Vibe Mart"
  *
- * Flow logic (giữ nguyên 5 nhánh — Commit E):
+ * Flow logic (5 nhánh):
  * 1. Google redirect về `/auth/google/callback?code=...&state=...`
  *    hoặc `?error=access_denied&error_description=...`
- * 2. Parse params → verify CSRF state → gọi POST /api/v1/auth/google
+ * 2. Parse params → gọi POST /api/v1/auth/google
+ *    (CSRF state check DISABLED — xem handoff mục 6, BE không verify state)
  * 3. Lưu tokens + user + redirect theo returnUrl
  *
  * @see docs/handoffs/google-oauth-fe-integration.md mục 4 (bước 2)
@@ -47,10 +48,6 @@ export function GoogleCallbackClient() {
 
     const code = searchParams.get("code");
     const errorParam = searchParams.get("error");
-    const stateFromUrl = searchParams.get("state");
-    const expectedState = window.sessionStorage.getItem(
-      SESSION_STORAGE_STATE_KEY
-    );
     const alreadyProcessed = window.sessionStorage.getItem(
       SESSION_STORAGE_PROCESSED_KEY
     );
@@ -81,14 +78,14 @@ export function GoogleCallbackClient() {
       return;
     }
 
-    // 4. CSRF state check (optional nhưng recommended — handoff v2 mục 6)
-    // Nếu expectedState rỗng (BE đã sinh state nhưng FE không lưu) thì
-    // SKIP check. Nếu expectedState có mà không khớp → reject.
-    if (expectedState && stateFromUrl !== expectedState) {
-      window.sessionStorage.removeItem(SESSION_STORAGE_STATE_KEY);
-      router.replace("/login?error=google_state_mismatch");
-      return;
-    }
+    // 4. CSRF state check (DISABLED — xem handoff mục 6)
+    // Lý do: BE hiện tại KHÔNG verify state khi callback. `data.state` từ
+    // `GET /api/v1/auth/google/url` chỉ là random UUID vô nghĩa. State Google
+    // echo về (`?state=...`) CÓ THỂ khác `data.state` (BE tự build URL với
+    // state riêng) → so sánh là vô nghĩa và trigger sai state_mismatch.
+    // Nếu muốn CSRF thật trong tương lai: FE tự generate state bằng
+    // crypto.randomUUID(), override `state=` trong authorizationUrl trước
+    // khi navigate, rồi verify ở đây. (handoff mục 6 có hướng dẫn.)
 
     // 5. Đánh dấu đã xử lý (để reload protection hoạt động)
     window.sessionStorage.setItem(SESSION_STORAGE_PROCESSED_KEY, "true");

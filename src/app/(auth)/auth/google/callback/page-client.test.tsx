@@ -236,13 +236,44 @@ describe("GoogleCallbackClient", () => {
     });
   });
 
-  describe("state mismatch (CSRF)", () => {
-    it("redirect /login?error=google_state_mismatch khi state không khớp", async () => {
+  describe("state check (DISABLED — BE không verify state, xem handoff mục 6)", () => {
+    it("không redirect google_state_mismatch dù state trong URL khác sessionStorage", async () => {
+      // Handoff mục 6: "BE KHÔNG verify state khi callback".
+      // State random từ BE là vô nghĩa → FE KHÔNG nên so sánh state.
+      // Kể cả khi state khác nhau, FE vẫn gọi loginWithGoogle.
       window.sessionStorage.setItem("google_oauth_state", "EXPECTED_STATE");
       setupSearchParams({
         code: "AUTH_CODE",
         state: "DIFFERENT_STATE",
       });
+
+      vi.mocked(loginWithGoogle).mockResolvedValue({
+        accessToken: "a",
+        refreshToken: "r",
+        tokenType: "Bearer",
+        expiresIn: 3600,
+        user: {
+          id: 1,
+          email: "u@e.c",
+          fullName: "U",
+          phone: "",
+          avatarUrl: null,
+          status: "ACTIVE",
+          createdAt: "2026-10-17T00:00:00Z",
+        },
+      });
+      vi.mocked(applyAuthResponse).mockImplementation(
+        async (res: import("@/features/auth/api").AuthResponse) => {
+          setAccessToken(res.accessToken);
+          setRefreshToken(res.refreshToken);
+          return {
+            id: "1",
+            email: "u@e.c",
+            fullName: "U",
+            role: "BUYER",
+          };
+        }
+      );
 
       render(
         <TestWrapper>
@@ -250,14 +281,17 @@ describe("GoogleCallbackClient", () => {
         </TestWrapper>
       );
 
+      // Phải gọi BE (không redirect state_mismatch)
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith(
-          "/login?error=google_state_mismatch"
-        );
+        expect(loginWithGoogle).toHaveBeenCalled();
       });
+      // Không được redirect về state_mismatch
+      expect(mockReplace).not.toHaveBeenCalledWith(
+        "/login?error=google_state_mismatch"
+      );
     });
 
-    it("skip CSRF check nếu sessionStorage rỗng (handoff v2 mục 6: optional)", async () => {
+    it("không check state dù sessionStorage có value (handoff mục 6: BE không verify)", async () => {
       // Không set sessionStorage
       setupSearchParams({
         code: "AUTH_CODE",
