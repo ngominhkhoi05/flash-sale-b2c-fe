@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -12,6 +12,7 @@ import {
   loginSchema,
   type LoginInput,
 } from '@/features/auth';
+import { mapGoogleErrorToI18nKey } from '@/features/auth/google-oauth-errors';
 import { ROUTES } from '@/lib/constants';
 import { sanitizeRedirectPath } from '@/lib/auth/require-auth';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import { Label } from '@/components/ui/label';
 export function LoginForm() {
   const t = useTranslations('auth.login');
   const tErr = useTranslations('auth.errors');
+  const tErrorNs = useTranslations('error');
   const router = useRouter();
   const searchParams = useSearchParams();
   const [apiError, setApiError] = useState<string | null>(null);
@@ -46,6 +48,26 @@ export function LoginForm() {
   });
 
   const login = useLoginMutation();
+
+  // Đọc `?error=google_*` từ URL (callback page Google OAuth redirect về).
+  // Chỉ handle error từ Google flow (prefix `google_`) — các error khác do
+  // backend login trả về sẽ hiển thị qua `apiError` state ở dưới.
+  // Map error code → i18n key trong namespace `error.*` rồi dịch qua tErrorNs.
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (!errorParam || !errorParam.startsWith('google_')) return;
+    // Strip prefix `google_` → mapper sẽ lookup i18n key tương ứng.
+    const rawCode = errorParam.slice('google_'.length);
+    const i18nKey = mapGoogleErrorToI18nKey(rawCode);
+    // i18nKey có dạng `error.google_cancelled` — strip prefix `error.`
+    // vì useTranslations('error') đã scope sẵn vào namespace `error`.
+    const relativeKey = i18nKey.startsWith('error.')
+      ? i18nKey.slice('error.'.length)
+      : i18nKey;
+    toast.error(
+      tErrorNs(relativeKey as Parameters<typeof tErrorNs>[0]),
+    );
+  }, [searchParams, tErrorNs]);
 
   const onSubmit = (data: LoginInput) => {
     setApiError(null);

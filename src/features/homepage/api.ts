@@ -46,7 +46,19 @@ export interface HomeBannersResponse {
 
 export async function fetchHomeBanners(): Promise<HomeBannersResponse> {
   try {
-    return await apiFetch<HomeBannersResponse>("/api/v1/banners/home");
+    const data = await apiFetch<HomeBannersResponse>("/api/v1/banners/home");
+    // Transform relative imageUrl paths to absolute URLs (backend returns /banners/xxx.jpg)
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const transformImageUrl = (banner: BannerResponse): BannerResponse => ({
+      ...banner,
+      imageUrl: banner.imageUrl.startsWith("http")
+        ? banner.imageUrl
+        : `${baseUrl.replace(/\/$/, "")}${banner.imageUrl}`,
+    });
+    return {
+      mainSlides: data.mainSlides.map(transformImageUrl),
+      sideBanners: data.sideBanners.map(transformImageUrl),
+    };
   } catch (err) {
     // Backend chưa có endpoint /banners/home → trả empty để UI fallback sang featured products.
     if (err instanceof ApiError && err.status === 404) {

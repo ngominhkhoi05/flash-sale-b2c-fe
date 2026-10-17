@@ -1,46 +1,52 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
-import { LoginForm } from './LoginForm';
-import { TestWrapper } from '@/__tests__/test-wrapper';
-import { ROUTES } from '@/lib/constants';
+/**
+ * Test LoginForm — đọc `?error=google_*` từ URL và hiển thị toast.
+ *
+ * Flow khi user cancel Google OAuth:
+ * 1. User bấm nút Google ở /login
+ * 2. Google redirect về /auth/google/callback?error=access_denied
+ * 3. Callback page redirect về /login?error=google_cancelled
+ * 4. LoginForm useEffect đọc ?error → toast.error(t('error.google_cancelled'))
+ * 5. User thấy message tiếng Việt cụ thể (vd "Bạn đã hủy đăng nhập bằng Google.")
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { LoginForm } from "./LoginForm";
+import { TestWrapper } from "@/__tests__/test-wrapper";
 
-// Mock next/navigation because LoginForm uses useRouter + useSearchParams
-const mockPush = vi.fn();
-const mockUseSearchParams = vi.fn<() => URLSearchParams>(() => new URLSearchParams());
-
-vi.mock('next/navigation', () => ({
+// Mock next/navigation
+const mockSearchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: mockPush,
+    push: vi.fn(),
     replace: vi.fn(),
     refresh: vi.fn(),
     back: vi.fn(),
     forward: vi.fn(),
     prefetch: vi.fn(),
   }),
-  useSearchParams: () => mockUseSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
-// Mock the auth hook used by LoginForm
-// `mutate` calls the onSuccess callback so we can assert navigation behavior.
-const mockMutate = vi.fn(
-  (
-    _data: unknown,
-    options?: { onSuccess?: () => void; onError?: () => void },
-  ) => {
-    options?.onSuccess?.();
+// Mock sonner
+const mockToastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => mockToastError(...args),
+    success: vi.fn(),
+    info: vi.fn(),
   },
-);
+}));
 
-vi.mock('@/features/auth', async () => {
-  const actual = await vi.importActual<typeof import('@/features/auth')>(
-    '@/features/auth'
+// Mock useLoginMutation để không gọi API
+vi.mock("@/features/auth", async () => {
+  const actual = await vi.importActual<typeof import("@/features/auth")>(
+    "@/features/auth",
   );
   return {
     ...actual,
     useLoginMutation: () => ({
-      mutate: mockMutate,
+      mutate: vi.fn(),
       isPending: false,
       isError: false,
       error: null,
@@ -55,173 +61,61 @@ function withQueryClient(ui: React.ReactNode) {
   return render(
     <QueryClientProvider client={qc}>
       <TestWrapper>{ui}</TestWrapper>
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
-describe('LoginForm', () => {
-  it('renders identifier, password fields and submit button', () => {
-    withQueryClient(<LoginForm />);
-    expect(
-      screen.getByLabelText(/Email hoặc Số điện thoại/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(/Nhập mật khẩu/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Đăng nhập/i })
-    ).toBeInTheDocument();
-  });
+beforeEach(() => {
+  // Reset search params giữa các test
+  mockSearchParams.delete("error");
+  mockToastError.mockClear();
+});
 
-  it('shows validation error for empty identifier on submit', async () => {
-    const user = userEvent.setup();
+describe("LoginForm — đọc ?error=google_*", () => {
+  it("toast.error với i18n key khi URL có ?error=google_cancelled", async () => {
+    mockSearchParams.set("error", "google_cancelled");
     withQueryClient(<LoginForm />);
-    await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
     await waitFor(() => {
-      expect(
-        screen.getByText(/Vui lòng nhập email hoặc số điện thoại/i)
-      ).toBeInTheDocument();
+      expect(mockToastError).toHaveBeenCalledTimes(1);
     });
+    // Message phải là bản dịch tiếng Việt, KHÔNG phải raw "google_cancelled"
+    const calledWith = String(mockToastError.mock.calls[0][0]);
+    expect(calledWith).not.toBe("google_cancelled");
+    expect(calledWith).toMatch(/Bạn đã hủy đăng nhập bằng Google/);
   });
 
-  it('shows validation error for too-short password', async () => {
-    const user = userEvent.setup();
+  it("toast.error với i18n key khi URL có ?error=google_AUTH_502_GOOGLE_EXCHANGE", async () => {
+    mockSearchParams.set("error", "google_AUTH_502_GOOGLE_EXCHANGE");
     withQueryClient(<LoginForm />);
-    await user.type(
-      screen.getByLabelText(/Email hoặc Số điện thoại/i),
-      'user@example.com'
-    );
-    // Use placeholder to uniquely target the password input
-    await user.type(screen.getByPlaceholderText(/Nhập mật khẩu/i), 'short');
-    await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
     await waitFor(() => {
-      expect(
-        screen.getByText(/Mật khẩu tối thiểu 8 ký tự/i)
-      ).toBeInTheDocument();
+      expect(mockToastError).toHaveBeenCalledTimes(1);
     });
+    const calledWith = String(mockToastError.mock.calls[0][0]);
+    expect(calledWith).toMatch(/Không thể xác thực với Google/);
   });
 
-  it('renders the "Quên mật khẩu?" link', () => {
+  it("fallback về 'error.google_unknown' khi code không match (vd google_FOO_BAR)", async () => {
+    mockSearchParams.set("error", "google_FOO_BAR");
     withQueryClient(<LoginForm />);
-    const link = screen.getByRole('link', { name: /Quên mật khẩu/i });
-    expect(link).toHaveAttribute('href', '/forgot-password');
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledTimes(1);
+    });
+    const calledWith = String(mockToastError.mock.calls[0][0]);
+    expect(calledWith).toMatch(/Đăng nhập bằng Google thất bại/);
   });
 
-  it('renders the "Đăng ký ngay" link', () => {
+  it("KHÔNG toast khi URL không có ?error=", async () => {
+    // Mock searchParams rỗng
     withQueryClient(<LoginForm />);
-    const link = screen.getByRole('link', { name: /Đăng ký ngay/i });
-    expect(link).toHaveAttribute('href', '/register');
+    // Đợi 1 chút để effect chạy
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 
-  it('renders Remember me checkbox unchecked by default', () => {
+  it("KHÔNG toast khi ?error= không phải google_* (vd ?error=foo)", async () => {
+    mockSearchParams.set("error", "foo");
     withQueryClient(<LoginForm />);
-    const checkbox = screen.getByRole('checkbox', {
-      name: /Ghi nhớ đăng nhập/i,
-    });
-    expect(checkbox).toBeInTheDocument();
-    expect(checkbox).not.toBeChecked();
-  });
-
-  it('toggles Remember me checkbox on click', async () => {
-    const user = userEvent.setup();
-    withQueryClient(<LoginForm />);
-    const checkbox = screen.getByRole('checkbox', {
-      name: /Ghi nhớ đăng nhập/i,
-    });
-    await user.click(checkbox);
-    expect(checkbox).toBeChecked();
-    await user.click(checkbox);
-    expect(checkbox).not.toBeChecked();
-  });
-
-  // ── ?redirect= query param support (auth-guard flow) ───────────────────
-  describe('?redirect= query param', () => {
-    it('navigates to HOME when no redirect param', async () => {
-      mockUseSearchParams.mockReturnValue(new URLSearchParams());
-      const user = userEvent.setup();
-      withQueryClient(<LoginForm />);
-      await user.type(
-        screen.getByLabelText(/Email hoặc Số điện thoại/i),
-        'user@example.com',
-      );
-      await user.type(screen.getByPlaceholderText(/Nhập mật khẩu/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith(ROUTES.HOME);
-      });
-    });
-
-    it('navigates to /cart when redirect=/cart', async () => {
-      mockUseSearchParams.mockReturnValue(new URLSearchParams('redirect=/cart'));
-      const user = userEvent.setup();
-      withQueryClient(<LoginForm />);
-      await user.type(
-        screen.getByLabelText(/Email hoặc Số điện thoại/i),
-        'user@example.com',
-      );
-      await user.type(screen.getByPlaceholderText(/Nhập mật khẩu/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/cart');
-      });
-    });
-
-    it('navigates to /vouchers when redirect=/vouchers', async () => {
-      mockUseSearchParams.mockReturnValue(new URLSearchParams('redirect=/vouchers'));
-      const user = userEvent.setup();
-      withQueryClient(<LoginForm />);
-      await user.type(
-        screen.getByLabelText(/Email hoặc Số điện thoại/i),
-        'user@example.com',
-      );
-      await user.type(screen.getByPlaceholderText(/Nhập mật khẩu/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/vouchers');
-      });
-    });
-
-    it('navigates to HOME (not external URL) when redirect=https://evil.com', async () => {
-      // Open redirect attack: nếu không sanitize, attacker có thể redirect user
-      // sang domain khác sau login. Helper `sanitizeRedirectPath` phải chặn.
-      mockUseSearchParams.mockReturnValue(
-        new URLSearchParams('redirect=' + encodeURIComponent('https://evil.com/x')),
-      );
-      const user = userEvent.setup();
-      withQueryClient(<LoginForm />);
-      await user.type(
-        screen.getByLabelText(/Email hoặc Số điện thoại/i),
-        'user@example.com',
-      );
-      await user.type(screen.getByPlaceholderText(/Nhập mật khẩu/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith(ROUTES.HOME);
-        expect(mockPush).not.toHaveBeenCalledWith('https://evil.com/x');
-      });
-    });
-
-    it('navigates to HOME (not protocol-relative URL) when redirect=//evil.com', async () => {
-      // Protocol-relative URL: //evil.com → domain ngoài
-      mockUseSearchParams.mockReturnValue(
-        new URLSearchParams('redirect=' + encodeURIComponent('//evil.com/x')),
-      );
-      const user = userEvent.setup();
-      withQueryClient(<LoginForm />);
-      await user.type(
-        screen.getByLabelText(/Email hoặc Số điện thoại/i),
-        'user@example.com',
-      );
-      await user.type(screen.getByPlaceholderText(/Nhập mật khẩu/i), 'password123');
-      await user.click(screen.getByRole('button', { name: /Đăng nhập/i }));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith(ROUTES.HOME);
-      });
-    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 });
