@@ -48,6 +48,11 @@ export interface UserResponse {
   avatarUrl: string | null;
   status: 'ACTIVE' | 'LOCKED' | 'SUSPENDED' | string;
   createdAt: string; // ISO 8601
+  /** Thêm trong Swagger 2026-10-17: danh sách role code (vd ["ROLE_BUYER"]).
+   * Optional – schema cũ chưa có field này.
+   * Note: FE vẫn ưu tiên đọc từ JWT (xem auth/jwt.ts) để tránh token cũ
+   * chưa có claim roles. */
+  roles?: string[];
 }
 
 /** AuthResponse – từ backend. */
@@ -57,6 +62,9 @@ export interface AuthResponse {
   tokenType: string; // "Bearer"
   expiresIn: number; // giây
   user: UserResponse;
+  /** Thêm trong Swagger 2026-10-17: roles ở top-level (vd ["ROLE_BUYER"]).
+   * Optional – cũng có sẵn ở user.roles. */
+  roles?: string[];
 }
 
 /** Alias cho FE – dùng ở useAuthStore. */

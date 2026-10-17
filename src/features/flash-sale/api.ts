@@ -27,12 +27,10 @@ export interface ReserveFlashSaleRequest {
 
 /** Response từ reserve endpoint (thành công) */
 export interface ReservationResponse {
-  /** Mã reservation = orderCode hiển thị */
-  reservationId: string;
+  /** ID đơn hàng (numeric) – thêm trong Swagger 2026-10-17. */
+  orderId?: number;
   /** Mã đơn hàng */
   orderCode: string;
-  /** ID slot Flash Sale */
-  slotId: number;
   /** ID item Flash Sale */
   flashSaleItemId: number;
   /** Số lượng đã đặt */
@@ -41,14 +39,37 @@ export interface ReservationResponse {
   flashSalePrice: number;
   /** Tổng tiền */
   totalAmount: number;
+  /** Trạng thái đơn (vd: "PENDING_PAYMENT") – thêm trong Swagger 2026-10-17. */
+  status?: string;
   /** Thời điểm hết hạn giữ chỗ (300 giây) */
   expiresAt: string;
+  /** Message từ BE (vd: "Đặt hàng thành công, vui lòng thanh toán trong 5 phút") – thêm trong Swagger 2026-10-17. */
+  message?: string;
+  /** Mã reservation = orderCode (giữ để backward compat với code cũ). */
+  reservationId?: string;
 }
 
 /** Response từ cancel endpoint */
 export interface CancelReservationResponse {
   success: boolean;
   message: string;
+}
+
+/** Response từ GET /api/v1/flash-sales/items/active (Swagger 2026-10-17). */
+export interface PublicFlashSaleItemResponse {
+  id: number;
+  slotId: number;
+  variantId: number;
+  sku: string;
+  variantName: string;
+  productName: string;
+  imageUrl: string;
+  originalPrice: number;
+  flashSalePrice: number;
+  allocatedStock: number;
+  availableStock: number;
+  userPurchaseLimit: number;
+  status: string;
 }
 
 // ─── API Functions ────────────────────────────────────────────────────────────
@@ -161,3 +182,23 @@ export const FLASH_SALE_ERROR_MESSAGES: Record<string, string> = {
     "Địa chỉ giao hàng không hợp lệ",
   FS_500_ORDER_FAILED: "Hệ thống bận, vui lòng thử lại sau",
 };
+
+/**
+ * GET /api/v1/flash-sales/items/active (M.7, Swagger 2026-10-17).
+ *
+ * Trả về danh sách sản phẩm Flash Sale đang ACTIVE cho trang chủ,
+ * kèm tồn kho real-time.
+ *
+ * Endpoint public (không cần auth).
+ * Response envelope: ApiResponse<List<PublicFlashSaleItemResponse>>
+ * → apiFetch unwrap 1 lần → còn PublicFlashSaleItemResponse[].
+ */
+export async function getActiveFlashSaleItems(): Promise<
+  PublicFlashSaleItemResponse[]
+> {
+  const res = await apiFetch<
+    | { data: PublicFlashSaleItemResponse[] }
+    | PublicFlashSaleItemResponse[]
+  >("/api/v1/flash-sales/items/active");
+  return Array.isArray(res) ? res : res.data;
+}

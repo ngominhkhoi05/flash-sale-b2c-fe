@@ -147,6 +147,45 @@ describe('fetchMe (real backend contract)', () => {
       method: 'GET',
     });
   });
+
+  // ── M.5: UserResponse accept roles từ Swagger 2026-10-17 ──────────
+  it('accepts UserResponse with roles[] field (M.5 type-shape)', async () => {
+    mockedApiFetch.mockResolvedValueOnce({
+      id: 1,
+      email: 'u@e.com',
+      fullName: 'User',
+      phone: '0912345678',
+      avatarUrl: null,
+      status: 'ACTIVE',
+      createdAt: '2026-10-10T00:00:00',
+      roles: ['ROLE_BUYER'], // M.5 — BE trả roles theo Swagger mới
+    });
+    const user = await fetchMe();
+    expect(user.roles).toEqual(['ROLE_BUYER']);
+  });
+});
+
+describe('loginRequest with roles (M.5)', () => {
+  it('AuthResponse accepts roles[] in user field (M.5 type-shape)', async () => {
+    mockedApiFetch.mockResolvedValueOnce({
+      accessToken: 'token',
+      refreshToken: 'refresh',
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      user: {
+        id: 1,
+        email: 'u@e.com',
+        fullName: 'User',
+        phone: '0912345678',
+        avatarUrl: null,
+        status: 'ACTIVE',
+        createdAt: '2026-10-10T00:00:00',
+        roles: ['ROLE_BUYER', 'ROLE_SELLER'], // M.5 — multi-role
+      },
+    });
+    const auth = await loginRequest({ email: 'u@e.com', password: '12345678' });
+    expect(auth.user.roles).toEqual(['ROLE_BUYER', 'ROLE_SELLER']);
+  });
 });
 
 describe('logoutRequest (real backend contract)', () => {
