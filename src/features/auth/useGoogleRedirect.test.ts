@@ -175,7 +175,7 @@ describe("useGoogleRedirect", () => {
 
       expect(result.current.status).toBe("error");
       expect(result.current.error).toBeInstanceOf(ApiError);
-      expect(result.current.error?.code).toBe("AUTH_500_GOOGLE_CONFIG");
+      expect((result.current.error as ApiError).code).toBe("AUTH_500_GOOGLE_CONFIG");
       expect(onError).toHaveBeenCalledWith(expect.any(ApiError));
       // window.location.href KHÔNG bị thay đổi
       expect(hrefCapture.value).toBeNull();
