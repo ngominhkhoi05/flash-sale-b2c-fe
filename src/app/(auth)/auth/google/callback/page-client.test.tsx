@@ -10,13 +10,16 @@
  *
  * Bonus: idempotent callback (sessionStorage flag) để tránh gọi BE 2 lần
  * nếu user reload page (Google code chỉ dùng 1 lần).
+ *
+ * UI redesign (Commit F): thêm 3 test case verify card 420px + title
+ * "Đang xác thực email" + TLS badge.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleCallbackClient } from "./page-client";
 import { ApiError } from "@/lib/api";
 import { setAccessToken, setRefreshToken } from "@/lib/api";
+import { TestWrapper } from "@/__tests__/test-wrapper";
 
 // ── Mocks ────────────────────────────────────────────────────────────────
 const mockReplace = vi.fn();
@@ -51,13 +54,6 @@ vi.mock("@/hooks/useFlashSaleWs", () => ({}));
 import { loginWithGoogle } from "@/features/auth/google-api";
 import { applyAuthResponse } from "@/features/auth/apply-auth-response";
 import { useSearchParams } from "next/navigation";
-
-function TestWrapper({ children }: { children: React.ReactNode }) {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
-}
 
 function setupSearchParams(params: Record<string, string>) {
   const urlSearchParams = new URLSearchParams(params);
@@ -388,6 +384,79 @@ describe("GoogleCallbackClient", () => {
       expect(loginWithGoogle).not.toHaveBeenCalled();
       // Redirect về / (đã login rồi)
       expect(mockReplace).toHaveBeenCalledWith("/");
+    });
+  });
+
+  // ── UI verification (Commit F — redesign per Stitch) ──────────────────
+  describe("UI redesign (Stitch dang-xac-thuc)", () => {
+    it("render card 420px với border + shadow + data-testid", async () => {
+      // Pending state: chưa có code → sẽ redirect ngay, nhưng trước đó
+      // UI phải render card 1 lần. Dùng no-code param để UI hiện ra trước
+      // khi effect chạy.
+      setupSearchParams({ error: "access_denied" });
+
+      const { getByTestId } = render(
+        <TestWrapper>
+          <GoogleCallbackClient />
+        </TestWrapper>
+      );
+
+      // Card container tồn tại (Stitch screen)
+      const card = getByTestId("google-callback-card");
+      expect(card).toBeInTheDocument();
+      expect(card.className).toContain("max-w-[420px]");
+      expect(card.className).toContain("rounded-2xl");
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalled();
+      });
+    });
+
+    it("render title 'Đang xác thực email của bạn...' trên UI loading", async () => {
+      // Trigger success path (UI render trong lúc chờ async) — dùng state khớp
+      // để hook chạy async nhưng UI render ngay lập tức.
+      window.sessionStorage.setItem("google_oauth_state", "MATCHING_STATE");
+      setupSearchParams({
+        code: "AUTH_CODE",
+        state: "MATCHING_STATE",
+      });
+
+      // Mock BE chưa resolve → UI loading hiển thị
+      vi.mocked(loginWithGoogle).mockImplementation(
+        () => new Promise(() => {}) // never resolves
+      );
+
+      const { getByText } = render(
+        <TestWrapper>
+          <GoogleCallbackClient />
+        </TestWrapper>
+      );
+
+      // Title (Stitch: "Đang xác thực email của bạn...")
+      expect(getByText(/Đang xác thực email/i)).toBeInTheDocument();
+    });
+
+    it("render TLS badge 'Bảo mật chuẩn TLS 256-bit'", async () => {
+      window.sessionStorage.setItem("google_oauth_state", "MATCHING_STATE");
+      setupSearchParams({
+        code: "AUTH_CODE",
+        state: "MATCHING_STATE",
+      });
+
+      vi.mocked(loginWithGoogle).mockImplementation(
+        () => new Promise(() => {})
+      );
+
+      const { getByTestId, getByText } = render(
+        <TestWrapper>
+          <GoogleCallbackClient />
+        </TestWrapper>
+      );
+
+      // Trust badge (Stitch: border-top + lock icon + text)
+      const badge = getByTestId("google-callback-tls-badge");
+      expect(badge).toBeInTheDocument();
+      expect(getByText(/Bảo mật chuẩn TLS 256-bit/i)).toBeInTheDocument();
     });
   });
 });

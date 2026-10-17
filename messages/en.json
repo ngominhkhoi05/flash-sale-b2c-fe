@@ -230,6 +230,9 @@
     },
     "google": {
       "callback": {
+        "verifyingEmail": "Verifying your email...",
+        "verifyingSubtitle": "We're checking your activation token. Please wait a moment.",
+        "tlsBadge": "TLS 256-bit secure • Vibe Mart",
         "processing": "Completing sign-in...",
         "pleaseWait": "Please do not close this window.",
         "error": "Google sign-in failed",

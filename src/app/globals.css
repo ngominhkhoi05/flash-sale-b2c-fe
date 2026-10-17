@@ -246,3 +246,26 @@ input[type='password']::-webkit-textfield-decoration-container {
   20%, 60% { transform: translateX(-4px); }
   40%, 80% { transform: translateX(4px); }
 }
+
+/* =========================================================
+ * Google OAuth callback spinner animations (Commit F — 2026-10-17).
+ * - `google-callback-spin`: 360° rotation (1s linear infinite)
+ * - `google-callback-ping`: scale + opacity pulse (1.5s ease-in-out)
+ * - `google-callback-pulse`: subtle scale + opacity (2s ease-in-out)
+ * Dùng cho: /auth/google/callback page-client.tsx (Stitch design).
+ * Tailwind 4 có sẵn `animate-spin/ping/pulse` nhưng không áp dụng
+ * cho inline `style.animation` của SVG/HTML element — cần keyframe
+ * riêng.
+ * ========================================================= */
+@keyframes google-callback-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes google-callback-ping {
+  0%, 100% { transform: scale(1); opacity: 0.25; }
+  50% { transform: scale(1.15); opacity: 0.05; }
+}
+@keyframes google-callback-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.97); }
+}
