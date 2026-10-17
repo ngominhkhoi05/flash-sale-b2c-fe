@@ -1,9 +1,19 @@
 # Plan — Google OAuth2 Redirect Flow v2 (2026-10-17)
 
-> **Status**: DRAFT — chờ user duyệt.
+> **Status**: IN PROGRESS — Commits A-E xong (2026-10-17), đang làm Subplan 3+ (F-I)
 > **Author**: Cursor Assistant (claude-opus-5-5)
 > **Branch**: `feat/google-oauth-redirect-v2` (đã tạo từ `dev` @ ee8951a)
 > **Stack**: Next 16.3.8 · React 19.2 · TypeScript · Tailwind 4 · next-intl
+
+### Commit log (đến hiện tại)
+
+| # | Hash | Concern |
+|---|---|---|
+| A | e759949 | docs(plans): sync orders-list plan + add Stitch handoff + add Google OAuth v2 plan |
+| B | 2395b8c | fix(ui): fallback to default-avatar.jpg when user.avatarUrl is null |
+| C | 0d1b79d | docs(handoffs): add Google OAuth v2 integration handoff |
+| D | c3f4fb3 | feat(auth): add useGoogleRedirect hook for OAuth2 redirect flow |
+| E | bc4dca5 | feat(auth): add Google OAuth callback page (v2 redirect flow) |
 
 ---
 
