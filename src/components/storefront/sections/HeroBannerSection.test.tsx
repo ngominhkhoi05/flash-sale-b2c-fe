@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
 import { HeroBannerSection } from "./HeroBannerSection";
@@ -9,17 +9,20 @@ import type { HomeBannersResponse } from "@/features/homepage/api";
 const messages = viMessages as unknown as Record<string, unknown>;
 
 // Mock useHomeBanners hook
+// imageUrl dùng domain "https://cdn.vibemart.vn" để khớp với
+// next.config.ts remotePatterns (cấu hình cho phép next/image optimize
+// banner images từ BE CDN).
 const mockBanners: { value: HomeBannersResponse | undefined } = {
   value: {
     mainSlides: [
-      { id: 1, type: "HERO", position: 1, imageUrl: "https://example.com/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-      { id: 2, type: "HERO", position: 2, imageUrl: "https://example.com/s2.jpg", imageAlt: "Slide 2", ctaHref: "/vouchers", ctaText: "Nhận voucher", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-      { id: 3, type: "HERO", position: 3, imageUrl: "https://example.com/s3.jpg", imageAlt: "Slide 3", ctaHref: "/products", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-      { id: 4, type: "HERO", position: 4, imageUrl: "https://example.com/s4.jpg", imageAlt: "Slide 4", ctaHref: "/flash-sale", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      { id: 1, type: "HERO", position: 1, imageUrl: "https://cdn.vibemart.vn/banners/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      { id: 2, type: "HERO", position: 2, imageUrl: "https://cdn.vibemart.vn/banners/s2.jpg", imageAlt: "Slide 2", ctaHref: "/vouchers", ctaText: "Nhận voucher", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      { id: 3, type: "HERO", position: 3, imageUrl: "https://cdn.vibemart.vn/banners/s3.jpg", imageAlt: "Slide 3", ctaHref: "/products", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      { id: 4, type: "HERO", position: 4, imageUrl: "https://cdn.vibemart.vn/banners/s4.jpg", imageAlt: "Slide 4", ctaHref: "/flash-sale", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
     ],
     sideBanners: [
-      { id: 5, type: "FREESHIP", position: 1, imageUrl: "https://example.com/fs.jpg", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-      { id: 6, type: "VOUCHER_NEW_SHOP", position: 2, imageUrl: "https://example.com/vs.jpg", imageAlt: "Voucher shop", ctaHref: "/vouchers?filter=new-shop", ctaText: "Lấy mã", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      { id: 5, type: "FREESHIP", position: 1, imageUrl: "https://cdn.vibemart.vn/banners/fs.jpg", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+      { id: 6, type: "VOUCHER_NEW_SHOP", position: 2, imageUrl: "https://cdn.vibemart.vn/banners/vs.jpg", imageAlt: "Voucher shop", ctaHref: "/vouchers?filter=new-shop", ctaText: "Lấy mã", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
     ],
   },
 };
@@ -62,14 +65,14 @@ describe("HeroBannerSection (API-driven)", () => {
     vi.useFakeTimers();
     mockBanners.value = {
       mainSlides: [
-        { id: 1, type: "HERO", position: 1, imageUrl: "https://example.com/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-        { id: 2, type: "HERO", position: 2, imageUrl: "https://example.com/s2.jpg", imageAlt: "Slide 2", ctaHref: "/vouchers", ctaText: "Nhận voucher", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-        { id: 3, type: "HERO", position: 3, imageUrl: "https://example.com/s3.jpg", imageAlt: "Slide 3", ctaHref: "/flash-sale", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-        { id: 4, type: "HERO", position: 4, imageUrl: "https://example.com/s4.jpg", imageAlt: "Slide 4", ctaHref: "/flash-sale", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 1, type: "HERO", position: 1, imageUrl: "https://cdn.vibemart.vn/banners/s1.jpg", imageAlt: "Slide 1", ctaHref: "/flash-sale", ctaText: "Mua ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 2, type: "HERO", position: 2, imageUrl: "https://cdn.vibemart.vn/banners/s2.jpg", imageAlt: "Slide 2", ctaHref: "/vouchers", ctaText: "Nhận voucher", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 3, type: "HERO", position: 3, imageUrl: "https://cdn.vibemart.vn/banners/s3.jpg", imageAlt: "Slide 3", ctaHref: "/flash-sale", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 4, type: "HERO", position: 4, imageUrl: "https://cdn.vibemart.vn/banners/s4.jpg", imageAlt: "Slide 4", ctaHref: "/flash-sale", ctaText: "Xem", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
       ],
       sideBanners: [
-        { id: 5, type: "FREESHIP", position: 1, imageUrl: "https://example.com/fs.jpg", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
-        { id: 6, type: "VOUCHER_NEW_SHOP", position: 2, imageUrl: "https://example.com/vs.jpg", imageAlt: "Voucher shop", ctaHref: "/vouchers?filter=new-shop", ctaText: "Lấy mã", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 5, type: "FREESHIP", position: 1, imageUrl: "https://cdn.vibemart.vn/banners/fs.jpg", imageAlt: "Freeship", ctaHref: "/vouchers?type=freeship", ctaText: "Xem ngay", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
+        { id: 6, type: "VOUCHER_NEW_SHOP", position: 2, imageUrl: "https://cdn.vibemart.vn/banners/vs.jpg", imageAlt: "Voucher shop", ctaHref: "/vouchers?filter=new-shop", ctaText: "Lấy mã", isActive: true, startDate: null, endDate: null, createdAt: "2026-01-01" },
       ],
     };
   });
@@ -234,5 +237,57 @@ describe("HeroBannerSection (API-driven)", () => {
     );
     const slides = container.querySelectorAll('[data-testid^="hero-slide-"]');
     expect(slides.length).toBe(0);
+  });
+});
+
+// ── Fallback khi imageUrl trỏ đến file 404 ────────────────────────────
+describe("HeroBannerSection – image 404 fallback", () => {
+  // Không dùng fake timers ở describe này vì onError chỉ fire khi <img>
+  // thực sự load fail (synthetic event qua fireEvent). waitFor cần real timers.
+  it("khi imageUrl trỏ đến file 404, hiển thị placeholder gradient thay <img>", async () => {
+    // Setup mock: 1 slide với imageUrl = path không tồn tại trong public/
+    // (vd: /banners/hero-1.jpg — public/banners/ không có).
+    mockBanners.value = {
+      mainSlides: [
+        {
+          id: 1,
+          type: "HERO",
+          position: 1,
+          imageUrl: "/banners/hero-1.jpg", // ← file không tồn tại
+          imageAlt: "Slide missing",
+          ctaHref: "/flash-sale",
+          ctaText: "Mua ngay",
+          isActive: true,
+          startDate: null,
+          endDate: null,
+          createdAt: "2026-01-01",
+        },
+      ],
+      sideBanners: [],
+    };
+
+    const { container, queryByTestId } = renderWithProviders(
+      <HeroBannerSection />,
+    );
+    const slideLink = container.querySelector(
+      '[data-testid="hero-slide-0"]',
+    ) as HTMLElement;
+    expect(slideLink).toBeTruthy();
+
+    const img = slideLink.querySelector(
+      '[data-testid="hero-img-0"]',
+    ) as HTMLImageElement;
+    expect(img).toBeTruthy();
+    // Trước khi error: img hiển thị bình thường
+    expect(queryByTestId("hero-placeholder-0")).toBeNull();
+
+    // Simulate browser fire 'error' event (React sẽ gọi onError handler)
+    await act(async () => {
+      fireEvent.error(img);
+    });
+
+    // Sau khi onError fire: img bị remove, placeholder xuất hiện
+    expect(queryByTestId("hero-img-0")).toBeNull();
+    expect(queryByTestId("hero-placeholder-0")).toBeTruthy();
   });
 });

@@ -690,7 +690,8 @@
     "home": {
       "hero": {
         "ariaLabel": "Featured promotion banner",
-        "empty": "No banners yet"
+        "empty": "No banners yet",
+        "unavailable": "Banner unavailable"
       },
       "sideBanners": {
         "freeshipTag": "Express",

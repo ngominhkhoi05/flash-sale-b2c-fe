@@ -9,7 +9,7 @@
  * - Click product → /products/<id>
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
@@ -156,5 +156,80 @@ describe("RecommendedSection (using useRecommendedProducts)", () => {
     expect(
       screen.getByText(/không thể tải|thử lại/i),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * Defensive: khi backend trả duplicate id trong cùng list (vd id=195 xuất hiện 2 lần),
+ * component PHẢI render 1 card duy nhất và KHÔNG phát React warning duplicate key.
+ * Xem stack trace: _RecommendedSectionProductsMap trong dev console.
+ */
+describe("RecommendedSection – duplicate id defensive", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("renders only one card when API returns duplicate ids in same tab", async () => {
+    const dup = buildProduct(195, "Product 195");
+    mockData.value = {
+      forYou: [dup, buildProduct(1, "Product 1"), dup],
+      bestSellers: [],
+      hotDeals: [],
+    };
+    const { container } = renderWithProviders(<RecommendedSection />);
+    await waitFor(() => {
+      const links = container.querySelectorAll('a[href^="/products/"]');
+      expect(links.length).toBe(2); // dup dedupe → 2 unique
+    });
+    expect(screen.getByText("Product 195")).toBeInTheDocument();
+    expect(screen.getByText("Product 1")).toBeInTheDocument();
+  });
+
+  it("does NOT emit duplicate-key warning when ids collide", async () => {
+    const dup = buildProduct(195, "Product 195");
+    mockData.value = {
+      forYou: [dup, dup],
+      bestSellers: [],
+      hotDeals: [],
+    };
+    renderWithProviders(<RecommendedSection />);
+    await waitFor(() => {
+      expect(screen.getByText("Product 195")).toBeInTheDocument();
+    });
+    const dupKeyWarnings = consoleErrorSpy.mock.calls.filter((args) =>
+      String(args[0] ?? "").includes("two children with the same key"),
+    );
+    expect(dupKeyWarnings).toHaveLength(0);
+  });
+
+  it("keys do not collide when switching tabs (forYou/bestSellers share id)", async () => {
+    mockData.value = {
+      forYou: [buildProduct(195, "For-You 195")],
+      bestSellers: [buildProduct(195, "Best-Seller 195")],
+      hotDeals: [],
+    };
+    const { container } = renderWithProviders(<RecommendedSection />);
+    // initial: forYou
+    await waitFor(() => {
+      expect(screen.getByText("For-You 195")).toBeInTheDocument();
+    });
+    // switch tab
+    const tabs = screen.getAllByRole("tab");
+    fireEvent.click(tabs[1]!);
+    await waitFor(() => {
+      expect(screen.getByText("Best-Seller 195")).toBeInTheDocument();
+    });
+    // No duplicate-key warning across switch
+    const dupKeyWarnings = consoleErrorSpy.mock.calls.filter((args) =>
+      String(args[0] ?? "").includes("two children with the same key"),
+    );
+    expect(dupKeyWarnings).toHaveLength(0);
+    expect(container.querySelectorAll('a[href^="/products/"]').length).toBe(1);
   });
 });

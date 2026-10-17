@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProductRelatedStores } from "@/components/product-detail/ProductRelatedStores";
 import { TestWrapper } from "@/__tests__/test-wrapper";
@@ -112,5 +112,54 @@ describe("ProductRelatedStores – defensive guards (BE nullable)", () => {
       ),
     ).not.toThrow();
     expect(screen.getByTestId("product-related-stores")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Defensive: khi backend trả duplicate id, component PHẢI render 1 link
+ * duy nhất và KHÔNG phát React warning duplicate key.
+ */
+describe("ProductRelatedStores – duplicate id defensive", () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("renders only one link when API returns duplicate ids", () => {
+    const dup: RecommendedProduct = {
+      id: "99",
+      name: "Sản phẩm duplicate",
+      imageUrl: "https://example.com/dup.jpg",
+      imageAlt: "dup",
+      price: 100000,
+      href: "/products/dup",
+    };
+    renderWithIntl(
+      <ProductRelatedStores products={[dup, dup, MOCK_RELATED[0]!]} />,
+    );
+    const dupLinks = screen.getAllByRole("link", { name: /Sản phẩm duplicate/i });
+    expect(dupLinks.length).toBe(1);
+    expect(screen.getByText("Quần short kaki co giãn")).toBeInTheDocument();
+  });
+
+  test("does NOT emit duplicate-key warning when ids collide", () => {
+    const dup: RecommendedProduct = {
+      id: "99",
+      name: "Sản phẩm duplicate",
+      imageUrl: "https://example.com/dup.jpg",
+      imageAlt: "dup",
+      price: 100000,
+      href: "/products/dup",
+    };
+    renderWithIntl(<ProductRelatedStores products={[dup, dup]} />);
+    const dupKeyWarnings = consoleErrorSpy.mock.calls.filter((args) =>
+      String(args[0] ?? "").includes("two children with the same key"),
+    );
+    expect(dupKeyWarnings).toHaveLength(0);
   });
 });

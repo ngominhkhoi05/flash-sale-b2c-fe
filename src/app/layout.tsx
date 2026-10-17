@@ -71,7 +71,18 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={`${beVietnam.variable} h-full antialiased`}>
+    // suppressHydrationWarning: browser extension (Katalon Recorder, ColorZilla,
+    // ad-blocker, ...) có thể tự inject attribute vào <html> SAU khi Next.js
+    // stream HTML xong, TRƯỚC khi React hydrate. Flag này chỉ áp dụng cho
+    // <html> element (không phải children), bỏ qua warning về attr lạ trên
+    // <html>. Trade-off: mọi attr thêm vào <html> (extension, dev tool) đều
+    // bị ignore khi so sánh hydrate – chấp nhận được vì <html> không nên
+    // chứa runtime state.
+    <html
+      lang="vi"
+      className={`${beVietnam.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Material Symbols Outlined – Google Fonts (Stitch icon system) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

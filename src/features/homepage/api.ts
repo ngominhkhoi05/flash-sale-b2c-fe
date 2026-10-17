@@ -122,7 +122,18 @@ export interface VoucherResponse {
 }
 
 export async function fetchPlatformVouchers(): Promise<VoucherResponse[]> {
-  return apiFetch<VoucherResponse[]>("/api/v1/vouchers/platform");
+  try {
+    return await apiFetch<VoucherResponse[]>("/api/v1/vouchers/platform");
+  } catch (err) {
+    // Guest user → BE trả 401 (voucher endpoint có thể cần auth tuỳ BE
+    // contract; an toàn nhất là trả empty array thay vì ném error). UI
+    // sẽ ẩn section voucher nếu list rỗng.
+    // Cũng fallback cho 404 (BE chưa có endpoint) — tương tự banners.
+    if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+      return [];
+    }
+    throw err;
+  }
 }
 
 // ─── Featured Store types ─────────────────────────────────────────────────────

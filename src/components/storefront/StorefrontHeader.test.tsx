@@ -525,3 +525,31 @@ describe("StorefrontHeader – placeholder links (no href='#')", () => {
     expect(deadLink).not.toBeInTheDocument();
   });
 });
+
+// ── Logo: next/image style fix (chống "width or height modified" warning) ──
+describe("StorefrontHeader – logo next/image style", () => {
+  beforeEach(() => {
+    mockUsePathname.mockReturnValue("/");
+  });
+
+  it("logo <Image> có style={{ width: 'auto', height: 'auto' }} để giữ aspect ratio khi CSS override", () => {
+    // next/image cảnh báo khi CSS thay đổi 1 trong 2 chiều (width hoặc height)
+    // mà KHÔNG set style={{ width: 'auto', height: 'auto' }}. Logo dùng
+    // className="h-9 w-auto" → CSS set height=36px, width=intrinsic.
+    // Để React không cảnh báo, phải explicit set style width/height auto.
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
+    expect(logoImg).toBeDefined();
+    // next/image set inline style.width / style.height
+    expect((logoImg as HTMLImageElement | undefined)?.style.width).toBe("auto");
+    expect((logoImg as HTMLImageElement | undefined)?.style.height).toBe(
+      "auto",
+    );
+  });
+});

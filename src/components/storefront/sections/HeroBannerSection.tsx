@@ -20,8 +20,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useHomeBanners, useFeaturedProducts } from "@/features/homepage/hooks";
 import { useCarousel } from "./useCarousel";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,19 @@ export function HeroBannerSection() {
 
   const isLoading = bannersLoading && productsLoading;
 
+  // Track slide id nào có image fail (404 / network error) → fallback sang
+  // placeholder gradient. Set giữ state qua re-render; reset khi banner list
+  // đổi (sneaky: dependency vào slides.length để clear khi BE trả list mới).
+  // slide.id từ API là number (BannerResponse.id, RecommendedProductResponse.id).
+  const [failedImageIds, setFailedImageIds] = useState<Set<number>>(new Set());
+  const handleImageError = useCallback((slideId: number) => {
+    setFailedImageIds((prev) => {
+      if (prev.has(slideId)) return prev;
+      const next = new Set(prev);
+      next.add(slideId);
+      return next;
+    });
+  }, []);
   // Ưu tiên banner từ API; nếu empty thì fallback sang featured products.
   const slides = useMemo(() => {
     if (banners?.mainSlides && banners.mainSlides.length > 0) {
@@ -59,6 +73,11 @@ export function HeroBannerSection() {
     }
     return [];
   }, [banners, products]);
+
+  // Note: failedImageIds KHÔNG cần reset khi slide list đổi. Khi BE trả
+  // list mới, id cũ không còn trong `slides` mới, nên `failedImageIds.has(slide.id)`
+  // chỉ check slide hiện tại → id cũ vô hại (orphan). Tránh được
+  // setState trong useEffect (cấm theo React 19 react-hooks/set-state-in-effect).
 
   const { currentIndex, goTo, pause, resume } = useCarousel({
     totalSlides: slides.length,
@@ -186,11 +205,34 @@ export function HeroBannerSection() {
               )}
               style={{ transitionDuration: `${FADE_DURATION_MS}ms` }}
             >
-              <img
-                alt={slide.imageAlt}
-                src={slide.imageUrl}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
+              {failedImageIds.has(slide.id) ? null : (
+                <Image
+                  alt={slide.imageAlt}
+                  src={slide.imageUrl}
+                  onError={() => handleImageError(slide.id)}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 66vw"
+                  className="object-cover"
+                  data-testid={`hero-img-${idx}`}
+                />
+              )}
+              {/* Fallback placeholder khi image 404. Hiển thị gradient bg
+                  + text "Banner không khả dụng" để giữ layout, không để
+                  trắng khoảng. Không ảnh hưởng slide khác vì state chỉ
+                  track failedImageIds (Set). */}
+              {failedImageIds.has(slide.id) && (
+                <div
+                  data-testid={`hero-placeholder-${idx}`}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary-fixed to-secondary-fixed/40"
+                >
+                  <span className="material-symbols-outlined text-5xl text-on-surface-variant">
+                    image_not_supported
+                  </span>
+                  <span className="text-body-md text-on-surface-variant">
+                    {t("hero.unavailable")}
+                  </span>
+                </div>
+              )}
             </Link>
           );
         })}
