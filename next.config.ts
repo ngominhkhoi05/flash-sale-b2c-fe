@@ -60,6 +60,16 @@ const nextConfig: NextConfig = {
         hostname: "picsum.photos",
         pathname: "/**",
       },
+      // 5. 180.93.137.28 — staging VPS banner server (Spring Boot backend
+      //    trên port 8080). Backend serve banner qua plain HTTP (chưa có TLS),
+      //    URL pattern: /banners/<file>.jpg. Whitelist riêng cho hostname
+      //    này vì production đã có `vibe-mart-utc2.canluaz.io.vn` ở trên.
+      //    Khi BE enable HTTPS cho VPS, đổi `protocol: "http"` → `"https"`.
+      {
+        protocol: "http",
+        hostname: "180.93.137.28",
+        pathname: "/banners/**",
+      },
     ],
   },
 };
