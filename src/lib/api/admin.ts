@@ -62,6 +62,13 @@ import {
   type MockUserItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
+import type { PageResponse } from "@/types/api";
+import type {
+  AdminWithdrawalResponse,
+  ApproveWithdrawalPayload,
+  RejectWithdrawalPayload,
+} from "@/types/admin";
+
 
 
 /** BE Response DTO */
@@ -884,6 +891,88 @@ export async function getAdminProducts(params?: {
     throw err;
   }
 }
+
+// ============================================================================
+// 34. Quản lý Lệnh Rút tiền Ví Người Bán (Admin Wallets / Withdrawals)
+// ============================================================================
+
+export async function getAdminWithdrawals(params?: {
+  status?: string;
+  storeId?: number;
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<AdminWithdrawalResponse>> {
+  try {
+    const query: Record<string, string | number> = {
+      page: params?.page ?? 0,
+      size: params?.size ?? 10,
+    };
+    if (params?.status && params.status !== "ALL") {
+      query.status = params.status;
+    }
+    if (params?.storeId) {
+      query.storeId = params.storeId;
+    }
+    return await apiFetch<PageResponse<AdminWithdrawalResponse>>("/admin/wallets/withdrawals", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const mockList: AdminWithdrawalResponse[] = [
+        {
+          id: 1,
+          requestCode: "WDR-261018-9921",
+          walletId: 1,
+          storeId: 1,
+          storeName: "UTC Fashion",
+          amount: 500000,
+          status: "PENDING",
+          bankName: "Ngân hàng Ngoại thương Việt Nam (Vietcombank)",
+          bankCode: "VCB",
+          accountNumber: "102988391204",
+          accountHolder: "NGUYEN VAN AN",
+          branch: "Chi nhánh Thủ Đức",
+          sellerNote: "Rút tiền doanh thu đợt 1",
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      return {
+        content: mockList,
+        items: mockList,
+        pageNumber: 0,
+        pageSize: 10,
+        totalElements: 1,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
+    }
+    throw err;
+  }
+}
+
+export async function approveWithdrawal(
+  id: number,
+  payload?: ApproveWithdrawalPayload
+): Promise<AdminWithdrawalResponse> {
+  return await apiFetch<AdminWithdrawalResponse>(`/admin/wallets/withdrawals/${id}/approve`, {
+    method: "PATCH",
+    json: payload || {},
+  });
+}
+
+export async function rejectWithdrawal(
+  id: number,
+  payload: RejectWithdrawalPayload
+): Promise<AdminWithdrawalResponse> {
+  return await apiFetch<AdminWithdrawalResponse>(`/admin/wallets/withdrawals/${id}/reject`, {
+    method: "PATCH",
+    json: payload,
+  });
+}
+
 
 
 
