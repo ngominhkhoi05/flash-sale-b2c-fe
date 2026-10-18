@@ -15,6 +15,8 @@ import type {
   SellerWalletResponse,
   SellerWalletTransaction,
   SellerWithdrawalRequest,
+  SellerVoucherItem,
+  CreateSellerVoucherPayload,
 } from "@/types/seller";
 
 /**
@@ -950,4 +952,221 @@ function getMockSellerWalletTransactions(
     hasPrevious: page > 0,
   };
 }
+
+/**
+ * Lấy danh sách voucher do shop phát hành (GET /api/v1/seller/vouchers)
+ */
+export async function getSellerVouchers(
+  page: number = 0,
+  size: number = 10,
+  status?: string
+): Promise<PageResponse<SellerVoucherItem>> {
+  try {
+    const query: Record<string, string | number> = { page, size };
+    if (status && status !== "ALL") {
+      query.status = status;
+    }
+    return await apiFetch<PageResponse<SellerVoucherItem>>("/seller/vouchers", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerVouchers(page, size, status);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Tạo mới voucher của shop (POST /api/v1/seller/vouchers)
+ */
+export async function createSellerVoucher(
+  payload: CreateSellerVoucherPayload
+): Promise<SellerVoucherItem> {
+  try {
+    return await apiFetch<SellerVoucherItem>("/seller/vouchers", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: Math.floor(Math.random() * 10000),
+        code: payload.code.toUpperCase(),
+        name: payload.name,
+        discountType: payload.discountType,
+        discountValue: payload.discountValue,
+        maxDiscountAmount: payload.maxDiscountAmount,
+        minOrderAmount: payload.minOrderAmount,
+        totalUsageLimit: payload.totalUsageLimit,
+        currentUsageCount: 0,
+        userUsageLimit: payload.userUsageLimit || 1,
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cập nhật trạng thái voucher (bật/tắt) (PATCH /api/v1/seller/vouchers/{id}/status)
+ */
+export async function toggleSellerVoucherStatus(
+  id: number,
+  status: string
+): Promise<SellerVoucherItem> {
+  try {
+    return await apiFetch<SellerVoucherItem>(`/seller/vouchers/${id}/status`, {
+      method: "PATCH",
+      json: { status },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id,
+        code: "VOUCHER",
+        name: "Voucher Shop",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        minOrderAmount: 100000,
+        totalUsageLimit: 100,
+        currentUsageCount: 10,
+        userUsageLimit: 1,
+        startDate: "2026-10-01",
+        endDate: "2026-10-31",
+        status,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockSellerVouchers(
+  page: number = 0,
+  size: number = 10,
+  statusFilter?: string
+): PageResponse<SellerVoucherItem> {
+  const allVouchers: SellerVoucherItem[] = [
+    {
+      id: 1,
+      code: "UTC10K",
+      name: "Giảm 10% Tối đa 30k",
+      discountType: "PERCENTAGE",
+      discountValue: 10,
+      maxDiscountAmount: 30000,
+      minOrderAmount: 150000,
+      totalUsageLimit: 100,
+      currentUsageCount: 45,
+      userUsageLimit: 1,
+      startDate: "2026-10-10",
+      endDate: "2026-10-31",
+      status: "ACTIVE",
+      createdAt: "2026-10-10T08:00:00Z",
+    },
+    {
+      id: 2,
+      code: "UTC50K",
+      name: "Giảm 50k Đơn từ 350k",
+      discountType: "FIXED_AMOUNT",
+      discountValue: 50000,
+      minOrderAmount: 350000,
+      totalUsageLimit: 50,
+      currentUsageCount: 50,
+      userUsageLimit: 1,
+      startDate: "2026-10-12",
+      endDate: "2026-10-25",
+      status: "ACTIVE",
+      createdAt: "2026-10-12T09:00:00Z",
+    },
+    {
+      id: 3,
+      code: "FLASHOCT",
+      name: "Đại tiệc Flash Sale 15%",
+      discountType: "PERCENTAGE",
+      discountValue: 15,
+      maxDiscountAmount: 50000,
+      minOrderAmount: 200000,
+      totalUsageLimit: 200,
+      currentUsageCount: 18,
+      userUsageLimit: 2,
+      startDate: "2026-10-15",
+      endDate: "2026-10-20",
+      status: "ACTIVE",
+      createdAt: "2026-10-15T00:00:00Z",
+    },
+    {
+      id: 4,
+      code: "NEWBUYER",
+      name: "Chào mừng bạn mới 20k",
+      discountType: "FIXED_AMOUNT",
+      discountValue: 20000,
+      minOrderAmount: 99000,
+      totalUsageLimit: 500,
+      currentUsageCount: 124,
+      userUsageLimit: 1,
+      startDate: "2026-10-01",
+      endDate: "2026-10-31",
+      status: "ACTIVE",
+      createdAt: "2026-10-01T00:00:00Z",
+    },
+    {
+      id: 5,
+      code: "PAYDAY11",
+      name: "Siêu tiệc lương về 25%",
+      discountType: "PERCENTAGE",
+      discountValue: 25,
+      maxDiscountAmount: 70000,
+      minOrderAmount: 400000,
+      totalUsageLimit: 150,
+      currentUsageCount: 0,
+      userUsageLimit: 1,
+      startDate: "2026-10-25",
+      endDate: "2026-10-28",
+      status: "UPCOMING",
+      createdAt: "2026-10-16T10:00:00Z",
+    },
+    {
+      id: 6,
+      code: "MIDMONTH",
+      name: "Giữa tháng săn sale 30k",
+      discountType: "FIXED_AMOUNT",
+      discountValue: 30000,
+      minOrderAmount: 180000,
+      totalUsageLimit: 100,
+      currentUsageCount: 100,
+      userUsageLimit: 1,
+      startDate: "2026-10-01",
+      endDate: "2026-10-15",
+      status: "EXPIRED",
+      createdAt: "2026-10-01T00:00:00Z",
+    },
+  ];
+
+  let filtered = allVouchers;
+  if (statusFilter && statusFilter !== "ALL") {
+    filtered = allVouchers.filter((v) => v.status === statusFilter);
+  }
+
+  const start = page * size;
+  const content = filtered.slice(start, start + size);
+  const totalElements = filtered.length;
+  const totalPages = Math.ceil(totalElements / size) || 1;
+
+  return {
+    content,
+    pageNumber: page,
+    pageSize: size,
+    totalElements,
+    totalPages,
+    isFirst: page === 0,
+    isLast: start + size >= totalElements,
+    hasNext: start + size < totalElements,
+    hasPrevious: page > 0,
+  };
+}
+
 
