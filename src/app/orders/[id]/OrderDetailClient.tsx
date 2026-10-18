@@ -251,7 +251,7 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
             </h2>
             <div className="relative">
               <div className="grid grid-cols-5 relative z-10">
-                {steps.map((step, idx) => {
+                {steps.map((step) => {
                   const isPassed = step.isPassed && !isCancelled;
                   const isCurrent = step.isCurrent && !isCancelled;
 
@@ -366,7 +366,12 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
                   <div className="flex items-center justify-between">
                     <span className="text-on-surface-variant text-xs">Mã giao dịch:</span>
                     <span className="font-mono text-xs text-on-surface">
-                      {(payment as any)?.zpTransToken || (payment as any)?.appTransId || `ZP-${order.id}-TX`}
+                      {(() => {
+                        const p = payment as Record<string, unknown> | null | undefined;
+                        const zp = typeof p?.zpTransToken === "string" ? p.zpTransToken : "";
+                        const app = typeof p?.appTransId === "string" ? p.appTransId : "";
+                        return zp || app || `ZP-${order.id}-TX`;
+                      })()}
                     </span>
                   </div>
                 )}
