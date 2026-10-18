@@ -21,6 +21,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRecommendedProducts } from "@/features/homepage/hooks";
+import { mapToProductCardProps } from "@/features/products/map-to-product-card";
 import {
   RecommendedTabs,
   TAB_TO_API,
@@ -28,7 +29,6 @@ import {
 } from "./RecommendedTabs";
 import {
   ProductCard,
-  type ProductCardBaseProps,
 } from "@/components/storefront/ProductCard";
 
 const INITIAL_TAB: UiTab = "forYou";
@@ -47,37 +47,6 @@ const UI_TAB_TO_RESPONSE_KEY: Record<
   bestSellers: "bestSellers",
   hotDeals: "hotDeals",
 };
-
-function mapToProductCardProps(
-  product: {
-    id: number;
-    name: string;
-    imageUrl: string;
-    minPrice: number;
-    maxPrice: number;
-    totalSold?: number | null;
-    storeName: string;
-    label?: string | null;
-  },
-): ProductCardBaseProps {
-  const hasDiscount = product.minPrice < product.maxPrice;
-  const discountPercent = hasDiscount
-    ? Math.round(((product.maxPrice - product.minPrice) / product.maxPrice) * 100)
-    : undefined;
-
-  return {
-    imageUrl: product.imageUrl,
-    imageAlt: product.name,
-    title: product.name,
-    price: product.minPrice,
-    originalPrice: hasDiscount ? product.maxPrice : undefined,
-    discountPercent,
-    rating: undefined, // API chưa trả rating
-    soldCount: product.totalSold ?? undefined,
-    location: product.storeName,
-    onClick: undefined,
-  };
-}
 
 export function RecommendedSection() {
   const t = useTranslations("storefront.home");
