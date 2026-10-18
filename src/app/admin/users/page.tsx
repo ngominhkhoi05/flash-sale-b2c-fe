@@ -1,30 +1,35 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   getAdminUsers,
   updateAdminUserStatus,
   type AdminUser,
 } from "@/lib/api/admin";
 
+type UserTabKey = "ALL" | "ADMIN" | "SELLER" | "BUYER" | "LOCKED";
+
+const USER_TABS: { key: UserTabKey; label: string }[] = [
+  { key: "ALL", label: "Tất cả" },
+  { key: "ADMIN", label: "Quản trị viên" },
+  { key: "SELLER", label: "Người bán" },
+  { key: "BUYER", label: "Người mua" },
+  { key: "LOCKED", label: "Bị khóa" },
+];
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [activeTab, setActiveTab] = useState<"ALL" | "ADMIN" | "SELLER" | "BUYER" | "LOCKED">("ALL");
+  const [activeTab, setActiveTab] = useState<UserTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadUsers();
-  }, [activeTab]);
-
-  async function loadUsers() {
+  const refreshUsers = useCallback(async (tab: UserTabKey) => {
     try {
-      setIsLoading(true);
       const params: { role?: string; status?: string } = {};
-      if (activeTab === "ADMIN" || activeTab === "SELLER" || activeTab === "BUYER") {
-        params.role = activeTab;
-      } else if (activeTab === "LOCKED") {
+      if (tab === "ADMIN" || tab === "SELLER" || tab === "BUYER") {
+        params.role = tab;
+      } else if (tab === "LOCKED") {
         params.status = "LOCKED";
       }
       const data = await getAdminUsers(params);
@@ -34,7 +39,34 @@ export default function AdminUsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const params: { role?: string; status?: string } = {};
+    if (activeTab === "ADMIN" || activeTab === "SELLER" || activeTab === "BUYER") {
+      params.role = activeTab;
+    } else if (activeTab === "LOCKED") {
+      params.status = "LOCKED";
+    }
+    getAdminUsers(params)
+      .then((data) => {
+        if (isMounted) {
+          setUsers(data);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi tải người dùng:", err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab]);
 
   async function handleToggleLock(user: AdminUser) {
     const newStatus = user.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
@@ -48,8 +80,9 @@ export default function AdminUsersPage() {
       setActionLoadingId(user.id);
       await updateAdminUserStatus(user.id, newStatus);
       alert(`Đã ${actionText} thành công!`);
-      await loadUsers();
+      await refreshUsers(activeTab);
     } catch (err) {
+
       alert("Lỗi cập nhật người dùng: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setActionLoadingId(null);
@@ -88,16 +121,10 @@ export default function AdminUsersPage() {
       {/* Tabs & Search Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant/30">
         <div className="flex items-center gap-2 overflow-x-auto">
-          {[
-            { key: "ALL", label: "Tất cả" },
-            { key: "ADMIN", label: "Quản trị viên" },
-            { key: "SELLER", label: "Người bán" },
-            { key: "BUYER", label: "Người mua" },
-            { key: "LOCKED", label: "Bị khóa" },
-          ].map((tab) => (
+          {USER_TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key)}
               className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                 activeTab === tab.key
                   ? "bg-primary text-on-primary shadow-sm"
@@ -108,6 +135,7 @@ export default function AdminUsersPage() {
             </button>
           ))}
         </div>
+
 
         <div className="relative w-full sm:w-72">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">

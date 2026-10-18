@@ -1,34 +1,60 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   getAdminStores,
   updateAdminStoreStatus,
   type AdminStore,
 } from "@/lib/api/admin";
 
+type StoreTabKey = "ALL" | "PENDING" | "APPROVED" | "BANNED";
+
+const STORE_TABS: { key: StoreTabKey; label: string }[] = [
+  { key: "ALL", label: "Tất cả gian hàng" },
+  { key: "PENDING", label: "Chờ xét duyệt" },
+  { key: "APPROVED", label: "Đang hoạt động" },
+  { key: "BANNED", label: "Đã tạm dừng / Cấm" },
+];
+
 export default function AdminStoresPage() {
   const [stores, setStores] = useState<AdminStore[]>([]);
-  const [activeTab, setActiveTab] = useState<"ALL" | "PENDING" | "APPROVED" | "BANNED">("ALL");
+  const [activeTab, setActiveTab] = useState<StoreTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadStores();
-  }, [activeTab]);
-
-  async function loadStores() {
+  const refreshStores = useCallback(async (tab: StoreTabKey) => {
     try {
-      setIsLoading(true);
-      const data = await getAdminStores(activeTab === "ALL" ? undefined : activeTab);
+      const data = await getAdminStores(tab === "ALL" ? undefined : tab);
       setStores(data);
     } catch (err) {
       console.error("Lỗi tải gian hàng:", err);
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAdminStores(activeTab === "ALL" ? undefined : activeTab)
+      .then((data) => {
+        if (isMounted) {
+          setStores(data);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi tải gian hàng:", err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab]);
+
 
   async function handleUpdateStatus(storeId: number, newStatus: "APPROVED" | "BANNED") {
     const actionText = newStatus === "APPROVED" ? "phê duyệt" : "khóa";
@@ -40,7 +66,7 @@ export default function AdminStoresPage() {
       setActionLoadingId(storeId);
       await updateAdminStoreStatus(storeId, newStatus);
       alert(`Đã ${actionText} gian hàng thành công!`);
-      await loadStores();
+      await refreshStores(activeTab);
     } catch (err) {
       alert("Lỗi cập nhật gian hàng: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -83,15 +109,10 @@ export default function AdminStoresPage() {
       {/* Tabs & Search Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant/30">
         <div className="flex items-center gap-2 overflow-x-auto">
-          {[
-            { key: "ALL", label: "Tất cả gian hàng" },
-            { key: "PENDING", label: "Chờ xét duyệt", badge: pendingCount > 0 ? String(pendingCount) : undefined },
-            { key: "APPROVED", label: "Đang hoạt động" },
-            { key: "BANNED", label: "Đã tạm dừng / Cấm" },
-          ].map((tab) => (
+          {STORE_TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key)}
               className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap ${
                 activeTab === tab.key
                   ? "bg-primary text-on-primary shadow-sm"
@@ -99,14 +120,15 @@ export default function AdminStoresPage() {
               }`}
             >
               <span>{tab.label}</span>
-              {tab.badge && (
+              {tab.key === "PENDING" && pendingCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-tertiary text-on-tertiary text-[10px] font-bold">
-                  {tab.badge}
+                  {pendingCount}
                 </span>
               )}
             </button>
           ))}
         </div>
+
 
         <div className="relative w-full sm:w-72">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">

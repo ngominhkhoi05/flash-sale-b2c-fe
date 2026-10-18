@@ -1,34 +1,49 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   getAdminProducts,
   type AdminProduct,
 } from "@/lib/api/admin";
 
+type ProductTabKey = "ALL" | "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK";
+
+const PRODUCT_TABS: { key: ProductTabKey; label: string }[] = [
+  { key: "ALL", label: "Tất cả sản phẩm" },
+  { key: "ACTIVE", label: "Đang mở bán" },
+  { key: "INACTIVE", label: "Đã tạm ẩn" },
+  { key: "OUT_OF_STOCK", label: "Hết hàng" },
+];
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
-  const [activeTab, setActiveTab] = useState<"ALL" | "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK">("ALL");
+  const [activeTab, setActiveTab] = useState<ProductTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadProducts();
+    let isMounted = true;
+    const params = activeTab === "ALL" ? undefined : { status: activeTab };
+    getAdminProducts(params)
+      .then((data) => {
+        if (isMounted) {
+          setProducts(data);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi tải sản phẩm:", err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [activeTab]);
 
-  async function loadProducts() {
-    try {
-      setIsLoading(true);
-      const params = activeTab === "ALL" ? undefined : { status: activeTab };
-      const data = await getAdminProducts(params);
-      setProducts(data);
-    } catch (err) {
-      console.error("Lỗi tải sản phẩm:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   const filteredProducts = products.filter((p) => {
     if (!searchQuery.trim()) return true;
@@ -62,15 +77,10 @@ export default function AdminProductsPage() {
       {/* Tabs & Search Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant/30">
         <div className="flex items-center gap-2 overflow-x-auto">
-          {[
-            { key: "ALL", label: "Tất cả sản phẩm" },
-            { key: "ACTIVE", label: "Đang mở bán" },
-            { key: "INACTIVE", label: "Đã tạm ẩn" },
-            { key: "OUT_OF_STOCK", label: "Hết hàng" },
-          ].map((tab) => (
+          {PRODUCT_TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key)}
               className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                 activeTab === tab.key
                   ? "bg-primary text-on-primary shadow-sm"
@@ -81,6 +91,7 @@ export default function AdminProductsPage() {
             </button>
           ))}
         </div>
+
 
         <div className="relative w-full sm:w-80">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">

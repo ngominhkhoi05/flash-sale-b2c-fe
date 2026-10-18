@@ -24,26 +24,7 @@ export default function AdminCategoriesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  async function loadCategories() {
-    try {
-      setIsLoading(true);
-      const data = await getAdminCategories();
-      setCategories(data);
-      if (data.length > 0 && !selectedCat) {
-        selectCategory(data[0]);
-      }
-    } catch (err) {
-      console.error("Lỗi tải danh mục:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function selectCategory(cat: AdminCategoryItem) {
+  const selectCategory = useCallback((cat: AdminCategoryItem) => {
     setIsCreatingNew(false);
     setSelectedCat(cat);
     setFormName(cat.name);
@@ -51,7 +32,54 @@ export default function AdminCategoriesPage() {
     setFormCommission(cat.commissionRate ? Number((cat.commissionRate * 100).toFixed(1)) : 5.0);
     setFormDescription(cat.description || "");
     setFeedbackMsg(null);
-  }
+  }, []);
+
+  const refreshCategories = useCallback(async () => {
+    try {
+      const data = await getAdminCategories();
+      setCategories(data);
+      if (data.length > 0) {
+        setSelectedCat((prev) => {
+          if (prev) return prev;
+          selectCategory(data[0]);
+          return data[0];
+        });
+      }
+    } catch (err) {
+      console.error("Lỗi tải danh mục:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectCategory]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAdminCategories()
+      .then((data) => {
+        if (isMounted) {
+          setCategories(data);
+          if (data.length > 0) {
+            setSelectedCat((prev) => {
+              if (prev) return prev;
+              selectCategory(data[0]);
+              return data[0];
+            });
+          }
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi tải danh mục:", err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectCategory]);
+
 
   function handleAddNew() {
     setIsCreatingNew(true);
@@ -98,12 +126,12 @@ export default function AdminCategoriesPage() {
       if (isCreatingNew) {
         const created = await createAdminCategory(payload);
         setFeedbackMsg("Tạo mới danh mục thành công!");
-        await loadCategories();
+        await refreshCategories();
         selectCategory(created);
       } else if (selectedCat) {
         await updateAdminCategory(selectedCat.id, payload);
         setFeedbackMsg("Cập nhật danh mục thành công!");
-        await loadCategories();
+        await refreshCategories();
       }
     } catch (err) {
       alert("Lỗi lưu danh mục: " + (err instanceof Error ? err.message : String(err)));
@@ -123,7 +151,7 @@ export default function AdminCategoriesPage() {
       await deleteAdminCategory(selectedCat.id);
       alert("Xóa danh mục thành công!");
       setSelectedCat(null);
-      await loadCategories();
+      await refreshCategories();
     } catch (err) {
       alert("Lỗi xóa danh mục: " + (err instanceof Error ? err.message : String(err)));
     } finally {
