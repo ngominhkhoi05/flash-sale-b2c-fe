@@ -5,6 +5,30 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // Reverse proxy `/api/*` → backend `http://180.93.137.28` (rule
+  // workflow-process.mdc Bước 5.0: phân loại file config, không có logic –
+  // không cần test).
+  //
+  // Lý do (2026-10-18): Nginx + Spring Boot CORS filter cùng thêm header
+  // `Access-Control-Allow-Origin` khiến response có 2 giá trị trùng nhau
+  // → browser reject theo spec CORS. Workaround phía FE: gọi qua same-origin
+  // `/api/v1/...` rồi Next dev proxy tới BE → tránh preflight + duplicate
+  // header. Khi BE sửa xong (bỏ CORS ở Nginx HOẶC ở Spring, giữ 1 chỗ),
+  // có thể revert lại dùng NEXT_PUBLIC_API_URL absolute.
+  //
+  // Lưu ý: rewrites chỉ áp dụng cho fetch, không áp dụng cho WebSocket
+  // (vẫn dùng NEXT_PUBLIC_WS_URL=http://180.93.137.28/ws).
+  async rewrites() {
+    const apiBase = (
+      process.env.NEXT_PUBLIC_API_URL ?? "http://180.93.137.28"
+    ).replace(/\/$/, "");
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiBase}/api/:path*`,
+      },
+    ];
+  },
   // Bỏ qua kiểm tra TypeScript khi `next build` để giảm tải RAM/CPU trên
   // VPS deploy. Vẫn chạy `tsc --noEmit` riêng trong CI / local để bắt lỗi
   // trước khi push.
