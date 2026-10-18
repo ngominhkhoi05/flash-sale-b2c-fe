@@ -701,6 +701,86 @@ export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
 }
 
 /**
+ * Xóa mã giảm giá sàn (KHỚP BE: DELETE /api/v1/admin/vouchers/{id})
+ */
+export async function deleteAdminPlatformVoucher(id: string | number): Promise<void> {
+  try {
+    await apiFetch<void>(`/admin/vouchers/${id}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      voucherMockService.delete(String(id));
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Bật/tắt trạng thái mã giảm giá sàn (KHỚP BE: PATCH /api/v1/admin/vouchers/{id}/status)
+ */
+export async function toggleAdminPlatformVoucherStatus(
+  id: string | number,
+  currentStatus?: string
+): Promise<AdminVoucher> {
+  const nextStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
+  try {
+    const res = await apiFetch<BeVoucherResponse>(`/admin/vouchers/${id}/status`, {
+      method: "PATCH",
+      json: { status: nextStatus },
+    });
+    return mapBeVoucherToAdmin(res);
+  } catch (err) {
+    if (isMockMode()) {
+      return voucherMockService.toggleStatus(String(id));
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cập nhật mã giảm giá sàn (KHỚP BE: PUT /api/v1/admin/vouchers/{id})
+ */
+export async function updateAdminPlatformVoucher(
+  id: string | number,
+  data: Partial<AdminVoucher>
+): Promise<AdminVoucher> {
+  try {
+    const toIsoString = (val?: string) => {
+      if (!val) return undefined;
+      if (val.endsWith("Z") || val.includes("+")) return val;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? undefined : d.toISOString();
+    };
+
+    const payload: Record<string, unknown> = {};
+    if (data.discountType) {
+      payload.discountType = data.discountType === "PERCENT" ? "PERCENT" : "FIXED_AMOUNT";
+    }
+    if (data.discountValue !== undefined) payload.discountValue = data.discountValue;
+    if (data.minOrderAmount !== undefined) payload.minOrderAmount = data.minOrderAmount;
+    if (data.maxDiscountAmount !== undefined) payload.maxDiscountAmount = data.maxDiscountAmount;
+    if (data.totalCount !== undefined) payload.totalQuantity = data.totalCount;
+    if (data.limitPerCustomer !== undefined) payload.userUsageLimit = data.limitPerCustomer;
+    if (data.startDate) payload.startTime = toIsoString(data.startDate);
+    if (data.endDate) payload.endTime = toIsoString(data.endDate);
+    if (data.status) payload.status = data.status;
+
+    const res = await apiFetch<BeVoucherResponse>(`/admin/vouchers/${id}`, {
+      method: "PUT",
+      json: payload,
+    });
+    return mapBeVoucherToAdmin(res);
+  } catch (err) {
+    if (isMockMode()) {
+      return voucherMockService.update(String(id), data);
+    }
+    throw err;
+  }
+}
+
+/**
  * 19. Lấy thống kê chu kỳ đối soát (BE THIẾU: docs/api-requests/admin-reconciliation.md)
  */
 export async function getAdminReconciliationKpis(period?: string): Promise<ReconciliationKpis> {

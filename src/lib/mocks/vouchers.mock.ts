@@ -677,8 +677,27 @@ export const voucherMockService = {
   },
 
   toggleStatus: (id: string): AdminVoucher => {
-    const idx = MOCK_VOUCHERS.findIndex((v) => v.id === id);
-    if (idx === -1) throw new Error("Voucher không tồn tại");
+    const idx = MOCK_VOUCHERS.findIndex((v) => String(v.id) === String(id));
+    if (idx === -1) {
+      return {
+        id: String(id),
+        code: `VC-${id}`,
+        name: "Voucher sàn",
+        discountType: "PERCENT",
+        discountValue: 10,
+        minOrderAmount: 0,
+        usedCount: 0,
+        totalCount: 100,
+        limitPerCustomer: 1,
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+        status: "DISABLED",
+        isActive: false,
+        scope: "ALL",
+        isPublic: true,
+        createdAt: new Date().toISOString(),
+      };
+    }
 
     const item = MOCK_VOUCHERS[idx];
     const newActive = !item.isActive;
@@ -739,12 +758,34 @@ export const voucherMockService = {
   },
 
   update: (id: string, data: Partial<AdminVoucher>): AdminVoucher => {
-    const idx = MOCK_VOUCHERS.findIndex((v) => v.id === id);
-    if (idx === -1) throw new Error("Voucher không tồn tại");
+    const idx = MOCK_VOUCHERS.findIndex((v) => String(v.id) === String(id));
+    if (idx === -1) {
+      const fallbackItem: AdminVoucher = {
+        id: String(id),
+        code: data.code || `VC-${id}`,
+        name: data.name || "Voucher sàn",
+        discountType: data.discountType || "PERCENT",
+        discountValue: data.discountValue || 10,
+        minOrderAmount: data.minOrderAmount || 0,
+        maxDiscountAmount: data.maxDiscountAmount,
+        usedCount: 0,
+        totalCount: data.totalCount || 100,
+        limitPerCustomer: data.limitPerCustomer || 1,
+        startDate: data.startDate || new Date().toISOString(),
+        endDate: data.endDate || new Date().toISOString(),
+        status: data.status || "ACTIVE",
+        isActive: data.isActive ?? true,
+        scope: data.scope || "ALL",
+        isPublic: data.isPublic ?? true,
+        createdAt: new Date().toISOString(),
+      };
+      MOCK_VOUCHERS = [fallbackItem, ...MOCK_VOUCHERS];
+      return fallbackItem;
+    }
 
     if (data.code) {
       const duplicate = MOCK_VOUCHERS.find(
-        (v) => v.id !== id && v.code.toUpperCase() === data.code?.toUpperCase()
+        (v) => String(v.id) !== String(id) && v.code.toUpperCase() === data.code?.toUpperCase()
       );
       if (duplicate) {
         throw new Error(`Mã voucher "${data.code}" đã tồn tại.`);
@@ -761,12 +802,11 @@ export const voucherMockService = {
   },
 
   delete: (id: string): void => {
-    const item = MOCK_VOUCHERS.find((v) => v.id === id);
-    if (!item) throw new Error("Voucher không tồn tại");
-    if (item.usedCount > 0) {
+    const item = MOCK_VOUCHERS.find((v) => String(v.id) === String(id));
+    if (item && item.usedCount > 0) {
       throw new Error("Không thể xóa voucher đã có lượt sử dụng thực tế.");
     }
-    MOCK_VOUCHERS = MOCK_VOUCHERS.filter((v) => v.id !== id);
+    MOCK_VOUCHERS = MOCK_VOUCHERS.filter((v) => String(v.id) !== String(id));
   },
 
   getUsageHistory: (voucherId?: string): VoucherUsageHistoryItem[] => {

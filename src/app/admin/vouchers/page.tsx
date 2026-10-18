@@ -7,6 +7,9 @@ import { voucherMockService } from "@/lib/mocks/vouchers.mock";
 import {
   getAdminPlatformVouchers,
   createAdminPlatformVoucher,
+  updateAdminPlatformVoucher,
+  deleteAdminPlatformVoucher,
+  toggleAdminPlatformVoucherStatus,
   getAdminVoucherKpis,
 } from "@/lib/api/admin";
 import {
@@ -163,10 +166,11 @@ export default function AdminVouchersPage() {
     }
   };
 
-  const handleToggleStatus = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleToggleStatus = async (id: string, e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     try {
-      const updated = voucherMockService.toggleStatus(id);
+      const target = data.items.find((item) => String(item.id) === String(id));
+      const updated = await toggleAdminPlatformVoucherStatus(id, target?.status);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -177,7 +181,7 @@ export default function AdminVouchersPage() {
       );
     } catch (err: unknown) {
       const error = err as Error;
-      showToast(error.message || "Có lỗi xảy ra");
+      showToast(error.message || "Có lỗi xảy ra khi đổi trạng thái voucher");
     }
   };
 
@@ -194,24 +198,26 @@ export default function AdminVouchersPage() {
     }
   };
 
-  const handleEditVoucher = (formValues: Parameters<typeof voucherMockService.update>[1]) => {
+  const handleEditVoucher = async (formValues: Parameters<typeof voucherMockService.update>[1]) => {
     if (!selectedVoucherForEdit) return;
     try {
-      const updated = voucherMockService.update(selectedVoucherForEdit.id, formValues);
+      const updated = await updateAdminPlatformVoucher(selectedVoucherForEdit.id, formValues);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
       showToast(`Đã cập nhật voucher: ${updated.code}`);
+      setSelectedVoucherForEdit(null);
+      setIsFormOpen(false);
     } catch (err: unknown) {
       const error = err as Error;
       showToast(error.message || "Không thể cập nhật voucher");
     }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!voucherToDelete) return;
     try {
-      voucherMockService.delete(voucherToDelete.id);
+      await deleteAdminPlatformVoucher(voucherToDelete.id);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
