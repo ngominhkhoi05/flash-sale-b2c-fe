@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -439,7 +440,14 @@ export function SellerRegisterClient() {
                     />
                     <div className="w-20 h-20 rounded-full border-2 border-dashed border-[#10B981] overflow-hidden flex items-center justify-center bg-[#D1FAE5]/40 hover:bg-[#D1FAE5]/70 transition-colors">
                       {logoPreview ? (
-                        <img src={logoPreview} alt="Shop logo" className="w-full h-full object-cover" />
+                        <Image
+                          src={logoPreview}
+                          alt="Shop logo"
+                          width={80}
+                          height={80}
+                          unoptimized
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <MaterialSymbol name="add_photo_alternate" size="[24px]" className="text-[#059669]" />
                       )}
@@ -796,7 +804,14 @@ export function SellerRegisterClient() {
           <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-[#D1FAE5] text-[#059669] flex items-center justify-center font-bold text-lg shrink-0">
               {logoPreview ? (
-                <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                <Image
+                  src={logoPreview}
+                  alt="Logo"
+                  width={48}
+                  height={48}
+                  unoptimized
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 storeName ? storeName.charAt(0).toUpperCase() : "?"
               )}
