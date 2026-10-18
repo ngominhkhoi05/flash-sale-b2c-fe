@@ -225,6 +225,7 @@ describe('GoogleLoginButton (useGoogleRedirect flow)', () => {
         getItem: vi.fn(),
         setItem: vi.fn(),
         removeItem: vi.fn(),
+        clear: vi.fn(),
       };
       Object.defineProperty(window, 'sessionStorage', {
         configurable: true,
@@ -252,13 +253,13 @@ describe('GoogleLoginButton (useGoogleRedirect flow)', () => {
         '/cart',
       );
     });
-
     it('KHÔNG lưu sessionStorage khi URL không có ?redirect=', async () => {
       const user = userEvent.setup();
       const sessionStorageMock = {
         getItem: vi.fn(),
         setItem: vi.fn(),
         removeItem: vi.fn(),
+        clear: vi.fn(),
       };
       Object.defineProperty(window, 'sessionStorage', {
         configurable: true,
@@ -293,6 +294,7 @@ describe('GoogleLoginButton (useGoogleRedirect flow)', () => {
         getItem: vi.fn(),
         setItem: vi.fn(),
         removeItem: vi.fn(),
+        clear: vi.fn(),
       };
       Object.defineProperty(window, 'sessionStorage', {
         configurable: true,

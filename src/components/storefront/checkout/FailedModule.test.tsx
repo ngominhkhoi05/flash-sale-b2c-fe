@@ -187,25 +187,31 @@ describe("FailedModule", () => {
     expect(screen.getByText(/Hỗ trợ: 1900 8888/)).toBeInTheDocument();
   });
 
-  it("countdown ticks down by 1 second after 1s", () => {
+  it("countdown ticks down by 1 second after 1s (via testid)", () => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-14T21:30:00Z"));
     const base = 255; // 4:15
     render(<FailedModule order={makeView(base)} onSelectCod={vi.fn()} />);
     // Initial: placeholder (vì setNow chưa chạy synchronously).
-    expect(screen.getByText("Còn --:--")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("failed-countdown-text"),
+    ).toHaveTextContent("Còn --:--");
 
+    // Sau 1s: interval đầu tiên fire → render "Còn 04:14".
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    const initial = screen.getByText(/0[34]:\d\d/).textContent;
-    expect(initial).toBe("Còn 04:14");
+    expect(screen.getByTestId("failed-countdown-text")).toHaveTextContent(
+      "Còn 04:14",
+    );
 
+    // Sau thêm 1s: interval thứ 2 fire → render "Còn 04:13".
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    const after = screen.getByText(/0[34]:\d\d/).textContent;
-    expect(initial).not.toBe(after);
-    expect(after).toBe("Còn 04:13");
+    expect(screen.getByTestId("failed-countdown-text")).toHaveTextContent(
+      "Còn 04:13",
+    );
     vi.useRealTimers();
   });
 });
