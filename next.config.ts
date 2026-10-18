@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
   //    `src/features/homepage/api.ts` ghép với `NEXT_PUBLIC_API_URL` để thành
   //    absolute URL trỏ về hostname này. Next.js cần whitelist để tối ưu
   //    ảnh qua `/_next/image`.
+  // 4. picsum.photos — placeholder image service mà backend Spring Boot dùng
+  //    cho product images khi dev/demo (URL pattern: /seed/<name>/<w>/<h>).
+  //    Khi backend /api/v1/banners/home trả 404, HeroBannerSection fallback
+  //    sang useFeaturedProducts() → BE trả imageUrl: "https://picsum.photos/...".
+  //    Khi BE đổi sang CDN thật (vd cdn.vibemart.vn), xóa entry này.
   //
   // Khi thêm domain thật mới, cập nhật hostname tại đây.
   images: {
@@ -48,6 +53,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "vibe-mart-utc2.canluaz.io.vn",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
         pathname: "/**",
       },
     ],
