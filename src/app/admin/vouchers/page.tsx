@@ -108,6 +108,55 @@ export default function AdminVouchersPage() {
   }, [refreshKey]);
 
   // Handlers
+  const handleExportCsv = () => {
+    try {
+      const items: AdminVoucher[] = data?.items || [];
+      const bom = "\uFEFF";
+      const headers = [
+        "Mã Voucher",
+        "Tên chương trình",
+        "Loại giảm",
+        "Mức giảm",
+        "Đơn tối thiểu",
+        "Phạm vi",
+        "Lượt dùng",
+        "Tổng phát hành",
+        "Bắt đầu",
+        "Kết thúc",
+        "Trạng thái",
+      ];
+      const rows = items.map((v: AdminVoucher) => [
+        `"${v.code}"`,
+        `"${v.name}"`,
+        `"${v.discountType}"`,
+        `"${v.discountValue}"`,
+        `"${v.minOrderAmount}"`,
+        `"${v.scope}"`,
+        `"${v.usedCount}"`,
+        `"${v.totalCount}"`,
+        `"${v.startDate}"`,
+        `"${v.endDate}"`,
+        `"${v.isActive ? "Hoạt động" : "Tạm dừng"}"`,
+      ]);
+
+      const csvContent = `${bom}${headers.join(",")}\n${rows.map((r: string[]) => r.join(",")).join("\n")}`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `danh-sach-voucher-${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast(`Đã xuất thành công file CSV ${items.length} voucher sàn!`);
+    } catch {
+      showToast("Có lỗi xảy ra khi xuất báo cáo voucher.");
+    }
+  };
+
   const handleCopyCode = (code: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(code);
@@ -235,7 +284,7 @@ export default function AdminVouchersPage() {
 
             <button
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-lowest text-on-surface font-body-sm text-sm hover:bg-surface-container transition-colors shadow-sm"
-              onClick={() => showToast("Đã xuất báo cáo danh sách voucher sàn (CSV).")}
+              onClick={handleExportCsv}
               type="button"
             >
               <span className="material-symbols-outlined text-[18px] text-secondary">

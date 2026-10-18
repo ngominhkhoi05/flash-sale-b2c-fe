@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { toast } from "sonner";
 import { KpiCard } from "@/components/admin/KpiCard";
 import { getMockAdminDashboard } from "@/lib/mocks/admin.mock";
 
@@ -85,10 +86,72 @@ export function AdminDashboardClient() {
 
   const handleExport = () => {
     setIsExporting(true);
-    setTimeout(() => {
+    try {
+      const bom = "\uFEFF";
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("vi-VN");
+      const timeStr = now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+
+      let csv = `${bom}"BÁO CÁO TỔNG QUAN HỆ THỐNG - VIBE MART"\n`;
+      csv += `"Thời gian xuất:","${dateStr} ${timeStr}"\n`;
+      csv += `"Trạng thái hệ thống:","Live Mode - 2.315 đơn Flash Sale đã xác nhận"\n\n`;
+
+      // 1. Chỉ số KPI
+      csv += `"1. CHỈ SỐ HOẠT ĐỘNG CHÍNH (KPI)"\n`;
+      csv += `"Chỉ số","Giá trị thực tế","Xu hướng so với kỳ trước"\n`;
+      data.kpis.forEach((kpi) => {
+        csv += `"${kpi.title}","${kpi.value}","${kpi.trend}"\n`;
+      });
+      csv += `\n`;
+
+      // 2. Hiệu suất 14 ngày
+      csv += `"2. HIỆU SUẤT DOANH THU & ĐƠN HÀNG 14 NGÀY"\n`;
+      csv += `"Tổng GMV 14 ngày:","16.42 tỷ₫"\n`;
+      csv += `"Trung bình mỗi ngày:","1.17 tỷ₫/ngày"\n`;
+      csv += `"Tỷ lệ hoàn thành mục tiêu:","96.8%"\n\n`;
+
+      // 3. Top gian hàng
+      csv += `"3. TOP GIAN HÀNG DOANH THU CAO NHẤT HÔM NAY"\n`;
+      csv += `"Hạng","Tên gian hàng","Pháp nhân","Doanh thu (VNĐ)","Số đơn hàng"\n`;
+      TOP_STORES.forEach((store, idx) => {
+        csv += `"${idx + 1}","${store.name}","${store.legalName}","${store.revenue}","${store.orders}"\n`;
+      });
+      csv += `\n`;
+
+      // 4. Doanh thu theo danh mục
+      csv += `"4. DOANH THU THEO DANH MỤC HÀNG HÓA"\n`;
+      csv += `"Danh mục","Doanh thu","Tỷ trọng đóng góp GMV (%)"\n`;
+      CATEGORY_SHARES.forEach((cat) => {
+        csv += `"${cat.name}","${cat.revenue}","${cat.share}%"\n`;
+      });
+      csv += `\n`;
+
+      // 5. Nhiệm vụ chờ xử lý
+      csv += `"5. CÔNG VIỆC CHỜ DUYỆT (SLA ≤ 2 GIỜ)"\n`;
+      csv += `"Hạng mục","Mô tả","Số lượng tồn đọng"\n`;
+      csv += `"Gian hàng chờ duyệt","Đăng ký mới hồ sơ kinh doanh","6"\n`;
+      csv += `"Sản phẩm Flash Sale","Đăng ký phiên khung giờ tới","14"\n`;
+      csv += `"Đánh giá bị báo cáo","Nghi vấn vi phạm tiêu chuẩn cộng đồng","3"\n`;
+      csv += `"Yêu cầu khiếu nại","Tranh chấp đối soát & hoàn tiền","2"\n`;
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fileDate = now.toISOString().slice(0, 10);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `bao-cao-tong-quan-${fileDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Đã xuất báo cáo tổng quan hệ thống (CSV) thành công!");
+    } catch (err) {
+      console.error("Lỗi xuất báo cáo:", err);
+      toast.error("Có lỗi xảy ra khi tạo tệp báo cáo.");
+    } finally {
       setIsExporting(false);
-      alert("Đã xuất báo cáo tổng quan hệ thống định dạng CSV thành công.");
-    }, 800);
+    }
   };
 
   return (
@@ -475,6 +538,7 @@ export function AdminDashboardClient() {
                             alt={store.name}
                             width={36}
                             height={36}
+                            unoptimized
                             className="w-9 h-9 rounded-full object-cover shadow-xs shrink-0"
                           />
                           <div className="flex flex-col min-w-0">
