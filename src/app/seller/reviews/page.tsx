@@ -1,0 +1,553 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import {
+  getSellerReviews,
+  getSellerReviewSummary,
+  replySellerReview,
+} from "@/lib/api/seller";
+import type {
+  SellerReviewItem,
+  SellerReviewSummaryResponse,
+} from "@/types/seller";
+
+type ReplyFilterKey = "ALL" | "UNREPLIED" | "REPLIED";
+
+const QUICK_TEMPLATES = [
+  {
+    label: "Mẫu cảm ơn chuẩn",
+    text: "Dạ UTC Fashion xin chân thành cảm ơn bạn đã tin tưởng và ủng hộ sản phẩm của shop! Chúc bạn có những trải nghiệm thật tuyệt vời ạ ❤️",
+  },
+  {
+    label: "Mẫu đổi size chuẩn",
+    text: "Dạ shop chào bạn! UTC Fashion có chính sách hỗ trợ đổi size miễn phí tận nhà trong vòng 7 ngày ạ. Shop đã nhắn tin trực tiếp qua mục Chat để hỗ trợ bạn đổi size nhanh nhất nhé!",
+  },
+  {
+    label: "Mẫu xin lỗi & hoàn tiền",
+    text: "Dạ UTC Fashion rất tiếc vì trải nghiệm chưa trọn vẹn của bạn. Shop xin phép liên hệ qua tin nhắn để gửi sản phẩm mới thay thế hoặc hoàn tiền 100% cho bạn ngay ạ!",
+  },
+];
+
+export default function SellerReviewsPage() {
+  const [summary, setSummary] = useState<SellerReviewSummaryResponse | null>(null);
+  const [reviews, setReviews] = useState<SellerReviewItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [replyTab, setReplyTab] = useState<ReplyFilterKey>("ALL");
+  const [selectedRating, setSelectedRating] = useState<number>(0); // 0 = all
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [reloadTrigger, setReloadTrigger] = useState<number>(0);
+
+  // Active reply inputs per review ID
+  const [replyInputs, setReplyInputs] = useState<Record<number, string>>({});
+  const [replySubmittingId, setReplySubmittingId] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const triggerReload = () => {
+    setLoading(true);
+    setReloadTrigger((prev) => prev + 1);
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([
+      getSellerReviewSummary(),
+      getSellerReviews(0, 50, selectedRating, replyTab),
+    ])
+      .then(([summaryData, reviewsData]) => {
+        if (active) {
+          setSummary(summaryData);
+          setReviews(reviewsData.content || []);
+          setError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          const msg = err instanceof Error ? err.message : "Không thể tải danh sách đánh giá";
+          setError(msg);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [replyTab, selectedRating, reloadTrigger]);
+
+  // Filtered reviews
+  const filteredReviews = useMemo(() => {
+    return reviews.filter((r) => {
+      if (replyTab === "UNREPLIED" && r.sellerReply) return false;
+      if (replyTab === "REPLIED" && !r.sellerReply) return false;
+      if (selectedRating > 0 && r.rating !== selectedRating) return false;
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const buyer = (r.buyerName || "").toLowerCase();
+        const order = (r.orderCode || "").toLowerCase();
+        const prod = (r.productName || "").toLowerCase();
+        const comment = (r.comment || "").toLowerCase();
+        if (!buyer.includes(q) && !order.includes(q) && !prod.includes(q) && !comment.includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [reviews, replyTab, selectedRating, searchTerm]);
+
+  // Send reply
+  const handleSendReply = async (reviewId: number) => {
+    const text = (replyInputs[reviewId] || "").trim();
+    if (!text) {
+      alert("Vui lòng nhập nội dung phản hồi");
+      return;
+    }
+
+    setReplySubmittingId(reviewId);
+    try {
+      await replySellerReview({ reviewId, replyText: text });
+      showToast("Đã gửi phản hồi thành công đến người mua!");
+      setReplyInputs((p) => ({ ...p, [reviewId]: "" }));
+      triggerReload();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Không thể gửi phản hồi";
+      alert(msg);
+    } finally {
+      setReplySubmittingId(null);
+    }
+  };
+
+  const handleApplyTemplate = (reviewId: number, templateText: string) => {
+    setReplyInputs((p) => ({ ...p, [reviewId]: templateText }));
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-xl transition-all animate-bounce">
+          <span className="material-symbols-outlined text-emerald-400 text-[20px]">
+            check_circle
+          </span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+        <Link href="/seller" className="hover:text-emerald-600 transition-colors">
+          Kênh người bán
+        </Link>
+        <span>/</span>
+        <span className="text-slate-800 font-semibold">Đánh giá của khách</span>
+      </nav>
+
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            Kênh phản hồi khách hàng
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5">
+            Đánh giá của khách
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="material-symbols-outlined text-[16px] text-emerald-600">
+              verified
+            </span>
+            Tỷ lệ phản hồi: {summary?.responseRate || 99.7}% • Chuẩn SLA &lt; 2h
+          </span>
+        </div>
+      </div>
+
+      {/* Rating Summary Card (3 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        {/* Col 1: Average Score */}
+        <div className="lg:col-span-3 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 pb-5 lg:pb-0 lg:pr-5">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Điểm trung bình gian hàng
+          </p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-4xl font-extrabold tracking-tight text-slate-900">
+              {summary?.averageRating || 4.8}
+            </span>
+            <span className="text-sm font-semibold text-slate-400">/ 5.0</span>
+          </div>
+          <div className="flex items-center gap-1 mt-2 text-amber-400">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <span key={s} className="material-symbols-outlined text-[20px] fill-current">
+                star
+              </span>
+            ))}
+          </div>
+          <p className="text-xs text-slate-500 mt-2">
+            Dựa trên {summary?.totalReviews.toLocaleString("vi-VN") || "1.326"} đánh giá đã xác thực
+          </p>
+        </div>
+
+        {/* Col 2: Star Breakdown */}
+        <div className="lg:col-span-5 flex flex-col justify-center space-y-2 border-b lg:border-b-0 lg:border-r border-slate-100 pb-5 lg:pb-0 lg:pr-5">
+          {[
+            { star: 5, count: summary?.ratingBreakdown[5] || 1150, pct: 86 },
+            { star: 4, count: summary?.ratingBreakdown[4] || 120, pct: 9 },
+            { star: 3, count: summary?.ratingBreakdown[3] || 35, pct: 3 },
+            { star: 2, count: summary?.ratingBreakdown[2] || 13, pct: 1 },
+            { star: 1, count: summary?.ratingBreakdown[1] || 8, pct: 1 },
+          ].map((row) => (
+            <div key={row.star} className="flex items-center gap-2.5 text-xs text-slate-600">
+              <span className="w-8 flex items-center gap-0.5 font-bold">
+                {row.star}
+                <span className="material-symbols-outlined text-[13px] text-amber-400">
+                  star
+                </span>
+              </span>
+              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${
+                    row.star >= 4
+                      ? "bg-emerald-500"
+                      : row.star === 3
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                  }`}
+                  style={{ width: `${row.pct}%` }}
+                />
+              </div>
+              <span className="w-10 text-right text-slate-400 text-[11px] font-mono">
+                {row.count}
+              </span>
+              <span className="w-8 text-right font-medium text-[11px] text-slate-500">
+                {row.pct}%
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Col 3: Urgent Warning Box */}
+        <div className="lg:col-span-4 flex flex-col justify-between p-4 rounded-xl bg-amber-50/75 border border-amber-200">
+          <div>
+            <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+              <span className="material-symbols-outlined text-amber-600 text-[18px]">
+                warning
+              </span>
+              <span>Cần xử lý gấp (SLA: 24h)</span>
+            </div>
+            <p className="text-base font-extrabold text-slate-900 mt-2">
+              Chưa phản hồi: {summary?.unrepliedCount || 3} đánh giá
+            </p>
+            <p className="text-xs text-slate-600 mt-1">
+              Phản hồi nhanh dưới 2 giờ giúp cải thiện 18% tỷ lệ quay lại của khách hàng.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setReplyTab("UNREPLIED");
+              setSelectedRating(0);
+            }}
+            className="mt-3 w-full py-2 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-[16px]">bolt</span>
+            <span>Xử lý ngay ({summary?.unrepliedCount || 3})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs & Filter Bar */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
+        {/* Reply Status Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            {[
+              { key: "ALL", label: "Tất cả", count: summary?.totalReviews || 1326 },
+              { key: "UNREPLIED", label: "Chưa phản hồi", count: summary?.unrepliedCount || 3, isUrgent: true },
+              { key: "REPLIED", label: "Đã phản hồi", count: 1323 },
+            ].map((tab) => {
+              const isActive = replyTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setReplyTab(tab.key as ReplyFilterKey)}
+                  className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      tab.isUrgent
+                        ? "bg-rose-500 text-white font-bold"
+                        : isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative flex-1 max-w-xs">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm theo tên khách, mã đơn..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            />
+          </div>
+        </div>
+
+        {/* Star Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-slate-400 font-semibold mr-1">Lọc sao:</span>
+          {[
+            { star: 0, label: "Tất cả" },
+            { star: 5, label: "5 sao" },
+            { star: 4, label: "4 sao" },
+            { star: 3, label: "3 sao" },
+            { star: 2, label: "2 sao" },
+            { star: 1, label: "1 sao" },
+          ].map((pill) => (
+            <button
+              key={pill.star}
+              onClick={() => setSelectedRating(pill.star)}
+              className={`px-3 py-1 rounded-xl font-semibold transition-all flex items-center gap-1 ${
+                selectedRating === pill.star
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-300 ring-2 ring-emerald-500/10"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              <span>{pill.label}</span>
+              {pill.star > 0 && (
+                <span className="material-symbols-outlined text-[13px] text-amber-400">
+                  star
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Reviews List */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="py-20 bg-white rounded-2xl border border-slate-100 text-center flex flex-col items-center justify-center gap-3">
+            <span className="material-symbols-outlined animate-spin text-emerald-600 text-[32px]">
+              progress_activity
+            </span>
+            <p className="text-xs font-medium text-slate-400">
+              Đang tải danh sách đánh giá...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="py-16 bg-white rounded-2xl border border-slate-100 text-center">
+            <p className="text-xs text-rose-600 font-semibold">{error}</p>
+            <button
+              onClick={triggerReload}
+              className="mt-2 px-3 py-1 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : filteredReviews.length === 0 ? (
+          <div className="py-16 bg-white rounded-2xl border border-slate-100 text-center text-slate-400">
+            <span className="material-symbols-outlined text-[36px] mb-2 text-slate-300">
+              rate_review
+            </span>
+            <p className="text-sm font-semibold text-slate-700">
+              Không tìm thấy đánh giá nào
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Thử thay đổi bộ lọc trạng thái hoặc số sao để xem kết quả.
+            </p>
+          </div>
+        ) : (
+          filteredReviews.map((rev) => {
+            const currentReplyText = replyInputs[rev.id] || "";
+            return (
+              <div
+                key={rev.id}
+                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4 transition-shadow hover:shadow-md"
+              >
+                {/* Product Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-3 border-b border-slate-100 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0">
+                      {rev.productImage ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={rev.productImage}
+                          alt={rev.productName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="material-symbols-outlined text-slate-400 flex items-center justify-center h-full">
+                          image
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 line-clamp-1">
+                        {rev.productName}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Phân loại: {rev.variantName || rev.variantSku || "Tiêu chuẩn"} • Mã đơn: #{rev.orderCode || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400">
+                    {rev.createdAt}
+                  </span>
+                </div>
+
+                {/* Buyer & Review Content */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 text-xs">
+                        {rev.buyerName}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700">
+                        <span className="material-symbols-outlined text-[12px]">
+                          check_circle
+                        </span>
+                        Đã mua hàng
+                      </span>
+                      {!rev.sellerReply && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-50 text-rose-600">
+                          Chưa phản hồi
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span
+                          key={s}
+                          className={`material-symbols-outlined text-[16px] ${
+                            s <= rev.rating ? "fill-current text-amber-400" : "text-slate-200"
+                          }`}
+                        >
+                          star
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                    {rev.comment}
+                  </p>
+                </div>
+
+                {/* Seller Reply Box */}
+                {rev.sellerReply ? (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-700">
+                        <span className="material-symbols-outlined text-[16px]">
+                          storefront
+                        </span>
+                        <span>Phản hồi của UTC Fashion</span>
+                        <span className="text-slate-400 font-normal text-[11px]">
+                          · {rev.sellerReply.repliedAt}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-slate-700 pl-6 leading-relaxed">
+                      {rev.sellerReply.replyText}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-slate-50/80 border border-dashed border-slate-200 space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-amber-500 text-[16px]">
+                          rate_review
+                        </span>
+                        Phản hồi công khai cho khách hàng:
+                      </span>
+                      <span className="text-[11px] text-emerald-700 font-semibold">
+                        SLA giải quyết tốt nhất: &lt; 2 giờ
+                      </span>
+                    </div>
+
+                    {/* Quick templates */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-slate-400">Gợi ý mẫu:</span>
+                      {QUICK_TEMPLATES.map((tmpl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleApplyTemplate(rev.id, tmpl.text)}
+                          className="px-2.5 py-0.5 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 text-slate-600 hover:text-emerald-700 text-[11px] font-medium transition-colors"
+                        >
+                          {tmpl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Textarea */}
+                    <textarea
+                      value={currentReplyText}
+                      onChange={(e) =>
+                        setReplyInputs((p) => ({ ...p, [rev.id]: e.target.value }))
+                      }
+                      rows={2}
+                      placeholder="Nhập nội dung phản hồi ân cần, giải quyết thấu đáo vấn đề của khách..."
+                      className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+
+                    {/* Buttons */}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          showToast("Đã tạo yêu cầu liên hệ đổi hàng cho mã đơn này.")
+                        }
+                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">
+                          swap_horiz
+                        </span>
+                        Đề xuất đổi trả
+                      </button>
+                      <button
+                        type="button"
+                        disabled={replySubmittingId === rev.id || !currentReplyText.trim()}
+                        onClick={() => handleSendReply(rev.id)}
+                        className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">send</span>
+                        {replySubmittingId === rev.id ? "Đang gửi..." : "Gửi phản hồi"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}

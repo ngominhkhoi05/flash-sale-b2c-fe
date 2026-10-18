@@ -270,4 +270,45 @@ export interface CreateSellerVoucherPayload {
   endDate: string;
 }
 
+export interface SellerReviewItem {
+  id: number;
+  productId: number;
+  productName: string;
+  productImage?: string;
+  variantSku?: string;
+  variantName?: string;
+  orderCode?: string;
+  buyerName: string;
+  buyerAvatar?: string;
+  rating: number;
+  comment: string;
+  mediaUrls?: string[];
+  sellerReply?: {
+    id: number;
+    replyText: string;
+    repliedAt: string;
+  } | null;
+  createdAt: string;
+}
+
+export interface SellerReviewSummaryResponse {
+  averageRating: number;
+  totalReviews: number;
+  responseRate: number;
+  unrepliedCount: number;
+  ratingBreakdown: {
+    5: number;
+    4: number;
+    3: number;
+    2: number;
+    1: number;
+  };
+}
+
+export interface ReplySellerReviewPayload {
+  reviewId: number;
+  replyText: string;
+}
+
+
 

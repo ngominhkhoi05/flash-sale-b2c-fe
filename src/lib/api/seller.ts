@@ -17,6 +17,9 @@ import type {
   SellerWithdrawalRequest,
   SellerVoucherItem,
   CreateSellerVoucherPayload,
+  SellerReviewItem,
+  SellerReviewSummaryResponse,
+  ReplySellerReviewPayload,
 } from "@/types/seller";
 
 /**
@@ -1168,5 +1171,226 @@ function getMockSellerVouchers(
     hasPrevious: page > 0,
   };
 }
+
+/**
+ * Lấy thống kê tổng quan đánh giá của shop (GET /api/v1/seller/reviews/summary)
+ */
+export async function getSellerReviewSummary(): Promise<SellerReviewSummaryResponse> {
+  try {
+    return await apiFetch<SellerReviewSummaryResponse>("/seller/reviews/summary");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerReviewSummary();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy danh sách đánh giá của khách hàng (GET /api/v1/seller/reviews)
+ */
+export async function getSellerReviews(
+  page: number = 0,
+  size: number = 10,
+  rating?: number,
+  replyStatus?: "ALL" | "UNREPLIED" | "REPLIED"
+): Promise<PageResponse<SellerReviewItem>> {
+  try {
+    const query: Record<string, string | number> = { page, size };
+    if (rating && rating > 0) {
+      query.rating = rating;
+    }
+    if (replyStatus && replyStatus !== "ALL") {
+      query.replyStatus = replyStatus;
+    }
+    return await apiFetch<PageResponse<SellerReviewItem>>("/seller/reviews", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerReviews(page, size, rating, replyStatus);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Người bán phản hồi đánh giá khách hàng (POST /api/v1/seller/reviews/{id}/reply)
+ */
+export async function replySellerReview(
+  payload: ReplySellerReviewPayload
+): Promise<SellerReviewItem> {
+  try {
+    return await apiFetch<SellerReviewItem>(
+      `/seller/reviews/${payload.reviewId}/reply`,
+      {
+        method: "POST",
+        json: { replyText: payload.replyText },
+      }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: payload.reviewId,
+        productId: 1,
+        productName: "Áo thun Basic Cotton Organic",
+        buyerName: "Lê Minh Trang",
+        rating: 3,
+        comment: "Áo đẹp nhưng size M hơi rộng so với mình nghĩ...",
+        sellerReply: {
+          id: Math.floor(Math.random() * 1000),
+          replyText: payload.replyText,
+          repliedAt: new Date().toISOString(),
+        },
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockSellerReviewSummary(): SellerReviewSummaryResponse {
+  return {
+    averageRating: 4.8,
+    totalReviews: 1326,
+    responseRate: 99.7,
+    unrepliedCount: 3,
+    ratingBreakdown: {
+      5: 1150,
+      4: 120,
+      3: 35,
+      2: 13,
+      1: 8,
+    },
+  };
+}
+
+function getMockSellerReviews(
+  page: number = 0,
+  size: number = 10,
+  ratingFilter?: number,
+  replyStatusFilter?: "ALL" | "UNREPLIED" | "REPLIED"
+): PageResponse<SellerReviewItem> {
+  const allReviews: SellerReviewItem[] = [
+    {
+      id: 1,
+      productId: 1,
+      productName: "Áo Hoodie Unisex Oversize Nỉ Bông",
+      productImage:
+        "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=60",
+      variantSku: "HD-DEN-L",
+      variantName: "Đen / Size L",
+      orderCode: "FS-261001-A7K2Q",
+      buyerName: "Nguyễn Văn Tuấn",
+      rating: 5,
+      comment:
+        "Chất vải nỉ dày dặn ấm áp, form oversize chuẩn đẹp. Mua trong Flash Sale giá hời bất ngờ!",
+      sellerReply: {
+        id: 11,
+        replyText:
+          "Cảm ơn bạn Tuấn đã tin tưởng ủng hộ UTC Fashion ạ! Chúc bạn luôn có trải nghiệm tuyệt vời cùng shop nhé ❤️",
+        repliedAt: "2026-10-02T14:15:00Z",
+      },
+      createdAt: "2026-10-02T10:00:00Z",
+    },
+    {
+      id: 2,
+      productId: 2,
+      productName: "Áo thun Basic Cotton Organic",
+      productImage:
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+      variantSku: "AT-TRANG-M",
+      variantName: "Trắng ngà / Size M",
+      orderCode: "ORD-261004-R2X9",
+      buyerName: "Lê Minh Trang",
+      rating: 3,
+      comment:
+        "Áo đẹp nhưng size M hơi rộng so với mình nghĩ, shop có hỗ trợ đổi sang size S không ạ?",
+      sellerReply: null,
+      createdAt: "2026-10-18T02:30:00Z",
+    },
+    {
+      id: 3,
+      productId: 3,
+      productName: "Quần Jean Slimfit Co Giãn 4 Chiều",
+      productImage:
+        "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+      variantSku: "QJ-XANH-XL",
+      variantName: "Xanh Navy / Size XL",
+      orderCode: "FS-260928-V9L1P",
+      buyerName: "Trần Hoàng Long",
+      rating: 5,
+      comment:
+        "Giao hàng siêu nhanh, đóng gói hộp carton cứng cáp rất chỉn chu. Đường may tỉ mỉ, đáng tiền 10/10.",
+      sellerReply: {
+        id: 12,
+        replyText:
+          "Dạ shop cảm ơn anh Long rất nhiều ạ! Mong anh tiếp tục ủng hộ các bộ sưu tập mới của UTC Fashion ạ!",
+        repliedAt: "2026-09-30T09:00:00Z",
+      },
+      createdAt: "2026-09-29T19:40:00Z",
+    },
+    {
+      id: 4,
+      productId: 4,
+      productName: "Áo Polo Thể Thao Quick-Dry",
+      productImage:
+        "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
+      variantSku: "PL-XAM-M",
+      variantName: "Xám / Size M",
+      orderCode: "ORD-261003-P4Y7",
+      buyerName: "Đặng Mỹ Linh",
+      rating: 4,
+      comment:
+        "Màu sắc bên ngoài nhạt hơn hình một chút nhưng chất vải mềm mát, thấm hút mồ hôi tốt khi tập thể thao.",
+      sellerReply: null,
+      createdAt: "2026-10-17T11:00:00Z",
+    },
+    {
+      id: 5,
+      productId: 5,
+      productName: "Vớ Cổ Cao Dệt Kim Thể Thao",
+      productImage:
+        "https://images.unsplash.com/photo-1582966772680-860e372bb558?w=500&auto=format&fit=crop&q=60",
+      variantSku: "VO-TRANG-FREESIZE",
+      variantName: "Trắng / Freesize",
+      orderCode: "ORD-261002-L1K0",
+      buyerName: "Phạm Hải Đăng",
+      rating: 2,
+      comment:
+        "Vớ bị xước sợi chỉ ngay đường may mũi chân, hơi thất vọng vì mua combo 3 đôi.",
+      sellerReply: null,
+      createdAt: "2026-10-18T04:10:00Z",
+    },
+  ];
+
+  let filtered = allReviews;
+  if (ratingFilter && ratingFilter > 0) {
+    filtered = filtered.filter((r) => r.rating === ratingFilter);
+  }
+  if (replyStatusFilter === "UNREPLIED") {
+    filtered = filtered.filter((r) => !r.sellerReply);
+  } else if (replyStatusFilter === "REPLIED") {
+    filtered = filtered.filter((r) => !!r.sellerReply);
+  }
+
+  const start = page * size;
+  const content = filtered.slice(start, start + size);
+  const totalElements = filtered.length;
+  const totalPages = Math.ceil(totalElements / size) || 1;
+
+  return {
+    content,
+    pageNumber: page,
+    pageSize: size,
+    totalElements,
+    totalPages,
+    isFirst: page === 0,
+    isLast: start + size >= totalElements,
+    hasNext: start + size < totalElements,
+    hasPrevious: page > 0,
+  };
+}
+
 
 
