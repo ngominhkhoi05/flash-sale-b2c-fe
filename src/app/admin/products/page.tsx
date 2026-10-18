@@ -143,10 +143,14 @@ export default function AdminProductsPage() {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <Image
-                          src={prod.primaryImageUrl}
-                          alt={prod.name}
+                          src={
+                            prod.primaryImageUrl ||
+                            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&auto=format&fit=crop&q=80"
+                          }
+                          alt={prod.name || "Product"}
                           width={48}
                           height={48}
+                          unoptimized
                           className="w-12 h-12 rounded-lg object-cover shadow-xs shrink-0 bg-surface-container"
                         />
                         <div className="flex flex-col min-w-0 max-w-xs sm:max-w-sm">

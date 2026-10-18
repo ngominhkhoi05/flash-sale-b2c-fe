@@ -969,11 +969,15 @@ export default function AdminVouchersPage() {
                     <td className="px-space-md">
                       <div className="flex items-center gap-space-sm">
                         <Image
-                          alt={item.customerName}
+                          alt={item.customerName || "Customer"}
                           width={32}
                           height={32}
+                          unoptimized
                           className="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/30"
-                          src={item.customerAvatar}
+                          src={
+                            item.customerAvatar ||
+                            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80"
+                          }
                         />
                         <div className="flex flex-col">
                           <span className="font-semibold text-on-surface leading-tight">
