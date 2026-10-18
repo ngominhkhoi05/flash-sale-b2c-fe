@@ -54,11 +54,15 @@ export function useSellerOrderNotifications() {
         (o) => o.status === "PENDING" || o.status === "PENDING_PAYMENT"
       );
 
-      setAllPendingOrders(pending);
+      setAllPendingOrders((prev) => {
+        if (prev.length !== pending.length) return pending;
+        const isDiff = prev.some((o, i) => o.id !== pending[i]?.id || o.status !== pending[i]?.status);
+        return isDiff ? pending : prev;
+      });
 
       const seen = getSeenIds();
       const unseen = pending.filter((o) => !seen.has(o.id));
-      setUnreadCount(unseen.length);
+      setUnreadCount((prev) => (prev !== unseen.length ? unseen.length : prev));
 
       // Nếu có đơn hàng mới phát sinh (không phải lần đầu nạp), bắn toast thông báo
       if (!isInitial && unseen.length > 0) {

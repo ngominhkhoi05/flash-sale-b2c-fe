@@ -41,8 +41,7 @@ export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<SellerOrderResponse[]>([]);
   const [allOrders, setAllOrders] = useState<SellerOrderResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isRealtimeUpdating, setIsRealtimeUpdating] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
+  const [isManualRefreshing, setIsManualRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const { markAllAsSeen } = useSellerOrderNotifications();
@@ -82,11 +81,21 @@ export default function SellerOrdersPage() {
     markAllAsSeen();
   }, [markAllAsSeen]);
 
-  // Fetch dữ liệu đơn hàng (hỗ trợ chế độ nền silent không làm giật màn hình)
+  // Kiểm tra dữ liệu có thay đổi hay không để tránh re-render DOM không cần thiết
+  const hasOrdersChanged = (prev: SellerOrderResponse[], next: SellerOrderResponse[]) => {
+    if (prev.length !== next.length) return true;
+    for (let i = 0; i < prev.length; i++) {
+      if (prev[i].id !== next[i]?.id || prev[i].status !== next[i]?.status) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Fetch dữ liệu đơn hàng (chế độ silent chạy ngầm 100% êm đềm, không xoay, không giật lag)
   const fetchOrders = useCallback(
     async (silent = false) => {
       if (!silent) setLoading(true);
-      else setIsRealtimeUpdating(true);
 
       try {
         const [tabRes, allRes] = await Promise.all([
@@ -97,12 +106,12 @@ export default function SellerOrdersPage() {
         const list = tabRes.items || tabRes.content || [];
         const allList = allRes.items || allRes.content || [];
 
-        setOrders(list);
-        setAllOrders(allList);
+        // Chỉ update state khi thật sự có dữ liệu mới hoặc load ban đầu
+        setOrders((prev) => (!silent || hasOrdersChanged(prev, list) ? list : prev));
+        setAllOrders((prev) => (!silent || hasOrdersChanged(prev, allList) ? allList : prev));
         setError(null);
-        setLastSyncTime(new Date());
 
-        // Đảm bảo badge đã xem khi đang ở trang này
+        // Đánh dấu đã xem
         markAllAsSeen();
       } catch (err: unknown) {
         if (!silent) {
@@ -111,25 +120,31 @@ export default function SellerOrdersPage() {
         }
       } finally {
         if (!silent) setLoading(false);
-        else setIsRealtimeUpdating(false);
       }
     },
     [currentTab, markAllAsSeen]
   );
 
-  // Load khi chuyển tab hoặc trigger reload
+  // Load ban đầu hoặc khi đổi tab / trigger reload
   useEffect(() => {
     fetchOrders(false);
   }, [fetchOrders, reloadTrigger]);
 
-  // Polling thời gian thực ngầm mỗi 4 giây
+  // Tự động load dữ liệu thời gian thực trong nền (hoàn toàn êm dịu, không xoay xoay màn hình)
   useEffect(() => {
     const timer = setInterval(() => {
       fetchOrders(true);
-    }, 4000);
+    }, 5000);
 
     return () => clearInterval(timer);
   }, [fetchOrders]);
+
+  // Nút bấm Làm mới thủ công (chỉ xoay khi người dùng chủ động click)
+  const handleManualRefresh = async () => {
+    setIsManualRefreshing(true);
+    await fetchOrders(false);
+    setIsManualRefreshing(false);
+  };
 
   // Tab counts
   const tabCounts = useMemo(() => {
@@ -322,14 +337,9 @@ export default function SellerOrdersPage() {
             </h1>
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold ring-1 ring-emerald-200"
-              title={`Tự động đồng bộ mỗi 4 giây. Lần đồng bộ gần nhất: ${lastSyncTime.toLocaleTimeString("vi-VN")}`}
             >
-              <span
-                className={`w-2 h-2 rounded-full bg-emerald-500 ${
-                  isRealtimeUpdating ? "animate-ping" : "animate-pulse"
-                }`}
-              ></span>
-              <span>{isRealtimeUpdating ? "Đang đồng bộ..." : "Thời gian thực"}</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Thời gian thực</span>
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -340,13 +350,13 @@ export default function SellerOrdersPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => fetchOrders(false)}
-            title="Tải lại danh sách đơn hàng ngay lập tức"
+            onClick={handleManualRefresh}
+            title="Tải lại danh sách đơn hàng"
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
           >
             <span
               className={`material-symbols-outlined text-[18px] text-slate-500 ${
-                loading || isRealtimeUpdating ? "animate-spin" : ""
+                isManualRefreshing ? "animate-spin" : ""
               }`}
             >
               sync
