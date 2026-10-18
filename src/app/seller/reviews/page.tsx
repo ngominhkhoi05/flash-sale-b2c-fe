@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   getSellerReviews,
   getSellerReviewSummary,
@@ -11,25 +12,36 @@ import type {
   SellerReviewItem,
   SellerReviewSummaryResponse,
 } from "@/types/seller";
+import { useMyStore } from "@/hooks/useMyStore";
 
 type ReplyFilterKey = "ALL" | "UNREPLIED" | "REPLIED";
 
-const QUICK_TEMPLATES = [
-  {
-    label: "Mẫu cảm ơn chuẩn",
-    text: "Dạ UTC Fashion xin chân thành cảm ơn bạn đã tin tưởng và ủng hộ sản phẩm của shop! Chúc bạn có những trải nghiệm thật tuyệt vời ạ ❤️",
-  },
-  {
-    label: "Mẫu đổi size chuẩn",
-    text: "Dạ shop chào bạn! UTC Fashion có chính sách hỗ trợ đổi size miễn phí tận nhà trong vòng 7 ngày ạ. Shop đã nhắn tin trực tiếp qua mục Chat để hỗ trợ bạn đổi size nhanh nhất nhé!",
-  },
-  {
-    label: "Mẫu xin lỗi & hoàn tiền",
-    text: "Dạ UTC Fashion rất tiếc vì trải nghiệm chưa trọn vẹn của bạn. Shop xin phép liên hệ qua tin nhắn để gửi sản phẩm mới thay thế hoặc hoàn tiền 100% cho bạn ngay ạ!",
-  },
-];
-
 export default function SellerReviewsPage() {
+  const { storeName: currentStoreName } = useMyStore();
+  const shopName = currentStoreName || "Gian hàng";
+
+  const QUICK_TEMPLATES = useMemo(
+    () => [
+      {
+        label: "Cảm ơn & Tri ân",
+        text: `Dạ ${shopName} xin chân thành cảm ơn bạn đã tin tưởng và ủng hộ sản phẩm của shop! Chúc bạn có những trải nghiệm thật tuyệt vời ạ ❤️`,
+      },
+      {
+        label: "Hỗ trợ Đổi trả/Bảo hành",
+        text: `Dạ shop chào bạn! ${shopName} có chính sách hỗ trợ 1 đổi 1 hoặc đổi size miễn phí trong 7 ngày. Shop đã chủ động nhắn tin qua mục Chat để hỗ trợ bạn ngay ạ!`,
+      },
+      {
+        label: "Xin lỗi & Giải quyết sự cố",
+        text: `Dạ ${shopName} rất tiếc vì trải nghiệm chưa trọn vẹn của bạn. Shop xin phép liên hệ hỗ trợ đổi sản phẩm mới hoặc hoàn tiền ngay cho bạn ạ!`,
+      },
+      {
+        label: "Khen ngợi vận chuyển",
+        text: `Dạ cảm ơn bạn đã hài lòng với tốc độ đóng gói và giao hàng của ${shopName}! Mong bạn tiếp tục ủng hộ shop trong các đơn hàng tới nhé!`,
+      },
+    ],
+    [shopName]
+  );
+
   const [summary, setSummary] = useState<SellerReviewSummaryResponse | null>(null);
   const [reviews, setReviews] = useState<SellerReviewItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -40,15 +52,10 @@ export default function SellerReviewsPage() {
   const [selectedRating, setSelectedRating] = useState<number>(0); // 0 = all
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // Active reply inputs per review ID
+  // Reply inputs per review ID
   const [replyInputs, setReplyInputs] = useState<Record<number, string>>({});
+  const [editingReplyIds, setEditingReplyIds] = useState<Record<number, boolean>>({});
   const [replySubmittingId, setReplySubmittingId] = useState<number | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
 
   const triggerReload = () => {
     fetchReviews(false);
@@ -102,20 +109,23 @@ export default function SellerReviewsPage() {
     });
   }, [reviews, replyTab, selectedRating, searchTerm]);
 
-  // Send reply
+  // Send or Update reply
   const handleSendReply = async (reviewId: number) => {
     const text = (replyInputs[reviewId] || "").trim();
     if (!text) {
-      alert("Vui lòng nhập nội dung phản hồi");
+      toast.error("Vui lòng nhập nội dung phản hồi cho khách hàng!");
       return;
     }
 
     setReplySubmittingId(reviewId);
     try {
       const updated = await replySellerReview({ reviewId, replyText: text });
-      showToast("Đã gửi phản hồi thành công đến người mua!");
+      toast.success("Đã gửi phản hồi thành công đến người mua!");
+
       setReplyInputs((p) => ({ ...p, [reviewId]: "" }));
-      // Cập nhật phản hồi ngay tại chỗ
+      setEditingReplyIds((p) => ({ ...p, [reviewId]: false }));
+
+      // Cập nhật phản hồi ngay tại chỗ trong state
       setReviews((prev) =>
         prev.map((r) =>
           r.id === reviewId
@@ -130,17 +140,22 @@ export default function SellerReviewsPage() {
             : r
         )
       );
-      setSummary((prev) =>
-        prev
-          ? {
-              ...prev,
-              unrepliedCount: Math.max(0, prev.unrepliedCount - 1),
-            }
-          : prev
-      );
+
+      // Cập nhật lại summary count nếu là phản hồi mới
+      const existing = reviews.find((r) => r.id === reviewId);
+      if (!existing?.sellerReply) {
+        setSummary((prev) =>
+          prev
+            ? {
+                ...prev,
+                unrepliedCount: Math.max(0, prev.unrepliedCount - 1),
+              }
+            : prev
+        );
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể gửi phản hồi";
-      showToast(`Lỗi: ${msg}`);
+      toast.error(msg);
     } finally {
       setReplySubmittingId(null);
     }
@@ -150,18 +165,35 @@ export default function SellerReviewsPage() {
     setReplyInputs((p) => ({ ...p, [reviewId]: templateText }));
   };
 
+  const handleStartEditReply = (reviewId: number, currentText?: string) => {
+    setEditingReplyIds((p) => ({ ...p, [reviewId]: true }));
+    setReplyInputs((p) => ({ ...p, [reviewId]: currentText || "" }));
+  };
+
+  const handleCancelEditReply = (reviewId: number) => {
+    setEditingReplyIds((p) => ({ ...p, [reviewId]: false }));
+    setReplyInputs((p) => ({ ...p, [reviewId]: "" }));
+  };
+
+  const formatReviewDate = (d?: string) => {
+    if (!d) return "";
+    try {
+      const date = new Date(d);
+      if (isNaN(date.getTime())) return d;
+      return date.toLocaleDateString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return d;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-xl transition-all animate-bounce">
-          <span className="material-symbols-outlined text-emerald-400 text-[20px]">
-            check_circle
-          </span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium">
         <Link href="/seller" className="hover:text-emerald-600 transition-colors">
@@ -175,10 +207,10 @@ export default function SellerReviewsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Kênh phản hồi khách hàng
+            Chăm sóc khách hàng & Trải nghiệm
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5">
-            Đánh giá của khách
+            Đánh giá của khách ({summary?.totalReviews || reviews.length})
           </h1>
         </div>
 
@@ -187,7 +219,7 @@ export default function SellerReviewsPage() {
             <span className="material-symbols-outlined text-[16px] text-emerald-600">
               verified
             </span>
-            Tỷ lệ phản hồi: {summary?.responseRate || 99.7}% • Chuẩn SLA &lt; 2h
+            Tỷ lệ phản hồi: {summary?.responseRate || 99.8}% • Chuẩn SLA &lt; 2h
           </span>
         </div>
       </div>
@@ -197,11 +229,11 @@ export default function SellerReviewsPage() {
         {/* Col 1: Average Score */}
         <div className="lg:col-span-3 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 pb-5 lg:pb-0 lg:pr-5">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Điểm trung bình gian hàng
+            Điểm đánh giá gian hàng
           </p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-4xl font-extrabold tracking-tight text-slate-900">
-              {summary?.averageRating || 4.8}
+              {summary?.averageRating ? Number(summary.averageRating).toFixed(1) : "4.9"}
             </span>
             <span className="text-sm font-semibold text-slate-400">/ 5.0</span>
           </div>
@@ -213,18 +245,18 @@ export default function SellerReviewsPage() {
             ))}
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Dựa trên {summary?.totalReviews != null ? summary.totalReviews.toLocaleString("vi-VN") : "1.326"} đánh giá đã xác thực
+            Dựa trên {summary?.totalReviews != null ? summary.totalReviews.toLocaleString("vi-VN") : reviews.length} lượt đánh giá thực tế
           </p>
         </div>
 
         {/* Col 2: Star Breakdown */}
         <div className="lg:col-span-5 flex flex-col justify-center space-y-2 border-b lg:border-b-0 lg:border-r border-slate-100 pb-5 lg:pb-0 lg:pr-5">
           {[
-            { star: 5, count: summary?.ratingBreakdown[5] || 1150, pct: 86 },
-            { star: 4, count: summary?.ratingBreakdown[4] || 120, pct: 9 },
-            { star: 3, count: summary?.ratingBreakdown[3] || 35, pct: 3 },
-            { star: 2, count: summary?.ratingBreakdown[2] || 13, pct: 1 },
-            { star: 1, count: summary?.ratingBreakdown[1] || 8, pct: 1 },
+            { star: 5, count: summary?.ratingBreakdown?.[5] ?? 1150, pct: 88 },
+            { star: 4, count: summary?.ratingBreakdown?.[4] ?? 120, pct: 8 },
+            { star: 3, count: summary?.ratingBreakdown?.[3] ?? 35, pct: 2 },
+            { star: 2, count: summary?.ratingBreakdown?.[2] ?? 13, pct: 1 },
+            { star: 1, count: summary?.ratingBreakdown?.[1] ?? 8, pct: 1 },
           ].map((row) => (
             <div key={row.star} className="flex items-center gap-2.5 text-xs text-slate-600">
               <span className="w-8 flex items-center gap-0.5 font-bold">
@@ -260,18 +292,19 @@ export default function SellerReviewsPage() {
           <div>
             <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
               <span className="material-symbols-outlined text-amber-600 text-[18px]">
-                warning
+                priority_high
               </span>
-              <span>Cần xử lý gấp (SLA: 24h)</span>
+              <span>Cần xử lý kịp thời (SLA 24h)</span>
             </div>
             <p className="text-base font-extrabold text-slate-900 mt-2">
-              Chưa phản hồi: {summary?.unrepliedCount || 3} đánh giá
+              Chưa phản hồi: {summary?.unrepliedCount ?? 0} đánh giá
             </p>
             <p className="text-xs text-slate-600 mt-1">
-              Phản hồi nhanh dưới 2 giờ giúp cải thiện 18% tỷ lệ quay lại của khách hàng.
+              Phản hồi nhanh dưới 2 giờ giúp tăng 22% điểm tin cậy và xếp hạng hiển thị của shop.
             </p>
           </div>
           <button
+            type="button"
             onClick={() => {
               setReplyTab("UNREPLIED");
               setSelectedRating(0);
@@ -279,7 +312,7 @@ export default function SellerReviewsPage() {
             className="mt-3 w-full py-2 px-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5"
           >
             <span className="material-symbols-outlined text-[16px]">bolt</span>
-            <span>Xử lý ngay ({summary?.unrepliedCount || 3})</span>
+            <span>Xử lý ngay ({summary?.unrepliedCount ?? 0})</span>
           </button>
         </div>
       </div>
@@ -290,14 +323,15 @@ export default function SellerReviewsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             {[
-              { key: "ALL", label: "Tất cả", count: summary?.totalReviews || 1326 },
-              { key: "UNREPLIED", label: "Chưa phản hồi", count: summary?.unrepliedCount || 3, isUrgent: true },
-              { key: "REPLIED", label: "Đã phản hồi", count: 1323 },
+              { key: "ALL", label: "Tất cả", count: summary?.totalReviews || reviews.length },
+              { key: "UNREPLIED", label: "Chưa phản hồi", count: summary?.unrepliedCount ?? 0, isUrgent: (summary?.unrepliedCount ?? 0) > 0 },
+              { key: "REPLIED", label: "Đã phản hồi", count: Math.max(0, (summary?.totalReviews || reviews.length) - (summary?.unrepliedCount || 0)) },
             ].map((tab) => {
               const isActive = replyTab === tab.key;
               return (
                 <button
                   key={tab.key}
+                  type="button"
                   onClick={() => setReplyTab(tab.key as ReplyFilterKey)}
                   className={`flex items-center gap-1.5 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all ${
                     isActive
@@ -330,7 +364,7 @@ export default function SellerReviewsPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm theo tên khách, mã đơn..."
+              placeholder="Tìm theo tên khách, sản phẩm, mã đơn..."
               className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
@@ -349,6 +383,7 @@ export default function SellerReviewsPage() {
           ].map((pill) => (
             <button
               key={pill.star}
+              type="button"
               onClick={() => setSelectedRating(pill.star)}
               className={`px-3 py-1 rounded-xl font-semibold transition-all flex items-center gap-1 ${
                 selectedRating === pill.star
@@ -397,6 +432,7 @@ export default function SellerReviewsPage() {
           <div className="py-16 bg-white rounded-2xl border border-slate-100 text-center">
             <p className="text-xs text-rose-600 font-semibold">{error}</p>
             <button
+              type="button"
               onClick={triggerReload}
               className="mt-2 px-3 py-1 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
             >
@@ -418,6 +454,8 @@ export default function SellerReviewsPage() {
         ) : (
           filteredReviews.map((rev) => {
             const currentReplyText = replyInputs[rev.id] || "";
+            const isEditing = editingReplyIds[rev.id];
+
             return (
               <div
                 key={rev.id}
@@ -436,7 +474,7 @@ export default function SellerReviewsPage() {
                         />
                       ) : (
                         <span className="material-symbols-outlined text-slate-400 flex items-center justify-center h-full">
-                          image
+                          inventory_2
                         </span>
                       )}
                     </div>
@@ -445,13 +483,13 @@ export default function SellerReviewsPage() {
                         {rev.productName}
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        Phân loại: {rev.variantName || rev.variantSku || "Tiêu chuẩn"} • Mã đơn: #{rev.orderCode || "N/A"}
+                        Phân loại: {rev.variantName || rev.variantSku || "Mặc định"} • Mã đơn: #{rev.orderCode || "N/A"}
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-[11px] text-slate-400">
-                    {rev.createdAt}
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    {formatReviewDate(rev.createdAt)}
                   </span>
                 </div>
 
@@ -460,7 +498,7 @@ export default function SellerReviewsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-slate-900 text-xs">
-                        {rev.buyerName}
+                        {rev.buyerName || "Khách hàng"}
                       </span>
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700">
                         <span className="material-symbols-outlined text-[12px]">
@@ -468,9 +506,13 @@ export default function SellerReviewsPage() {
                         </span>
                         Đã mua hàng
                       </span>
-                      {!rev.sellerReply && (
+                      {!rev.sellerReply ? (
                         <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-50 text-rose-600">
                           Chưa phản hồi
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-600">
+                          Đã phản hồi
                         </span>
                       )}
                     </div>
@@ -490,23 +532,51 @@ export default function SellerReviewsPage() {
                   </div>
 
                   <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                    {rev.comment}
+                    {rev.comment || "Khách hàng không để lại nhận xét bằng lời."}
                   </p>
+
+                  {/* Media Album nếu có */}
+                  {rev.mediaUrls && rev.mediaUrls.length > 0 && (
+                    <div className="flex items-center gap-2 pt-1">
+                      {rev.mediaUrls.map((img, i) => (
+                        <div
+                          key={i}
+                          className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img}
+                            alt={`Review ${i}`}
+                            className="w-full h-full object-cover hover:scale-110 transition-transform cursor-pointer"
+                            onClick={() => window.open(img, "_blank")}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Seller Reply Box */}
-                {rev.sellerReply ? (
+                {rev.sellerReply && !isEditing ? (
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 font-bold text-emerald-700">
                         <span className="material-symbols-outlined text-[16px]">
                           storefront
                         </span>
-                        <span>Phản hồi của UTC Fashion</span>
+                        <span>Phản hồi của {shopName}</span>
                         <span className="text-slate-400 font-normal text-[11px]">
-                          · {rev.sellerReply.repliedAt}
+                          · {formatReviewDate(rev.sellerReply.repliedAt)}
                         </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditReply(rev.id, rev.sellerReply?.replyText)}
+                        className="text-slate-500 hover:text-emerald-700 font-semibold text-[11px] flex items-center gap-0.5 hover:underline"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">edit</span>
+                        Sửa phản hồi
+                      </button>
                     </div>
                     <p className="text-slate-700 pl-6 leading-relaxed">
                       {rev.sellerReply.replyText}
@@ -519,11 +589,17 @@ export default function SellerReviewsPage() {
                         <span className="material-symbols-outlined text-amber-500 text-[16px]">
                           rate_review
                         </span>
-                        Phản hồi công khai cho khách hàng:
+                        {isEditing ? "Chỉnh sửa phản hồi cho khách:" : "Gửi phản hồi công khai:"}
                       </span>
-                      <span className="text-[11px] text-emerald-700 font-semibold">
-                        SLA giải quyết tốt nhất: &lt; 2 giờ
-                      </span>
+                      {isEditing && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelEditReply(rev.id)}
+                          className="text-slate-400 hover:text-slate-600 text-[11px] font-semibold"
+                        >
+                          Hủy chỉnh sửa
+                        </button>
+                      )}
                     </div>
 
                     {/* Quick templates */}
@@ -548,24 +624,21 @@ export default function SellerReviewsPage() {
                         setReplyInputs((p) => ({ ...p, [rev.id]: e.target.value }))
                       }
                       rows={2}
-                      placeholder="Nhập nội dung phản hồi ân cần, giải quyết thấu đáo vấn đề của khách..."
-                      className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      placeholder="Nhập nội dung phản hồi ân cần, chuyên nghiệp đến khách hàng..."
+                      className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 leading-relaxed"
                     />
 
                     {/* Buttons */}
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          showToast("Đã tạo yêu cầu liên hệ đổi hàng cho mã đơn này.")
-                        }
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">
-                          swap_horiz
-                        </span>
-                        Đề xuất đổi trả
-                      </button>
+                      {isEditing && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelEditReply(rev.id)}
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                          Hủy
+                        </button>
+                      )}
                       <button
                         type="button"
                         disabled={replySubmittingId === rev.id || !currentReplyText.trim()}
@@ -573,7 +646,7 @@ export default function SellerReviewsPage() {
                         className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
                       >
                         <span className="material-symbols-outlined text-[15px]">send</span>
-                        {replySubmittingId === rev.id ? "Đang gửi..." : "Gửi phản hồi"}
+                        {replySubmittingId === rev.id ? "Đang gửi..." : isEditing ? "Cập nhật phản hồi" : "Gửi phản hồi"}
                       </button>
                     </div>
                   </div>
