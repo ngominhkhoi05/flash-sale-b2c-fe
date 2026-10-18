@@ -143,3 +143,38 @@ export interface UpdateProductPayload {
   tierVariationConfigs: TierVariationConfig[];
   variants: Array<CreateProductVariantDto & { id?: number }>;
 }
+
+export interface FlashSaleSlotItem {
+  id: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  reservationTtlSeconds?: number;
+  participatingStoresCount?: number;
+  availableProductSlots?: number;
+  badgeLabel?: string;
+}
+
+export interface RegisterFlashSaleItemDto {
+  slotId: number;
+  variantId: number;
+  flashSalePrice: number;
+  allocatedStock: number;
+  userPurchaseLimit?: number;
+}
+
+export interface RegisteredFlashSaleHistoryItem {
+  id: number;
+  productName: string;
+  sku: string;
+  imageUrl?: string;
+  slotTitle: string;
+  slotDate: string;
+  slotTime: string;
+  flashSalePrice: number;
+  allocatedStock: number;
+  soldStock: number;
+  status: "APPROVED" | "PENDING" | "REJECTED" | "ENDED" | string;
+  rejectReason?: string;
+}
