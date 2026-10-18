@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { MaterialSymbol, type MaterialSymbolName } from '@/components/ui/material-symbol';
@@ -61,9 +62,12 @@ export function AccountSidebar({
       {(displayName || email) && (
         <div className="bg-surface-container-lowest rounded-xl p-space-sm shadow-xs border border-outline-variant/30 flex items-center gap-space-sm">
           {avatarUrl ? (
-            <img
+            <Image
               src={avatarUrl}
               alt={displayName || 'User Avatar'}
+              width={48}
+              height={48}
+              unoptimized
               className="w-12 h-12 rounded-full object-cover border border-outline-variant"
             />
           ) : (

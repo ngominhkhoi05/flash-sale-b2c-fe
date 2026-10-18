@@ -4,11 +4,7 @@ import { defaultSeo } from "@/config/seo.config";
 import I18nProvider from "./I18nProvider";
 import "./globals.css";
 
-/**
- * Be Vietnam Pro & Material Symbols – load qua Google Fonts CDN link trong <head>.
- * Tránh lỗi Turbopack build timeout khi tải Google font trên local network.
- */
-const beVietnamVariable = "font-sans";
+
 
 export const metadata: Metadata = {
   title: {
@@ -78,6 +74,7 @@ export default function RootLayout({
           crossOrigin=""
         />
         {/* Be Vietnam Pro – Primary font */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- primary text font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
           rel="stylesheet"

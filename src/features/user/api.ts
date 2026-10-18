@@ -17,7 +17,6 @@ import { apiFetch } from '@/lib/api';
 import { z } from 'zod';
 import {
   fullNameSchema,
-  phoneRegisterSchema,
   passwordSchema,
 } from '@/features/auth/schemas';
 

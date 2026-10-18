@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useMeQuery, useUpdateProfile } from "@/features/user/hooks";
@@ -202,7 +203,14 @@ export function ProfileTab() {
           <div className="relative group cursor-pointer mb-4" onClick={() => fileInputRef.current?.click()}>
             <div className="w-30 h-30 rounded-full overflow-hidden border-2 border-outline-variant/60 shadow-inner bg-surface-container flex items-center justify-center">
               {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                <Image
+                  src={avatarPreview}
+                  alt="Avatar"
+                  width={120}
+                  height={120}
+                  unoptimized
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-3xl font-extrabold text-primary">
                   {fullName ? fullName.charAt(0).toUpperCase() : "?"}

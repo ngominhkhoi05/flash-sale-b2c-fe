@@ -90,6 +90,8 @@ export interface AdminProduct {
   primaryImageUrl?: string;
   imageUrl?: string;
   createdAt?: string;
+}
+
 export interface AdminStore {
   id: number;
   name: string;

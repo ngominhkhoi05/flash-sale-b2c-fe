@@ -14,7 +14,7 @@ import { AddressDialog } from "./AddressDialog";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 
 export function AddressBookTab() {
-  const { data: addresses, isLoading, error } = useAddresses();
+  const { data: addresses, isLoading } = useAddresses();
   const createMutation = useCreateAddress();
   const updateMutation = useUpdateAddress();
   const deleteMutation = useDeleteAddress();
