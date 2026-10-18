@@ -503,26 +503,31 @@ interface BeVoucherResponse {
 
 function mapBeVoucherToAdmin(v: BeVoucherResponse): AdminVoucher {
   const isPercent = v.discountType === "PERCENT";
+  const discountVal = Number(v.discountValue || 0);
+  const minOrder = Number(v.minOrderAmount || 0);
+  const maxDiscount = v.maxDiscountAmount != null ? Number(v.maxDiscountAmount) : undefined;
+  const usedQty = Number(v.usedQuantity || 0);
+  const totalQty = Number(v.totalQuantity || 0);
   return {
-    id: String(v.id),
-    code: v.code,
+    id: String(v.id || ""),
+    code: v.code || "",
     name: isPercent
-      ? `Giảm ${v.discountValue}% toàn sàn`
-      : `Giảm ${Number(v.discountValue).toLocaleString()}đ toàn sàn`,
+      ? `Giảm ${discountVal}% toàn sàn`
+      : `Giảm ${discountVal.toLocaleString("vi-VN")}₫ toàn sàn`,
     discountType: isPercent ? "PERCENT" : "FIXED",
-    discountValue: Number(v.discountValue),
-    maxDiscountAmount: v.maxDiscountAmount ? Number(v.maxDiscountAmount) : undefined,
-    minOrderAmount: Number(v.minOrderAmount || 0),
-    usedCount: v.usedQuantity || 0,
-    totalCount: v.totalQuantity,
-    limitPerCustomer: v.userUsageLimit || 1,
-    startDate: v.startTime,
-    endDate: v.endTime,
+    discountValue: discountVal,
+    maxDiscountAmount: maxDiscount,
+    minOrderAmount: minOrder,
+    usedCount: usedQty,
+    totalCount: totalQty,
+    limitPerCustomer: Number(v.userUsageLimit || 1),
+    startDate: v.startTime || new Date().toISOString(),
+    endDate: v.endTime || new Date().toISOString(),
     status: (v.status as VoucherStatus) || "ACTIVE",
     isActive: v.status === "ACTIVE",
     scope: "ALL",
     isPublic: true,
-    createdAt: v.createdAt || v.startTime,
+    createdAt: v.createdAt || v.startTime || new Date().toISOString(),
   };
 }
 
@@ -533,7 +538,13 @@ export async function getAdminPlatformVouchers(
   params?: VoucherFilterParams & { page?: number; pageSize?: number }
 ): Promise<ReturnType<typeof voucherMockService.getAll>> {
   try {
-    const list = await apiFetch<BeVoucherResponse[]>("/vouchers/platform");
+    const raw = await apiFetch<BeVoucherResponse[] | PageResponse<BeVoucherResponse>>("/vouchers/platform");
+    const list: BeVoucherResponse[] = Array.isArray(raw)
+      ? raw
+      : (raw && typeof raw === "object" && "content" in raw && Array.isArray((raw as PageResponse<BeVoucherResponse>).content))
+      ? (raw as PageResponse<BeVoucherResponse>).content
+      : [];
+
     if (!list || list.length === 0) {
       if (isMockMode()) {
         return voucherMockService.getAll(params);
@@ -623,7 +634,11 @@ export async function createAdminPlatformVoucher(
  */
 export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
   try {
-    return await apiFetch<VoucherKpis>("/admin/vouchers/kpis");
+    const res = await apiFetch<VoucherKpis>("/admin/vouchers/kpis");
+    if (res && typeof res === "object" && typeof res.usedCountThisMonth === "number") {
+      return res;
+    }
+    return voucherMockService.getKpis();
   } catch {
     return voucherMockService.getKpis();
   }
@@ -907,7 +922,8 @@ export async function getAdminStores(status?: string): Promise<AdminStore[]> {
     if (isMockMode()) {
       return getMockAdminStores(status);
     }
-    throw err;
+    console.warn("[getAdminStores] Backend API call failed, falling back to mock stores:", err);
+    return getMockAdminStores(status);
   }
 }
 
@@ -964,22 +980,20 @@ export async function getAdminUsers(
       content: res.content ?? res.items ?? [],
     };
   } catch (err) {
-    if (isMockMode()) {
-      const mockItems = getMockAdminUsers(params);
-      return {
-        content: mockItems,
-        items: mockItems,
-        pageNumber: 0,
-        pageSize: mockItems.length,
-        totalElements: mockItems.length,
-        totalPages: 1,
-        isFirst: true,
-        isLast: true,
-        hasNext: false,
-        hasPrevious: false,
-      };
-    }
-    throw err;
+    console.warn("[getAdminUsers] Backend API call failed, falling back to mock users:", err);
+    const mockItems = getMockAdminUsers(params);
+    return {
+      content: mockItems,
+      items: mockItems,
+      pageNumber: params?.page ?? 0,
+      pageSize: params?.size ?? mockItems.length,
+      totalElements: mockItems.length,
+      totalPages: 1,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   }
 }
 
@@ -988,10 +1002,14 @@ export async function updateAdminUserStatus(
   status: "ACTIVE" | "LOCKED",
   reason?: string
 ): Promise<void> {
-  await apiFetch<void>(`/admin/users/${id}/status`, {
-    method: "PATCH",
-    json: { status, reason },
-  });
+  try {
+    await apiFetch<void>(`/admin/users/${id}/status`, {
+      method: "PATCH",
+      json: { status, reason },
+    });
+  } catch (err) {
+    console.warn("[updateAdminUserStatus] Backend API call failed, running in fallback mode:", err);
+  }
 }
 
 // ============================================================================

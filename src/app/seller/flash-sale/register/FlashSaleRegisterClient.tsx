@@ -236,6 +236,60 @@ export function FlashSaleRegisterClient() {
     }
   };
 
+  const handleExportHistoryCsv = () => {
+    try {
+      if (!history || history.length === 0) {
+        setErrorMessage("Chưa có dữ liệu đăng ký để xuất báo cáo.");
+        return;
+      }
+      const bom = "\uFEFF";
+      const headers = [
+        "Mã đăng ký",
+        "Tên sản phẩm",
+        "Mã SKU",
+        "Phiên Flash Sale",
+        "Khung giờ",
+        "Giá sale",
+        "Số lượng mở bán",
+        "Đã bán",
+        "Tỷ lệ bán (%)",
+        "Trạng thái",
+      ];
+      const rows = history.map((item: RegisteredFlashSaleHistoryItem) => {
+        const percent = item.allocatedStock > 0 ? Math.round((item.soldStock / item.allocatedStock) * 100) : 0;
+        return [
+          `"${item.id}"`,
+          `"${(item.productName || "").replace(/"/g, '""')}"`,
+          `"${(item.sku || "").replace(/"/g, '""')}"`,
+          `"${(item.slotTitle || "").replace(/"/g, '""')}"`,
+          `"${item.slotTime || ""}"`,
+          `"${item.flashSalePrice}"`,
+          `"${item.allocatedStock}"`,
+          `"${item.soldStock}"`,
+          `"${percent}%"`,
+          `"${item.status}"`,
+        ];
+      });
+
+      const csvContent = `${bom}${headers.join(",")}\n${rows.map((r: string[]) => r.join(",")).join("\n")}`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `lich-su-flash-sale-${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setToastMessage(`Đã xuất báo cáo ${history.length} sản phẩm Flash Sale thành công!`);
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch {
+      setErrorMessage("Có lỗi xảy ra khi xuất báo cáo.");
+    }
+  };
+
   return (
     <div className="flex flex-col w-full relative">
       {/* Toast Alert */}
@@ -488,7 +542,8 @@ export function FlashSaleRegisterClient() {
               </button>
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-lg bg-surface-container-low text-secondary hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5"
+                onClick={handleExportHistoryCsv}
+                className="px-3 py-1.5 rounded-lg bg-surface-container-low text-secondary hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors"
               >
                 <MaterialSymbol name="file_download" size="[16px]" />
                 <span>Xuất báo cáo</span>
@@ -527,6 +582,7 @@ export function FlashSaleRegisterClient() {
                               src={item.imageUrl || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60"}
                               alt={item.productName}
                               fill
+                              unoptimized
                               sizes="40px"
                               className="object-cover"
                             />
@@ -729,6 +785,7 @@ export function FlashSaleRegisterClient() {
                           }
                           alt={selectedProduct.name}
                           fill
+                          unoptimized
                           sizes="64px"
                           className="object-cover"
                         />

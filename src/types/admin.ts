@@ -90,6 +90,30 @@ export interface AdminProduct {
   primaryImageUrl?: string;
   imageUrl?: string;
   createdAt?: string;
+export interface AdminStore {
+  id: number;
+  name: string;
+  storeName?: string;
+  slug?: string;
+  description?: string;
+  ownerName: string;
+  ownerFullName?: string;
+  ownerEmail: string;
+  phone: string;
+  ownerPhone?: string;
+  status: "PENDING" | "APPROVED" | "BANNED" | "SUSPENDED" | string;
+  tier?: string;
+  productsCount: number;
+  totalProducts?: number;
+  ordersCount: number;
+  totalOrders?: number;
+  ratingAvg: number;
+  createdAt: string;
+  avatarUrl: string;
+  logoUrl?: string;
+  legalName?: string;
+  businessAddress?: string;
+  defaultCommissionRate?: number;
 }
 
 export interface BatchApproveFailedItem {

@@ -22,9 +22,11 @@ export function VoucherDetailDrawer({
 }: VoucherDetailDrawerProps) {
   if (!isOpen || !voucher) return null;
 
+  const used = voucher.usedCount || 0;
+  const total = voucher.totalCount || 1;
   const usedPercent = Math.min(
     100,
-    Math.round((voucher.usedCount / voucher.totalCount) * 100)
+    Math.round((used / total) * 100)
   );
 
   const diffDays = Math.max(
@@ -129,9 +131,9 @@ export function VoucherDetailDrawer({
                 Đã sử dụng
               </span>
               <span className="font-data-tabular font-bold text-base text-on-surface mt-0.5">
-                {voucher.usedCount.toLocaleString("vi-VN")}{" "}
+                {(voucher.usedCount ?? 0).toLocaleString("vi-VN")}{" "}
                 <span className="text-secondary font-normal text-xs">
-                  / {voucher.totalCount.toLocaleString("vi-VN")}
+                  / {(voucher.totalCount ?? 0).toLocaleString("vi-VN")}
                 </span>
               </span>
               <span className="text-[11px] text-primary font-semibold mt-0.5">
@@ -144,7 +146,7 @@ export function VoucherDetailDrawer({
                 Đơn tối thiểu
               </span>
               <span className="font-data-tabular font-bold text-base text-on-surface mt-0.5">
-                {voucher.minOrderAmount.toLocaleString("vi-VN")}₫
+                {(voucher.minOrderAmount ?? 0).toLocaleString("vi-VN")}₫
               </span>
               <span className="text-[11px] text-secondary mt-0.5">
                 {voucher.limitPerCustomer} lượt / khách
@@ -157,10 +159,10 @@ export function VoucherDetailDrawer({
               </span>
               <span className="font-data-tabular font-bold text-base text-tertiary mt-0.5">
                 {(
-                  voucher.usedCount *
+                  (voucher.usedCount ?? 0) *
                   (voucher.discountType === "FIXED"
-                    ? voucher.discountValue
-                    : voucher.maxDiscountAmount || 30000)
+                    ? (voucher.discountValue ?? 0)
+                    : (voucher.maxDiscountAmount ?? 30000))
                 ).toLocaleString("vi-VN")}
                 ₫
               </span>
@@ -247,7 +249,7 @@ export function VoucherDetailDrawer({
                         }`}
                       >
                         {item.status === "REFUNDED" ? "+" : "-"}
-                        {item.discountAmount.toLocaleString("vi-VN")}₫
+                        {(item.discountAmount ?? 0).toLocaleString("vi-VN")}₫
                       </span>
                       <span className="text-[10px] text-secondary">
                         {item.usedAt}

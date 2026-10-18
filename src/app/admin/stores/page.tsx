@@ -180,10 +180,14 @@ export default function AdminStoresPage() {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <Image
-                          src={store.avatarUrl}
-                          alt={store.name}
+                          src={
+                            store.avatarUrl ||
+                            "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=100&auto=format&fit=crop&q=60"
+                          }
+                          alt={store.name || "Store"}
                           width={40}
                           height={40}
+                          unoptimized
                           className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
                         />
                         <div className="flex flex-col min-w-0">

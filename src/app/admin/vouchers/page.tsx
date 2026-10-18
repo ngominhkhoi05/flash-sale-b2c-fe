@@ -108,6 +108,55 @@ export default function AdminVouchersPage() {
   }, [refreshKey]);
 
   // Handlers
+  const handleExportCsv = () => {
+    try {
+      const items: AdminVoucher[] = data?.items || [];
+      const bom = "\uFEFF";
+      const headers = [
+        "Mã Voucher",
+        "Tên chương trình",
+        "Loại giảm",
+        "Mức giảm",
+        "Đơn tối thiểu",
+        "Phạm vi",
+        "Lượt dùng",
+        "Tổng phát hành",
+        "Bắt đầu",
+        "Kết thúc",
+        "Trạng thái",
+      ];
+      const rows = items.map((v: AdminVoucher) => [
+        `"${v.code}"`,
+        `"${v.name}"`,
+        `"${v.discountType}"`,
+        `"${v.discountValue}"`,
+        `"${v.minOrderAmount}"`,
+        `"${v.scope}"`,
+        `"${v.usedCount}"`,
+        `"${v.totalCount}"`,
+        `"${v.startDate}"`,
+        `"${v.endDate}"`,
+        `"${v.isActive ? "Hoạt động" : "Tạm dừng"}"`,
+      ]);
+
+      const csvContent = `${bom}${headers.join(",")}\n${rows.map((r: string[]) => r.join(",")).join("\n")}`;
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `danh-sach-voucher-${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast(`Đã xuất thành công file CSV ${items.length} voucher sàn!`);
+    } catch {
+      showToast("Có lỗi xảy ra khi xuất báo cáo voucher.");
+    }
+  };
+
   const handleCopyCode = (code: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(code);
@@ -235,7 +284,7 @@ export default function AdminVouchersPage() {
 
             <button
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-lowest text-on-surface font-body-sm text-sm hover:bg-surface-container transition-colors shadow-sm"
-              onClick={() => showToast("Đã xuất báo cáo danh sách voucher sàn (CSV).")}
+              onClick={handleExportCsv}
               type="button"
             >
               <span className="material-symbols-outlined text-[18px] text-secondary">
@@ -275,13 +324,13 @@ export default function AdminVouchersPage() {
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-display-sm text-2xl font-bold font-data-tabular text-on-surface">
-                    {kpis.activeCount} mã
+                    {kpis?.activeCount ?? 0} mã
                   </span>
                   <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
                     <span className="material-symbols-outlined text-[14px]">
                       trending_up
                     </span>
-                    <span>▲ {kpis.newThisWeekCount} mã tuần này</span>
+                    <span>▲ {kpis?.newThisWeekCount ?? 0} mã tuần này</span>
                   </span>
                 </div>
               </div>
@@ -294,10 +343,10 @@ export default function AdminVouchersPage() {
             <div className="mt-space-md pt-space-sm flex items-center justify-between text-xs text-secondary border-t border-outline-variant/20">
               <span className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-primary" />
-                <span>{kpis.shippingVoucherCount} mã trợ giá vận chuyển</span>
+                <span>{kpis?.shippingVoucherCount ?? 0} mã trợ giá vận chuyển</span>
               </span>
               <span className="text-on-surface font-medium">
-                {kpis.discountVoucherCount} mã giảm đơn
+                {kpis?.discountVoucherCount ?? 0} mã giảm đơn
               </span>
             </div>
           </div>
@@ -316,7 +365,7 @@ export default function AdminVouchersPage() {
                 </span>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="font-display-sm text-2xl font-bold font-data-tabular text-on-surface">
-                    {kpis.usedCountThisMonth.toLocaleString("vi-VN")}
+                    {(kpis?.usedCountThisMonth ?? 0).toLocaleString("vi-VN")}
                   </span>
                   <span className="font-body-sm text-xs text-secondary">lượt</span>
                 </div>
@@ -331,13 +380,13 @@ export default function AdminVouchersPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-secondary">Tỷ lệ sử dụng thực tế</span>
                 <span className="text-on-surface font-semibold font-data-tabular">
-                  {kpis.utilizationRate}%
+                  {kpis?.utilizationRate ?? 0}%
                 </span>
               </div>
               <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full"
-                  style={{ width: `${kpis.utilizationRate}%` }}
+                  style={{ width: `${kpis?.utilizationRate ?? 0}%` }}
                 />
               </div>
             </div>
@@ -357,7 +406,7 @@ export default function AdminVouchersPage() {
                 </span>
                 <div className="flex items-baseline gap-1 mt-1">
                   <span className="font-display-sm text-2xl font-bold font-data-tabular text-primary">
-                    {kpis.totalPlatformSubsidized.toLocaleString("vi-VN")}
+                    {(kpis?.totalPlatformSubsidized ?? 0).toLocaleString("vi-VN")}
                   </span>
                   <span className="font-headline-md text-lg text-primary font-bold">
                     ₫
@@ -374,16 +423,16 @@ export default function AdminVouchersPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-secondary">
                   Ngân sách giải ngân (Hạn mức{" "}
-                  {(kpis.budgetCap / 1000000).toLocaleString("vi-VN")}M)
+                  {(((kpis?.budgetCap ?? 0) / 1000000)).toLocaleString("vi-VN")}M)
                 </span>
                 <span className="text-on-surface font-semibold font-data-tabular">
-                  {kpis.budgetUtilizationRate}%
+                  {kpis?.budgetUtilizationRate ?? 0}%
                 </span>
               </div>
               <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full"
-                  style={{ width: `${kpis.budgetUtilizationRate}%` }}
+                  style={{ width: `${kpis?.budgetUtilizationRate ?? 0}%` }}
                 />
               </div>
             </div>
@@ -525,7 +574,7 @@ export default function AdminVouchersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 font-body-md text-sm">
-                {data.items.length === 0 ? (
+                {!data?.items || data.items.length === 0 ? (
                   <tr>
                     <td
                       className="px-space-md py-12 text-center text-secondary"
@@ -555,9 +604,11 @@ export default function AdminVouchersPage() {
                   </tr>
                 ) : (
                   data.items.map((voucher) => {
+                    const used = voucher.usedCount || 0;
+                    const total = voucher.totalCount || 1;
                     const percent = Math.min(
                       100,
-                      Math.round((voucher.usedCount / voucher.totalCount) * 100)
+                      Math.round((used / total) * 100)
                     );
                     const isHighUsage = percent >= 90;
                     const isToggleDisabled =
@@ -618,14 +669,14 @@ export default function AdminVouchersPage() {
                               {voucher.discountType === "PERCENT"
                                 ? `Giảm ${voucher.discountValue}%`
                                 : voucher.discountType === "SHIPPING"
-                                ? `Giảm ${voucher.discountValue.toLocaleString("vi-VN")}₫`
+                                ? `Giảm ${(voucher.discountValue ?? 0).toLocaleString("vi-VN")}₫`
                                 : voucher.discountType === "COIN"
                                 ? `Hoàn ${voucher.discountValue}% xu`
-                                : `Giảm ${voucher.discountValue.toLocaleString("vi-VN")}₫`}
+                                : `Giảm ${(voucher.discountValue ?? 0).toLocaleString("vi-VN")}₫`}
                             </span>
                             <span className="text-xs text-secondary">
                               {voucher.discountType === "PERCENT" && voucher.maxDiscountAmount
-                                ? `Tối đa ${voucher.maxDiscountAmount.toLocaleString("vi-VN")}₫`
+                                ? `Tối đa ${(voucher.maxDiscountAmount ?? 0).toLocaleString("vi-VN")}₫`
                                 : voucher.discountType === "SHIPPING"
                                 ? "Phí ship"
                                 : voucher.discountType === "COIN"
@@ -638,9 +689,9 @@ export default function AdminVouchersPage() {
                         {/* Đơn tối thiểu */}
                         <td className="px-space-md">
                           <span className="font-data-tabular font-medium text-on-surface">
-                            {voucher.minOrderAmount === 0
+                            {(voucher.minOrderAmount ?? 0) === 0
                               ? "0₫"
-                              : `${voucher.minOrderAmount.toLocaleString("vi-VN")}₫`}
+                              : `${(voucher.minOrderAmount ?? 0).toLocaleString("vi-VN")}₫`}
                           </span>
                         </td>
 
@@ -649,9 +700,9 @@ export default function AdminVouchersPage() {
                           <div className="flex flex-col gap-1 w-full max-w-[200px]">
                             <div className="flex items-center justify-between text-xs font-data-tabular">
                               <span className="font-semibold text-on-surface">
-                                {voucher.usedCount.toLocaleString("vi-VN")}{" "}
+                                {(voucher.usedCount ?? 0).toLocaleString("vi-VN")}{" "}
                                 <span className="text-secondary font-normal">
-                                  / {voucher.totalCount.toLocaleString("vi-VN")}
+                                  / {(voucher.totalCount ?? 0).toLocaleString("vi-VN")}
                                 </span>
                               </span>
                               <span
@@ -967,11 +1018,15 @@ export default function AdminVouchersPage() {
                     <td className="px-space-md">
                       <div className="flex items-center gap-space-sm">
                         <Image
-                          alt={item.customerName}
+                          alt={item.customerName || "Customer"}
                           width={32}
                           height={32}
+                          unoptimized
                           className="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/30"
-                          src={item.customerAvatar}
+                          src={
+                            item.customerAvatar ||
+                            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80"
+                          }
                         />
                         <div className="flex flex-col">
                           <span className="font-semibold text-on-surface leading-tight">
@@ -995,7 +1050,7 @@ export default function AdminVouchersPage() {
                     </td>
                     <td className="px-space-md font-data-tabular font-bold text-tertiary">
                       {item.status === "REFUNDED" ? "+" : "-"}
-                      {item.discountAmount.toLocaleString("vi-VN")}₫
+                      {(item.discountAmount ?? 0).toLocaleString("vi-VN")}₫
                     </td>
                     <td className="px-space-md font-data-tabular text-secondary">
                       {item.usedAt}
