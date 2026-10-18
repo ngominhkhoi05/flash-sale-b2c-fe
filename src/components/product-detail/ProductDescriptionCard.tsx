@@ -126,54 +126,70 @@ export function ProductDescriptionCard({
         </div>
       )}
 
-      {/* Size chart (BE shape — 2 row: large + standard) */}
-      {sizeChart && (
-        <div
-          className="flex flex-col gap-3 pt-2"
-          id="size-guide"
-          data-testid="size-chart"
-        >
-          <h3 className="flex items-center gap-2 text-base font-headline-sm font-bold text-on-surface">
-            <StraightenIcon className="h-4 w-4 text-base text-primary" />
-            <span>{t("sizeChartTitle")}</span>
-          </h3>
-          <div className="overflow-x-auto rounded-xl shadow-sm">
-            <table className="w-full text-left font-body-sm">
-              <thead className="bg-surface-container text-on-surface font-label-md">
-                <tr>
-                  <th className="p-3">{t("sizeChart.size")}</th>
-                  <th className="p-3">{t("sizeChart.widthCm")}</th>
-                  <th className="p-3">{t("sizeChart.heightCm")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y-0 text-on-surface-variant font-body-sm">
-                <tr
-                  data-testid="size-chart-row"
-                  data-row="standard"
-                  className="bg-surface-container-low"
-                >
-                  <td className="p-3 font-bold text-primary">
-                    {t("sizeChart.standard")}
-                  </td>
-                  <td className="p-3">{sizeChart.standard.width_cm} cm</td>
-                  <td className="p-3">{sizeChart.standard.height_cm} cm</td>
-                </tr>
-                <tr
-                  data-testid="size-chart-row"
-                  data-row="large"
-                  className="bg-surface-container-lowest"
-                >
-                  <td className="p-3 font-bold text-primary">
-                    {t("sizeChart.large")}
-                  </td>
-                  <td className="p-3">{sizeChart.large.width_cm} cm</td>
-                  <td className="p-3">{sizeChart.large.height_cm} cm</td>
-                </tr>
-              </tbody>
-            </table>
+      {/* Size chart (BE shape — 2 row: large + standard).
+       *
+       * Defensive guard (xem plan 2026-10-18-product-description-size-chart-defensive):
+       * BE ProductDetailResponse.sizeChart là Object với 5 runtime shape:
+       *   1. null/undefined — DB không set
+       *   2. "" (empty string) — 30% seed skip field
+       *   3. [] (empty ArrayList) — DTO default
+       *   4. {S,M,L,XL} — apparel (chest_cm/length_cm, KHÔNG có width_cm)
+       *   5. {standard:{width_cm,height_cm}, large:{width_cm,height_cm}} — non-apparel
+       *
+       * Component PHẢI skip render khi không phải shape #5. Ngược lại sẽ crash
+       * `Cannot read properties of undefined (reading 'width_cm')` ở runtime khi
+       * user mở sản phẩm giày / quần áo không thuộc non-apparel group. */}
+      {sizeChart &&
+        typeof sizeChart === "object" &&
+        !Array.isArray(sizeChart) &&
+        typeof (sizeChart as { standard?: { width_cm?: number } }).standard?.width_cm === "number" &&
+        typeof (sizeChart as { large?: { width_cm?: number } }).large?.width_cm === "number" && (
+          <div
+            className="flex flex-col gap-3 pt-2"
+            id="size-guide"
+            data-testid="size-chart"
+          >
+            <h3 className="flex items-center gap-2 text-base font-headline-sm font-bold text-on-surface">
+              <StraightenIcon className="h-4 w-4 text-base text-primary" />
+              <span>{t("sizeChartTitle")}</span>
+            </h3>
+            <div className="overflow-x-auto rounded-xl shadow-sm">
+              <table className="w-full text-left font-body-sm">
+                <thead className="bg-surface-container text-on-surface font-label-md">
+                  <tr>
+                    <th className="p-3">{t("sizeChart.size")}</th>
+                    <th className="p-3">{t("sizeChart.widthCm")}</th>
+                    <th className="p-3">{t("sizeChart.heightCm")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-0 text-on-surface-variant font-body-sm">
+                  <tr
+                    data-testid="size-chart-row"
+                    data-row="standard"
+                    className="bg-surface-container-low"
+                  >
+                    <td className="p-3 font-bold text-primary">
+                      {t("sizeChart.standard")}
+                    </td>
+                    <td className="p-3">{sizeChart.standard.width_cm} cm</td>
+                    <td className="p-3">{sizeChart.standard.height_cm} cm</td>
+                  </tr>
+                  <tr
+                    data-testid="size-chart-row"
+                    data-row="large"
+                    className="bg-surface-container-lowest"
+                  >
+                    <td className="p-3 font-bold text-primary">
+                      {t("sizeChart.large")}
+                    </td>
+                    <td className="p-3">{sizeChart.large.width_cm} cm</td>
+                    <td className="p-3">{sizeChart.large.height_cm} cm</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

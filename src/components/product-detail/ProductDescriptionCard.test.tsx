@@ -199,3 +199,84 @@ describe("ProductDescriptionCard – defensive guards (BE nullable)", () => {
     ).not.toThrow();
   });
 });
+
+/**
+ * Defensive guards for BE runtime shapes — see plan
+ * docs/superpowers/plans/2026-10-18-product-description-size-chart-defensive.md
+ *
+ * Background: BE ProductDetailResponse.sizeChart is declared as Object and
+ * is populated by 4 different runtime shapes:
+ *   1. null / undefined — never set in DB
+ *   2. "" (empty string) — 30% of seeded products skip the field
+ *   3. [] (empty ArrayList) — DTO default value (new ArrayList<>())
+ *   4. {S,M,L,XL} — apparel branch (chest_cm/length_cm, no width_cm)
+ *   5. {standard, large} with width_cm/height_cm — non-apparel branch
+ *
+ * Component must NOT throw on shapes #1–#4; only render table on shape #5.
+ */
+describe("ProductDescriptionCard – BE shape defensive (sizeChart)", () => {
+  it("does NOT crash when sizeChart is empty string (BE default for skipped)", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={FEATURES}
+          sizeChart={"" as unknown as SizeChartDto}
+        />,
+      ),
+    ).not.toThrow();
+    expect(screen.queryByTestId("size-chart")).toBeNull();
+  });
+
+  it("does NOT crash when sizeChart is empty array [] (BE DTO default ArrayList<>())", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={FEATURES}
+          sizeChart={[] as unknown as SizeChartDto}
+        />,
+      ),
+    ).not.toThrow();
+    expect(screen.queryByTestId("size-chart")).toBeNull();
+  });
+
+  it("does NOT crash when sizeChart has apparel shape {S,M,L,XL} (no width_cm)", () => {
+    const APPAREL_SHAPE = {
+      S: { chest_cm: 90, length_cm: 70 },
+      M: { chest_cm: 95, length_cm: 72 },
+      L: { chest_cm: 100, length_cm: 75 },
+      XL: { chest_cm: 108, length_cm: 78 },
+    };
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={FEATURES}
+          sizeChart={APPAREL_SHAPE as unknown as SizeChartDto}
+        />,
+      ),
+    ).not.toThrow();
+    expect(screen.queryByTestId("size-chart")).toBeNull();
+  });
+
+  it("does NOT render table when sizeChart is partial (standard only, no large)", () => {
+    const PARTIAL = {
+      standard: { width_cm: 50, height_cm: 69 },
+      // large intentionally missing — simulates nullable row
+    };
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={FEATURES}
+          sizeChart={PARTIAL as unknown as SizeChartDto}
+        />,
+      ),
+    ).not.toThrow();
+    // Component currently does not handle large row being missing — table
+    // would crash on render. Per Phương án C (quick defensive), we skip the
+    // entire section if either row is missing.
+    expect(screen.queryByTestId("size-chart")).toBeNull();
+  });
+});
