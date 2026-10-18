@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useMemo, useEffect } from "react";
+import Image from "next/image";
 import { AdminVoucher, VoucherKpis } from "@/types/voucher";
 import { voucherMockService } from "@/lib/mocks/vouchers.mock";
 import {
@@ -965,8 +966,10 @@ export default function AdminVouchersPage() {
                   >
                     <td className="px-space-md">
                       <div className="flex items-center gap-space-sm">
-                        <img
+                        <Image
                           alt={item.customerName}
+                          width={32}
+                          height={32}
                           className="w-8 h-8 rounded-full object-cover ring-1 ring-outline-variant/30"
                           src={item.customerAvatar}
                         />

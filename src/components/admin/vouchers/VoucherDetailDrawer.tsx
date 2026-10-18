@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { AdminVoucher, VoucherUsageHistoryItem } from "@/types/voucher";
 import { VoucherCardPreview } from "./VoucherCardPreview";
 
@@ -220,8 +221,10 @@ export function VoucherDetailDrawer({
                     key={item.id}
                   >
                     <div className="flex items-center gap-2.5">
-                      <img
+                      <Image
                         alt={item.customerName}
+                        width={28}
+                        height={28}
                         className="w-7 h-7 rounded-full object-cover ring-1 ring-outline-variant/30"
                         src={item.customerAvatar}
                       />

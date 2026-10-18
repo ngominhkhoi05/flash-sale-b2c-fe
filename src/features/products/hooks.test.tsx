@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
   useRecommendedProducts,
-  useProductDetail,
   useProductDetailBySlug,
   productKeys,
 } from "./hooks";

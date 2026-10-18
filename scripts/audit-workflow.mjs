@@ -5,7 +5,6 @@
 // Exit code 0 = pass, 1 = fail
 
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const REPO_ROOT = resolve(process.cwd());
@@ -49,7 +48,7 @@ function detectGitContext() {
       diffCached: diffCached ? diffCached.split('\n') : [],
       commitBody,
     };
-  } catch (err) {
+  } catch {
     return null;  // not a git repo or git not available
   }
 }
