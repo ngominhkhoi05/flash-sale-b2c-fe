@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useCallback } from "react";
 import type {
   RealtimeTelemetry,
   LiveSkuInventoryItem,

@@ -17,7 +17,6 @@ import {
   fetchPlatformVouchers,
   fetchRecommendedProducts,
 } from "./api";
-import { PLACEHOLDER_PRODUCT } from "@/lib/images/placeholders";
 
 const mockFetch = vi.fn();
 beforeEach(() => {

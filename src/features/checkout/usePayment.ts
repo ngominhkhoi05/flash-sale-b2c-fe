@@ -15,7 +15,7 @@
  */
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   useMutation,
   useQuery,
@@ -200,6 +200,3 @@ export function useOrderPaymentByCode(orderCode: string | undefined) {
     staleTime: Infinity,
   });
 }
-
-// (giữ import có hiệu lức — dù chỉ dùng type qua TS narrowing)
-useEffect;

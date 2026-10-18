@@ -69,6 +69,7 @@ export function RegisterForm() {
 
   const registerMutation = useRegisterMutation();
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- RHF watch() pattern hợp lệ
   const passwordValue = watch('password', '');
 
   /** Tính strength score 0-4 dựa trên content */

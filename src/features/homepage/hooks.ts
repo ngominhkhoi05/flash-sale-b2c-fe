@@ -16,13 +16,9 @@ import {
   fetchFeaturedStores,
   fetchFeaturedProducts,
   fetchRecommendedProducts,
-  type HomeBannersResponse,
   type CategoryResponse,
-  type PublicFlashSaleSlotResponse,
-  type VoucherResponse,
   type FeaturedStoreResponse,
   type RecommendedProductResponse,
-  type RecommendedProductsResponse,
   type RecommendedTab,
 } from "./api";
 
