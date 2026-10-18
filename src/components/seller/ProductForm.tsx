@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,190 @@ interface SkuRowState {
   priceError?: string;
 }
 
+function parseInlineToNodes(text: string): React.ReactNode[] {
+  const inlineRegex =
+    /(\*\*[^*]+\*\*|__[^_]+__|(?:\*|_)[^*_]+(?:\*|_)|<u>.*?<\/u>|~~.*?~~|`.*?`)/g;
+  const parts = text.split(inlineRegex);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (
+      (part.startsWith("**") && part.endsWith("**") && part.length >= 4) ||
+      (part.startsWith("__") && part.endsWith("__") && part.length >= 4)
+    ) {
+      return (
+        <strong key={index} className="font-bold text-on-surface">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (
+      (part.startsWith("*") && part.endsWith("*") && part.length >= 2) ||
+      (part.startsWith("_") && part.endsWith("_") && part.length >= 2)
+    ) {
+      return (
+        <em key={index} className="italic text-on-surface">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    if (part.startsWith("<u>") && part.endsWith("</u>") && part.length >= 7) {
+      return (
+        <u key={index} className="underline decoration-primary">
+          {part.slice(3, -4)}
+        </u>
+      );
+    }
+    if (part.startsWith("~~") && part.endsWith("~~") && part.length >= 4) {
+      return (
+        <del key={index} className="line-through text-secondary">
+          {part.slice(2, -2)}
+        </del>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      return (
+        <code
+          key={index}
+          className="px-1.5 py-0.5 rounded bg-surface-container-high font-mono text-xs text-primary"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+function renderMarkdownPreview(md: string) {
+  if (!md.trim()) {
+    return (
+      <p className="text-secondary italic text-body-sm py-4 text-center">
+        Chưa có nội dung mô tả sản phẩm...
+      </p>
+    );
+  }
+
+  const lines = md.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let currentList: { type: "ul" | "ol"; items: string[] } | null = null;
+
+  const flushList = (key: string | number) => {
+    if (!currentList) return;
+    if (currentList.type === "ul") {
+      nodes.push(
+        <ul
+          key={`ul-${key}`}
+          className="list-disc pl-5 my-2 space-y-1 text-on-surface"
+        >
+          {currentList.items.map((item, i) => (
+            <li key={i}>{parseInlineToNodes(item)}</li>
+          ))}
+        </ul>
+      );
+    } else {
+      nodes.push(
+        <ol
+          key={`ol-${key}`}
+          className="list-decimal pl-5 my-2 space-y-1 text-on-surface"
+        >
+          {currentList.items.map((item, i) => (
+            <li key={i}>{parseInlineToNodes(item)}</li>
+          ))}
+        </ol>
+      );
+    }
+    currentList = null;
+  };
+
+  lines.forEach((rawLine, idx) => {
+    const trimmed = rawLine.trim();
+
+    const bulletMatch = trimmed.match(/^[-*•]\s+(.*)$/);
+    if (bulletMatch) {
+      if (currentList && currentList.type !== "ul")
+        flushList(`ul-flush-${idx}`);
+      if (!currentList) currentList = { type: "ul", items: [] };
+      currentList.items.push(bulletMatch[1]);
+      return;
+    }
+
+    const numberMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (numberMatch) {
+      if (currentList && currentList.type !== "ol")
+        flushList(`ol-flush-${idx}`);
+      if (!currentList) currentList = { type: "ol", items: [] };
+      currentList.items.push(numberMatch[1]);
+      return;
+    }
+
+    if (currentList) flushList(`line-${idx}`);
+
+    if (!trimmed) {
+      nodes.push(<div key={`br-${idx}`} className="h-2" />);
+      return;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      nodes.push(
+        <h4
+          key={`h3-${idx}`}
+          className="font-headline-sm text-base font-bold text-on-surface mt-3 mb-1"
+        >
+          {parseInlineToNodes(trimmed.slice(4))}
+        </h4>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      nodes.push(
+        <h3
+          key={`h2-${idx}`}
+          className="font-headline-md text-lg font-bold text-on-surface mt-3.5 mb-1.5"
+        >
+          {parseInlineToNodes(trimmed.slice(3))}
+        </h3>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("# ")) {
+      nodes.push(
+        <h2
+          key={`h1-${idx}`}
+          className="font-headline-lg text-xl font-bold text-on-surface mt-4 mb-2"
+        >
+          {parseInlineToNodes(trimmed.slice(2))}
+        </h2>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("> ")) {
+      nodes.push(
+        <blockquote
+          key={`quote-${idx}`}
+          className="border-l-4 border-emerald-500 pl-3 my-2 text-secondary italic"
+        >
+          {parseInlineToNodes(trimmed.slice(2))}
+        </blockquote>
+      );
+      return;
+    }
+
+    nodes.push(
+      <p key={`p-${idx}`} className="my-1 text-on-surface leading-relaxed">
+        {parseInlineToNodes(trimmed)}
+      </p>
+    );
+  });
+
+  if (currentList) flushList("final");
+
+  return <div className="text-body-md leading-relaxed">{nodes}</div>;
+}
+
 export function ProductForm({ mode, productId }: ProductFormProps) {
   const router = useRouter();
 
@@ -48,11 +232,209 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [description, setDescription] = useState(
-    "✔ Chất liệu cao cấp: 100% Cotton Compact chải kỹ định lượng 220gsm, sợi dệt mật độ cao hạn chế xù lông tối đa.\n" +
-      "✔ Khả năng thấm hút mồ hôi vượt trội, bề mặt mát mịn, co giãn 4 chiều vận động thoải mái suốt cả ngày.\n" +
-      "✔ Đường may 2 kim gia cố vai và cổ áo chắc chắn, bo cổ dệt Spandex co giãn hồi form chuẩn không bị dão sau nhiều lần giặt.\n" +
-      "✔ Form Regular-fit hiện đại phù hợp mọi dáng người nam giới Việt Nam, dễ phối đồ dạo phố, đi học, đi làm."
+    "✔ **Chất liệu cao cấp**: 100% Cotton Compact chải kỹ định lượng 220gsm, sợi dệt mật độ cao hạn chế xù lông tối đa.\n" +
+      "✔ **Khả năng thấm hút**: Mồ hôi vượt trội, bề mặt mát mịn, co giãn 4 chiều vận động thoải mái suốt cả ngày.\n" +
+      "✔ **Đường may 2 kim**: Gia cố vai và cổ áo chắc chắn, bo cổ dệt Spandex co giãn hồi form chuẩn không bị dão sau nhiều lần giặt.\n" +
+      "✔ **Form Regular-fit**: Hiện đại phù hợp mọi dáng người nam giới Việt Nam, dễ phối đồ dạo phố, đi học, đi làm."
   );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [descTab, setDescTab] = useState<"write" | "preview">("write");
+
+  const applyFormatting = (
+    type:
+      | "bold"
+      | "italic"
+      | "underline"
+      | "strike"
+      | "h3"
+      | "bullet"
+      | "number"
+      | "quote"
+  ) => {
+    if (descTab === "preview") {
+      setDescTab("write");
+    }
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = description.substring(start, end);
+
+    let replacement = "";
+    let selectStart = start;
+    let selectEnd = end;
+
+    if (type === "bold") {
+      if (
+        selected.startsWith("**") &&
+        selected.endsWith("**") &&
+        selected.length >= 4
+      ) {
+        replacement = selected.slice(2, -2);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `**${selected}**`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "**Văn bản in đậm**";
+        selectStart = start + 2;
+        selectEnd = start + 2 + "Văn bản in đậm".length;
+      }
+    } else if (type === "italic") {
+      if (
+        selected.startsWith("*") &&
+        selected.endsWith("*") &&
+        selected.length >= 2
+      ) {
+        replacement = selected.slice(1, -1);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `*${selected}*`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "*Văn bản in nghiêng*";
+        selectStart = start + 1;
+        selectEnd = start + 1 + "Văn bản in nghiêng".length;
+      }
+    } else if (type === "underline") {
+      if (
+        selected.startsWith("<u>") &&
+        selected.endsWith("</u>") &&
+        selected.length >= 7
+      ) {
+        replacement = selected.slice(3, -4);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `<u>${selected}</u>`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "<u>Văn bản gạch chân</u>";
+        selectStart = start + 3;
+        selectEnd = start + 3 + "Văn bản gạch chân".length;
+      }
+    } else if (type === "strike") {
+      if (
+        selected.startsWith("~~") &&
+        selected.endsWith("~~") &&
+        selected.length >= 4
+      ) {
+        replacement = selected.slice(2, -2);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `~~${selected}~~`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "~~Văn bản gạch ngang~~";
+        selectStart = start + 2;
+        selectEnd = start + 2 + "Văn bản gạch ngang".length;
+      }
+    } else if (type === "h3") {
+      if (selected) {
+        replacement = selected.startsWith("### ")
+          ? selected.slice(4)
+          : `### ${selected}`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n### Tiêu đề mục\n";
+        selectStart = start + 5;
+        selectEnd = start + 5 + "Tiêu đề mục".length;
+      }
+    } else if (type === "bullet") {
+      if (selected) {
+        const lines = selected.split("\n");
+        const allBulleted = lines.every(
+          (l) => l.startsWith("- ") || l.startsWith("• ")
+        );
+        if (allBulleted) {
+          replacement = lines
+            .map((l) => l.replace(/^[-•]\s*/, ""))
+            .join("\n");
+        } else {
+          replacement = lines
+            .map((l) =>
+              l.startsWith("- ") || l.startsWith("• ") ? l : `- ${l}`
+            )
+            .join("\n");
+        }
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n- ";
+        selectStart = start + replacement.length;
+        selectEnd = selectStart;
+      }
+    } else if (type === "number") {
+      if (selected) {
+        const lines = selected.split("\n");
+        const allNumbered = lines.every((l) => /^\d+\.\s*/.test(l));
+        if (allNumbered) {
+          replacement = lines.map((l) => l.replace(/^\d+\.\s*/, "")).join("\n");
+        } else {
+          let count = 1;
+          replacement = lines
+            .map((l) => (/^\d+\.\s*/.test(l) ? l : `${count++}. ${l}`))
+            .join("\n");
+        }
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n1. ";
+        selectStart = start + replacement.length;
+        selectEnd = selectStart;
+      }
+    } else if (type === "quote") {
+      if (selected) {
+        replacement = selected.startsWith("> ")
+          ? selected.slice(2)
+          : `> ${selected}`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n> Trích dẫn\n";
+        selectStart = start + 3;
+        selectEnd = start + 3 + "Trích dẫn".length;
+      }
+    }
+
+    const nextVal =
+      description.substring(0, start) +
+      replacement +
+      description.substring(end);
+    setDescription(nextVal);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(selectStart, selectEnd);
+    });
+  };
+
+  const handleDescKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        applyFormatting("bold");
+      } else if (e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        applyFormatting("italic");
+      } else if (e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        applyFormatting("underline");
+      }
+    }
+  };
 
   // Images
   const [images, setImages] = useState<string[]>([
@@ -723,51 +1105,120 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                 <label className="font-headline-md text-body-md text-on-surface font-semibold">
                   Mô tả sản phẩm chi tiết <span className="text-tertiary">*</span>
                 </label>
-                <span className="font-body-sm text-label-sm text-secondary">
-                  Hỗ trợ Markdown &amp; Trình soạn thảo
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline font-body-sm text-label-sm text-secondary">
+                    Hỗ trợ Markdown &amp; Trình soạn thảo
+                  </span>
+                  <div className="flex items-center bg-surface-container p-0.5 rounded-lg border border-outline-variant/30 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setDescTab("write")}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                        descTab === "write"
+                          ? "bg-surface-container-lowest text-primary shadow-xs font-semibold"
+                          : "text-secondary hover:text-on-surface"
+                      }`}
+                    >
+                      Soạn thảo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDescTab("preview")}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                        descTab === "preview"
+                          ? "bg-surface-container-lowest text-primary shadow-xs font-semibold"
+                          : "text-secondary hover:text-on-surface"
+                      }`}
+                    >
+                      Xem trước
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-lowest shadow-sm">
                 <div className="flex items-center gap-1 p-1.5 bg-surface-container-low border-b border-outline-variant/20 flex-wrap">
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-bold"
+                    onClick={() => applyFormatting("bold")}
+                    title="In đậm (Ctrl+B)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-bold text-sm transition-colors active:scale-95"
                   >
                     B
                   </button>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center italic"
+                    onClick={() => applyFormatting("italic")}
+                    title="In nghiêng (Ctrl+I)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center italic text-sm transition-colors active:scale-95"
                   >
                     I
                   </button>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center underline"
+                    onClick={() => applyFormatting("underline")}
+                    title="Gạch chân (Ctrl+U)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center underline text-sm transition-colors active:scale-95"
                   >
                     U
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyFormatting("strike")}
+                    title="Gạch ngang"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center line-through text-sm transition-colors active:scale-95"
+                  >
+                    S
                   </button>
                   <div className="h-4 w-px bg-outline-variant/40 mx-1"></div>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center"
+                    onClick={() => applyFormatting("h3")}
+                    title="Tiêu đề mục (###)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-bold text-xs transition-colors active:scale-95"
+                  >
+                    H
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyFormatting("bullet")}
+                    title="Danh sách gạch đầu dòng"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center transition-colors active:scale-95"
                   >
                     <MaterialSymbol name="format_list_bulleted" size="[18px]" />
                   </button>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center"
+                    onClick={() => applyFormatting("number")}
+                    title="Danh sách số thứ tự"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center transition-colors active:scale-95"
                   >
                     <MaterialSymbol name="format_list_numbered" size="[18px]" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => applyFormatting("quote")}
+                    title="Trích dẫn"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-serif font-bold text-sm transition-colors active:scale-95"
+                  >
+                    &rdquo;
+                  </button>
                 </div>
-                <textarea
-                  rows={6}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Mô tả chi tiết xuất xứ, chất liệu vải, tính năng, hướng dẫn giặt ủi và bảo quản..."
-                  className="w-full p-3.5 bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none resize-y leading-relaxed"
-                />
+
+                {descTab === "write" ? (
+                  <textarea
+                    ref={textareaRef}
+                    rows={6}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onKeyDown={handleDescKeyDown}
+                    placeholder="Mô tả chi tiết xuất xứ, chất liệu vải, tính năng, hướng dẫn giặt ủi và bảo quản..."
+                    className="w-full p-3.5 bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none resize-y leading-relaxed"
+                  />
+                ) : (
+                  <div className="w-full min-h-[160px] p-3.5 bg-surface-container-lowest font-body-md text-body-md text-on-surface leading-relaxed overflow-y-auto">
+                    {renderMarkdownPreview(description)}
+                  </div>
+                )}
               </div>
             </div>
           </section>
