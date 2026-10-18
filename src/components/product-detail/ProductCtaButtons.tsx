@@ -8,12 +8,17 @@
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
+/** Lý do disable CTA. Mỗi reason map tới 1 i18n key cho tooltip. */
+export type CtaDisabledReason =
+  | "canPurchase" // Cho phép mua
+  | "contact" // Không có giá (liên hệ shop)
+  | "outOfStock"; // Hết hàng (0 variant ACTIVE)
+
 export interface ProductCtaButtonsProps {
   /** Render mode — standard (2 buttons) or flash sale (1 urgent CTA). */
   mode: "standard" | "flash";
-  /** Khi false → disable nút "Mua ngay" + Add to cart, hiển thị tooltip.
-   *  Dùng khi BE trả giá null (quyết định user 2026-10-18 hide-cta). */
-  canPurchase?: boolean;
+  /** Lý do disable. Mặc định 'canPurchase'. */
+  disabledReason?: CtaDisabledReason;
   /** Khi true → disable buttons + show spinner. Dùng khi mutation đang chạy. */
   isLoading?: boolean;
   /** Add-to-Cart handler (standard mode only). */
@@ -23,18 +28,24 @@ export interface ProductCtaButtonsProps {
   className?: string;
 }
 
+const DISABLED_REASON_KEY: Record<Exclude<CtaDisabledReason, "canPurchase">, string> = {
+  contact: "disabledReasonContact",
+  outOfStock: "disabledReasonOutOfStock",
+};
+
 export function ProductCtaButtons({
   mode,
-  canPurchase = true,
+  disabledReason = "canPurchase",
   isLoading = false,
   onAddToCart,
   onBuyNow,
   className,
 }: ProductCtaButtonsProps) {
   const t = useTranslations("productDetail.cta");
-  const disabledReason = t("disabledReasonContact");
-  // Disabled khi canPurchase=false HOẶC đang loading.
-  const isDisabled = !canPurchase || isLoading;
+  const reasonKey = disabledReason === "canPurchase" ? null : DISABLED_REASON_KEY[disabledReason];
+  const disabledTooltip = reasonKey ? t(reasonKey) : undefined;
+  // Disabled khi disabledReason != 'canPurchase' HOẶC đang loading.
+  const isDisabled = disabledReason !== "canPurchase" || isLoading;
 
   if (mode === "flash") {
     return (
@@ -44,7 +55,7 @@ export function ProductCtaButtons({
           onClick={onBuyNow}
           disabled={isDisabled}
           aria-disabled={isDisabled}
-          title={isDisabled ? disabledReason : undefined}
+          title={isDisabled ? disabledTooltip : undefined}
           className={cn(
             "flex h-13 w-full animate-bounce items-center justify-center gap-2 rounded-lg px-6 py-3 text-lg font-bold text-white shadow-lg transition-all",
             isDisabled
@@ -73,7 +84,7 @@ export function ProductCtaButtons({
         onClick={onAddToCart}
         disabled={isDisabled}
         aria-disabled={isDisabled}
-        title={isDisabled ? disabledReason : undefined}
+        title={isDisabled ? disabledTooltip : undefined}
         className={cn(
           "flex h-12 items-center justify-center gap-2 rounded-lg border-2 px-6 text-[13px] font-bold shadow-sm transition-all",
           isDisabled
@@ -93,7 +104,7 @@ export function ProductCtaButtons({
         onClick={onBuyNow}
         disabled={isDisabled}
         aria-disabled={isDisabled}
-        title={isDisabled ? disabledReason : undefined}
+        title={isDisabled ? disabledTooltip : undefined}
         className={cn(
           "flex h-12 items-center justify-center gap-2 rounded-lg px-6 text-[13px] font-bold text-on-primary shadow-md transition-all",
           isDisabled

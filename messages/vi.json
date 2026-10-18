@@ -912,7 +912,8 @@
       "addToCart": "Thêm Vào Giỏ Hàng",
       "buyNow": "Mua Ngay",
       "buyNowFlash": "⚡ Mua ngay – Giữ hàng 5 phút",
-      "disabledReasonContact": "Vui lòng liên hệ shop để biết giá và đặt hàng"
+      "disabledReasonContact": "Vui lòng liên hệ shop để biết giá và đặt hàng",
+      "disabledReasonOutOfStock": "Sản phẩm hiện đã hết hàng"
     },
     "store": {
       "viewShop": "Xem Shop",
@@ -982,6 +983,7 @@
       "flashMaxQty": "Trong sự kiện Flash Sale, mỗi khách chỉ được đặt tối đa {max} áo!",
       "saveSuccess": "Đã Lưu",
       "variantNotAvailable": "Biến thể này hiện không khả dụng. Vui lòng chọn màu hoặc kích thước khác.",
+      "variantAutoSwitched": "Đã tự động chọn biến thể còn hàng phù hợp",
       "cartError": {
         "GENERIC": "Không thể cập nhật giỏ hàng. Vui lòng thử lại.",
         "CART_400_1": "Số lượng tồn kho không đủ",

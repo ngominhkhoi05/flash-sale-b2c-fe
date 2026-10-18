@@ -1,5 +1,5 @@
 /**
- * ProductCtaButtons – Section 14.
+ * ProductCtaButtons - Section 14.
  * Tests: standard 2-button mode, flash single-button mode, click handlers.
  */
 import { describe, it, expect, vi } from "vitest";
@@ -12,7 +12,7 @@ function renderWithIntl(ui: React.ReactElement) {
   return render(<TestWrapper>{ui}</TestWrapper>);
 }
 
-describe("ProductCtaButtons – standard mode", () => {
+describe("ProductCtaButtons - standard mode", () => {
   it("renders two CTA buttons (Add to Cart + Buy Now)", () => {
     renderWithIntl(
       <ProductCtaButtons
@@ -54,7 +54,7 @@ describe("ProductCtaButtons – standard mode", () => {
   });
 });
 
-describe("ProductCtaButtons – flash mode", () => {
+describe("ProductCtaButtons - flash mode", () => {
   it("renders a single full-width flash CTA with hold-for-5-min text", () => {
     renderWithIntl(
       <ProductCtaButtons
@@ -65,7 +65,6 @@ describe("ProductCtaButtons – flash mode", () => {
     expect(
       screen.getByRole("button", { name: /Mua ngay.*Giữ hàng 5 phút/ })
     ).toBeInTheDocument();
-    // Single CTA only — Add-to-Cart must not appear in flash mode
     expect(
       screen.queryByRole("button", { name: /Thêm Vào Giỏ Hàng/ })
     ).not.toBeInTheDocument();
@@ -87,16 +86,16 @@ describe("ProductCtaButtons – flash mode", () => {
   });
 });
 
-// ── Defensive disabled tests (2026-10-18 bug #2 fix — hide-cta) ─────────
-describe("ProductCtaButtons – canPurchase=false (contact-only)", () => {
-  it("disables Add-to-Cart button with title tooltip when canPurchase=false", () => {
+// Defensive disabled tests (Subplan B 2026-10-18: hide-cta + outOfStock)
+describe("ProductCtaButtons - disabledReason='contact' (no price)", () => {
+  it("disables Add-to-Cart button with title tooltip when disabledReason='contact'", () => {
     renderWithIntl(
       <ProductCtaButtons
         mode="standard"
-        canPurchase={false}
+        disabledReason="contact"
         onAddToCart={() => {}}
         onBuyNow={() => {}}
-      />,
+      />
     );
     const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
     expect(addBtn).toBeDisabled();
@@ -104,30 +103,44 @@ describe("ProductCtaButtons – canPurchase=false (contact-only)", () => {
     expect(addBtn).toHaveAttribute("title", "Vui lòng liên hệ shop để biết giá và đặt hàng");
   });
 
-  it("disables Buy-Now button when canPurchase=false", () => {
+  it("disables Buy-Now button when disabledReason='contact'", () => {
     renderWithIntl(
       <ProductCtaButtons
         mode="standard"
-        canPurchase={false}
+        disabledReason="contact"
         onAddToCart={() => {}}
         onBuyNow={() => {}}
-      />,
+      />
     );
     const buyBtn = screen.getByRole("button", { name: /Mua Ngay/ });
     expect(buyBtn).toBeDisabled();
     expect(buyBtn).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("disables flash CTA when canPurchase=false", () => {
+  it("disables flash CTA when disabledReason='contact'", () => {
     renderWithIntl(
       <ProductCtaButtons
         mode="flash"
-        canPurchase={false}
+        disabledReason="contact"
         onBuyNow={() => {}}
-      />,
+      />
     );
     const flashBtn = screen.getByRole("button", { name: /Mua ngay.*Giữ hàng 5 phút/ });
     expect(flashBtn).toBeDisabled();
     expect(flashBtn).toHaveAttribute("title", "Vui lòng liên hệ shop để biết giá và đặt hàng");
+  });
+
+  it("disables CTA with outOfStock tooltip when disabledReason='outOfStock'", () => {
+    renderWithIntl(
+      <ProductCtaButtons
+        mode="standard"
+        disabledReason="outOfStock"
+        onAddToCart={() => {}}
+        onBuyNow={() => {}}
+      />
+    );
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    expect(addBtn).toBeDisabled();
+    expect(addBtn).toHaveAttribute("title", "Sản phẩm hiện đã hết hàng");
   });
 });

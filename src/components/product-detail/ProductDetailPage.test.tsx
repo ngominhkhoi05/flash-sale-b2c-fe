@@ -5,14 +5,14 @@
  * - ProductReviewsCard, ProductRelatedStores, ProductBestSellers (new)
  * - Layout structure follows Stitch 12-col grid
  */
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 import { mockProductDetail } from "@/features/products";
 
-// ── Mock useAddToCart (cart) + useRouter (navigation) ────────────────────────
+// Mock useAddToCart (cart) + useRouter (navigation)
 const mockAddMutateAsync = vi.fn();
 const mockPush = vi.fn();
 const mockUseAuth = vi.fn();
@@ -42,7 +42,7 @@ vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-// default mock: isAuthenticated = true (tránh test cũ phải override).
+// default mock: isAuthenticated = true
 mockUseAuth.mockReturnValue({
   isAuthenticated: true,
   isHydrated: true,
@@ -55,13 +55,11 @@ describe("ProductDetailPage", () => {
 
   test("renders product detail page container", () => {
     render(<ProductDetailPage {...defaultProps} />, { wrapper: TestWrapper });
-    // Page renders without crashing - product name appears (multiple times is OK)
     expect(screen.getAllByText(mockProductDetail.name).length).toBeGreaterThan(0);
   });
 
   test("renders reviews section (section 18)", () => {
     render(<ProductDetailPage {...defaultProps} />, { wrapper: TestWrapper });
-    // Reviews heading
     expect(screen.getByRole("heading", { name: /đánh giá/i })).toBeInTheDocument();
   });
 
@@ -82,15 +80,14 @@ describe("ProductDetailPage", () => {
 
   test("renders store card", () => {
     render(<ProductDetailPage {...defaultProps} />, { wrapper: TestWrapper });
-    // Store name appears in store card (also in breadcrumb, so use getAllByText)
     expect(
       screen.getAllByText("UTC Fashion Official").length,
     ).toBeGreaterThan(0);
   });
 });
 
-// ── Subplan A (2026-10-18) — wire ProductCtaButtons → useAddToCart ──────
-describe("ProductDetailPage – wire cart CTA (2026-10-18)", () => {
+// Subplan A (2026-10-18) - wire ProductCtaButtons to useAddToCart
+describe("ProductDetailPage - wire cart CTA (2026-10-18)", () => {
   beforeEach(() => {
     mockAddMutateAsync.mockReset();
     mockPush.mockReset();
@@ -105,7 +102,6 @@ describe("ProductDetailPage – wire cart CTA (2026-10-18)", () => {
     mockAddMutateAsync.mockResolvedValue({});
 
     const user = userEvent.setup();
-    // Product KHÔNG có flashSale để CTA ở standard mode (2 buttons).
     const standardProduct = {
       ...mockProductDetail,
       flashSales: [],
@@ -118,7 +114,6 @@ describe("ProductDetailPage – wire cart CTA (2026-10-18)", () => {
     await user.click(addBtn);
 
     expect(mockAddMutateAsync).toHaveBeenCalledTimes(1);
-    // Phải truyền { variantId: number, quantity: number }
     const arg = mockAddMutateAsync.mock.calls[0][0];
     expect(arg).toMatchObject({ quantity: expect.any(Number) });
     expect(typeof arg.variantId).toBe("number");
@@ -142,9 +137,7 @@ describe("ProductDetailPage – wire cart CTA (2026-10-18)", () => {
     const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
     await user.click(addBtn);
 
-    // Không gọi API cart
     expect(mockAddMutateAsync).not.toHaveBeenCalled();
-    // Redirect về /login?redirect=...
     expect(mockPush).toHaveBeenCalledTimes(1);
     const pushedUrl = mockPush.mock.calls[0][0];
     expect(pushedUrl).toMatch(/^\/login\?redirect=/);
@@ -162,14 +155,82 @@ describe("ProductDetailPage – wire cart CTA (2026-10-18)", () => {
       wrapper: TestWrapper,
     });
 
-    // mockProductDetail có flashSale ACTIVE → CTA ở flash mode (1 button).
     const buyBtn = screen.getByRole("button", {
       name: /Mua ngay.*Giữ hàng 5 phút/,
     });
     await user.click(buyBtn);
 
-    // Phải add to cart trước rồi mới navigate.
     expect(mockAddMutateAsync).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith("/checkout");
+  });
+});
+
+// Subplan B (2026-10-18) - auto-switch UX when variantForCurrent undefined
+describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
+  beforeEach(() => {
+    mockAddMutateAsync.mockReset();
+    mockPush.mockReset();
+    mockUseAuth.mockReset();
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+    });
+  });
+
+  test("auto-switch: khi combo (color, size) chọn không match variant ACTIVE, tự pick variant ACTIVE đầu tiên", async () => {
+    // Disable all variants EXCEPT (Trắng Tinh Khôi, M) and (Trắng Tinh Khôi, L).
+    // Default selection = (Trắng Tinh Khôi, S) from mock, which is disabled.
+    // -> auto-pick should pick one of the 2 active variants.
+    const product = {
+      ...mockProductDetail,
+      flashSales: [],
+      variants: mockProductDetail.variants.map((v) => ({
+        ...v,
+        isDisabled:
+          v.attributes.Color === "Trắng Tinh Khôi" && v.attributes.Size === "M"
+            ? false
+            : v.attributes.Color === "Trắng Tinh Khôi" &&
+                v.attributes.Size === "L"
+              ? false
+              : true,
+      })),
+    };
+    mockAddMutateAsync.mockResolvedValue({});
+
+    const user = userEvent.setup();
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    await user.click(addBtn);
+
+    expect(mockAddMutateAsync).toHaveBeenCalledTimes(1);
+    const arg = mockAddMutateAsync.mock.calls[0][0];
+    expect(typeof arg.variantId).toBe("number");
+    expect(arg.variantId).toBeGreaterThan(0);
+  });
+
+  test("CTA disabled với tooltip 'out of stock' khi product có 0 variant ACTIVE", () => {
+    const product = {
+      ...mockProductDetail,
+      flashSales: [],
+      variants: mockProductDetail.variants.map((v) => ({
+        ...v,
+        isDisabled: true,
+        stockQuantity: 0,
+      })),
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    const buyBtn = screen.getByRole("button", { name: /Mua Ngay/ });
+
+    expect(addBtn).toBeDisabled();
+    expect(buyBtn).toBeDisabled();
+
+    expect(addBtn).toHaveAttribute(
+      "title",
+      expect.stringMatching(/hết hàng|out of stock/i),
+    );
   });
 });

@@ -141,6 +141,30 @@ function pickActiveFlashSale(
   return active ?? flashSales[0] ?? null;
 }
 
+/**
+ * Pick variant ACTIVE (không isDisabled) đầu tiên, hoặc undefined.
+ * Ưu tiên match với combo (selectedColor, selectedSize) hiện tại.
+ * Subplan B (2026-10-18): dùng cho auto-switch UX khi user selection không
+ * khớp variant ACTIVE nào.
+ */
+function pickActiveVariant(
+  variants: ProductDetail["variants"],
+  preferredColor?: string,
+  preferredSize?: string,
+): ProductDetail["variants"][number] | undefined {
+  const active = variants.filter((v) => !v.isDisabled);
+  if (active.length === 0) return undefined;
+  // Ưu tiên variant ACTIVE match preferredColor + preferredSize.
+  if (preferredColor && preferredSize) {
+    const exact = active.find(
+      (v) =>
+        v.attributes.Color === preferredColor && v.attributes.Size === preferredSize,
+    );
+    if (exact) return exact;
+  }
+  return active[0];
+}
+
 /** Discount % = round((1 - flashPrice/originalPrice) * 100), 0 nếu invalid. */
 function computeDiscountPercent(
   originalPrice: number,
@@ -164,13 +188,25 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const colors = useMemo(() => deriveColors(product), [product]);
   const sizes = useMemo(() => deriveSizes(product), [product]);
 
-  const [selectedColor, setSelectedColor] = useState<string>(
-    () => colors[0]?.name ?? "",
+  // Subplan B (2026-10-18) — auto-switch: nếu default colors[0] / sizes[0] không
+  // trỏ tới variant ACTIVE nào, tự pick variant ACTIVE đầu tiên để sync state.
+  // Tính trực tiếp ở useState initial (cheap, chỉ chạy 1 lần mount).
+  const initialPick = pickActiveVariant(
+    product.variants,
+    colors[0]?.name,
+    sizes.find((s) => !s.disabled)?.label,
   );
-  const [selectedSize, setSelectedSize] = useState<string>(() => {
-    const firstAvailable = sizes.find((s) => !s.disabled);
-    return firstAvailable?.label ?? sizes[0]?.label ?? "";
-  });
+
+  const [selectedColor, setSelectedColor] = useState<string>(
+    () => initialPick?.attributes.Color ?? colors[0]?.name ?? "",
+  );
+  const [selectedSize, setSelectedSize] = useState<string>(
+    () =>
+      initialPick?.attributes.Size ??
+      sizes.find((s) => !s.disabled)?.label ??
+      sizes[0]?.label ??
+      "",
+  );
   const [quantity, setQuantity] = useState<number>(1);
 
   // ── Subplan A (2026-10-18) — wire cart CTA ───────────────────────────
@@ -202,13 +238,17 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
 
   async function handleAddToCart() {
     if (!requireAuthOrRedirect("addToCart")) return;
-    if (!variantForCurrent || variantForCurrent.isDisabled) {
+    if (!effectiveVariant) {
       toast.error(t("toast.variantNotAvailable"));
       return;
     }
+    if (effectiveVariant !== variantForCurrent) {
+      // Auto-switch: thông báo user biết variant đã đổi.
+      toast.info(t("toast.variantAutoSwitched"));
+    }
     try {
       await addToCartMut.mutateAsync({
-        variantId: variantForCurrent.id,
+        variantId: effectiveVariant.id,
         quantity: safeQuantity,
       });
       toast.success(t("toast.addedToCart"));
@@ -219,13 +259,16 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
 
   async function handleBuyNow() {
     if (!requireAuthOrRedirect("buyNow")) return;
-    if (!variantForCurrent || variantForCurrent.isDisabled) {
+    if (!effectiveVariant) {
       toast.error(t("toast.variantNotAvailable"));
       return;
     }
+    if (effectiveVariant !== variantForCurrent) {
+      toast.info(t("toast.variantAutoSwitched"));
+    }
     try {
       await addToCartMut.mutateAsync({
-        variantId: variantForCurrent.id,
+        variantId: effectiveVariant.id,
         quantity: safeQuantity,
       });
       // Add thành công → navigate thẳng /checkout (quyết định user 2026-10-18).
@@ -240,15 +283,26 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const flashMaxQty = activeFlashSale ? 2 : 2;
   const maxQty = isFlashSale ? flashMaxQty : stockCount;
 
-  // Derived: khi color/size không khớp variant nào active, tự động chọn size available.
+  // Derived: variant cho (selectedColor, selectedSize) hiện tại.
   const variantForCurrent = product.variants.find(
     (v) =>
       v.attributes["Color"] === selectedColor &&
       v.attributes["Size"] === selectedSize,
   );
+  // Subplan B (2026-10-18) — auto-switch khi combo không match variant ACTIVE nào.
+  // Trả về variant ACTIVE để CTA dùng thay vì undefined → user vẫn mua được.
+  // Tính trực tiếp (cheap): chỉ filter + find trên ~12 variants. React Compiler
+  // không thể memo hóa vì `variantForCurrent` không phải state/prop.
+  const effectiveVariant =
+    variantForCurrent &&
+    !variantForCurrent.isDisabled &&
+    variantForCurrent.stockQuantity > 0
+      ? variantForCurrent
+      : pickActiveVariant(product.variants, selectedColor, selectedSize);
+
   const effectiveSize =
-    variantForCurrent && !variantForCurrent.isDisabled
-      ? selectedSize
+    effectiveVariant && !effectiveVariant.isDisabled
+      ? effectiveVariant.attributes.Size
       : (sizes.find((s) => !s.disabled)?.label ?? selectedSize);
 
   // Clamp quantity theo effective maxQty — dùng event handler wrapper thay vì effect.
@@ -280,12 +334,21 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const displayMinPrice = product.minPrice;
   const displayMaxPrice = product.maxPrice;
 
-  // Quyết định user 2026-10-18 (hide-cta): nút "Mua ngay" bị disable khi
-  // product không có giá min/max. Vẫn cho phép "Thêm vào giỏ" (một số user
-  // thích add trước, liên hệ sau).
-  const canPurchase =
+  // Quyết định user 2026-10-18 (hide-cta): CTA bị disable khi:
+  //   - Không có giá (BE trả null) → reason="contact"
+  //   - Hết hàng (0 variant ACTIVE) → reason="outOfStock"
+  //   - Ngược lại: reason="canPurchase"
+  const hasAnyPrice =
     product.minPrice !== null ||
     product.variants.some((v) => v.originalPrice > 0);
+  const hasAnyActiveVariant = product.variants.some(
+    (v) => !v.isDisabled && v.stockQuantity > 0,
+  );
+  const ctaDisabledReason: "canPurchase" | "contact" | "outOfStock" = !hasAnyPrice
+    ? "contact"
+    : !hasAnyActiveVariant
+      ? "outOfStock"
+      : "canPurchase";
 
   // Pricing for box
   const pricingMinPrice = activeFlashSale
@@ -369,11 +432,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onChange={setQuantity}
           />
 
-          {/* Section 7: CTA buttons — disable Buy Now khi không có giá (hide-cta).
-              Wired Subplan A (2026-10-18): gọi useAddToCart + navigate. */}
+          {/* Section 7: CTA buttons — disable khi không có giá hoặc hết hàng
+              (Subplan B 2026-10-18: truyền `disabledReason` để tooltip đúng lý do). */}
           <ProductCtaButtons
             mode={variant}
-            canPurchase={canPurchase}
+            disabledReason={ctaDisabledReason}
             isLoading={addToCartMut.isPending}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
