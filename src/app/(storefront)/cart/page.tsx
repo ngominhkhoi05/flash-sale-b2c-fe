@@ -11,6 +11,8 @@
  * @see src/components/storefront/cart/CartStoreGroupCard.tsx
  * @see src/components/storefront/cart/CartSummary.tsx
  */
+"use client";
+
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { useTranslations } from "next-intl";
