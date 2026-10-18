@@ -36,8 +36,9 @@ export function useSaveVoucher() {
       qc.invalidateQueries({ queryKey: voucherKeys.mine() });
       toast.success(`Đã lưu voucher ${saved.code} vào kho thành công!`);
     },
-    onError: (err: any) => {
-      toast.error(err?.message || "Mã voucher không hợp lệ hoặc đã hết lượt lưu.");
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Mã voucher không hợp lệ hoặc đã hết lượt lưu.";
+      toast.error(msg);
     },
   });
 }

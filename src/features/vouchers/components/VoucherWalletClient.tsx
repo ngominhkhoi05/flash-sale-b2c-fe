@@ -33,6 +33,7 @@ export function VoucherWalletClient() {
   const [activeTab, setActiveTab] = useState<VoucherTab>("all");
   const [inputCode, setInputCode] = useState("");
   const [selectedTerms, setSelectedTerms] = useState<string | null>(null);
+  const [currentTime] = useState(() => Date.now());
 
   const { data: myVouchers, isLoading } = useMyVouchers();
   const saveMutation = useSaveVoucher();
@@ -52,11 +53,20 @@ export function VoucherWalletClient() {
       // Tính giờ còn lại nếu có endTime
       let expiringHours: number | undefined;
       if (v.endTime) {
-        const msLeft = new Date(v.endTime).getTime() - Date.now();
+        const msLeft = new Date(v.endTime).getTime() - currentTime;
         if (msLeft > 0 && msLeft <= 24 * 60 * 60 * 1000) {
           expiringHours = Math.ceil(msLeft / (60 * 60 * 1000));
         }
       }
+
+      const rawStatus = String(v.status);
+      const isUsed = Boolean(v.userUsageLimit && v.userUsageCount >= v.userUsageLimit);
+      const voucherStatus: "ACTIVE" | "USED" | "EXPIRED" =
+        rawStatus === "EXPIRED" || rawStatus === "DISABLED"
+          ? "EXPIRED"
+          : isUsed
+          ? "USED"
+          : "ACTIVE";
 
       return {
         id: String(v.id),
@@ -71,11 +81,11 @@ export function VoucherWalletClient() {
         usedPercent: usedPct,
         expiryLabel: `HSD: ${v.endTime ? v.endTime.split("T")[0] : "Chưa xác định"}`,
         expiringInHours: expiringHours,
-        status: v.status as any,
+        status: voucherStatus,
         terms: v.description || "Áp dụng theo quy chế khuyến mại của Vibe Mart.",
       };
     });
-  }, [myVouchers]);
+  }, [myVouchers, currentTime]);
 
   // Lọc theo tab
   const filteredVouchers = useMemo(() => {
