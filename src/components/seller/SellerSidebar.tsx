@@ -30,7 +30,7 @@ const SELLER_NAV_GROUPS: SellerNavGroup[] = [
     title: "BÁN HÀNG",
     items: [
       { key: "products", label: "Sản phẩm", href: "/seller/products", icon: "inventory_2" },
-      { key: "orders", label: "Đơn hàng", href: "/seller/orders", icon: "shopping_bag", badge: "12", badgeVariant: "error" },
+      { key: "orders", label: "Đơn hàng", href: "/seller/orders", icon: "shopping_bag" },
       { key: "reviews", label: "Đánh giá", href: "/seller/reviews", icon: "star" },
     ],
   },
@@ -57,6 +57,7 @@ const SELLER_NAV_GROUPS: SellerNavGroup[] = [
 ];
 
 import { useMyStore } from "@/hooks/useMyStore";
+import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
 
 interface SellerSidebarProps {
   storeName?: string;
@@ -76,6 +77,7 @@ export function SellerSidebar({
 }: SellerSidebarProps) {
   const pathname = usePathname();
   const { store, storeName: realStoreName, storeCode: realStoreCode, storeStatusText, initials } = useMyStore();
+  const { unreadCount, markAllAsSeen } = useSellerOrderNotifications();
 
   const finalStoreName = propStoreName || realStoreName || "Gian hàng";
   const finalStoreCode = propStoreCode || realStoreCode || (store?.id ? `#VM-${store.id}` : "#VM-CHUA-CO");
@@ -167,10 +169,25 @@ export function SellerSidebar({
               {group.items.map((item) => {
                 const isActive = Boolean(item.href && item.href === activeHref);
 
+                const isOrdersItem = item.key === "orders";
+                const displayBadge = isOrdersItem
+                  ? unreadCount > 0
+                    ? unreadCount > 9
+                      ? "9+"
+                      : String(unreadCount)
+                    : undefined
+                  : item.badge;
+                const badgeStyle = isOrdersItem ? "error" : item.badgeVariant;
+
                 return (
                   <Link
                     key={item.key}
                     href={item.href}
+                    onClick={() => {
+                      if (isOrdersItem) {
+                        markAllAsSeen();
+                      }
+                    }}
                     className={cn(
                       "flex items-center justify-between px-space-sm py-2 rounded-lg transition-colors font-body-md text-body-md",
                       isActive
@@ -190,18 +207,18 @@ export function SellerSidebar({
                       <span className="truncate">{item.label}</span>
                     </div>
 
-                    {item.badge && (
+                    {displayBadge && (
                       <span
                         className={cn(
                           "font-label-sm text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0",
-                          item.badgeVariant === "error"
+                          badgeStyle === "error"
                             ? "bg-error text-on-error"
-                            : item.badgeVariant === "seller"
+                            : badgeStyle === "seller"
                             ? "bg-emerald-100 text-emerald-800"
                             : "bg-surface-container text-secondary"
                         )}
                       >
-                        {item.badge}
+                        {displayBadge}
                       </span>
                     )}
                   </Link>

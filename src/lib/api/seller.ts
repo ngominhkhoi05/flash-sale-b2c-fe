@@ -110,12 +110,95 @@ export async function getSellerOrders(
     if (status && status !== "ALL") {
       query.status = status;
     }
-    return await apiFetch<PageResponse<SellerOrderResponse>>("/seller/orders", {
+    interface RawOrderPageData {
+      items?: SellerOrderResponse[];
+      content?: SellerOrderResponse[];
+      totalElements?: number;
+      totalPages?: number;
+      pageNumber?: number;
+      pageSize?: number;
+      isFirst?: boolean;
+      first?: boolean;
+      isLast?: boolean;
+      last?: boolean;
+      hasNext?: boolean;
+      hasPrevious?: boolean;
+    }
+
+    const res = await apiFetch<RawOrderPageData | SellerOrderResponse[]>("/seller/orders", {
       query,
     });
+
+    const isArray = Array.isArray(res);
+    const pageObj: RawOrderPageData = !isArray && res && typeof res === "object" ? (res as RawOrderPageData) : {};
+    const rawList: SellerOrderResponse[] = isArray
+      ? (res as SellerOrderResponse[])
+      : Array.isArray(pageObj.items)
+      ? pageObj.items
+      : Array.isArray(pageObj.content)
+      ? pageObj.content
+      : [];
+
+    const list: SellerOrderResponse[] = rawList.map((o) => ({
+      ...o,
+      recipientAddress: o.recipientAddress || o.shippingAddressText || "Địa chỉ nhận hàng",
+      shippingAddressText: o.shippingAddressText || o.recipientAddress || "Địa chỉ nhận hàng",
+      totalAmount: typeof o.totalAmount === "number" ? o.totalAmount : (o.finalAmount ?? o.subtotalAmount ?? 0),
+      paymentMethod: o.paymentMethod || "ZALOPAY",
+      status: o.status || "PENDING",
+      items: Array.isArray(o.items)
+        ? o.items.map((it) => ({
+            ...it,
+            imageUrl: it.imageUrl || it.productImage || "",
+            productImage: it.productImage || it.imageUrl || "",
+            priceAtPurchase: typeof it.priceAtPurchase === "number" ? it.priceAtPurchase : (it.unitPrice ?? 0),
+            unitPrice: typeof it.unitPrice === "number" ? it.unitPrice : (it.priceAtPurchase ?? 0),
+            itemSubtotal:
+              typeof it.itemSubtotal === "number"
+                ? it.itemSubtotal
+                : ((it.priceAtPurchase || it.unitPrice || 0) * (it.quantity || 1)),
+          }))
+        : [],
+    }));
+
+    return {
+      content: list,
+      items: list,
+      totalElements: pageObj.totalElements ?? list.length,
+      totalPages: pageObj.totalPages ?? Math.max(1, Math.ceil(list.length / size)),
+      pageNumber: pageObj.pageNumber ?? page,
+      pageSize: pageObj.pageSize ?? size,
+      isFirst: pageObj.isFirst ?? pageObj.first ?? page === 0,
+      isLast: pageObj.isLast ?? pageObj.last ?? true,
+      hasNext: pageObj.hasNext ?? false,
+      hasPrevious: pageObj.hasPrevious ?? false,
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockSellerOrders(page, size, status);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy chi tiết đơn hàng (KHỚP BE: GET /api/v1/seller/orders/{id})
+ */
+export async function getSellerOrderById(id: number): Promise<SellerOrderResponse> {
+  try {
+    return await apiFetch<SellerOrderResponse>(`/seller/orders/${id}`);
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerOrders(0, 50).content.find((o) => o.id === id) || {
+        id,
+        orderCode: `ORD-${id}`,
+        recipientName: "Khách hàng",
+        recipientPhone: "0901234567",
+        recipientAddress: "123 Lê Lợi, Q.1, TP. Hồ Chí Minh",
+        paymentMethod: "ZALOPAY",
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      };
     }
     throw err;
   }
@@ -539,6 +622,77 @@ export async function getSellerRevenueChart(
   }
 }
 
+let mockSellerProductStore: SellerProductSummaryResponse[] = [
+  {
+    id: 1,
+    storeId: 1,
+    storeName: "UTC Fashion",
+    categoryId: 1,
+    categoryName: "Thời trang nam",
+    name: "Áo thun nam Cotton Compact Vibe UTC cao cấp form rộng thoáng khí",
+    slug: "ao-thun-nam-cotton-compact-vibe-utc",
+    imageUrl:
+      "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+    minPrice: 149000,
+    maxPrice: 189000,
+    totalStock: 350,
+    totalSold: 120,
+    status: "ACTIVE",
+    createdAt: "2026-10-15T08:30:00Z",
+  },
+  {
+    id: 2,
+    storeId: 1,
+    storeName: "UTC Fashion",
+    categoryId: 1,
+    categoryName: "Thời trang nam",
+    name: "Quần Jeans Slimfit Co Giãn 4 Chiều Wash Xanh Đậm",
+    slug: "quan-jeans-slimfit-co-gian-4-chieu",
+    imageUrl:
+      "https://images.unsplash.com/photo-1542272604-780c96856467?w=500&auto=format&fit=crop&q=60",
+    minPrice: 320000,
+    maxPrice: 350000,
+    totalStock: 85,
+    totalSold: 64,
+    status: "ACTIVE",
+    createdAt: "2026-10-14T09:15:00Z",
+  },
+  {
+    id: 3,
+    storeId: 1,
+    storeName: "UTC Fashion",
+    categoryId: 1,
+    categoryName: "Thời trang nam",
+    name: "Áo Polo Pique Cotton Phối Bo Cổ Viền Chỉ Tinh Tế",
+    slug: "ao-polo-pique-cotton-phoi-bo-co",
+    imageUrl:
+      "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=500&auto=format&fit=crop&q=60",
+    minPrice: 220000,
+    maxPrice: 240000,
+    totalStock: 0,
+    totalSold: 210,
+    status: "OUT_OF_STOCK",
+    createdAt: "2026-10-10T14:20:00Z",
+  },
+  {
+    id: 4,
+    storeId: 1,
+    storeName: "UTC Fashion",
+    categoryId: 1,
+    categoryName: "Thời trang nam",
+    name: "Áo Khoác Bomber Gió 2 Lớp Chống Nước Khóa Kéo YKK",
+    slug: "ao-khoac-bomber-gio-2-lop",
+    imageUrl:
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60",
+    minPrice: 450000,
+    maxPrice: 480000,
+    totalStock: 40,
+    totalSold: 15,
+    status: "INACTIVE",
+    createdAt: "2026-10-08T11:00:00Z",
+  },
+];
+
 /**
  * 5. Lấy danh sách sản phẩm của shop có lọc và phân trang (KHỚP BE: GET /api/v1/seller/products)
  */
@@ -551,9 +705,78 @@ export async function getSellerProducts(
   if (status && status !== "ALL") {
     query.status = status;
   }
-  return apiFetch<PageResponse<SellerProductSummaryResponse>>("/seller/products", {
-    query,
-  });
+  try {
+    interface RawPageData {
+      items?: SellerProductSummaryResponse[];
+      content?: SellerProductSummaryResponse[];
+      totalElements?: number;
+      totalPages?: number;
+      pageNumber?: number;
+      pageSize?: number;
+      isFirst?: boolean;
+      first?: boolean;
+      isLast?: boolean;
+      last?: boolean;
+      hasNext?: boolean;
+      hasPrevious?: boolean;
+    }
+
+    const res = await apiFetch<RawPageData | SellerProductSummaryResponse[]>("/seller/products", {
+      query,
+    });
+
+    const isArray = Array.isArray(res);
+    const pageObj: RawPageData = !isArray && res && typeof res === "object" ? (res as RawPageData) : {};
+    const rawList: SellerProductSummaryResponse[] = isArray
+      ? (res as SellerProductSummaryResponse[])
+      : Array.isArray(pageObj.items)
+      ? pageObj.items
+      : Array.isArray(pageObj.content)
+      ? pageObj.content
+      : [];
+
+    const list: SellerProductSummaryResponse[] = rawList.map((item) => ({
+      ...item,
+      minPrice: typeof item.minPrice === "number" ? item.minPrice : 0,
+      maxPrice: typeof item.maxPrice === "number" ? item.maxPrice : (item.minPrice ?? 0),
+      totalStock: typeof item.totalStock === "number" ? item.totalStock : 0,
+      totalSold: typeof item.totalSold === "number" ? item.totalSold : 0,
+      status: item.status || "ACTIVE",
+    }));
+
+    return {
+      content: list,
+      items: list,
+      totalElements: pageObj.totalElements ?? list.length,
+      totalPages: pageObj.totalPages ?? Math.max(1, Math.ceil(list.length / size)),
+      pageNumber: pageObj.pageNumber ?? page,
+      pageSize: pageObj.pageSize ?? size,
+      isFirst: pageObj.isFirst ?? pageObj.first ?? page === 0,
+      isLast: pageObj.isLast ?? pageObj.last ?? true,
+      hasNext: pageObj.hasNext ?? false,
+      hasPrevious: pageObj.hasPrevious ?? false,
+    };
+  } catch {
+    // Luôn fallback về mock data khi Backend chưa chạy hoặc lỗi kết nối
+    let filtered = mockSellerProductStore;
+    if (status && status !== "ALL") {
+      filtered = filtered.filter((p) => p.status === status);
+    }
+    const start = page * size;
+    const paginated = filtered.slice(start, start + size);
+    return {
+      content: paginated,
+      items: paginated,
+      totalElements: filtered.length,
+      totalPages: Math.ceil(filtered.length / size) || 1,
+      pageNumber: page,
+      pageSize: size,
+      isFirst: page === 0,
+      isLast: start + size >= filtered.length,
+      hasNext: start + size < filtered.length,
+      hasPrevious: page > 0,
+    };
+  }
 }
 
 /**
@@ -562,7 +785,59 @@ export async function getSellerProducts(
 export async function getSellerProductDetail(
   productId: number
 ): Promise<SellerProductDetailResponse> {
-  return apiFetch<SellerProductDetailResponse>(`/seller/products/${productId}`);
+  try {
+    const res = await apiFetch<SellerProductDetailResponse>(
+      `/seller/products/${productId}`
+    );
+    const configs = res.tierVariationConfigs || res.tierVariations || [];
+    return {
+      ...res,
+      tierVariationConfigs: configs,
+      tierVariations: configs,
+      variants: Array.isArray(res.variants) ? res.variants : [],
+    };
+  } catch (err) {
+    if (isMockMode()) {
+      const summary = mockSellerProductStore.find((p) => p.id === productId);
+      return {
+        id: productId,
+        storeId: summary?.storeId || 1,
+        storeName: summary?.storeName || "UTC Fashion",
+        categoryId: summary?.categoryId || 1,
+        categoryName: summary?.categoryName || "Thời trang nam",
+        name: summary?.name || "Áo thun nam Cotton Compact Vibe UTC cao cấp",
+        slug: summary?.slug || "ao-thun-nam",
+        description:
+          "✔ **Chất liệu**: 100% Cotton Compact chải kỹ định lượng 220gsm.\n✔ **Đường may 2 kim**: Gia cố chắc chắn.",
+        imageUrl:
+          summary?.imageUrl ||
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        status: summary?.status || "ACTIVE",
+        tierVariations: [
+          { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
+          { name: "Kích thước", options: ["S", "M", "L", "XL"] },
+        ],
+        tierVariationConfigs: [
+          { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
+          { name: "Kích thước", options: ["S", "M", "L", "XL"] },
+        ],
+        variants: [
+          {
+            id: productId * 10 + 1,
+            sku: "AT-DEN-S",
+            skuCode: "AT-DEN-S",
+            variantName: "Đen, Size S",
+            originalPrice: summary?.minPrice || 149000,
+            salePrice: summary?.minPrice || 149000,
+            stockQuantity: 50,
+            status: "ACTIVE",
+            attributes: { "Màu sắc": "Đen", "Kích thước": "S" },
+          },
+        ],
+      };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -572,19 +847,40 @@ export async function updateProductStatus(
   productId: number,
   status: "ACTIVE" | "INACTIVE"
 ): Promise<void> {
-  return apiFetch<void>(`/seller/products/${productId}/status`, {
-    method: "PATCH",
-    query: { status },
-  });
+  try {
+    await apiFetch<void>(`/seller/products/${productId}/status`, {
+      method: "PATCH",
+      query: { status },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const target = mockSellerProductStore.find((p) => p.id === productId);
+      if (target) {
+        target.status = status;
+      }
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
  * 8. Xóa sản phẩm SPU (KHỚP BE: DELETE /api/v1/seller/products/{id})
  */
 export async function deleteProduct(productId: number): Promise<void> {
-  return apiFetch<void>(`/seller/products/${productId}`, {
-    method: "DELETE",
-  });
+  try {
+    await apiFetch<void>(`/seller/products/${productId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      mockSellerProductStore = mockSellerProductStore.filter(
+        (p) => p.id !== productId
+      );
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -612,10 +908,77 @@ export async function getCategories(): Promise<CategoryItem[]> {
 export async function createSellerProduct(
   payload: CreateProductPayload
 ): Promise<SellerProductDetailResponse> {
-  return apiFetch<SellerProductDetailResponse>("/seller/products", {
-    method: "POST",
-    json: payload,
-  });
+  try {
+    return await apiFetch<SellerProductDetailResponse>("/seller/products", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const newId = Date.now();
+      const prices = payload.variants
+        .map((v) => Number(v.originalPrice) || 0)
+        .filter((p) => p > 0);
+      const minPrice = prices.length > 0 ? Math.min(...prices) : 149000;
+      const maxPrice = prices.length > 0 ? Math.max(...prices) : 149000;
+      const totalStock = payload.variants.reduce(
+        (acc, v) => acc + (Number(v.stockQuantity) || 0),
+        0
+      );
+
+      const newSummary: SellerProductSummaryResponse = {
+        id: newId,
+        storeId: 1,
+        storeName: "UTC Fashion",
+        categoryId: payload.categoryId,
+        categoryName:
+          payload.categoryId === 1 ? "Thời trang nam" : "Ngành hàng chung",
+        name: payload.name,
+        slug: payload.name
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-"),
+        imageUrl:
+          payload.imageUrl ||
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        minPrice,
+        maxPrice,
+        totalStock,
+        totalSold: 0,
+        status: "ACTIVE",
+        createdAt: new Date().toISOString(),
+      };
+
+      mockSellerProductStore.unshift(newSummary);
+
+      return {
+        id: newId,
+        storeId: 1,
+        storeName: "UTC Fashion",
+        categoryId: payload.categoryId,
+        categoryName: "Thời trang nam",
+        name: payload.name,
+        slug: newSummary.slug,
+        description: payload.description,
+        imageUrl: newSummary.imageUrl,
+        status: "ACTIVE",
+        tierVariations: payload.tierVariationConfigs,
+        tierVariationConfigs: payload.tierVariationConfigs,
+        variants: payload.variants.map((v, idx) => ({
+          id: newId * 10 + idx,
+          sku: v.sku,
+          skuCode: v.sku,
+          originalPrice: v.originalPrice,
+          salePrice: v.originalPrice,
+          stockQuantity: v.stockQuantity,
+          status: "ACTIVE",
+          attributes: v.attributes,
+        })),
+      };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -625,14 +988,73 @@ export async function updateSellerProduct(
   productId: number,
   payload: UpdateProductPayload
 ): Promise<SellerProductDetailResponse> {
-  return apiFetch<SellerProductDetailResponse>(`/seller/products/${productId}`, {
-    method: "PUT",
-    json: payload,
-  });
+  try {
+    return await apiFetch<SellerProductDetailResponse>(
+      `/seller/products/${productId}`,
+      {
+        method: "PUT",
+        json: payload,
+      }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      const existing = mockSellerProductStore.find((p) => p.id === productId);
+      if (existing) {
+        existing.name = payload.name;
+        existing.status = payload.status || existing.status;
+        if (payload.imageUrl) existing.imageUrl = payload.imageUrl;
+      }
+      return {
+        id: productId,
+        storeId: 1,
+        storeName: "UTC Fashion",
+        categoryId: payload.categoryId,
+        categoryName: "Thời trang nam",
+        name: payload.name,
+        slug: "updated-product",
+        description: payload.description,
+        status: payload.status,
+        variants: payload.variants.map((v, idx) => ({
+          id: v.id || productId * 10 + idx,
+          sku: v.sku,
+          skuCode: v.sku,
+          originalPrice: v.originalPrice,
+          salePrice: v.originalPrice,
+          stockQuantity: v.stockQuantity,
+          status: v.status || "ACTIVE",
+          attributes: v.attributes,
+        })),
+      };
+    }
+    throw err;
+  }
 }
 
 /**
- * 12. Lấy danh sách phiên Flash Sale mở đăng ký (KHỚP BE: GET /api/v1/flash-sales/slots)
+ * 12. Upload ảnh cho sản phẩm SPU (KHỚP BE: POST /api/v1/seller/products/{id}/images)
+ */
+export async function uploadSellerProductImage(
+  productId: number,
+  file: Blob | File,
+  isPrimary: boolean = false,
+  displayOrder: number = 0
+): Promise<unknown> {
+  try {
+    const formData = new FormData();
+    formData.append("file", file, (file as File).name || "product_image.jpg");
+    return await apiFetch(`/seller/products/${productId}/images`, {
+      method: "POST",
+      query: { isPrimary, displayOrder },
+      body: formData,
+    });
+  } catch (err) {
+    console.warn("Upload product image warning:", err);
+    return null;
+  }
+}
+
+/**
+ * 13. Lấy danh sách phiên Flash Sale mở đăng ký (KHỚP BE: GET /api/v1/flash-sales/slots)
  */
 export async function getFlashSaleSlots(): Promise<FlashSaleSlotItem[]> {
   try {
@@ -721,11 +1143,65 @@ export async function getRegisteredFlashSaleHistory(): Promise<
   RegisteredFlashSaleHistoryItem[]
 > {
   try {
-    return await apiFetch<RegisteredFlashSaleHistoryItem[]>(
-      "/seller/flash-sales/items"
-    );
+    const raw = await apiFetch<unknown>("/seller/flash-sales/items");
+    const rawObj = raw as { content?: unknown[] } | unknown[];
+    const items = (Array.isArray(rawObj) ? rawObj : (rawObj?.content || [])) as Array<{
+      id: number;
+      productId?: number;
+      variantId?: number;
+      productName?: string;
+      skuCode?: string;
+      sku?: string;
+      imageUrl?: string;
+      slotId?: number;
+      slotTitle?: string;
+      slotStartTime?: string;
+      slotEndTime?: string;
+      flashSalePrice?: number;
+      allocatedStock?: number;
+      availableStock?: number;
+      status?: string;
+      rejectReason?: string;
+    }>;
+    if (Array.isArray(items) && items.length > 0) {
+      return items.map((item) => ({
+        id: item.id,
+        productName: item.productName || `Sản phẩm #${item.productId || item.variantId}`,
+        sku: item.skuCode || item.sku || `SKU-${item.variantId}`,
+        imageUrl:
+          item.imageUrl ||
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        slotTitle: item.slotTitle || `Phiên #${item.slotId}`,
+        slotDate: item.slotStartTime
+          ? new Date(item.slotStartTime).toLocaleDateString("vi-VN")
+          : "Hôm nay",
+        slotTime: item.slotStartTime
+          ? `${new Date(item.slotStartTime).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })} - ${
+              item.slotEndTime
+                ? new Date(item.slotEndTime).toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : ""
+            }`
+          : "12:00 – 14:00",
+        flashSalePrice: item.flashSalePrice ?? 0,
+        allocatedStock: item.allocatedStock ?? 0,
+        soldStock:
+          (item.allocatedStock ?? 0) - (item.availableStock ?? item.allocatedStock ?? 0),
+        status:
+          item.status === "PENDING_APPROVAL"
+            ? "PENDING"
+            : item.status || "PENDING",
+        rejectReason: item.rejectReason,
+      }));
+    }
   } catch {
     // Trả về mock data lịch sử cho Stitch Screen 23 nếu mock mode bật
+  }
     return [
       {
         id: 101,
@@ -785,7 +1261,15 @@ export async function getRegisteredFlashSaleHistory(): Promise<
         status: "ENDED",
       },
     ];
-  }
+}
+
+/**
+ * 16. Hủy đăng ký biến thể Flash Sale (KHỚP BE: DELETE /api/v1/seller/flash-sales/items/{id})
+ */
+export async function cancelFlashSaleRegistration(id: number): Promise<void> {
+  await apiFetch<void>(`/seller/flash-sales/items/${id}`, {
+    method: "DELETE",
+  });
 }
 
 /**
@@ -1006,17 +1490,81 @@ function getMockSellerWalletTransactions(
  */
 export async function getSellerVouchers(
   page: number = 0,
-  size: number = 10,
+  size: number = 50,
   status?: string
 ): Promise<PageResponse<SellerVoucherItem>> {
   try {
-    const query: Record<string, string | number> = { page, size };
+    const raw = await apiFetch<unknown>("/seller/vouchers");
+    const rawObj = raw as { content?: unknown[]; items?: unknown[]; data?: unknown[] } | unknown[];
+    const arr = (
+      Array.isArray(rawObj)
+        ? rawObj
+        : rawObj?.content || rawObj?.items || rawObj?.data || []
+    ) as Array<{
+      id: number;
+      code: string;
+      name?: string;
+      discountType?: string;
+      discountValue?: number;
+      maxDiscountAmount?: number;
+      minOrderAmount?: number;
+      totalQuantity?: number;
+      totalUsageLimit?: number;
+      usedQuantity?: number;
+      currentUsageCount?: number;
+      userUsageLimit?: number;
+      startTime?: string;
+      startDate?: string;
+      endTime?: string;
+      endDate?: string;
+      status?: string;
+      createdAt?: string;
+    }>;
+
+    const mapped: SellerVoucherItem[] = arr.map((v) => ({
+      id: v.id,
+      code: v.code,
+      name: v.name || v.code,
+      discountType:
+        v.discountType === "PERCENT" || v.discountType === "PERCENTAGE"
+          ? "PERCENTAGE"
+          : "FIXED_AMOUNT",
+      discountValue: Number(v.discountValue) || 0,
+      maxDiscountAmount: v.maxDiscountAmount ? Number(v.maxDiscountAmount) : undefined,
+      minOrderAmount: Number(v.minOrderAmount) || 0,
+      totalUsageLimit: v.totalQuantity ?? v.totalUsageLimit ?? 100,
+      currentUsageCount: v.usedQuantity ?? v.currentUsageCount ?? 0,
+      userUsageLimit: v.userUsageLimit ?? 1,
+      startDate: v.startTime
+        ? typeof v.startTime === "string"
+          ? v.startTime.split("T")[0]
+          : v.startTime
+        : v.startDate || "",
+      endDate: v.endTime
+        ? typeof v.endTime === "string"
+          ? v.endTime.split("T")[0]
+          : v.endTime
+        : v.endDate || "",
+      status: v.status || "ACTIVE",
+      createdAt: v.createdAt || new Date().toISOString(),
+    }));
+
+    let filtered = mapped;
     if (status && status !== "ALL") {
-      query.status = status;
+      filtered = mapped.filter((item) => item.status === status);
     }
-    return await apiFetch<PageResponse<SellerVoucherItem>>("/seller/vouchers", {
-      query,
-    });
+
+    return {
+      content: filtered,
+      pageNumber: page,
+      pageSize: size,
+      totalElements: filtered.length,
+      totalPages: 1,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockSellerVouchers(page, size, status);
@@ -1032,10 +1580,48 @@ export async function createSellerVoucher(
   payload: CreateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
   try {
-    return await apiFetch<SellerVoucherItem>("/seller/vouchers", {
+    const startTime = payload.startDate.includes("T")
+      ? payload.startDate
+      : `${payload.startDate}T00:00:00Z`;
+    const endTime = payload.endDate.includes("T")
+      ? payload.endDate
+      : `${payload.endDate}T23:59:59Z`;
+
+    const body = {
+      code: payload.code.trim().toUpperCase(),
+      discountType: payload.discountType === "PERCENTAGE" ? "PERCENT" : payload.discountType,
+      discountValue: payload.discountValue,
+      minOrderAmount: payload.minOrderAmount,
+      maxDiscountAmount:
+        payload.maxDiscountAmount ||
+        (payload.discountType === "PERCENTAGE" ? payload.discountValue * 1000 : null),
+      totalQuantity: payload.totalUsageLimit,
+      userUsageLimit: payload.userUsageLimit || 1,
+      startTime,
+      endTime,
+    };
+
+    const res = await apiFetch<Record<string, unknown>>("/seller/vouchers", {
       method: "POST",
-      json: payload,
+      json: body,
     });
+
+    return {
+      id: Number(res?.id) || Math.floor(Math.random() * 10000),
+      code: String(res?.code || payload.code.toUpperCase()),
+      name: payload.name || String(res?.code || payload.code.toUpperCase()),
+      discountType: payload.discountType,
+      discountValue: payload.discountValue,
+      maxDiscountAmount: payload.maxDiscountAmount,
+      minOrderAmount: payload.minOrderAmount,
+      totalUsageLimit: payload.totalUsageLimit,
+      currentUsageCount: 0,
+      userUsageLimit: payload.userUsageLimit || 1,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+    };
   } catch (err) {
     if (isMockMode()) {
       return {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { formatVND } from "@/lib/utils";
 import {
@@ -11,6 +12,7 @@ import {
   createSellerProduct,
   updateSellerProduct,
   getSellerProductDetail,
+  uploadSellerProductImage,
 } from "@/lib/api/seller";
 import type {
   CategoryItem,
@@ -26,6 +28,7 @@ interface ProductFormProps {
 
 interface SkuRowState {
   key: string;
+  id?: number;
   tier1Val: string;
   tier2Val: string;
   sku: string;
@@ -33,6 +36,207 @@ interface SkuRowState {
   stockQuantity: number;
   isActive: boolean;
   priceError?: string;
+}
+
+function parseInlineToNodes(text: string): React.ReactNode[] {
+  const inlineRegex =
+    /(\*\*[^*]+\*\*|__[^_]+__|(?:\*|_)[^*_]+(?:\*|_)|<u>.*?<\/u>|~~.*?~~|`.*?`)/g;
+  const parts = text.split(inlineRegex);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (
+      (part.startsWith("**") && part.endsWith("**") && part.length >= 4) ||
+      (part.startsWith("__") && part.endsWith("__") && part.length >= 4)
+    ) {
+      return (
+        <strong key={index} className="font-bold text-on-surface">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (
+      (part.startsWith("*") && part.endsWith("*") && part.length >= 2) ||
+      (part.startsWith("_") && part.endsWith("_") && part.length >= 2)
+    ) {
+      return (
+        <em key={index} className="italic text-on-surface">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    if (part.startsWith("<u>") && part.endsWith("</u>") && part.length >= 7) {
+      return (
+        <u key={index} className="underline decoration-primary">
+          {part.slice(3, -4)}
+        </u>
+      );
+    }
+    if (part.startsWith("~~") && part.endsWith("~~") && part.length >= 4) {
+      return (
+        <del key={index} className="line-through text-secondary">
+          {part.slice(2, -2)}
+        </del>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      return (
+        <code
+          key={index}
+          className="px-1.5 py-0.5 rounded bg-surface-container-high font-mono text-xs text-primary"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+function renderMarkdownPreview(md: string) {
+  if (!md.trim()) {
+    return (
+      <p className="text-secondary italic text-body-sm py-4 text-center">
+        Chưa có nội dung mô tả sản phẩm...
+      </p>
+    );
+  }
+
+  const lines = md.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let currentList: { type: "ul" | "ol"; items: string[] } | null = null;
+
+  const flushList = (key: string | number) => {
+    if (!currentList) return;
+    if (currentList.type === "ul") {
+      nodes.push(
+        <ul
+          key={`ul-${key}`}
+          className="list-disc pl-5 my-2 space-y-1 text-on-surface"
+        >
+          {currentList.items.map((item, i) => (
+            <li key={i}>{parseInlineToNodes(item)}</li>
+          ))}
+        </ul>
+      );
+    } else {
+      nodes.push(
+        <ol
+          key={`ol-${key}`}
+          className="list-decimal pl-5 my-2 space-y-1 text-on-surface"
+        >
+          {currentList.items.map((item, i) => (
+            <li key={i}>{parseInlineToNodes(item)}</li>
+          ))}
+        </ol>
+      );
+    }
+    currentList = null;
+  };
+
+  lines.forEach((rawLine, idx) => {
+    const trimmed = rawLine.trim();
+
+    const bulletMatch = trimmed.match(/^[-*•]\s+(.*)$/);
+    if (bulletMatch) {
+      if (currentList && currentList.type !== "ul")
+        flushList(`ul-flush-${idx}`);
+      if (!currentList) currentList = { type: "ul", items: [] };
+      currentList.items.push(bulletMatch[1]);
+      return;
+    }
+
+    const numberMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    if (numberMatch) {
+      if (currentList && currentList.type !== "ol")
+        flushList(`ol-flush-${idx}`);
+      if (!currentList) currentList = { type: "ol", items: [] };
+      currentList.items.push(numberMatch[1]);
+      return;
+    }
+
+    if (currentList) flushList(`line-${idx}`);
+
+    if (!trimmed) {
+      nodes.push(<div key={`br-${idx}`} className="h-2" />);
+      return;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      nodes.push(
+        <h4
+          key={`h3-${idx}`}
+          className="font-headline-sm text-base font-bold text-on-surface mt-3 mb-1"
+        >
+          {parseInlineToNodes(trimmed.slice(4))}
+        </h4>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      nodes.push(
+        <h3
+          key={`h2-${idx}`}
+          className="font-headline-md text-lg font-bold text-on-surface mt-3.5 mb-1.5"
+        >
+          {parseInlineToNodes(trimmed.slice(3))}
+        </h3>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("# ")) {
+      nodes.push(
+        <h2
+          key={`h1-${idx}`}
+          className="font-headline-lg text-xl font-bold text-on-surface mt-4 mb-2"
+        >
+          {parseInlineToNodes(trimmed.slice(2))}
+        </h2>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("> ")) {
+      nodes.push(
+        <blockquote
+          key={`quote-${idx}`}
+          className="border-l-4 border-emerald-500 pl-3 my-2 text-secondary italic"
+        >
+          {parseInlineToNodes(trimmed.slice(2))}
+        </blockquote>
+      );
+      return;
+    }
+
+    nodes.push(
+      <p key={`p-${idx}`} className="my-1 text-on-surface leading-relaxed">
+        {parseInlineToNodes(trimmed)}
+      </p>
+    );
+  });
+
+  if (currentList) flushList("final");
+
+  return <div className="text-body-md leading-relaxed">{nodes}</div>;
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  try {
+    const arr = dataUrl.split(",");
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch {
+    return null;
+  }
 }
 
 export function ProductForm({ mode, productId }: ProductFormProps) {
@@ -48,11 +252,209 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [description, setDescription] = useState(
-    "✔ Chất liệu cao cấp: 100% Cotton Compact chải kỹ định lượng 220gsm, sợi dệt mật độ cao hạn chế xù lông tối đa.\n" +
-      "✔ Khả năng thấm hút mồ hôi vượt trội, bề mặt mát mịn, co giãn 4 chiều vận động thoải mái suốt cả ngày.\n" +
-      "✔ Đường may 2 kim gia cố vai và cổ áo chắc chắn, bo cổ dệt Spandex co giãn hồi form chuẩn không bị dão sau nhiều lần giặt.\n" +
-      "✔ Form Regular-fit hiện đại phù hợp mọi dáng người nam giới Việt Nam, dễ phối đồ dạo phố, đi học, đi làm."
+    "✔ **Chất liệu cao cấp**: 100% Cotton Compact chải kỹ định lượng 220gsm, sợi dệt mật độ cao hạn chế xù lông tối đa.\n" +
+      "✔ **Khả năng thấm hút**: Mồ hôi vượt trội, bề mặt mát mịn, co giãn 4 chiều vận động thoải mái suốt cả ngày.\n" +
+      "✔ **Đường may 2 kim**: Gia cố vai và cổ áo chắc chắn, bo cổ dệt Spandex co giãn hồi form chuẩn không bị dão sau nhiều lần giặt.\n" +
+      "✔ **Form Regular-fit**: Hiện đại phù hợp mọi dáng người nam giới Việt Nam, dễ phối đồ dạo phố, đi học, đi làm."
   );
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [descTab, setDescTab] = useState<"write" | "preview">("write");
+
+  const applyFormatting = (
+    type:
+      | "bold"
+      | "italic"
+      | "underline"
+      | "strike"
+      | "h3"
+      | "bullet"
+      | "number"
+      | "quote"
+  ) => {
+    if (descTab === "preview") {
+      setDescTab("write");
+    }
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = description.substring(start, end);
+
+    let replacement = "";
+    let selectStart = start;
+    let selectEnd = end;
+
+    if (type === "bold") {
+      if (
+        selected.startsWith("**") &&
+        selected.endsWith("**") &&
+        selected.length >= 4
+      ) {
+        replacement = selected.slice(2, -2);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `**${selected}**`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "**Văn bản in đậm**";
+        selectStart = start + 2;
+        selectEnd = start + 2 + "Văn bản in đậm".length;
+      }
+    } else if (type === "italic") {
+      if (
+        selected.startsWith("*") &&
+        selected.endsWith("*") &&
+        selected.length >= 2
+      ) {
+        replacement = selected.slice(1, -1);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `*${selected}*`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "*Văn bản in nghiêng*";
+        selectStart = start + 1;
+        selectEnd = start + 1 + "Văn bản in nghiêng".length;
+      }
+    } else if (type === "underline") {
+      if (
+        selected.startsWith("<u>") &&
+        selected.endsWith("</u>") &&
+        selected.length >= 7
+      ) {
+        replacement = selected.slice(3, -4);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `<u>${selected}</u>`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "<u>Văn bản gạch chân</u>";
+        selectStart = start + 3;
+        selectEnd = start + 3 + "Văn bản gạch chân".length;
+      }
+    } else if (type === "strike") {
+      if (
+        selected.startsWith("~~") &&
+        selected.endsWith("~~") &&
+        selected.length >= 4
+      ) {
+        replacement = selected.slice(2, -2);
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else if (selected) {
+        replacement = `~~${selected}~~`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "~~Văn bản gạch ngang~~";
+        selectStart = start + 2;
+        selectEnd = start + 2 + "Văn bản gạch ngang".length;
+      }
+    } else if (type === "h3") {
+      if (selected) {
+        replacement = selected.startsWith("### ")
+          ? selected.slice(4)
+          : `### ${selected}`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n### Tiêu đề mục\n";
+        selectStart = start + 5;
+        selectEnd = start + 5 + "Tiêu đề mục".length;
+      }
+    } else if (type === "bullet") {
+      if (selected) {
+        const lines = selected.split("\n");
+        const allBulleted = lines.every(
+          (l) => l.startsWith("- ") || l.startsWith("• ")
+        );
+        if (allBulleted) {
+          replacement = lines
+            .map((l) => l.replace(/^[-•]\s*/, ""))
+            .join("\n");
+        } else {
+          replacement = lines
+            .map((l) =>
+              l.startsWith("- ") || l.startsWith("• ") ? l : `- ${l}`
+            )
+            .join("\n");
+        }
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n- ";
+        selectStart = start + replacement.length;
+        selectEnd = selectStart;
+      }
+    } else if (type === "number") {
+      if (selected) {
+        const lines = selected.split("\n");
+        const allNumbered = lines.every((l) => /^\d+\.\s*/.test(l));
+        if (allNumbered) {
+          replacement = lines.map((l) => l.replace(/^\d+\.\s*/, "")).join("\n");
+        } else {
+          let count = 1;
+          replacement = lines
+            .map((l) => (/^\d+\.\s*/.test(l) ? l : `${count++}. ${l}`))
+            .join("\n");
+        }
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n1. ";
+        selectStart = start + replacement.length;
+        selectEnd = selectStart;
+      }
+    } else if (type === "quote") {
+      if (selected) {
+        replacement = selected.startsWith("> ")
+          ? selected.slice(2)
+          : `> ${selected}`;
+        selectStart = start;
+        selectEnd = start + replacement.length;
+      } else {
+        replacement = "\n> Trích dẫn\n";
+        selectStart = start + 3;
+        selectEnd = start + 3 + "Trích dẫn".length;
+      }
+    }
+
+    const nextVal =
+      description.substring(0, start) +
+      replacement +
+      description.substring(end);
+    setDescription(nextVal);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(selectStart, selectEnd);
+    });
+  };
+
+  const handleDescKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        applyFormatting("bold");
+      } else if (e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        applyFormatting("italic");
+      } else if (e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        applyFormatting("underline");
+      }
+    }
+  };
 
   // Images
   const [images, setImages] = useState<string[]>([
@@ -62,8 +464,13 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   ]);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [isAddingImage, setIsAddingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   // SPU / SKU Variations
+  const [skuSeed] = useState(() =>
+    Math.random().toString(36).substring(2, 6).toUpperCase()
+  );
   const [hasVariations, setHasVariations] = useState(true);
   const [tier1Name, setTier1Name] = useState("Màu sắc");
   const [tier1Options, setTier1Options] = useState<string[]>([
@@ -82,6 +489,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     Record<
       string,
       {
+        id?: number;
         sku?: string;
         originalPrice?: number;
         stockQuantity?: number;
@@ -136,20 +544,63 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             setImages([detail.imageUrl]);
           }
 
-          if (detail.tierVariations && detail.tierVariations.length > 0) {
+          const configs =
+            detail.tierVariationConfigs || detail.tierVariations || [];
+          if (configs.length > 0) {
             setHasVariations(true);
-            const t1 = detail.tierVariations[0];
+            const t1 = configs[0];
             if (t1) {
               setTier1Name(t1.name);
-              setTier1Options(t1.options);
+              setTier1Options(t1.options || []);
             }
-            const t2 = detail.tierVariations[1];
+            const t2 = configs[1];
             if (t2) {
               setTier2Name(t2.name);
-              setTier2Options(t2.options);
+              setTier2Options(t2.options || []);
             } else {
               setTier2Options([]);
             }
+          } else {
+            setHasVariations(false);
+          }
+
+          // Nạp các variants vào skuOverrides kèm variant ID!
+          if (Array.isArray(detail.variants) && detail.variants.length > 0) {
+            const initialOverrides: Record<
+              string,
+              {
+                id?: number;
+                sku?: string;
+                originalPrice?: number;
+                stockQuantity?: number;
+                isActive?: boolean;
+              }
+            > = {};
+
+            detail.variants.forEach((v) => {
+              const attrs = v.attributes || {};
+              const t1Name = configs[0]?.name;
+              const t2Name = configs[1]?.name;
+              const t1Val = t1Name ? attrs[t1Name] : undefined;
+              const t2Val = t2Name ? attrs[t2Name] : undefined;
+
+              const rowKey =
+                t1Val && t2Val
+                  ? `${t1Val}-${t2Val}`
+                  : t1Val
+                  ? `${t1Val}-Mặc định`
+                  : "default";
+
+              initialOverrides[rowKey] = {
+                id: v.id,
+                sku: v.sku || v.skuCode,
+                originalPrice: Number(v.originalPrice) || 0,
+                stockQuantity: Number(v.stockQuantity) || 0,
+                isActive: v.status === "ACTIVE",
+              };
+            });
+
+            setSkuOverrides(initialOverrides);
           }
           setIsPageLoading(false);
         })
@@ -174,9 +625,10 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       return [
         {
           key: "default",
+          id: def?.id,
           tier1Val: "Mặc định",
           tier2Val: "-",
-          sku: def?.sku || "SKU-DEFAULT",
+          sku: def?.sku || (mode === "edit" ? "SKU-DEFAULT" : `SKU-${skuSeed}`),
           originalPrice: price,
           stockQuantity: def?.stockQuantity ?? (Number(batchStock) || 50),
           isActive: def?.isActive ?? true,
@@ -184,6 +636,14 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         },
       ];
     }
+
+    const normalizeSkuPart = (str: string) =>
+      str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/gi, "d")
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .toUpperCase();
 
     const t1List = tier1Options.length > 0 ? tier1Options : ["Mặc định"];
     const t2List = tier2Options.length > 0 ? tier2Options : ["Mặc định"];
@@ -195,13 +655,19 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         const ov = skuOverrides[rowKey];
         const price = ov?.originalPrice ?? (Number(batchPrice) || 149000);
         const stock = ov?.stockQuantity ?? (Number(batchStock) || 50);
+        const p1 = normalizeSkuPart(t1).slice(0, 3) || "SKU";
+        const p2 = normalizeSkuPart(t2).slice(0, 3) || "DEF";
+        const defaultSku =
+          mode === "edit"
+            ? `AT-${p1}-${p2}`
+            : `AT-${skuSeed}-${p1}-${p2}`;
+
         rows.push({
           key: rowKey,
+          id: ov?.id,
           tier1Val: t1,
           tier2Val: t2 === "Mặc định" ? "-" : t2,
-          sku:
-            ov?.sku ||
-            `AT-${t1.toUpperCase().slice(0, 3)}-${t2.toUpperCase().slice(0, 2)}`,
+          sku: ov?.sku || defaultSku,
           originalPrice: price,
           stockQuantity: stock,
           isActive: ov?.isActive ?? true,
@@ -210,7 +676,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       }
     }
     return rows;
-  }, [hasVariations, tier1Options, tier2Options, skuOverrides, batchPrice, batchStock]);
+  }, [hasVariations, tier1Options, tier2Options, skuOverrides, batchPrice, batchStock, mode, skuSeed]);
 
   // Batch apply handler
   const handleBatchApply = () => {
@@ -253,13 +719,96 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     setTier2Options(tier2Options.filter((o) => o !== opt));
   };
 
-  // Add image
+  // Image Upload Handlers (Local computer file picker & Drag/Drop)
+  const processFiles = (files: File[]) => {
+    const validImages = files.filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`Tệp "${file.name}" không phải là ảnh hợp lệ.`);
+        return false;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error(`Ảnh "${file.name}" vượt quá giới hạn 8MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validImages.length === 0) return;
+
+    const remainingSlots = 9 - images.length;
+    if (remainingSlots <= 0) {
+      toast.error("Đã đạt giới hạn tối đa 9 ảnh cho sản phẩm.");
+      return;
+    }
+
+    const toLoad = validImages.slice(0, remainingSlots);
+    let loadedCount = 0;
+
+    toLoad.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          setImages((prev) => {
+            if (prev.length >= 9) return prev;
+            return [...prev, dataUrl];
+          });
+          loadedCount++;
+          if (loadedCount === toLoad.length) {
+            toast.success(`Đã thêm thành công ${loadedCount} ảnh từ máy tính!`);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    processFiles(Array.from(fileList));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleSetCoverImage = (index: number) => {
+    if (index === 0) return;
+    setImages((prev) => {
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      return [selected, ...copy];
+    });
+    toast.success("Đã đặt làm ảnh bìa sản phẩm!");
+  };
+
+  // Add image by URL
   const handleAddImage = () => {
     const trimmed = newImageUrl.trim();
     if (trimmed && images.length < 9) {
       setImages([...images, trimmed]);
       setNewImageUrl("");
       setIsAddingImage(false);
+      toast.success("Đã thêm ảnh từ liên kết!");
     }
   };
 
@@ -341,27 +890,35 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     setSuccessMessage(null);
 
     if (!name.trim()) {
-      setErrorMessage("Vui lòng nhập tên sản phẩm.");
+      const msg = "Vui lòng nhập tên sản phẩm.";
+      setErrorMessage(msg);
+      toast.error(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     if (!categoryId) {
-      setErrorMessage("Vui lòng chọn ngành hàng sản phẩm.");
+      const msg = "Vui lòng chọn ngành hàng sản phẩm.";
+      setErrorMessage(msg);
+      toast.error(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     if (skuMatrix.length === 0) {
-      setErrorMessage("Sản phẩm phải có ít nhất 1 biến thể SKU.");
+      const msg = "Sản phẩm phải có ít nhất 1 biến thể SKU.";
+      setErrorMessage(msg);
+      toast.error(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     const invalidRow = skuMatrix.find((r) => r.originalPrice <= 0);
     if (invalidRow) {
-      setErrorMessage(
-        `Biến thể [${invalidRow.tier1Val} - ${invalidRow.tier2Val}] có giá bán không hợp lệ (phải > 0).`
-      );
+      const msg = `Biến thể [${invalidRow.tier1Val} - ${invalidRow.tier2Val}] có giá bán không hợp lệ (phải > 0).`;
+      setErrorMessage(msg);
+      toast.error(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -378,6 +935,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         : [];
 
       const variants: CreateProductVariantDto[] = skuMatrix.map((r) => ({
+        id: r.id,
         sku: r.sku,
         variantName:
           r.tier2Val && r.tier2Val !== "-"
@@ -385,47 +943,68 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             : r.tier1Val,
         originalPrice: r.originalPrice,
         stockQuantity: r.stockQuantity,
+        status: r.isActive ? "ACTIVE" : "INACTIVE",
         attributes: {
           [tier1Name]: r.tier1Val,
           ...(r.tier2Val && r.tier2Val !== "-" ? { [tier2Name]: r.tier2Val } : {}),
         },
       }));
 
+      let savedId = productId;
       if (mode === "create") {
         const payload: CreateProductPayload = {
           categoryId,
           name: name.trim(),
           description: description.trim(),
-          imageUrl: images[0] || undefined,
+          imageUrl: images[0]?.startsWith("http") ? images[0] : undefined,
           tierVariationConfigs,
           variants,
         };
-        await createSellerProduct(payload);
-        setSuccessMessage("Đăng bán sản phẩm thành công!");
-        setTimeout(() => {
-          router.push("/seller/products");
-        }, 1200);
+        const created = await createSellerProduct(payload);
+        savedId = created?.id;
       } else if (mode === "edit" && productId) {
         const payload: UpdateProductPayload = {
           categoryId,
           name: name.trim(),
           description: description.trim(),
-          imageUrl: images[0] || undefined,
+          imageUrl: images[0]?.startsWith("http") ? images[0] : undefined,
           status: targetStatus,
           tierVariationConfigs,
           variants,
         };
         await updateSellerProduct(productId, payload);
-        setSuccessMessage("Cập nhật sản phẩm thành công!");
-        setTimeout(() => {
-          router.push("/seller/products");
-        }, 1200);
       }
+
+      // Upload ảnh chọn từ laptop lên Backend
+      if (savedId && images.length > 0) {
+        for (let idx = 0; idx < images.length; idx++) {
+          const img = images[idx];
+          if (img && img.startsWith("data:image/")) {
+            const blob = dataUrlToBlob(img);
+            if (blob) {
+              await uploadSellerProductImage(savedId, blob, idx === 0, idx);
+            }
+          }
+        }
+      }
+
+      const successNotice =
+        mode === "create"
+          ? "Đăng bán sản phẩm thành công!"
+          : "Cập nhật sản phẩm thành công!";
+      toast.success(successNotice);
+      setSuccessMessage(successNotice);
+      setTimeout(() => {
+        router.push("/seller/products");
+      }, 1000);
     } catch (err: unknown) {
       const errObj = err as { message?: string };
-      setErrorMessage(
-        errObj?.message || "Có lỗi xảy ra khi lưu sản phẩm. Vui lòng kiểm tra lại."
-      );
+      const msg =
+        errObj?.message ||
+        "Có lỗi xảy ra khi lưu sản phẩm. Vui lòng kiểm tra lại.";
+      setErrorMessage(msg);
+      toast.error(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setIsSubmitting(false);
     }
@@ -532,106 +1111,205 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             </div>
 
             {/* Image Gallery */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="font-headline-md text-body-md text-on-surface font-semibold">
-                  Hình ảnh sản phẩm
-                </label>
-                <span className="font-body-sm text-body-sm text-secondary">
-                  Tối đa 9 ảnh, tỷ lệ vuông 1:1, dung lượng &lt; 3MB/ảnh
-                </span>
-              </div>
-              <div className="flex items-center gap-3 overflow-x-auto py-2">
-                {images.map((imgUrl, idx) => (
-                  <div
-                    key={idx}
-                    className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-sm group ${
-                      idx === 0 ? "ring-2 ring-emerald-500" : ""
-                    }`}
+            <div className="flex flex-col gap-2.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className="font-headline-md text-body-md text-on-surface font-semibold flex items-center gap-1.5">
+                    <span>Hình ảnh sản phẩm</span>
+                    <span className="text-tertiary">*</span>
+                    <span className="text-xs font-normal text-secondary">
+                      ({images.length}/9 ảnh)
+                    </span>
+                  </label>
+                  <p className="font-body-sm text-label-sm text-secondary">
+                    Ảnh đầu tiên là ảnh bìa hiển thị trên trang chủ &amp; kết quả tìm kiếm.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-xs font-semibold shadow-xs transition-colors"
                   >
-                    <Image
-                      src={imgUrl}
-                      alt={`Ảnh sản phẩm ${idx + 1}`}
-                      fill
-                      sizes="80px"
-                      className="object-cover"
-                    />
-                    {idx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white font-label-sm text-[10px] text-center py-0.5 font-bold">
-                        Ảnh bìa
-                      </div>
-                    )}
+                    <MaterialSymbol name="upload" size="[16px]" />
+                    <span>Chọn ảnh từ máy tính</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingImage(!isAddingImage)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container-low text-secondary hover:text-on-surface font-label-md text-xs font-medium transition-colors"
+                  >
+                    <MaterialSymbol name="link" size="[16px]" />
+                    <span>Dán URL</span>
+                  </button>
+                  {images.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setImages([])}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-error/80 hover:text-error hover:bg-error-container/20 font-label-md text-xs font-medium transition-colors"
                     >
-                      <MaterialSymbol name="close" size="[14px]" />
+                      <MaterialSymbol name="delete" size="[14px]" />
+                      <span>Xóa hết</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* URL Input dropdown */}
+              {isAddingImage && (
+                <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-50/20 flex flex-col sm:flex-row items-center gap-2 shadow-xs animate-in fade-in duration-200">
+                  <input
+                    type="text"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    placeholder="Dán đường dẫn ảnh trực tuyến (https://...)..."
+                    className="h-9 w-full sm:flex-1 px-3 text-body-sm bg-surface-container-lowest border border-outline-variant/40 rounded-lg focus:outline-none focus:border-emerald-500"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddImage();
+                      }
+                    }}
+                  />
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingImage(false)}
+                      className="px-3 py-1.5 text-xs rounded-lg text-secondary hover:bg-surface-container-low"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddImage}
+                      className="px-3.5 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+                    >
+                      Thêm link
                     </button>
                   </div>
-                ))}
+                </div>
+              )}
 
-                {/* Add Image Slot */}
-                {images.length < 9 && (
-                  <div className="relative">
-                    {isAddingImage ? (
-                      <div className="w-64 p-2 rounded-lg border border-emerald-500 bg-surface-container-lowest shadow-md flex flex-col gap-2">
-                        <input
-                          type="text"
-                          value={newImageUrl}
-                          onChange={(e) => setNewImageUrl(e.target.value)}
-                          placeholder="Dán URL ảnh vào đây..."
-                          className="h-8 px-2 text-body-sm border border-outline-variant/40 rounded focus:outline-none focus:border-emerald-500"
+              {/* Drag and Drop Container */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`rounded-xl transition-all p-3 border-2 ${
+                  isDraggingOver
+                    ? "border-emerald-500 bg-emerald-50/40 scale-[1.005]"
+                    : "border-outline-variant/30 bg-surface-container-lowest"
+                }`}
+              >
+                {images.length === 0 ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="py-10 flex flex-col items-center justify-center gap-3 cursor-pointer group text-center hover:bg-surface-container-low/40 rounded-lg transition-colors border border-dashed border-outline-variant/60 hover:border-emerald-500"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                      <MaterialSymbol name="upload" size="[28px]" />
+                    </div>
+                    <div className="flex flex-col gap-1 px-4">
+                      <p className="font-headline-md text-body-md font-semibold text-on-surface">
+                        Bấm để chọn ảnh từ máy tính (Laptop) hoặc kéo thả vào đây
+                      </p>
+                      <p className="font-body-sm text-label-sm text-secondary">
+                        Hỗ trợ PNG, JPG, JPEG, WEBP. Chọn nhiều ảnh cùng lúc, tối đa 9 ảnh.
+                      </p>
+                    </div>
+                    <span className="mt-1 px-4 py-2 rounded-lg bg-emerald-600 group-hover:bg-emerald-700 text-white font-label-md text-xs font-semibold shadow-sm transition-colors">
+                      Tải ảnh từ máy tính
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 overflow-x-auto py-1">
+                    {images.map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-sm group border ${
+                          idx === 0
+                            ? "ring-2 ring-emerald-500 border-emerald-500"
+                            : "border-outline-variant/40"
+                        }`}
+                      >
+                        <Image
+                          src={imgUrl}
+                          alt={`Ảnh sản phẩm ${idx + 1}`}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                          unoptimized
                         />
-                        <div className="flex items-center justify-end gap-1.5">
+                        {idx === 0 ? (
+                          <div className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white font-label-sm text-[10px] text-center py-0.5 font-bold shadow-xs">
+                            Ảnh bìa
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => setIsAddingImage(false)}
-                            className="px-2 py-1 text-[11px] rounded text-secondary hover:bg-surface-container-low"
+                            onClick={() => handleSetCoverImage(idx)}
+                            className="absolute bottom-0 inset-x-0 bg-black/70 hover:bg-emerald-600 text-white font-label-sm text-[9px] text-center py-0.5 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            Hủy
+                            Đặt làm ảnh bìa
                           </button>
-                          <button
-                            type="button"
-                            onClick={handleAddImage}
-                            className="px-2 py-1 text-[11px] rounded bg-emerald-600 text-white font-semibold"
-                          >
-                            Thêm ảnh
-                          </button>
-                        </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          title="Xóa ảnh"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 hover:bg-error text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xs"
+                        >
+                          <MaterialSymbol name="close" size="[14px]" />
+                        </button>
                       </div>
-                    ) : (
+                    ))}
+
+                    {/* Add Image Slot */}
+                    {images.length < 9 && (
                       <button
                         type="button"
-                        onClick={() => setIsAddingImage(true)}
-                        className="w-20 h-20 rounded-lg flex-shrink-0 bg-surface-container-low/70 border border-dashed border-outline-variant hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer flex flex-col items-center justify-center text-center p-1 transition-all group"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-24 h-24 rounded-lg flex-shrink-0 bg-surface-container-low/70 border-2 border-dashed border-outline-variant hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer flex flex-col items-center justify-center text-center p-2 transition-all group"
                       >
                         <MaterialSymbol
-                          name="add_photo_alternate"
-                          size="[22px]"
-                          className="text-outline group-hover:text-emerald-600"
+                          name="upload"
+                          size="[24px]"
+                          className="text-outline group-hover:text-emerald-600 transition-colors"
                         />
-                        <span className="font-label-sm text-[10px] text-secondary group-hover:text-emerald-700 leading-tight mt-0.5">
-                          + Thêm
+                        <span className="font-label-sm text-[11px] font-semibold text-secondary group-hover:text-emerald-700 leading-tight mt-1">
+                          + Tải thêm
+                        </span>
+                        <span className="text-[9px] text-secondary/70">
+                          {images.length}/9
                         </span>
                       </button>
                     )}
-                  </div>
-                )}
 
-                {/* Empty placeholders up to 6 */}
-                {Array.from({ length: Math.max(0, 6 - images.length - 1) }).map(
-                  (_, i) => (
-                    <div
-                      key={`placeholder-${i}`}
-                      className="w-20 h-20 rounded-lg flex-shrink-0 bg-surface-container-low/40 border border-dashed border-outline-variant/60 flex flex-col items-center justify-center text-outline/50"
-                    >
-                      <MaterialSymbol name="photo_camera" size="[20px]" />
-                      <span className="font-label-sm text-[10px]">
-                        {images.length + i + 1}/9
-                      </span>
-                    </div>
-                  )
+                    {/* Empty placeholders */}
+                    {Array.from({ length: Math.max(0, 5 - images.length) }).map(
+                      (_, i) => (
+                        <div
+                          key={`placeholder-${i}`}
+                          className="w-24 h-24 rounded-lg flex-shrink-0 bg-surface-container-low/30 border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-outline/40"
+                        >
+                          <MaterialSymbol name="photo_camera" size="[20px]" />
+                          <span className="font-label-sm text-[10px] mt-0.5">
+                            {images.length + i + 2}/9
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -722,51 +1400,120 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                 <label className="font-headline-md text-body-md text-on-surface font-semibold">
                   Mô tả sản phẩm chi tiết <span className="text-tertiary">*</span>
                 </label>
-                <span className="font-body-sm text-label-sm text-secondary">
-                  Hỗ trợ Markdown &amp; Trình soạn thảo
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline font-body-sm text-label-sm text-secondary">
+                    Hỗ trợ Markdown &amp; Trình soạn thảo
+                  </span>
+                  <div className="flex items-center bg-surface-container p-0.5 rounded-lg border border-outline-variant/30 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setDescTab("write")}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                        descTab === "write"
+                          ? "bg-surface-container-lowest text-primary shadow-xs font-semibold"
+                          : "text-secondary hover:text-on-surface"
+                      }`}
+                    >
+                      Soạn thảo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDescTab("preview")}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                        descTab === "preview"
+                          ? "bg-surface-container-lowest text-primary shadow-xs font-semibold"
+                          : "text-secondary hover:text-on-surface"
+                      }`}
+                    >
+                      Xem trước
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="rounded-lg overflow-hidden border border-outline-variant/40 bg-surface-container-lowest shadow-sm">
                 <div className="flex items-center gap-1 p-1.5 bg-surface-container-low border-b border-outline-variant/20 flex-wrap">
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-bold"
+                    onClick={() => applyFormatting("bold")}
+                    title="In đậm (Ctrl+B)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-bold text-sm transition-colors active:scale-95"
                   >
                     B
                   </button>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center italic"
+                    onClick={() => applyFormatting("italic")}
+                    title="In nghiêng (Ctrl+I)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center italic text-sm transition-colors active:scale-95"
                   >
                     I
                   </button>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center underline"
+                    onClick={() => applyFormatting("underline")}
+                    title="Gạch chân (Ctrl+U)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center underline text-sm transition-colors active:scale-95"
                   >
                     U
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyFormatting("strike")}
+                    title="Gạch ngang"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center line-through text-sm transition-colors active:scale-95"
+                  >
+                    S
                   </button>
                   <div className="h-4 w-px bg-outline-variant/40 mx-1"></div>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center"
+                    onClick={() => applyFormatting("h3")}
+                    title="Tiêu đề mục (###)"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-bold text-xs transition-colors active:scale-95"
+                  >
+                    H
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyFormatting("bullet")}
+                    title="Danh sách gạch đầu dòng"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center transition-colors active:scale-95"
                   >
                     <MaterialSymbol name="format_list_bulleted" size="[18px]" />
                   </button>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center"
+                    onClick={() => applyFormatting("number")}
+                    title="Danh sách số thứ tự"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center transition-colors active:scale-95"
                   >
                     <MaterialSymbol name="format_list_numbered" size="[18px]" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => applyFormatting("quote")}
+                    title="Trích dẫn"
+                    className="w-8 h-8 rounded hover:bg-surface-container-lowest text-secondary hover:text-on-surface flex items-center justify-center font-serif font-bold text-sm transition-colors active:scale-95"
+                  >
+                    &rdquo;
+                  </button>
                 </div>
-                <textarea
-                  rows={6}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Mô tả chi tiết xuất xứ, chất liệu vải, tính năng, hướng dẫn giặt ủi và bảo quản..."
-                  className="w-full p-3.5 bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none resize-y leading-relaxed"
-                />
+
+                {descTab === "write" ? (
+                  <textarea
+                    ref={textareaRef}
+                    rows={6}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onKeyDown={handleDescKeyDown}
+                    placeholder="Mô tả chi tiết xuất xứ, chất liệu vải, tính năng, hướng dẫn giặt ủi và bảo quản..."
+                    className="w-full p-3.5 bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none resize-y leading-relaxed"
+                  />
+                ) : (
+                  <div className="w-full min-h-[160px] p-3.5 bg-surface-container-lowest font-body-md text-body-md text-on-surface leading-relaxed overflow-y-auto">
+                    {renderMarkdownPreview(description)}
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -1450,6 +2197,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                   fill
                   sizes="(max-width: 640px) 100vw, 400px"
                   className="object-cover transition-transform hover:scale-105 duration-300"
+                  unoptimized
                 />
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                   <span className="px-2 py-0.5 rounded bg-tertiary text-white font-label-sm text-[10px] font-bold tracking-wider uppercase shadow-xs">

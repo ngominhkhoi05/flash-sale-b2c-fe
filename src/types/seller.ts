@@ -106,7 +106,9 @@ export interface SellerRevenueDayPoint {
 
 export interface SellerProductVariantResponse {
   id: number;
-  skuCode: string;
+  sku?: string;
+  skuCode?: string;
+  variantName?: string;
   originalPrice: number;
   salePrice: number;
   stockQuantity: number;
@@ -130,6 +132,15 @@ export interface SellerProductDetailResponse {
     name: string;
     options: string[];
   }>;
+  tierVariationConfigs?: Array<{
+    name: string;
+    options: string[];
+  }>;
+  images?: Array<{
+    id?: number;
+    url: string;
+    isPrimary?: boolean;
+  }>;
 }
 
 export interface CategoryItem {
@@ -146,11 +157,13 @@ export interface TierVariationConfig {
 }
 
 export interface CreateProductVariantDto {
+  id?: number;
   sku: string;
   variantName: string;
   attributes?: Record<string, string>;
   originalPrice: number;
   stockQuantity: number;
+  status?: string;
 }
 
 export interface CreateProductPayload {
@@ -169,7 +182,7 @@ export interface UpdateProductPayload {
   imageUrl?: string;
   status: string;
   tierVariationConfigs: TierVariationConfig[];
-  variants: Array<CreateProductVariantDto & { id?: number }>;
+  variants: CreateProductVariantDto[];
 }
 
 export interface FlashSaleSlotItem {

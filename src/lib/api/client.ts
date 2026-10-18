@@ -137,6 +137,8 @@ export type ApiFetchOptions = Omit<RequestInit, "body"> & {
   query?: Record<string, string | number | boolean | undefined | null>;
   /** JSON body – sẽ được JSON.stringify. */
   json?: unknown;
+  /** Raw body (FormData, Blob, etc.) khi không dùng JSON */
+  body?: BodyInit | null;
   /** Bỏ qua refresh khi 401 (mặc định: cho phép). */
   withAuth?: boolean;
   /** Tự retry khi 5xx (mặc định: 0). */
@@ -252,7 +254,7 @@ export async function apiFetch<T>(
     if (token) finalHeaders["Authorization"] = `Bearer ${token}`;
   }
 
-  let body: BodyInit | undefined;
+  let body: BodyInit | undefined = (init as { body?: BodyInit }).body;
   if (json !== undefined) {
     finalHeaders["Content-Type"] = "application/json";
     body = JSON.stringify(json);

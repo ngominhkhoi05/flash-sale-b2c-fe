@@ -10,6 +10,7 @@ import {
   getSellerProducts,
   getSellerProductDetail,
   registerFlashSaleItems,
+  cancelFlashSaleRegistration,
 } from "@/lib/api/seller";
 import type {
   FlashSaleSlotItem,
@@ -24,6 +25,7 @@ export function FlashSaleRegisterClient() {
   const [slots, setSlots] = useState<FlashSaleSlotItem[]>([]);
   const [history, setHistory] = useState<RegisteredFlashSaleHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   // Drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -222,12 +224,48 @@ export function FlashSaleRegisterClient() {
     setIsSubmitting(true);
     try {
       await registerFlashSaleItems(itemsToRegister);
+      
+      // Tạo optimistic items để thêm ngay vào đầu danh sách
+      const newItems: RegisteredFlashSaleHistoryItem[] = itemsToRegister.map((it, idx) => {
+        const v = productDetail.variants.find((variant) => variant.id === it.variantId);
+        return {
+          id: Date.now() + idx,
+          productName: productDetail.name,
+          sku: v?.skuCode || `SKU-${it.variantId}`,
+          imageUrl:
+            (typeof productDetail.images?.[0] === "string"
+              ? productDetail.images[0]
+              : productDetail.images?.[0]?.url) ||
+            selectedProduct?.imageUrl ||
+            "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+          slotTitle: selectedSlot.title,
+          slotDate: new Date(selectedSlot.startTime).toLocaleDateString("vi-VN"),
+          slotTime: `${new Date(selectedSlot.startTime).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })} – ${new Date(selectedSlot.endTime).toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`,
+          flashSalePrice: it.flashSalePrice,
+          allocatedStock: it.allocatedStock,
+          soldStock: 0,
+          status: "PENDING",
+        };
+      });
+
+      setHistory((prev) => [...newItems, ...prev]);
       setIsDrawerOpen(false);
-      setToastMessage("Gửi yêu cầu đăng ký thành công! Admin Vibe Mart sẽ duyệt sản phẩm trong vòng 2 giờ.");
+      setActiveTab("my-regs");
+      setToastMessage(
+        `Đã gửi thành công ${itemsToRegister.length} SKU tham gia "${selectedSlot.title}"!`
+      );
       setTimeout(() => setToastMessage(null), 5000);
 
-      // Refresh registered list
-      getRegisteredFlashSaleHistory().then(setHistory);
+      // Đồng bộ ngầm từ server
+      getRegisteredFlashSaleHistory().then((data) => {
+        if (data && data.length > 0) setHistory(data);
+      });
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       setErrorMessage(errObj?.message || "Có lỗi xảy ra khi nộp đăng ký Flash Sale.");
@@ -236,6 +274,26 @@ export function FlashSaleRegisterClient() {
     }
   };
 
+  // Hủy đăng ký sản phẩm Flash Sale khi đang PENDING
+  const handleCancelRegistration = async (itemId: number) => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn đăng ký Flash Sale này không?")) {
+      return;
+    }
+    setCancellingId(itemId);
+    try {
+      await cancelFlashSaleRegistration(itemId);
+      setHistory((prev) => prev.filter((item) => item.id !== itemId));
+      setToastMessage("Đã hủy đơn đăng ký Flash Sale thành công.");
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      alert(errObj?.message || "Không thể hủy đăng ký lúc này. Vui lòng thử lại sau.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  // Xuất báo cáo lịch sử đăng ký Flash Sale ra file CSV
   const handleExportHistoryCsv = () => {
     try {
       if (!history || history.length === 0) {
@@ -256,7 +314,10 @@ export function FlashSaleRegisterClient() {
         "Trạng thái",
       ];
       const rows = history.map((item: RegisteredFlashSaleHistoryItem) => {
-        const percent = item.allocatedStock > 0 ? Math.round((item.soldStock / item.allocatedStock) * 100) : 0;
+        const percent =
+          item.allocatedStock > 0
+            ? Math.round((item.soldStock / item.allocatedStock) * 100)
+            : 0;
         return [
           `"${item.id}"`,
           `"${(item.productName || "").replace(/"/g, '""')}"`,
@@ -271,7 +332,9 @@ export function FlashSaleRegisterClient() {
         ];
       });
 
-      const csvContent = `${bom}${headers.join(",")}\n${rows.map((r: string[]) => r.join(",")).join("\n")}`;
+      const csvContent = `${bom}${headers.join(",")}\n${rows
+        .map((r: string[]) => r.join(","))
+        .join("\n")}`;
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -283,7 +346,9 @@ export function FlashSaleRegisterClient() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      setToastMessage(`Đã xuất báo cáo ${history.length} sản phẩm Flash Sale thành công!`);
+      setToastMessage(
+        `Đã xuất báo cáo ${history.length} sản phẩm Flash Sale thành công!`
+      );
       setTimeout(() => setToastMessage(null), 4000);
     } catch {
       setErrorMessage("Có lỗi xảy ra khi xuất báo cáo.");
@@ -409,8 +474,22 @@ export function FlashSaleRegisterClient() {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="grid grid-cols-1 gap-4">
+              {[1, 2, 3].map((sk) => (
+                <div
+                  key={sk}
+                  className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm animate-pulse flex flex-col xl:flex-row xl:items-center justify-between gap-6"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex-shrink-0" />
+                    <div className="flex-1 space-y-2.5">
+                      <div className="h-5 bg-slate-100 rounded-lg w-1/3" />
+                      <div className="h-4 bg-slate-100 rounded-lg w-1/2" />
+                    </div>
+                  </div>
+                  <div className="w-36 h-11 bg-slate-100 rounded-xl" />
+                </div>
+              ))}
             </div>
           ) : slots.length === 0 ? (
             <div className="p-8 text-center bg-surface-container-lowest rounded-xl border border-outline-variant/30">
@@ -543,7 +622,7 @@ export function FlashSaleRegisterClient() {
               <button
                 type="button"
                 onClick={handleExportHistoryCsv}
-                className="px-3 py-1.5 rounded-lg bg-surface-container-low text-secondary hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-surface-container-low text-secondary hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors active:scale-95"
               >
                 <MaterialSymbol name="file_download" size="[16px]" />
                 <span>Xuất báo cáo</span>
@@ -664,12 +743,24 @@ export function FlashSaleRegisterClient() {
                       </td>
 
                       <td className="px-space-md py-3.5 text-right">
-                        <button
-                          type="button"
-                          className="p-1.5 text-secondary hover:text-on-surface hover:bg-surface-container rounded-lg"
-                        >
-                          <MaterialSymbol name="more_vert" size="[18px]" />
-                        </button>
+                        {item.status === "PENDING" ? (
+                          <button
+                            type="button"
+                            disabled={cancellingId === item.id}
+                            onClick={() => handleCancelRegistration(item.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors disabled:opacity-50"
+                            title="Hủy đơn đăng ký đang chờ duyệt"
+                          >
+                            {cancellingId === item.id ? (
+                              <div className="w-3.5 h-3.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <MaterialSymbol name="close" size="[14px]" />
+                            )}
+                            <span>{cancellingId === item.id ? "Đang hủy..." : "Hủy"}</span>
+                          </button>
+                        ) : (
+                          <span className="text-secondary text-xs">--</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -680,62 +771,69 @@ export function FlashSaleRegisterClient() {
         </div>
       )}
 
-      {/* 720px SLIDE-OVER DRAWER */}
+      {/* 900px CENTERED MODAL DIALOG */}
       {isDrawerOpen && selectedSlot && (
-        <div className="fixed inset-0 bg-on-surface/40 backdrop-blur-xs z-50 transition-opacity flex justify-end">
-          <div className="w-full max-w-[720px] h-full bg-surface-container-lowest shadow-2xl flex flex-col justify-between overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          {/* Backdrop mờ phủ toàn màn hình */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+            onClick={handleCloseDrawer}
+          />
+
+          {/* Cửa sổ nổi chính giữa màn hình */}
+          <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="p-space-lg bg-surface-container-lowest border-b border-outline-variant/30 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-space-sm">
-                <div className="w-9 h-9 rounded-lg bg-tertiary-container/10 text-tertiary-container flex items-center justify-center">
-                  <MaterialSymbol name="bolt" size="[20px]" fill />
+            <div className="px-6 py-5 bg-gradient-to-r from-slate-50 via-white to-amber-50/40 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+                  <MaterialSymbol name="bolt" size="[22px]" fill />
                 </div>
                 <div>
-                  <h3 className="font-headline-lg text-headline-lg text-on-surface font-bold leading-tight">
+                  <h3 className="font-bold text-lg text-slate-900 leading-tight">
                     Đăng ký sản phẩm Flash Sale
                   </h3>
-                  <p className="font-body-sm text-body-sm text-secondary">
-                    Khung giờ:{" "}
-                    <strong className="text-tertiary-container">
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-slate-500">Khung giờ:</span>
+                    <span className="text-xs font-bold text-amber-700 bg-amber-100/70 px-2.5 py-0.5 rounded-full border border-amber-200/60">
                       {selectedSlot.title}
-                    </strong>
-                  </p>
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleCloseDrawer}
-                className="w-9 h-9 rounded-lg text-secondary hover:text-on-surface hover:bg-surface-container flex items-center justify-center transition-colors"
+                className="w-9 h-9 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors"
               >
                 <MaterialSymbol name="close" size="[22px]" />
               </button>
             </div>
 
-            {/* Error in Drawer */}
+            {/* Error in Modal */}
             {errorMessage && (
-              <div className="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-error flex items-center gap-2 text-body-sm">
-                <MaterialSymbol name="error" size="[18px]" />
+              <div className="mx-6 mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 flex items-center gap-2.5 text-xs font-medium animate-in fade-in duration-150">
+                <MaterialSymbol name="error" size="[20px]" className="text-rose-500 flex-shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-space-lg space-y-space-lg">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Step 1: Chọn sản phẩm */}
-              <div className="space-y-space-sm">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white font-label-sm text-label-sm font-bold flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shadow-xs">
                       1
                     </span>
-                    <h4 className="font-headline-md text-headline-md text-on-surface font-semibold">
+                    <h4 className="text-sm font-bold text-slate-900">
                       Sản phẩm tham gia phiên
                     </h4>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsChangingProduct(!isChangingProduct)}
-                    className="px-2.5 py-1 text-label-sm font-semibold text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-200/60"
                   >
                     {isChangingProduct ? "Đóng danh sách" : "Thay đổi sản phẩm"}
                   </button>
@@ -743,8 +841,8 @@ export function FlashSaleRegisterClient() {
 
                 {/* Product Dropdown Selector */}
                 {isChangingProduct && (
-                  <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/40 space-y-2 max-h-48 overflow-y-auto">
-                    <p className="font-label-sm text-secondary uppercase font-semibold">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2 max-h-52 overflow-y-auto shadow-inner">
+                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider px-1">
                       Chọn sản phẩm từ kho hàng của bạn:
                     </p>
                     <div className="flex flex-col gap-1.5">
@@ -757,14 +855,14 @@ export function FlashSaleRegisterClient() {
                             setSelectedProduct(p);
                             setIsChangingProduct(false);
                           }}
-                          className={`flex items-center justify-between p-2 rounded-lg text-left text-body-sm transition-colors ${
+                          className={`flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-colors ${
                             selectedProduct?.id === p.id
-                              ? "bg-emerald-100/80 text-emerald-900 font-semibold"
-                              : "hover:bg-surface-container-lowest text-on-surface"
+                              ? "bg-emerald-100/90 text-emerald-950 font-bold border border-emerald-300"
+                              : "hover:bg-white text-slate-700 bg-white/50 border border-transparent"
                           }`}
                         >
-                          <span className="truncate">{p.name}</span>
-                          <span className="font-data-tabular text-secondary text-[12px] flex-shrink-0 ml-2">
+                          <span className="truncate pr-2">{p.name}</span>
+                          <span className="text-slate-500 font-semibold flex-shrink-0">
                             {formatVND(p.minPrice)}₫
                           </span>
                         </button>
@@ -775,9 +873,9 @@ export function FlashSaleRegisterClient() {
 
                 {/* Selected Product Card */}
                 {selectedProduct && (
-                  <div className="p-space-md rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
-                    <div className="flex items-center gap-space-md min-w-0">
-                      <div className="relative w-16 h-16 rounded-lg bg-surface-container-high overflow-hidden flex-shrink-0 shadow-sm">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative w-16 h-16 rounded-2xl bg-white border border-slate-200/80 overflow-hidden flex-shrink-0 shadow-sm">
                         <Image
                           src={
                             selectedProduct.imageUrl ||
@@ -791,22 +889,22 @@ export function FlashSaleRegisterClient() {
                         />
                       </div>
                       <div className="min-w-0">
-                        <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold mb-1">
+                        <div className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] bg-emerald-100 text-emerald-800 font-bold mb-1">
                           {selectedProduct.categoryName || "Thời trang"}
                         </div>
-                        <h5 className="font-headline-md text-body-md text-on-surface font-bold truncate">
+                        <h5 className="text-sm text-slate-900 font-bold truncate">
                           {selectedProduct.name}
                         </h5>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-body-sm text-label-sm text-secondary mt-0.5">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-0.5">
                           <span>
                             Giá gốc:{" "}
-                            <strong className="text-on-surface">
+                            <strong className="text-slate-800">
                               {formatVND(selectedProduct.minPrice)}₫ – {formatVND(selectedProduct.maxPrice)}₫
                             </strong>
                           </span>
                           <span>
                             Tồn kho:{" "}
-                            <strong className="text-emerald-700">
+                            <strong className="text-emerald-700 font-bold">
                               {selectedProduct.totalStock} cái
                             </strong>
                           </span>
@@ -814,7 +912,7 @@ export function FlashSaleRegisterClient() {
                       </div>
                     </div>
                     <div className="flex-shrink-0 text-right">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-label-sm text-label-sm font-semibold">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-800 text-xs font-bold">
                         <MaterialSymbol name="check_circle" size="[14px]" /> Đủ điều kiện
                       </span>
                     </div>
@@ -823,58 +921,60 @@ export function FlashSaleRegisterClient() {
               </div>
 
               {/* Step 2: Cấu hình giá và số lượng từng SKU */}
-              <div className="space-y-space-sm">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white font-label-sm text-label-sm font-bold flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shadow-xs">
                       2
                     </span>
-                    <h4 className="font-headline-md text-headline-md text-on-surface font-semibold">
-                      Cấu hình giá &amp; số lượng từng SKU
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Cấu hình giá &amp; số lượng từng biến thể SKU
                     </h4>
                   </div>
-                  <span className="font-label-sm text-label-sm text-secondary font-medium">
+                  <span className="text-xs text-slate-500 font-medium">
                     Đã chọn:{" "}
-                    <strong className="text-emerald-700">{selectedSkuCount}</strong>/
+                    <strong className="text-emerald-700 font-bold">{selectedSkuCount}</strong>/
                     {productDetail?.variants?.length || 0} SKU
                   </span>
                 </div>
 
-                <div className="p-space-sm rounded-lg bg-surface-container flex items-center gap-space-sm text-secondary font-body-sm text-body-sm">
-                  <MaterialSymbol name="info" size="[18px]" className="text-tertiary-container" />
+                <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/60 flex items-center gap-2.5 text-amber-900 text-xs">
+                  <MaterialSymbol name="info" size="[18px]" className="text-amber-600 flex-shrink-0" />
                   <span>
-                    Quy chuẩn phiên: <strong className="text-on-surface">Giảm tối thiểu 10%</strong>{" "}
+                    Quy chuẩn phiên: <strong className="font-bold">Giảm tối thiểu 10%</strong>{" "}
                     so với giá niêm yết · Số lượng mở bán tối đa không vượt tồn kho thực tế.
                   </span>
                 </div>
 
                 {/* SKU Configuration Table */}
                 {isLoadingDetail ? (
-                  <div className="py-8 text-center text-secondary text-body-sm">
-                    Đang tải danh sách biến thể SKU...
+                  <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse">
+                    <div className="h-9 bg-slate-200/70 rounded-xl w-full" />
+                    <div className="h-12 bg-slate-200/50 rounded-xl w-full" />
+                    <div className="h-12 bg-slate-200/50 rounded-xl w-full" />
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-sm">
-                    <table className="w-full text-left border-collapse text-body-sm">
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                    <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-surface-container-low text-secondary font-label-sm text-[11px] uppercase tracking-wider h-10 border-b border-outline-variant/30">
+                        <tr className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider h-10 border-b border-slate-200/80">
                           <th className="px-3 py-2 text-center w-10">Chọn</th>
-                          <th className="px-3 py-2 font-semibold">Phân loại SKU</th>
-                          <th className="px-2 py-2 font-semibold text-right">Giá gốc</th>
-                          <th className="px-2 py-2 font-semibold text-center">Tồn</th>
-                          <th className="px-2 py-2 font-semibold" style={{ width: "130px" }}>
+                          <th className="px-3 py-2 font-bold">Phân loại SKU</th>
+                          <th className="px-2 py-2 font-bold text-right">Giá gốc</th>
+                          <th className="px-2 py-2 font-bold text-center">Tồn kho</th>
+                          <th className="px-2 py-2 font-bold" style={{ width: "140px" }}>
                             Giá Flash Sale
                           </th>
-                          <th className="px-2 py-2 font-semibold text-center">% Giảm</th>
-                          <th className="px-2 py-2 font-semibold" style={{ width: "100px" }}>
+                          <th className="px-2 py-2 font-bold text-center">% Giảm</th>
+                          <th className="px-2 py-2 font-bold" style={{ width: "110px" }}>
                             SL mở bán
                           </th>
-                          <th className="px-2 py-2 font-semibold text-center" style={{ width: "80px" }}>
+                          <th className="px-2 py-2 font-bold text-center" style={{ width: "90px" }}>
                             Hạn mức/khách
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-outline-variant/20">
+                      <tbody className="divide-y divide-slate-100">
                         {productDetail?.variants?.map((v) => {
                           const cfg = skuConfigs[v.id] || {
                             selected: false,
@@ -897,8 +997,8 @@ export function FlashSaleRegisterClient() {
                               key={v.id}
                               className={`transition-colors ${
                                 isOutOfStock
-                                  ? "bg-surface-container-low/60 text-outline"
-                                  : "hover:bg-surface-container-low/40"
+                                  ? "bg-slate-50/70 text-slate-400"
+                                  : "hover:bg-slate-50/60"
                               }`}
                             >
                               <td className="px-3 py-3 text-center">
@@ -907,24 +1007,24 @@ export function FlashSaleRegisterClient() {
                                   checked={cfg.selected && !isOutOfStock}
                                   disabled={isOutOfStock}
                                   onChange={() => handleToggleSku(v.id)}
-                                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-outline-variant"
+                                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
                                 />
                               </td>
 
-                              <td className="px-3 py-3 font-medium text-on-surface">
-                                <div className="font-semibold text-body-sm">
+                              <td className="px-3 py-3 font-medium text-slate-900">
+                                <div className="font-bold text-slate-800">
                                   {Object.values(v.attributes || {}).join(" / ") || v.skuCode}
                                 </div>
-                                <div className="text-[11px] text-secondary">{v.skuCode}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{v.skuCode}</div>
                               </td>
 
-                              <td className="px-2 py-3 text-right text-secondary">
+                              <td className="px-2 py-3 text-right text-slate-500 font-medium">
                                 {formatVND(v.originalPrice)}₫
                               </td>
 
                               <td
                                 className={`px-2 py-3 text-center font-bold ${
-                                  isOutOfStock ? "text-red-500" : "text-on-surface"
+                                  isOutOfStock ? "text-rose-500" : "text-slate-800"
                                 }`}
                               >
                                 {v.stockQuantity}
@@ -932,7 +1032,7 @@ export function FlashSaleRegisterClient() {
 
                               <td className="px-2 py-3">
                                 {isOutOfStock ? (
-                                  <span className="text-secondary">--</span>
+                                  <span className="text-slate-400">--</span>
                                 ) : (
                                   <div className="relative">
                                     <input
@@ -941,9 +1041,9 @@ export function FlashSaleRegisterClient() {
                                       onChange={(e) =>
                                         handleSkuPriceChange(v.id, Number(e.target.value) || 0)
                                       }
-                                      className="w-full h-8 pl-2 pr-5 text-right font-headline-md text-body-sm text-tertiary-container font-bold rounded-lg border border-outline-variant/50 focus:border-emerald-500 focus:outline-none"
+                                      className="w-full h-8 pl-2 pr-5 text-right font-bold text-orange-600 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                                     />
-                                    <span className="absolute right-2 top-2 text-[10px] text-secondary">
+                                    <span className="absolute right-2 top-2 text-[10px] text-slate-400">
                                       ₫
                                     </span>
                                   </div>
@@ -952,12 +1052,12 @@ export function FlashSaleRegisterClient() {
 
                               <td className="px-2 py-3 text-center">
                                 {isOutOfStock ? (
-                                  <span className="text-[11px] text-outline font-medium">--</span>
+                                  <span className="text-slate-300 font-medium">--</span>
                                 ) : (
                                   <span
-                                    className={`px-1.5 py-0.5 rounded font-label-sm text-[11px] font-bold ${
+                                    className={`px-1.5 py-0.5 rounded font-bold text-[11px] ${
                                       discountPercent >= 20
-                                        ? "bg-red-100 text-red-700"
+                                        ? "bg-rose-100 text-rose-700"
                                         : "bg-amber-100 text-amber-700"
                                     }`}
                                   >
@@ -968,7 +1068,7 @@ export function FlashSaleRegisterClient() {
 
                               <td className="px-2 py-3">
                                 {isOutOfStock ? (
-                                  <span className="inline-block w-full text-center text-label-sm text-red-600 font-semibold bg-red-50 py-1 rounded">
+                                  <span className="inline-block w-full text-center text-xs text-rose-600 font-semibold bg-rose-50 py-1 rounded-lg">
                                     Hết hàng
                                   </span>
                                 ) : (
@@ -979,14 +1079,14 @@ export function FlashSaleRegisterClient() {
                                     onChange={(e) =>
                                       handleSkuStockChange(v.id, Number(e.target.value) || 0)
                                     }
-                                    className="w-full h-8 px-2 text-center font-semibold text-body-sm rounded-lg border border-outline-variant/50 focus:border-emerald-500 focus:outline-none"
+                                    className="w-full h-8 px-2 text-center font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                                   />
                                 )}
                               </td>
 
                               <td className="px-2 py-3 text-center">
                                 {isOutOfStock ? (
-                                  <span className="text-secondary">--</span>
+                                  <span className="text-slate-400">--</span>
                                 ) : (
                                   <input
                                     type="number"
@@ -996,7 +1096,7 @@ export function FlashSaleRegisterClient() {
                                     onChange={(e) =>
                                       handleSkuLimitChange(v.id, Number(e.target.value) || 1)
                                     }
-                                    className="w-12 h-8 mx-auto px-1 text-center font-medium text-body-sm rounded-lg border border-outline-variant/50 focus:border-emerald-500 focus:outline-none"
+                                    className="w-12 h-8 mx-auto px-1 text-center font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                                   />
                                 )}
                               </td>
@@ -1010,13 +1110,13 @@ export function FlashSaleRegisterClient() {
               </div>
 
               {/* Technical Note */}
-              <div className="p-space-md rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-space-sm shadow-xs">
-                <MaterialSymbol name="warning" size="[22px]" className="text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h6 className="font-headline-md text-body-sm font-bold text-amber-950">
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-amber-950 flex items-start gap-3 shadow-xs">
+                <MaterialSymbol name="verified_user" size="[22px]" className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1 text-xs">
+                  <h6 className="font-bold text-amber-950">
                     Cơ chế khóa tồn kho tự động &amp; Bảo vệ đơn hàng
                   </h6>
-                  <p className="font-body-sm text-label-sm leading-relaxed text-amber-800">
+                  <p className="leading-relaxed text-amber-800">
                     Khi đơn đăng ký được duyệt, số lượng mở bán (
                     <strong className="font-bold text-amber-950">{totalAllocatedStock} sản phẩm</strong>
                     ) sẽ được tạm khóa khỏi kho gốc để đảm bảo không bị bán trùng lặp trong thời gian diễn ra Flash Sale.
@@ -1027,24 +1127,24 @@ export function FlashSaleRegisterClient() {
             </div>
 
             {/* Footer Action Bar */}
-            <div className="p-space-lg bg-surface-container-lowest border-t border-outline-variant/30 flex items-center justify-between flex-shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
               <div className="flex flex-col">
-                <div className="font-label-sm text-label-sm text-secondary">
+                <div className="text-xs text-slate-500 font-medium">
                   Tổng sản phẩm đề xuất
                 </div>
-                <div className="font-headline-md text-headline-md text-on-surface">
+                <div className="text-base font-bold text-slate-900">
                   {selectedSkuCount} SKU ·{" "}
-                  <span className="text-tertiary-container font-bold">
+                  <span className="text-emerald-700 font-extrabold">
                     {totalAllocatedStock} chiếc
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-space-sm">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={handleCloseDrawer}
-                  className="px-space-md py-2.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container-low text-on-surface font-label-md text-body-md transition-colors"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-colors"
                 >
                   Hủy bỏ
                 </button>
@@ -1052,16 +1152,16 @@ export function FlashSaleRegisterClient() {
                   type="button"
                   disabled={isSubmitting || selectedSkuCount === 0}
                   onClick={handleSubmitRegistration}
-                  className="px-space-lg py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-body-md font-semibold flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Đang nộp...</span>
                     </>
                   ) : (
                     <>
-                      <MaterialSymbol name="send" size="[18px]" />
+                      <MaterialSymbol name="send" size="[16px]" />
                       <span>Gửi {selectedSkuCount} SKU phê duyệt</span>
                     </>
                   )}

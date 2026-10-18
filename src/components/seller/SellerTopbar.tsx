@@ -1,10 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useMyStore } from "@/hooks/useMyStore";
+import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
 import { useMeQuery, useLogoutMutation } from "@/features/auth/hooks";
+import { formatVND } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +35,16 @@ export function SellerTopbar({
   storeRole = "Chủ gian hàng",
   avatarInitials: propInitials,
 }: SellerTopbarProps) {
+  const router = useRouter();
   const { store, storeName: realStoreName, storeCode, storeStatusText, initials } = useMyStore();
   const { data: userData } = useMeQuery();
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
+
+  const {
+    unreadCount,
+    allPendingOrders,
+    markAllAsSeen,
+  } = useSellerOrderNotifications();
 
   const finalStoreName = propStoreName || realStoreName || "Gian hàng";
   const finalInitials = propInitials || initials || "VM";
@@ -67,17 +78,135 @@ export function SellerTopbar({
             <span>Về trang mua sắm</span>
           </Link>
 
-          {/* Notifications */}
-          <div className="relative">
-            <button
-              type="button"
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors"
-              aria-label="Thông báo"
+          {/* Notifications Dropdown */}
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open) {
+                markAllAsSeen();
+              }
+            }}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                  unreadCount > 0
+                    ? "text-rose-600 bg-rose-50 hover:bg-rose-100"
+                    : "text-secondary hover:bg-surface-container-low hover:text-on-surface"
+                }`}
+                aria-label="Thông báo đơn hàng"
+              >
+                <MaterialSymbol name="notifications" size="[22px]" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-surface-container-lowest animate-pulse">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-80 sm:w-96 p-0 bg-surface-container-lowest border border-outline-variant/40 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in-80 zoom-in-95"
             >
-              <MaterialSymbol name="notifications" size="[22px]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-tertiary-container ring-2 ring-surface-container-lowest animate-pulse" />
-            </button>
-          </div>
+              {/* Header */}
+              <div className="p-3.5 bg-surface-container-low/70 border-b border-outline-variant/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MaterialSymbol name="notifications_active" size="[20px]" className="text-emerald-600" />
+                  <span className="font-headline-md text-body-md font-bold text-on-surface">
+                    Thông báo đơn hàng
+                  </span>
+                </div>
+                {unreadCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => markAllAsSeen()}
+                    className="px-2 py-0.5 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    {unreadCount} đơn mới • Đã xem
+                  </button>
+                ) : (
+                  <span className="text-xs text-secondary font-medium flex items-center gap-1">
+                    <MaterialSymbol name="check" size="[14px]" className="text-emerald-600" />
+                    Đã xem tất cả
+                  </span>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="max-h-[360px] overflow-y-auto divide-y divide-outline-variant/10">
+                {allPendingOrders.length === 0 ? (
+                  <div className="py-8 px-4 text-center flex flex-col items-center justify-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-secondary">
+                      <MaterialSymbol name="check_circle" size="[22px]" className="text-emerald-600" />
+                    </div>
+                    <p className="text-body-sm font-semibold text-on-surface">
+                      Không có đơn hàng chờ xử lý
+                    </p>
+                    <p className="text-label-sm text-secondary max-w-[240px]">
+                      Hệ thống sẽ tự động phát tín hiệu và bật thông báo khi có đơn hàng mới phát sinh.
+                    </p>
+                  </div>
+                ) : (
+                  allPendingOrders.map((order) => (
+                    <DropdownMenuItem
+                      key={order.id}
+                      asChild
+                      className="p-3 hover:bg-surface-container-low/60 transition-colors cursor-pointer focus:bg-surface-container-low"
+                    >
+                      <Link
+                        href="/seller/orders"
+                        onClick={() => markAllAsSeen()}
+                        className="flex items-start gap-3 w-full"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0 mt-0.5 border border-emerald-200">
+                          <MaterialSymbol name="shopping_bag" size="[18px]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <span className="font-label-md text-label-md font-bold text-on-surface truncate">
+                              #{order.orderCode}
+                            </span>
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200/60">
+                              {order.status === "PENDING"
+                                ? "Chờ xác nhận"
+                                : order.status === "PENDING_PAYMENT"
+                                ? "Chờ thanh toán"
+                                : order.status}
+                            </span>
+                          </div>
+                          <p className="text-body-sm text-secondary truncate">
+                            Khách hàng: <span className="text-on-surface font-medium">{order.recipientName}</span>
+                          </p>
+                          <div className="flex items-center justify-between mt-1 text-label-sm">
+                            <span className="font-bold text-emerald-700">
+                              {formatVND(order.totalAmount || 0)}
+                            </span>
+                            <span className="text-secondary text-[11px]">
+                              {order.items?.length || 1} sản phẩm
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-2.5 bg-surface-container-low/40 border-t border-outline-variant/20 text-center">
+                <Link
+                  href="/seller/orders"
+                  onClick={() => markAllAsSeen()}
+                  className="inline-flex items-center justify-center gap-1.5 w-full py-1.5 text-body-sm font-semibold text-emerald-700 hover:text-emerald-800 transition-colors"
+                >
+                  <span>Xem tất cả đơn hàng</span>
+                  <MaterialSymbol name="arrow_forward" size="[16px]" />
+                </Link>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Divider */}
           <div className="h-6 w-px bg-outline-variant/30" />

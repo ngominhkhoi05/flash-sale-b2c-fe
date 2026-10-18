@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   getSellerVouchers,
@@ -14,18 +14,24 @@ import type {
 
 type VoucherTabKey = "ALL" | "ACTIVE" | "UPCOMING" | "EXPIRED";
 
-const DEFAULT_FORM_DATA: CreateSellerVoucherPayload = {
-  code: "",
-  name: "",
-  discountType: "PERCENTAGE",
-  discountValue: 10,
-  maxDiscountAmount: 30000,
-  minOrderAmount: 150000,
-  totalUsageLimit: 100,
-  userUsageLimit: 1,
-  startDate: "2026-10-18",
-  endDate: "2026-11-01",
-};
+function getInitialVoucherFormData(): CreateSellerVoucherPayload {
+  const now = new Date();
+  const nextMonth = new Date();
+  nextMonth.setDate(now.getDate() + 30);
+
+  return {
+    code: "",
+    name: "",
+    discountType: "PERCENTAGE",
+    discountValue: 10,
+    maxDiscountAmount: 30000,
+    minOrderAmount: 100000,
+    totalUsageLimit: 100,
+    userUsageLimit: 1,
+    startDate: now.toISOString().split("T")[0],
+    endDate: nextMonth.toISOString().split("T")[0],
+  };
+}
 
 export default function SellerVouchersPage() {
   const [vouchers, setVouchers] = useState<SellerVoucherItem[]>([]);
@@ -36,11 +42,10 @@ export default function SellerVouchersPage() {
   const [currentTab, setCurrentTab] = useState<VoucherTabKey>("ALL");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<"ALL" | "PERCENTAGE" | "FIXED_AMOUNT">("ALL");
-  const [reloadTrigger, setReloadTrigger] = useState<number>(0);
 
   // Drawer Create Form State
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
-  const [formData, setFormData] = useState<CreateSellerVoucherPayload>(DEFAULT_FORM_DATA);
+  const [formData, setFormData] = useState<CreateSellerVoucherPayload>(getInitialVoucherFormData());
 
   const [formLoading, setFormLoading] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -51,32 +56,29 @@ export default function SellerVouchersPage() {
   };
 
   const triggerReload = () => {
-    setLoading(true);
-    setReloadTrigger((prev) => prev + 1);
+    fetchVouchers(false);
   };
 
-  useEffect(() => {
-    let active = true;
-    getSellerVouchers(0, 50, currentTab)
-      .then((res) => {
-        if (active) {
-          setVouchers(res.content || []);
-          setError(null);
-          setLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          const msg = err instanceof Error ? err.message : "Không thể tải danh sách voucher";
-          setError(msg);
-          setLoading(false);
-        }
-      });
+  const fetchVouchers = useCallback(async (silent = false) => {
+    if (!silent && vouchers.length === 0) setLoading(true);
+    try {
+      const res = await getSellerVouchers(0, 100);
+      const list = res.content || [];
+      setVouchers(list);
+      setError(null);
+    } catch (err: unknown) {
+      if (!silent && vouchers.length === 0) {
+        const msg = err instanceof Error ? err.message : "Không thể tải danh sách voucher";
+        setError(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [vouchers.length]);
 
-    return () => {
-      active = false;
-    };
-  }, [currentTab, reloadTrigger]);
+  useEffect(() => {
+    void fetchVouchers(false);
+  }, [fetchVouchers]);
 
   // Tab counts
   const tabCounts = useMemo(() => {
@@ -126,15 +128,15 @@ export default function SellerVouchersPage() {
 
     setFormLoading(true);
     try {
-      await createSellerVoucher(formData);
+      const created = await createSellerVoucher(formData);
+      setVouchers((prev) => [created, ...prev]);
       showToast(`Đã tạo thành công voucher #${formData.code.toUpperCase()}`);
       setIsCreateOpen(false);
       // Reset form
-      setFormData(DEFAULT_FORM_DATA);
-      triggerReload();
+      setFormData(getInitialVoucherFormData());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể tạo voucher";
-      alert(msg);
+      showToast(`Lỗi: ${msg}`);
     } finally {
       setFormLoading(false);
     }
@@ -289,14 +291,27 @@ export default function SellerVouchersPage() {
 
       {/* Vouchers Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <span className="material-symbols-outlined animate-spin text-emerald-600 text-[32px]">
-              progress_activity
-            </span>
-            <p className="text-xs font-medium">Đang tải danh sách voucher...</p>
+        {loading && vouchers.length === 0 ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-16 w-full bg-slate-50/70 animate-pulse rounded-xl border border-slate-100 flex items-center justify-between px-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-200/60 rounded-xl"></div>
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-28 bg-slate-200/60 rounded"></div>
+                    <div className="h-2.5 w-20 bg-slate-100 rounded"></div>
+                  </div>
+                </div>
+                <div className="h-4 w-32 bg-slate-200/60 rounded hidden md:block"></div>
+                <div className="h-4 w-24 bg-slate-200/60 rounded"></div>
+                <div className="h-6 w-20 bg-slate-200/60 rounded-full"></div>
+              </div>
+            ))}
           </div>
-        ) : error ? (
+        ) : error && vouchers.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-xs text-rose-600 font-semibold">{error}</p>
             <button
@@ -461,43 +476,45 @@ export default function SellerVouchersPage() {
         )}
       </div>
 
-      {/* 560px Create Voucher Slide-Over Drawer */}
+      {/* Centered Modal: Tạo voucher mới */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          {/* Backdrop mờ */}
           <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setIsCreateOpen(false)}
           />
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-[560px] bg-white shadow-2xl flex flex-col border-l border-slate-200">
-              {/* Drawer Header */}
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[20px]">
-                      confirmation_number
-                    </span>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Tạo voucher mới
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      Thiết lập mã giảm giá riêng cho gian hàng
-                    </p>
-                  </div>
+          {/* Modal Window nổi giữa màn hình */}
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] z-10 animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-sm">
+                  <span className="material-symbols-outlined text-[22px]">
+                    confirmation_number
+                  </span>
                 </div>
-                <button
-                  onClick={() => setIsCreateOpen(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Tạo voucher mới
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Thiết lập mã giảm giá riêng thuộc gian hàng của bạn
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(false)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
 
-              {/* Drawer Form Body */}
-              <form onSubmit={handleCreateVoucher} className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+            {/* Modal Form Body */}
+            <form onSubmit={handleCreateVoucher} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
                 {/* Live Ticket Preview */}
                 <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg relative overflow-hidden">
                   <div className="absolute right-0 top-0 bottom-0 w-8 flex flex-col justify-around items-center opacity-30 pointer-events-none">
@@ -727,7 +744,6 @@ export default function SellerVouchersPage() {
                 </div>
               </form>
             </div>
-          </div>
         </div>
       )}
     </div>
