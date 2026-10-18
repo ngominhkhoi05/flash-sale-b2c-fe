@@ -14,12 +14,16 @@
    - Toàn bộ payload gửi và nhận là `application/json; charset=utf-8`.
    - Thời gian định dạng ISO 8601: `yyyy-MM-ddTHH:mm:ss.SSSXXX` (hoặc UTC `Z`).
    - Tiền tệ: Đơn vị Đồng (VND), kiểu số nguyên hoặc chuỗi số chính xác.
-3. **Quy ước Header định danh người mua**:
-   - Trong giai đoạn chưa tích hợp toàn diện hệ thống Authentication, mỗi request đặt mua sẽ tạm thời gửi kèm header:
+3. **Header xác thực người dùng**:
+   - Tất cả request cần xác thực gửi kèm:
      ```http
-     X-User-Id: 1001
+     Authorization: Bearer <JWT_TOKEN>
      ```
-   - Khi hệ thống Auth hoàn tất, header này sẽ được thay thế bằng chuẩn `Authorization: Bearer <JWT_TOKEN>`.
+   - Backend Spring Boot đọc user từ JWT claim `sub`; KHÔNG tin header
+     tuỳ biến nào khác cho việc xác định người dùng.
+   - Lưu ý lịch sử: trước đây có dùng `X-User-Id: 1001` làm "quy ước đồ án"
+     tạm thời. Từ 2026-10-18, header này đã được bỏ khỏi FE (`fix/remove-x-user-id-header`)
+     vì BE whitelist CORS không chứa `X-User-Id`, gây browser block preflight.
 4. **Cấu trúc Response bọc ngoài chuẩn (`ApiResponse<T>`)**:
    ```json
    {
@@ -168,7 +172,7 @@
 - **Method**: `POST`
 - **Path**: `/api/v1/flash-sale/orders`
 - **Headers**:
-  - `X-User-Id`: ID người mua (ví dụ `1001`)
+  - `Authorization: Bearer <JWT_TOKEN>`
   - `Content-Type`: `application/json`
 - **Request Body**:
   ```json

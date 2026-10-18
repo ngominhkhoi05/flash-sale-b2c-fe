@@ -102,4 +102,30 @@ describe("buildUrl – base URL handling", () => {
     expect(calledUrl).toContain("page=2");
     expect(calledUrl).toContain("size=10");
   });
+
+  // Regression test for CORS preflight block 2026-10-18.
+  // X-User-Id was a legacy "quy ước đồ án" header that BE never whitelisted
+  // in CORS allowedHeaders. Sending it caused browser to block every request
+  // with "Access-Control-Allow-Headers does not include x-user-id" error.
+  // Fix: stop sending X-User-Id; rely on Authorization: Bearer for auth.
+  it("không gửi X-User-Id (regression cho CORS preflight 2026-10-18)", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: null }), { status: 200 })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const mod = await loadApi();
+    await mod.apiFetch("/auth/login", {
+      json: { username: "x", password: "y" },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const calledInit = (fetchMock.mock.calls[0]?.[1] as RequestInit) ?? {};
+    const calledHeaders = (calledInit.headers ?? {}) as Record<string, string>;
+    expect(calledHeaders["X-User-Id"]).toBeUndefined();
+    // Sanity: Authorization + Content-Type vẫn được set
+    expect(calledHeaders["Content-Type"]).toBe("application/json");
+    expect(calledHeaders["Accept"]).toBe("application/json");
+  });
 });

@@ -90,7 +90,10 @@ import type {
 } from "@/types/admin";
 import type { ServerTimeResponse } from "@/types/api";
 
-/** Lấy User ID tạm thời cho header X-User-Id theo quy ước đồ án (an toàn với SSR) */
+/** Lấy User ID – hiện tại BE xác thực qua JWT Bearer, không cần header
+ * tuỳ biến. Hàm này chỉ còn để backward-compat với code khác (vd test cũ
+ * mock localStorage), KHÔNG gắn vào request nữa. Xem commit 2026-10-18
+ * fix/remove-x-user-id-header. */
 export function getCurrentUserId(): string {
   if (typeof window === "undefined") {
     return "1001";
@@ -104,7 +107,9 @@ export function getCurrentUserId(): string {
   }
 }
 
-/** Đặt User ID tạm thời để kiểm thử (chỉ chạy phía client) */
+/** Đặt User ID tạm thời để kiểm thử (chỉ chạy phía client).
+ * Hiện không còn dùng trong production request flow – chỉ giữ để tương
+ * thích ngược với script debug/dev. */
 export function setMockUserId(userId: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -205,10 +210,13 @@ function delay(ms: number) {
 /**
  * apiFetch – client chính cho mọi request (rule §7, rule api-data).
  * - Gắn Authorization từ localStorage (fs_access_token).
- * - Gắn X-User-Id theo quy ước đồ án.
  * - Tự set Content-Type cho JSON.
  * - Hỗ trợ mock data tự động trong dev mode khi BE chưa sẵn sàng.
  * - Chuẩn hoá response về data hoặc ném ApiError.
+ *
+ * Lưu ý (2026-10-18): KHÔNG gắn `X-User-Id` nữa – BE whitelist CORS không
+ * có header này, browser block preflight nếu FE tự gửi. Auth dùng
+ * `Authorization: Bearer <jwt>` (xem auth-jwt.mdc).
  */
 export async function apiFetch<T>(
   path: string,
@@ -227,7 +235,6 @@ export async function apiFetch<T>(
 
   const finalHeaders: Record<string, string> = {
     Accept: "application/json",
-    "X-User-Id": getCurrentUserId(), // Quy ước theo yêu cầu
     ...(headers as Record<string, string> | undefined),
   };
 
