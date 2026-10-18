@@ -624,13 +624,14 @@
     "search": {
       "title": "Search products",
       "loading": "Searching…",
-      "resultsFor": "Results for '{q}'",
+      "resultsFor": "Results for \"{q}\"",
       "resultsCount": "({total} products found across the marketplace)",
       "resultsCountZero": "(No products found)",
       "breadcrumbs": {
         "home": "Home",
         "category": "Electronics",
-        "current": "Headphones"
+        "current": "\"{q}\"",
+        "currentEmpty": "All products"
       },
       "filter": {
         "title": "FILTERS",

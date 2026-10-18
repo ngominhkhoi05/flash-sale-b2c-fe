@@ -1,14 +1,16 @@
 /**
  * Search feature – types.
  *
- * Mock + DTO shape cho API `GET /api/v1/products/search` (BE đang TODO).
- * Khi BE ready, chỉ cần xoá mock + sửa `api.ts` để gọi apiFetch thật.
+ * Mirror BE `GET /api/v1/products/search` response shape.
+ * Items use `RecommendedProductResponse` (same as `/api/v1/products/recommended`)
+ * so the FE can render storefront `ProductCard` directly.
  *
  * Stitch reference: docs/superpowers/handoffs/tim-kiem-san-pham.md
  * Plan: docs/superpowers/plans/2026-10-13-search-page-ui-stitch.md (Subplan A)
+ * Plan: docs/superpowers/plans/2026-10-18-search-endpoint-be-wire-fe.md
  */
 
-import type { RecommendedProduct } from "@/features/products/types";
+import type { RecommendedProductResponse } from "@/features/homepage/api";
 
 /** Subcategory key cho filter "Danh mục con". */
 export type SearchSubcategoryKey =
@@ -81,7 +83,7 @@ export interface MallHighlightProduct {
 
 /** Kết quả search 1 page. */
 export interface SearchResult {
-  items: RecommendedProduct[];
+  items: RecommendedProductResponse[];
   total: number;
   page: number;
   pageSize: number;

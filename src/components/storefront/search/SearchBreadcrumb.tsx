@@ -1,9 +1,7 @@
-"use client";
-
 /**
  * SearchBreadcrumb – breadcrumb ngắn cho /search.
  *
- * Stitch: "Trang chủ / Thiết bị điện tử / Tai nghe"
+ * Stitch: "Trang chủ / Thiết bị điện tử / <q>"
  * Dùng i18n (key `storefront.search.breadcrumbs`).
  */
 
@@ -15,10 +13,12 @@ import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export interface SearchBreadcrumbProps {
+  /** Query hiện tại để hiển thị ở segment cuối (thay vì hard-code). */
+  query?: string;
   className?: string;
 }
 
-export function SearchBreadcrumb({ className }: SearchBreadcrumbProps) {
+export function SearchBreadcrumb({ query, className }: SearchBreadcrumbProps) {
   const t = useTranslations("storefront.search.breadcrumbs");
   return (
     <nav
@@ -42,8 +42,11 @@ export function SearchBreadcrumb({ className }: SearchBreadcrumbProps) {
         {t("category")}
       </Link>
       <ChevronRight className="h-3 w-3 text-outline" aria-hidden />
-      <span className="px-3 py-1.5 text-sm font-medium text-ink">
-        {t("current")}
+      <span
+        className="px-3 py-1.5 text-sm font-medium text-ink"
+        data-testid="search-breadcrumb-current"
+      >
+        {query?.trim() ? t("current", { q: query }) : t("currentEmpty")}
       </span>
     </nav>
   );

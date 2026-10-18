@@ -1,6 +1,9 @@
 /**
  * Unit tests for search mocks.
  * Plan: docs/superpowers/plans/2026-10-13-search-page-ui-stitch.md (Subplan A)
+ * Plan: docs/superpowers/plans/2026-10-18-search-endpoint-be-wire-fe.md
+ *
+ * Mock items dùng shape `RecommendedProductResponse` (giống BE response).
  */
 
 import { describe, expect, it } from "vitest";
@@ -18,29 +21,23 @@ describe("MOCK_SEARCH_ITEMS", () => {
     expect(MOCK_SEARCH_ITEMS).toHaveLength(20);
   });
 
-  it("every item has required fields", () => {
+  it("every item has required RecommendedProductResponse fields", () => {
     for (const item of MOCK_SEARCH_ITEMS) {
-      expect(item.id).toBeTruthy();
+      expect(typeof item.id).toBe("number");
+      expect(item.id).toBeGreaterThan(0);
       expect(item.name).toBeTruthy();
       expect(item.imageUrl).toMatch(/^https?:\/\//);
-      expect(item.imageAlt).toBeTruthy();
-      expect(item.price).toBeGreaterThan(0);
-      expect(item.href).toMatch(/^\/products\//);
+      expect(item.storeName).toBeTruthy();
+      expect(item.minPrice).toBeGreaterThan(0);
+      expect(item.maxPrice).toBeGreaterThan(0);
+      expect(item.totalStock).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it("every item has positive rating between 0 and 5", () => {
+  it("every discounted item has minPrice < maxPrice", () => {
     for (const item of MOCK_SEARCH_ITEMS) {
-      expect(item.rating).toBeGreaterThanOrEqual(0);
-      expect(item.rating).toBeLessThanOrEqual(5);
-    }
-  });
-
-  it("every discounted item has originalPrice > price and discountPercent > 0", () => {
-    for (const item of MOCK_SEARCH_ITEMS) {
-      if (item.discountPercent && item.discountPercent > 0) {
-        expect(item.originalPrice).toBeDefined();
-        expect(item.originalPrice!).toBeGreaterThan(item.price);
+      if (item.maxPrice > item.minPrice) {
+        expect(item.minPrice).toBeLessThan(item.maxPrice);
       }
     }
   });
@@ -48,6 +45,13 @@ describe("MOCK_SEARCH_ITEMS", () => {
   it("all item IDs are unique", () => {
     const ids = MOCK_SEARCH_ITEMS.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("label is one of: null | freeship | voucher | flash_sale | hot_deal", () => {
+    const validLabels = [null, "freeship", "voucher", "flash_sale", "hot_deal"];
+    for (const item of MOCK_SEARCH_ITEMS) {
+      expect(validLabels).toContain(item.label);
+    }
   });
 });
 
