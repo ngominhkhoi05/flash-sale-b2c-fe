@@ -54,6 +54,15 @@ import type {
   ReportedReview,
 } from "@/types/permissions";
 import { permissionsMockService } from "@/lib/mocks/permissions.mock";
+import {
+  getMockAdminStores,
+  getMockAdminUsers,
+  getMockAdminProducts,
+  type MockStoreItem,
+  type MockUserItem,
+  type MockProductItem,
+} from "@/lib/mocks/admin.mock";
+
 
 /** BE Response DTO */
 interface FlashSaleSlotResponse {
@@ -725,5 +734,156 @@ export async function moderateAdminReview(
     throw err;
   }
 }
+
+// ============================================================================
+// 30. Danh mục & Hoa hồng (Stitch Screen 34)
+// ============================================================================
+
+export interface AdminCategoryItem {
+  id: number;
+  name: string;
+  slug: string;
+  commissionRate?: number;
+  description?: string;
+  productCount?: number;
+  storeCount?: number;
+}
+
+export async function getAdminCategories(): Promise<AdminCategoryItem[]> {
+  try {
+    return await apiFetch<AdminCategoryItem[]>("/categories");
+  } catch (err) {
+    if (isMockMode()) {
+      return [
+        { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam", commissionRate: 0.05, description: "Các sản phẩm thời trang cho nam giới", productCount: 1248, storeCount: 86 },
+        { id: 2, name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu", commissionRate: 0.03, description: "Điện thoại, máy tính, phụ kiện công nghệ", productCount: 3410, storeCount: 142 },
+        { id: 3, name: "Nhà cửa & Đời sống", slug: "nha-cua-doi-song", commissionRate: 0.05, description: "Đồ gia dụng, nội thất, tiện ích gia đình", productCount: 890, storeCount: 54 },
+        { id: 4, name: "Sức khỏe & Sắc đẹp", slug: "suc-khoe-sac-dep", commissionRate: 0.08, description: "Mỹ phẩm, chăm sóc cá nhân, thực phẩm chức năng", productCount: 1560, storeCount: 98 },
+        { id: 5, name: "Mẹ & Bé", slug: "me-va-be", commissionRate: 0.05, description: "Tã sữa, đồ chơi, quần áo trẻ em", productCount: 620, storeCount: 35 },
+        { id: 6, name: "Thể thao & Du lịch", slug: "the-thao-du-lich", commissionRate: 0.05, description: "Dụng cụ thể thao, trang phục dã ngoại", productCount: 450, storeCount: 28 },
+        { id: 7, name: "Bách hóa Online", slug: "bach-hoa-online", commissionRate: 0.04, description: "Thực phẩm đóng gói, gia vị, đồ uống", productCount: 2100, storeCount: 65 },
+      ];
+    }
+    throw err;
+  }
+}
+
+export async function createAdminCategory(data: {
+  name: string;
+  slug: string;
+  commissionRate: number;
+  description?: string;
+}): Promise<AdminCategoryItem> {
+  return await apiFetch<AdminCategoryItem>("/admin/categories", {
+    method: "POST",
+    json: data,
+  });
+}
+
+export async function updateAdminCategory(
+  id: number,
+  data: {
+    name: string;
+    slug: string;
+    commissionRate: number;
+    description?: string;
+  }
+): Promise<AdminCategoryItem> {
+  return await apiFetch<AdminCategoryItem>(`/admin/categories/${id}`, {
+    method: "PUT",
+    json: data,
+  });
+}
+
+export async function deleteAdminCategory(id: number): Promise<void> {
+  await apiFetch<void>(`/admin/categories/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// ============================================================================
+// 31. Quản lý Gian hàng (Stitch Screen 32)
+// ============================================================================
+
+export type AdminStore = MockStoreItem;
+
+export async function getAdminStores(status?: string): Promise<AdminStore[]> {
+  try {
+    const query = status && status !== "ALL" ? `?status=${status}` : "";
+    return await apiFetch<AdminStore[]>(`/admin/stores${query}`);
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockAdminStores(status);
+    }
+    throw err;
+  }
+}
+
+export async function updateAdminStoreStatus(
+  id: number,
+  status: "APPROVED" | "BANNED" | "SUSPENDED"
+): Promise<void> {
+  await apiFetch<void>(`/admin/stores/${id}/status`, {
+    method: "PATCH",
+    json: { status },
+  });
+}
+
+// ============================================================================
+// 32. Quản lý Người dùng (Stitch Screen 31)
+// ============================================================================
+
+export type AdminUser = MockUserItem;
+
+export async function getAdminUsers(params?: {
+  role?: string;
+  status?: string;
+  search?: string;
+}): Promise<AdminUser[]> {
+  try {
+    return await apiFetch<AdminUser[]>("/admin/users");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockAdminUsers(params);
+    }
+    throw err;
+  }
+}
+
+export async function updateAdminUserStatus(
+  id: number,
+  status: "ACTIVE" | "LOCKED"
+): Promise<void> {
+  try {
+    await apiFetch<void>(`/admin/users/${id}/status`, {
+      method: "PATCH",
+      json: { status },
+    });
+  } catch (err) {
+    if (!isMockMode()) throw err;
+  }
+}
+
+// ============================================================================
+// 33. Quản lý Sản phẩm toàn sàn (Stitch Screen 33)
+// ============================================================================
+
+export type AdminProduct = MockProductItem;
+
+export async function getAdminProducts(params?: {
+  categoryId?: number;
+  status?: string;
+  search?: string;
+}): Promise<AdminProduct[]> {
+  try {
+    return await apiFetch<AdminProduct[]>("/products");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockAdminProducts(params);
+    }
+    throw err;
+  }
+}
+
 
 
