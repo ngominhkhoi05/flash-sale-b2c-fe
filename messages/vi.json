@@ -381,7 +381,29 @@
       "loading": "Đang tải giỏ hàng…",
       "empty": "Giỏ hàng của bạn đang trống",
       "emptyDescription": "Khám phá thêm sản phẩm và thêm vào giỏ để tiếp tục mua sắm.",
-      "continueShopping": "Tiếp tục mua sắm"
+      "continueShopping": "Tiếp tục mua sắm",
+      "summaryTitle": "Tổng đơn hàng",
+      "decrement": "Giảm số lượng",
+      "increment": "Tăng số lượng",
+      "remove": "Xoá",
+      "shopSubtotal": "Tạm tính shop:",
+      "totalItems": "{count, plural, =0 {Không có sản phẩm} one {# sản phẩm} other {# sản phẩm}}",
+      "shopCount": "{count, plural, =0 {Không có shop} one {# shop} other {# shop}}",
+      "grandTotal": "Tổng thanh toán",
+      "checkout": "Tiến hành thanh toán",
+      "processing": "Đang xử lý…",
+      "errorTitle": "Không thể tải giỏ hàng",
+      "errorDescription": "Đã có lỗi xảy ra khi tải giỏ hàng. Vui lòng thử lại.",
+      "retry": "Thử lại",
+      "toast": {
+        "cartError": {
+          "GENERIC": "Không thể cập nhật giỏ hàng. Vui lòng thử lại.",
+          "CART_400_1": "Số lượng tồn kho không đủ",
+          "CART_400_2": "Số lượng phải lớn hơn 0",
+          "CART_403": "Bạn không có quyền thao tác với sản phẩm này",
+          "CART_ITEM_404": "Sản phẩm không còn trong giỏ hàng"
+        }
+      }
     },
     "checkout": {
       "title": "Thanh toán",
@@ -399,6 +421,11 @@
         "loggingOut": "Đang đăng xuất…"
       },
       "totalLabel": "Tổng thanh toán",
+      "errorTitle": "Không thể tải thông tin thanh toán",
+      "errorDescription": "Đã có lỗi xảy ra khi tải giỏ hàng và địa chỉ. Vui lòng thử lại.",
+      "emptyTitle": "Chưa có sản phẩm nào để thanh toán",
+      "emptyDescription": "Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm trước khi tiến hành thanh toán.",
+      "backToShopping": "Quay lại giỏ hàng",
       "addressCard": {
         "title": "Địa chỉ nhận hàng",
         "change": "Thay đổi",
@@ -953,7 +980,16 @@
       "addedToCart": "Đã thêm vào giỏ hàng",
       "redirectingCheckout": "Chuyển đến màn hình thanh toán tức thì",
       "flashMaxQty": "Trong sự kiện Flash Sale, mỗi khách chỉ được đặt tối đa {max} áo!",
-      "saveSuccess": "Đã Lưu"
+      "saveSuccess": "Đã Lưu",
+      "variantNotAvailable": "Biến thể này hiện không khả dụng. Vui lòng chọn màu hoặc kích thước khác.",
+      "cartError": {
+        "GENERIC": "Không thể cập nhật giỏ hàng. Vui lòng thử lại.",
+        "CART_400_1": "Số lượng tồn kho không đủ",
+        "CART_400_2": "Số lượng phải lớn hơn 0",
+        "CART_403": "Bạn không có quyền thao tác với sản phẩm này",
+        "CART_ITEM_404": "Sản phẩm không còn trong giỏ hàng",
+        "UNAUTHORIZED": "Vui lòng đăng nhập để tiếp tục"
+      }
     }
   },
   "orders": {

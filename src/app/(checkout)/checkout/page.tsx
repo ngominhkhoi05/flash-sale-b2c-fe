@@ -9,9 +9,9 @@
  *    để tách khỏi header/footer Storefront mặc định — tránh render trùng).
  *  - Layout cha render `<CheckoutHeader />` + `<CheckoutStepper />` + `<CheckoutFooter />` chung.
  *  - Page này chỉ render nội dung chính.
- *  - Backend hiện đang thiếu endpoint /api/v1/checkout (xem
- *    docs/superpowers/handoffs/2026-10-13-backend-gap-report.md).
- *    Khi backend sẵn sàng, set `useMockData={false}`.
+ *
+ * Updated 2026-10-18 (Subplan C): useMockData=false mặc định. Khi cart rỗng → render
+ * empty state tại /checkout (không redirect /cart, theo quyết định user 2026-10-18).
  */
 import { CheckoutPageContent } from "@/components/storefront/checkout/CheckoutPageContent";
 
@@ -21,5 +21,5 @@ export const metadata = {
 };
 
 export default function CheckoutPage() {
-  return <CheckoutPageContent useMockData />;
+  return <CheckoutPageContent />;
 }
