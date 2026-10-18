@@ -51,7 +51,12 @@ interface BackendCartStoreGroup {
   shippingMethodLabel: string;
   shippingFee: number;
   items: BackendCartItem[];
-  shopSubtotal: number;
+  /**
+   * BE Swagger 2026-10-18 đổi tên từ `shopSubtotal` (cũ) → `storeSubtotal`.
+   * Fix Bug #1 (2026-10-18): "giá = 0" trên /checkout do FE đọc
+   * `g.shopSubtotal` (undefined).
+   */
+  storeSubtotal: number;
 }
 
 interface BackendCartResponse {
@@ -180,7 +185,8 @@ function adaptShopGroup(g: BackendCartStoreGroup): CheckoutShopGroup {
     shippingMethodLabel: g.shippingMethodLabel,
     shippingFee: g.shippingFee,
     items: g.items.map(adaptCartItem),
-    shopSubtotal: g.shopSubtotal,
+    // Fix Bug #1: map từ BE `storeSubtotal` → FE domain `shopSubtotal`.
+    shopSubtotal: g.storeSubtotal,
   };
 }
 
