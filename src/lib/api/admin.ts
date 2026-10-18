@@ -1,4 +1,5 @@
 import { apiFetch, isMockMode } from "./client";
+import type { PageResponse } from "@/types/api";
 import type {
   AdminFlashSaleSession,
   CreateFlashSaleSessionInput,
@@ -441,56 +442,46 @@ function mapBeVoucherToAdmin(v: BeVoucherResponse): AdminVoucher {
   };
 }
 
+interface BeAdminVoucherKpis {
+  totalVouchers: number;
+  activeVouchers: number;
+  totalDistributedBudget: number;
+  usedBudget: number;
+  totalUsages: number;
+}
+
 /**
- * 16. Lấy danh sách mã giảm giá toàn sàn (KHỚP BE: GET /api/v1/vouchers/platform)
+ * 16. Lấy danh sách mã giảm giá toàn sàn (KHỚP BE: GET /api/v1/admin/vouchers)
  */
 export async function getAdminPlatformVouchers(
   params?: VoucherFilterParams & { page?: number; pageSize?: number }
 ): Promise<ReturnType<typeof voucherMockService.getAll>> {
   try {
-    const list = await apiFetch<BeVoucherResponse[]>("/vouchers/platform");
-    if (!list || list.length === 0) {
-      if (isMockMode()) {
-        return voucherMockService.getAll(params);
-      }
-      return {
-        items: [],
-        total: 0,
-        page: params?.page ?? 0,
-        pageSize: params?.pageSize ?? 10,
-        counts: { ALL: 0, ACTIVE: 0, UPCOMING: 0, OUT_OF_STOCK: 0, EXPIRED: 0, DISABLED: 0 },
-      };
-    }
-    const allMapped = list.map(mapBeVoucherToAdmin);
-    let filtered = allMapped;
-    if (params?.status && params.status !== "ALL") {
-      filtered = filtered.filter((v) => v.status === params.status);
-    }
-    if (params?.search) {
-      const q = params.search.toLowerCase().trim();
-      filtered = filtered.filter(
-        (v) => v.code.toLowerCase().includes(q) || v.name.toLowerCase().includes(q)
-      );
-    }
     const page = params?.page ?? 0;
     const pageSize = params?.pageSize ?? 10;
-    const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
-
-    const counts = {
-      ALL: allMapped.length,
-      ACTIVE: allMapped.filter((v) => v.status === "ACTIVE").length,
-      UPCOMING: allMapped.filter((v) => v.status === "UPCOMING").length,
-      OUT_OF_STOCK: allMapped.filter((v) => v.status === "OUT_OF_STOCK").length,
-      EXPIRED: allMapped.filter((v) => v.status === "EXPIRED").length,
-      DISABLED: allMapped.filter((v) => v.status === "DISABLED").length,
-    };
-
-    return {
-      items: paginated,
-      total: filtered.length,
+    const query: Record<string, string | number> = {
       page,
-      pageSize,
-      counts,
+      size: pageSize,
+    };
+    if (params?.status && params.status !== "ALL") query.status = params.status;
+    if (params?.search) query.search = params.search;
+    if (params?.scope && params.scope !== "ALL") query.scope = params.scope;
+
+    const res = await apiFetch<PageResponse<BeVoucherResponse>>("/admin/vouchers", { query });
+    const items = (res.content ?? res.items ?? []).map(mapBeVoucherToAdmin);
+    return {
+      items,
+      total: res.totalElements ?? items.length,
+      page: res.pageNumber ?? page,
+      pageSize: res.pageSize ?? pageSize,
+      counts: {
+        ALL: res.totalElements ?? items.length,
+        ACTIVE: items.filter((v: AdminVoucher) => v.status === "ACTIVE").length,
+        UPCOMING: items.filter((v: AdminVoucher) => v.status === "UPCOMING").length,
+        OUT_OF_STOCK: items.filter((v: AdminVoucher) => v.status === "OUT_OF_STOCK").length,
+        EXPIRED: items.filter((v: AdminVoucher) => v.status === "EXPIRED").length,
+        DISABLED: items.filter((v: AdminVoucher) => v.status === "DISABLED").length,
+      },
     };
   } catch (err) {
     if (isMockMode()) {
@@ -534,13 +525,30 @@ export async function createAdminPlatformVoucher(
 }
 
 /**
- * 18. Lấy KPIs thống kê voucher sàn
+ * 18. Lấy KPIs thống kê voucher sàn (KHỚP BE: GET /api/v1/admin/vouchers/kpis)
  */
 export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
   try {
-    return await apiFetch<VoucherKpis>("/admin/vouchers/kpis");
-  } catch {
-    return voucherMockService.getKpis();
+    const res = await apiFetch<BeAdminVoucherKpis>("/admin/vouchers/kpis");
+    const budgetCap = Number(res.totalDistributedBudget || 0);
+    const used = Number(res.usedBudget || 0);
+    const budgetRate = budgetCap > 0 ? Math.round((used / budgetCap) * 1000) / 10 : 0;
+    return {
+      activeCount: res.activeVouchers,
+      newThisWeekCount: res.totalVouchers,
+      shippingVoucherCount: 0,
+      discountVoucherCount: res.totalVouchers,
+      usedCountThisMonth: res.totalUsages,
+      utilizationRate: budgetRate,
+      totalPlatformSubsidized: used,
+      budgetCap: budgetCap,
+      budgetUtilizationRate: budgetRate,
+    };
+  } catch (err) {
+    if (isMockMode()) {
+      return voucherMockService.getKpis();
+    }
+    throw err;
   }
 }
 

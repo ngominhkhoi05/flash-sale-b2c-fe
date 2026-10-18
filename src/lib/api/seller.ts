@@ -964,6 +964,47 @@ function getMockSellerWalletTransactions(
   };
 }
 
+interface BeVoucherRawResponse {
+  id: number;
+  code: string;
+  name?: string;
+  storeId?: number | null;
+  discountType: string;
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  totalQuantity?: number;
+  totalUsageLimit?: number;
+  usedQuantity?: number;
+  currentUsageCount?: number;
+  userUsageLimit?: number;
+  startTime?: string;
+  startDate?: string;
+  endTime?: string;
+  endDate?: string;
+  status: string;
+  createdAt?: string;
+}
+
+function mapBeVoucherToSeller(v: BeVoucherRawResponse): SellerVoucherItem {
+  return {
+    id: v.id,
+    code: v.code,
+    name: v.name || v.code,
+    discountType: v.discountType === "PERCENT" ? "PERCENTAGE" : "FIXED_AMOUNT",
+    discountValue: Number(v.discountValue),
+    maxDiscountAmount: v.maxDiscountAmount ? Number(v.maxDiscountAmount) : undefined,
+    minOrderAmount: Number(v.minOrderAmount || 0),
+    totalUsageLimit: v.totalQuantity ?? v.totalUsageLimit ?? 0,
+    currentUsageCount: v.usedQuantity ?? v.currentUsageCount ?? 0,
+    userUsageLimit: v.userUsageLimit || 1,
+    startDate: v.startTime || v.startDate || "",
+    endDate: v.endTime || v.endDate || "",
+    status: v.status,
+    createdAt: v.createdAt || v.startTime || "",
+  };
+}
+
 /**
  * Lấy danh sách voucher do shop phát hành (GET /api/v1/seller/vouchers)
  */
@@ -977,9 +1018,15 @@ export async function getSellerVouchers(
     if (status && status !== "ALL") {
       query.status = status;
     }
-    return await apiFetch<PageResponse<SellerVoucherItem>>("/seller/vouchers", {
+    const res = await apiFetch<PageResponse<BeVoucherRawResponse>>("/seller/vouchers", {
       query,
     });
+    const items = (res.content ?? res.items ?? []).map(mapBeVoucherToSeller);
+    return {
+      ...res,
+      content: items,
+      items,
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockSellerVouchers(page, size, status);
@@ -995,10 +1042,22 @@ export async function createSellerVoucher(
   payload: CreateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
   try {
-    return await apiFetch<SellerVoucherItem>("/seller/vouchers", {
+    const bePayload = {
+      code: payload.code.toUpperCase(),
+      discountType: payload.discountType === "PERCENTAGE" ? "PERCENT" : "FIXED_AMOUNT",
+      discountValue: payload.discountValue,
+      maxDiscountAmount: payload.maxDiscountAmount || payload.discountValue,
+      minOrderAmount: payload.minOrderAmount || 0,
+      totalQuantity: payload.totalUsageLimit,
+      userUsageLimit: payload.userUsageLimit || 1,
+      startTime: new Date(payload.startDate).toISOString(),
+      endTime: new Date(payload.endDate).toISOString(),
+    };
+    const res = await apiFetch<BeVoucherRawResponse>("/seller/vouchers", {
       method: "POST",
-      json: payload,
+      json: bePayload,
     });
+    return mapBeVoucherToSeller(res);
   } catch (err) {
     if (isMockMode()) {
       return {
@@ -1030,10 +1089,11 @@ export async function toggleSellerVoucherStatus(
   status: string
 ): Promise<SellerVoucherItem> {
   try {
-    return await apiFetch<SellerVoucherItem>(`/seller/vouchers/${id}/status`, {
+    const res = await apiFetch<BeVoucherRawResponse>(`/seller/vouchers/${id}/status`, {
       method: "PATCH",
       json: { status },
     });
+    return mapBeVoucherToSeller(res);
   } catch (err) {
     if (isMockMode()) {
       return {
