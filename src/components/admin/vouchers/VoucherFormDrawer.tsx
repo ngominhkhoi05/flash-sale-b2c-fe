@@ -101,6 +101,7 @@ export function VoucherFormDrawer({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<VoucherFormValues>({
+    mode: "onChange",
     resolver: zodResolver(voucherFormSchema),
     defaultValues: {
       code: "VIBE-AUTUMN",
@@ -166,13 +167,21 @@ export function VoucherFormDrawer({
   const watchedStartDate = watch("startDate");
   const watchedEndDate = watch("endDate");
 
-  const diffDays = Math.max(
-    0,
-    Math.round(
-      (new Date(watchedEndDate).getTime() - new Date(watchedStartDate).getTime()) /
-        (1000 * 60 * 60 * 24)
-    )
+  const isDateInvalid = Boolean(
+    watchedStartDate &&
+    watchedEndDate &&
+    new Date(watchedEndDate).getTime() <= new Date(watchedStartDate).getTime()
   );
+
+  const diffDays = isDateInvalid
+    ? -1
+    : Math.max(
+        0,
+        Math.round(
+          (new Date(watchedEndDate).getTime() - new Date(watchedStartDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      );
 
   if (!isOpen) return null;
 
@@ -475,42 +484,52 @@ export function VoucherFormDrawer({
             </div>
 
             {/* Thời gian áp dụng: Từ ngày - Đến ngày */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-md text-xs font-semibold text-on-surface">
-                  Thời gian bắt đầu <span className="text-tertiary">*</span>
-                </label>
-                <input
-                  {...register("startDate")}
-                  className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    errors.startDate ? "border border-error" : ""
-                  }`}
-                  type="datetime-local"
-                />
-                {errors.startDate && (
-                  <span className="text-xs text-error font-medium">
-                    {errors.startDate.message}
-                  </span>
-                )}
+            <div className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-xs font-semibold text-on-surface">
+                    Thời gian bắt đầu <span className="text-tertiary">*</span>
+                  </label>
+                  <input
+                    {...register("startDate")}
+                    className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                      errors.startDate ? "border border-error" : ""
+                    }`}
+                    type="datetime-local"
+                  />
+                  {errors.startDate && (
+                    <span className="text-xs text-error font-medium">
+                      {errors.startDate.message}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-xs font-semibold text-on-surface">
+                    Thời gian kết thúc <span className="text-tertiary">*</span>
+                  </label>
+                  <input
+                    {...register("endDate")}
+                    min={watchedStartDate || undefined}
+                    className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                      errors.endDate || isDateInvalid ? "border border-error" : ""
+                    }`}
+                    type="datetime-local"
+                  />
+                  {errors.endDate && (
+                    <span className="text-xs text-error font-medium">
+                      {errors.endDate.message}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-md text-xs font-semibold text-on-surface">
-                  Thời gian kết thúc <span className="text-tertiary">*</span>
-                </label>
-                <input
-                  {...register("endDate")}
-                  className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    errors.endDate ? "border border-error" : ""
-                  }`}
-                  type="datetime-local"
-                />
-                {errors.endDate && (
-                  <span className="text-xs text-error font-medium">
-                    {errors.endDate.message}
-                  </span>
-                )}
-              </div>
+              {isDateInvalid && (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-error/10 text-error text-xs font-medium">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <span>Thời gian kết thúc phải sau thời gian bắt đầu</span>
+                </div>
+              )}
             </div>
 
             {/* Checkbox Public Visibility */}
@@ -547,7 +566,7 @@ export function VoucherFormDrawer({
           </button>
           <button
             className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-primary-container transition-all shadow-sm active:scale-95 disabled:opacity-50"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isDateInvalid}
             form="voucher-drawer-form"
             type="submit"
           >
