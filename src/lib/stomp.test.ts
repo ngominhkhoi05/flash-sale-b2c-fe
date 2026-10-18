@@ -65,13 +65,32 @@ function getFactoryAndCall() {
 }
 
 describe("createFlashSaleStompClient – endpoint", () => {
-  it("uses default http://localhost:8080/ws khi NEXT_PUBLIC_WS_URL không set", async () => {
+  it("THROW error khi NEXT_PUBLIC_WS_URL không set (production silent-fail bug)", async () => {
     delete process.env.NEXT_PUBLIC_WS_URL;
     const { createFlashSaleStompClient } = await import("./stomp");
-    createFlashSaleStompClient("test-token");
+    // Khi env rỗng, code phải throw NGAY thay vì fallback localhost —
+    // vì localhost sẽ được SockJS resolve thành same-origin, dẫn đến
+    // gọi /info lên Next.js → 404 (xem docs/superpowers/handoffs/
+    // 2026-10-18-vps-ws-404-handoff.md).
+    expect(() => createFlashSaleStompClient("test-token")).toThrow(
+      /NEXT_PUBLIC_WS_URL/,
+    );
+  });
 
-    const url = getFactoryAndCall();
-    expect(url).toContain("http://localhost:8080/ws");
+  it("THROW error khi NEXT_PUBLIC_WS_URL = chuỗi rỗng", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    expect(() => createFlashSaleStompClient("test-token")).toThrow(
+      /NEXT_PUBLIC_WS_URL/,
+    );
+  });
+
+  it("THROW error khi NEXT_PUBLIC_WS_URL chỉ chứa whitespace", async () => {
+    process.env.NEXT_PUBLIC_WS_URL = "   ";
+    const { createFlashSaleStompClient } = await import("./stomp");
+    expect(() => createFlashSaleStompClient("test-token")).toThrow(
+      /NEXT_PUBLIC_WS_URL/,
+    );
   });
 
   it("dùng NEXT_PUBLIC_WS_URL từ env, strip trailing slash", async () => {
