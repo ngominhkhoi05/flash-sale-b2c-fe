@@ -19,8 +19,10 @@ const mockSubscribe = vi.fn().mockReturnValue(vi.fn());
 
 let onConnectHandler: (() => void) | null = null;
 let onDisconnectHandler: (() => void) | null = null;
-let onStompErrorHandler: ((frame: { body: string }) => void) | null = null;
-let onWebSocketErrorHandler: ((event: Event) => void) | null = null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- captured for future test hook
+let _onStompErrorHandler: ((frame: { body: string }) => void) | null = null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- captured for future test hook
+let _onWebSocketErrorHandler: ((event: Event) => void) | null = null;
 let mockClientInstance: {
   activate: typeof mockActivate;
   deactivate: typeof mockDeactivate;
@@ -53,8 +55,8 @@ vi.mock("@/lib/api", () => ({
 function captureClientHandlers() {
   onConnectHandler = null;
   onDisconnectHandler = null;
-  onStompErrorHandler = null;
-  onWebSocketErrorHandler = null;
+  _onStompErrorHandler = null;
+  _onWebSocketErrorHandler = null;
 
   // Wrap setter để capture giá trị mới nhất
   Object.defineProperty(mockClientInstance, "onConnect", {
@@ -100,10 +102,10 @@ beforeEach(() => {
       onConnectHandler = (config.onConnect as (() => void) | undefined) ?? null;
       onDisconnectHandler =
         (config.onDisconnect as (() => void) | undefined) ?? null;
-      onStompErrorHandler =
+      _onStompErrorHandler =
         (config.onStompError as ((frame: { body: string }) => void) | undefined) ??
         null;
-      onWebSocketErrorHandler =
+      _onWebSocketErrorHandler =
         (config.onWebSocketError as ((event: Event) => void) | undefined) ?? null;
       return mockClientInstance;
     }),
@@ -114,15 +116,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.resetModules();
 });
-
-async function renderWsHook() {
-  const { useWs, WsConnectionProvider } = await import("./WsConnectionProvider");
-  return renderHook(() => useWs(), {
-    wrapper: ({ children }: { children: ReactNode }) => (
-      <WsConnectionProvider>{children}</WsConnectionProvider>
-    ),
-  });
-}
 
 describe("WsConnectionProvider – share 1 connection", () => {
   it("createFlashSaleStompClient được gọi đúng 1 lần cho nhiều consumer", async () => {

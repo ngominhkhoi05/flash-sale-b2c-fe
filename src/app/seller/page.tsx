@@ -11,12 +11,14 @@ import {
   getSellerTopProducts,
   getSellerRevenueChart,
 } from "@/lib/api/seller";
-import type {
+import {
   SidebarSummaryResponse,
   SellerOrderResponse,
   SellerProductSummaryResponse,
   SellerRevenueDayPoint,
 } from "@/types/seller";
+import { useMyStore } from "@/hooks/useMyStore";
+import { useMeQuery } from "@/features/auth/hooks";
 
 type PeriodFilter = "today" | "7days" | "30days";
 
@@ -99,6 +101,17 @@ export default function SellerDashboardPage() {
   const displayOrders =
     period === "today" ? summary?.todayOrders ?? 14 : 326;
 
+  const { storeName } = useMyStore();
+  const { data: userData } = useMeQuery();
+
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Chào buổi sáng";
+    if (hour < 18) return "Chào buổi chiều";
+    return "Chào buổi tối";
+  })();
+
+  const displayName = storeName || userData?.fullName || "Chủ gian hàng";
 
   return (
     <div className="flex flex-col w-full space-y-6">
@@ -106,7 +119,9 @@ export default function SellerDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col">
           <h1 className="font-headline-lg text-display-sm text-on-surface font-bold tracking-tight flex items-center gap-2">
-            <span>Chào buổi chiều, UTC Fashion</span>
+            <span>
+              {greeting}, {displayName}
+            </span>
             <span className="inline-block transform hover:rotate-12 transition-transform select-none">
               👋
             </span>

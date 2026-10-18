@@ -183,14 +183,26 @@ export type MaterialSymbolName =
   | "check_circle"
   | "bolt"
   | "shopping_cart"
-  // Orders list page (added 2026-10-16)
   | "calendar_today"
   | "arrow_drop_down"
   | "near_me"
   | "chat"
   | "map"
   | "rate_review"
-  | "arrow_back_ios_new";
+  | "arrow_back_ios_new"
+  // Added for Account & Orders & Seller onboarding (Stitch specs #16-#19)
+  | "expand_less"
+  | "hourglass_empty"
+  | "replay"
+  | "my_location"
+  | "save"
+  | "lock_reset"
+  | "badge"
+  | "link"
+  | "pin_drop"
+  | "percent"
+  | "qr_code"
+  | "upload";
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;

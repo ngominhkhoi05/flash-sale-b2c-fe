@@ -24,9 +24,12 @@ vi.mock("@/features/products", () => ({
 // Trong Next.js, redirect() và notFound() throw error đặc biệt (NEXT_REDIRECT / NEXT_NOT_FOUND)
 // để framework bắt được. Ở đây ta mô phỏng bằng Error thường.
 vi.mock("next/navigation", () => ({
-  redirect: vi.fn((_url: string) => {
-    throw new Error("NEXT_REDIRECT");
-  }) as unknown as typeof import("next/navigation").redirect,
+  redirect: vi.fn(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mock only needs to throw
+    (_: string) => {
+      throw new Error("NEXT_REDIRECT");
+    }
+  ) as unknown as typeof import("next/navigation").redirect,
   notFound: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }) as unknown as typeof import("next/navigation").notFound,

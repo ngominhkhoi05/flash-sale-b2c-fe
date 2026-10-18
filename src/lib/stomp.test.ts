@@ -65,32 +65,67 @@ function getFactoryAndCall() {
 }
 
 describe("createFlashSaleStompClient – endpoint", () => {
-  it("THROW error khi NEXT_PUBLIC_WS_URL không set (production silent-fail bug)", async () => {
+  // Phục vụ 3 test fallback khi env rỗng/whitespace: ép window.location
+  // về origin đã biết để verify URL được build đúng. jsdom location
+  // là read-only nên dùng Object.defineProperty wrapper; stub tồn tại
+  // trong suốt test file (không cần restore — các describe sau không
+  // cần location cụ thể).
+
+  function stubLocation(host: string, protocol = "https:") {
+    if (typeof window === "undefined") {
+      throw new Error("Môi trường test không có window — vitest phải chạy jsdom");
+    }
+    // jsdom `location` thật là read-only → dùng wrapper qua descriptor.
+    const stub = { host, protocol, hostname: host.split(":")[0] };
+    Object.defineProperty(window, "location", {
+      value: stub,
+      writable: true,
+      configurable: true,
+    });
+    return stub;
+  }
+
+  it("fallback về <window.location.host>/ws khi NEXT_PUBLIC_WS_URL không set", async () => {
     delete process.env.NEXT_PUBLIC_WS_URL;
+    stubLocation("vibe-mart-utc2.canluaz.io.vn", "https:");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { createFlashSaleStompClient } = await import("./stomp");
-    // Khi env rỗng, code phải throw NGAY thay vì fallback localhost —
-    // vì localhost sẽ được SockJS resolve thành same-origin, dẫn đến
-    // gọi /info lên Next.js → 404 (xem docs/superpowers/handoffs/
-    // 2026-10-18-vps-ws-404-handoff.md).
-    expect(() => createFlashSaleStompClient("test-token")).toThrow(
-      /NEXT_PUBLIC_WS_URL/,
-    );
+
+    // MUST NOT throw — fail-safe behavior khi env rỗng.
+    expect(() => createFlashSaleStompClient("test-token")).not.toThrow();
+    const url = getFactoryAndCall();
+    expect(url).toContain("vibe-mart-utc2.canluaz.io.vn/ws");
+    expect(url).toContain("token=test-token");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
-  it("THROW error khi NEXT_PUBLIC_WS_URL = chuỗi rỗng", async () => {
+  it("fallback về <window.location.host>/ws khi NEXT_PUBLIC_WS_URL = chuỗi rỗng", async () => {
     process.env.NEXT_PUBLIC_WS_URL = "";
+    stubLocation("vibe-mart-utc2.canluaz.io.vn", "https:");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { createFlashSaleStompClient } = await import("./stomp");
-    expect(() => createFlashSaleStompClient("test-token")).toThrow(
-      /NEXT_PUBLIC_WS_URL/,
-    );
+
+    expect(() => createFlashSaleStompClient("test-token")).not.toThrow();
+    const url = getFactoryAndCall();
+    expect(url).toContain("vibe-mart-utc2.canluaz.io.vn/ws");
+    expect(url).toContain("token=test-token");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
-  it("THROW error khi NEXT_PUBLIC_WS_URL chỉ chứa whitespace", async () => {
+  it("fallback về <window.location.host>/ws khi NEXT_PUBLIC_WS_URL chỉ chứa whitespace", async () => {
     process.env.NEXT_PUBLIC_WS_URL = "   ";
+    stubLocation("vibe-mart-utc2.canluaz.io.vn", "https:");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { createFlashSaleStompClient } = await import("./stomp");
-    expect(() => createFlashSaleStompClient("test-token")).toThrow(
-      /NEXT_PUBLIC_WS_URL/,
-    );
+
+    expect(() => createFlashSaleStompClient("test-token")).not.toThrow();
+    const url = getFactoryAndCall();
+    expect(url).toContain("vibe-mart-utc2.canluaz.io.vn/ws");
+    expect(url).toContain("token=test-token");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("dùng NEXT_PUBLIC_WS_URL từ env, strip trailing slash", async () => {

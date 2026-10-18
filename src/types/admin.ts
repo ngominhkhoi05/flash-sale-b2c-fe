@@ -87,3 +87,31 @@ export interface AdminUser {
   createdAt: string;
   avatarUrl: string;
 }
+export interface AdminWithdrawalResponse {
+  id: number;
+  requestCode: string;
+  walletId: number;
+  storeId: number;
+  storeName: string;
+  amount: number;
+  status: "PENDING" | "APPROVED" | "REJECTED" | string;
+  bankName: string;
+  bankCode: string;
+  accountNumber: string;
+  accountHolder: string;
+  branch?: string;
+  sellerNote?: string;
+  adminNote?: string;
+  createdAt: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+}
+
+export interface ApproveWithdrawalPayload {
+  adminNote?: string;
+}
+
+export interface RejectWithdrawalPayload {
+  reason: string;
+}
+

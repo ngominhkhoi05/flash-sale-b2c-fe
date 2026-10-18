@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { KpiCard } from "@/components/admin/KpiCard";
 import { getMockAdminDashboard } from "@/lib/mocks/admin.mock";
 
@@ -469,9 +470,11 @@ export function AdminDashboardClient() {
                     <tr key={store.id} className="hover:bg-surface transition-colors">
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-3">
-                          <img
+                          <Image
                             src={store.avatarUrl}
                             alt={store.name}
+                            width={36}
+                            height={36}
                             className="w-9 h-9 rounded-full object-cover shadow-xs shrink-0"
                           />
                           <div className="flex flex-col min-w-0">

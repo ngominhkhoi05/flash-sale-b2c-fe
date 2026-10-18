@@ -215,6 +215,27 @@ export interface SellerBankAccount {
   isVerified: boolean;
 }
 
+export interface SellerBankAccountPayload {
+  bankName: string;
+  bankCode: string;
+  accountNumber: string;
+  accountHolder: string;
+  branch?: string;
+}
+
+export interface SellerBankAccountResponse {
+  id: number;
+  storeId?: number;
+  bankName: string;
+  bankCode: string;
+  accountNumber: string;
+  accountHolder: string;
+  branch?: string;
+  isVerified: boolean;
+  updatedAt?: string;
+}
+
+
 export interface SellerWalletResponse {
   balance: number;
   pendingBalance: number;
