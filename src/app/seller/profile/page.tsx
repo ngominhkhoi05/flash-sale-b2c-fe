@@ -1,26 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   getMyStoreProfile,
   updateMyStoreProfile,
   getStoreAddresses,
   createStoreAddress,
+  updateStoreAddress,
   deleteStoreAddress,
   setDefaultStoreAddress,
+  uploadStoreLogo,
 } from "@/lib/api/seller";
 import type {
   SellerStoreProfileResponse,
   SellerWarehouseAddressItem,
   CreateStoreAddressPayload,
 } from "@/types/seller";
+import { VIETNAM_LOCATIONS } from "@/lib/constants/vietnam-locations";
 
 export default function SellerProfilePage() {
   const [profile, setProfile] = useState<SellerStoreProfileResponse | null>(null);
   const [addresses, setAddresses] = useState<SellerWarehouseAddressItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
+  const [logoUploading, setLogoUploading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form states for Store Profile
@@ -30,24 +35,37 @@ export default function SellerProfilePage() {
   const [bannerUrl, setBannerUrl] = useState<string>("");
   const [reloadTrigger, setReloadTrigger] = useState<number>(0);
 
+  // Hidden File Inputs
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  // Modal URL Inputs
+  const [isUrlModalOpen, setIsUrlModalOpen] = useState<"logo" | "banner" | null>(null);
+  const [customUrlInput, setCustomUrlInput] = useState<string>("");
+
   // Add Warehouse Modal
   const [isAddWarehouseOpen, setIsAddWarehouseOpen] = useState<boolean>(false);
   const [newWarehouse, setNewWarehouse] = useState<CreateStoreAddressPayload>({
     contactName: "",
     phone: "",
-    province: "TP. Hồ Chí Minh",
-    district: "",
-    ward: "",
+    province: "Hồ Chí Minh",
+    district: "Quận 1",
+    ward: "Phường Bến Nghé",
     detailAddress: "",
     isDefault: false,
   });
 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
+  // Edit Warehouse Modal
+  const [editingWarehouse, setEditingWarehouse] = useState<SellerWarehouseAddressItem | null>(null);
+  const [editWarehousePayload, setEditWarehousePayload] = useState<CreateStoreAddressPayload>({
+    contactName: "",
+    phone: "",
+    province: "Hồ Chí Minh",
+    district: "Quận 1",
+    ward: "Phường Bến Nghé",
+    detailAddress: "",
+    isDefault: false,
+  });
 
   const triggerReload = () => {
     setLoading(true);
@@ -83,22 +101,100 @@ export default function SellerProfilePage() {
     };
   }, [reloadTrigger]);
 
+  // Upload Logo file
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file hình ảnh (JPG, PNG, WEBP)");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Kích thước ảnh logo tối đa là 5MB");
+      return;
+    }
+
+    setLogoUploading(true);
+    try {
+      const res = await uploadStoreLogo(file);
+      if (res?.url) {
+        setLogoUrl(res.url);
+        toast.success("Tải ảnh logo lên Cloudinary thành công!");
+      } else {
+        // Fallback preview
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            setLogoUrl(reader.result);
+            toast.success("Đã chọn ảnh logo mới");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      // Fallback preview local nếu API lỗi
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setLogoUrl(reader.result);
+          toast.success("Đã cập nhật ảnh logo xem trước");
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
+  // Upload Banner file
+  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file hình ảnh (JPG, PNG, WEBP)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setBannerUrl(reader.result);
+        toast.success("Đã chọn ảnh bìa gian hàng mới");
+      }
+    };
+    reader.readAsDataURL(file);
+    if (bannerInputRef.current) bannerInputRef.current.value = "";
+  };
+
   // Save profile changes
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!storeName.trim()) {
+      toast.error("Tên gian hàng không được để trống!");
+      return;
+    }
+    if (storeName.trim().length < 2 || storeName.trim().length > 150) {
+      toast.error("Tên gian hàng phải từ 2 đến 150 ký tự!");
+      return;
+    }
+
     setSaveLoading(true);
     try {
       await updateMyStoreProfile({
-        storeName,
-        description,
-        logoUrl,
-        bannerUrl,
+        storeName: storeName.trim(),
+        description: description.trim(),
+        logoUrl: logoUrl.trim(),
+        bannerUrl: bannerUrl.trim(),
       });
-      showToast("Cập nhật thông tin gian hàng thành công!");
+      toast.success("Cập nhật thông tin gian hàng thành công!");
       triggerReload();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Không thể lưu thông tin";
-      alert(msg);
+      const msg = err instanceof Error ? err.message : "Không thể lưu thông tin hồ sơ";
+      toast.error(msg);
     } finally {
       setSaveLoading(false);
     }
@@ -107,41 +203,82 @@ export default function SellerProfilePage() {
   // Add Warehouse
   const handleCreateWarehouse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newWarehouse.contactName || !newWarehouse.phone || !newWarehouse.detailAddress) {
-      alert("Vui lòng điền đầy đủ thông tin kho hàng");
+    if (!newWarehouse.contactName.trim() || !newWarehouse.phone.trim() || !newWarehouse.detailAddress.trim()) {
+      toast.error("Vui lòng điền đầy đủ người liên hệ, số điện thoại và địa chỉ chi tiết!");
       return;
     }
 
     try {
       await createStoreAddress(newWarehouse);
-      showToast("Đã thêm kho lấy hàng mới thành công!");
+      toast.success("Đã thêm kho lấy hàng mới thành công!");
       setIsAddWarehouseOpen(false);
       setNewWarehouse({
         contactName: "",
         phone: "",
-        province: "TP. Hồ Chí Minh",
-        district: "",
-        ward: "",
+        province: "Hồ Chí Minh",
+        district: "Quận 1",
+        ward: "Phường Bến Nghé",
         detailAddress: "",
         isDefault: false,
       });
       triggerReload();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể thêm địa chỉ kho";
-      alert(msg);
+      toast.error(msg);
+    }
+  };
+
+  // Open Edit Warehouse
+  const handleOpenEditWarehouse = (addr: SellerWarehouseAddressItem) => {
+    setEditingWarehouse(addr);
+    const prov = addr.province || "Hồ Chí Minh";
+    const districts = VIETNAM_LOCATIONS[prov] || {};
+    const distNames = Object.keys(districts);
+    const dist = distNames.includes(addr.district) ? addr.district : distNames[0] || "";
+    const wards = districts[dist] || [];
+    const wd = wards.includes(addr.ward) ? addr.ward : wards[0] || "";
+
+    setEditWarehousePayload({
+      contactName: addr.contactName || "",
+      phone: addr.phone || "",
+      province: prov,
+      district: dist,
+      ward: wd,
+      detailAddress: addr.detailAddress || "",
+      isDefault: !!addr.isDefault,
+    });
+  };
+
+  // Submit Edit Warehouse
+  const handleUpdateWarehouse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWarehouse) return;
+    if (!editWarehousePayload.contactName.trim() || !editWarehousePayload.phone.trim() || !editWarehousePayload.detailAddress.trim()) {
+      toast.error("Vui lòng điền đầy đủ thông tin kho hàng!");
+      return;
+    }
+
+    try {
+      await updateStoreAddress(editingWarehouse.id, editWarehousePayload);
+      toast.success("Đã cập nhật thông tin kho hàng thành công!");
+      setEditingWarehouse(null);
+      triggerReload();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Không thể cập nhật địa chỉ kho";
+      toast.error(msg);
     }
   };
 
   // Delete Warehouse
   const handleDeleteWarehouse = async (id: number) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa địa chỉ kho này?")) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa địa chỉ kho lấy hàng này?")) return;
     try {
       await deleteStoreAddress(id);
-      showToast("Đã xóa địa chỉ kho!");
+      toast.success("Đã xóa địa chỉ kho thành công!");
       triggerReload();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể xóa kho";
-      alert(msg);
+      toast.error(msg);
     }
   };
 
@@ -149,32 +286,38 @@ export default function SellerProfilePage() {
   const handleSetDefaultWarehouse = async (id: number) => {
     try {
       await setDefaultStoreAddress(id);
-      showToast("Đã đặt làm kho lấy hàng mặc định!");
+      toast.success("Đã đặt làm kho lấy hàng mặc định!");
       triggerReload();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Thao tác thất bại";
-      alert(msg);
+      toast.error(msg);
     }
   };
 
   const handleAiSuggestBio = () => {
     setDescription(
-      "UTC Fashion – Thương hiệu thời trang đường phố đương đại dành cho giới trẻ. Cam kết chất lượng vải nỉ bông hữu cơ 100%, bảo hành đường chỉ trọn đời và hỗ trợ đổi trả miễn phí trong 7 ngày."
+      `${storeName || "TechZone"} – Thương hiệu thiết bị công nghệ & phụ kiện chính hãng hàng đầu. Cam kết 100% sản phẩm có nguồn gốc xuất xứ rõ ràng, bảo hành chính hãng 12-24 tháng, đóng gói chống sốc chuẩn quy cách sàn và hỗ trợ đổi trả miễn phí trong 7 ngày.`
     );
-    showToast("Đã áp dụng gợi ý mô tả chuyên nghiệp từ AI!");
+    toast.success("Đã áp dụng mô tả gian hàng chuẩn hóa từ AI!");
   };
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-xl transition-all animate-bounce">
-          <span className="material-symbols-outlined text-emerald-400 text-[20px]">
-            check_circle
-          </span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      {/* Hidden File Inputs */}
+      <input
+        type="file"
+        ref={logoInputRef}
+        onChange={handleLogoFileChange}
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={bannerInputRef}
+        onChange={handleBannerFileChange}
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+      />
 
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium">
@@ -194,13 +337,14 @@ export default function SellerProfilePage() {
             Hồ sơ gian hàng
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Quản lý nhận diện thương hiệu, mô tả gian hàng và mạng lưới kho lấy hàng chuẩn SLA.
+            Quản lý nhận diện thương hiệu, thông tin gian hàng và mạng lưới kho lấy hàng chuẩn SLA.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => showToast("Lịch sử cập nhật hồ sơ được lưu tự động trong audit log.")}
+            type="button"
+            onClick={() => toast.info("Lịch sử cập nhật hồ sơ được kiểm soát tự động qua Audit Log.")}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors"
           >
             <span className="material-symbols-outlined text-slate-500 text-[18px]">
@@ -209,11 +353,14 @@ export default function SellerProfilePage() {
             Xem lịch sử cập nhật
           </button>
           <button
+            type="button"
             onClick={handleSaveProfile}
             disabled={saveLoading}
             className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[18px]">save</span>
+            <span className="material-symbols-outlined text-[18px]">
+              {saveLoading ? "progress_activity" : "save"}
+            </span>
             {saveLoading ? "Đang lưu..." : "Lưu thay đổi"}
           </button>
         </div>
@@ -230,6 +377,7 @@ export default function SellerProfilePage() {
         <div className="py-16 bg-white rounded-2xl border border-slate-100 text-center">
           <p className="text-sm text-rose-600 font-semibold">{error}</p>
           <button
+            type="button"
             onClick={triggerReload}
             className="mt-3 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
           >
@@ -252,8 +400,8 @@ export default function SellerProfilePage() {
                   </h2>
                 </div>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Trạng thái: Hoạt động (Approved)
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Trạng thái: Hoạt động ({profile?.status || "APPROVED"})
                 </span>
               </div>
 
@@ -266,7 +414,11 @@ export default function SellerProfilePage() {
                   </label>
                   <div className="flex items-center gap-4">
                     <div className="w-20 h-20 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-200 overflow-hidden flex items-center justify-center relative group">
-                      {logoUrl ? (
+                      {logoUploading ? (
+                        <span className="material-symbols-outlined animate-spin text-emerald-600 text-[24px]">
+                          progress_activity
+                        </span>
+                      ) : logoUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
                           src={logoUrl}
@@ -279,20 +431,31 @@ export default function SellerProfilePage() {
                         </span>
                       )}
                     </div>
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = prompt("Nhập link ảnh Logo mới:", logoUrl);
-                          if (url) setLogoUrl(url);
-                        }}
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">upload</span>
-                        Đổi logo
-                      </button>
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Khuyến nghị: 500x500px, PNG/JPG
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={logoUploading}
+                          className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">upload</span>
+                          Tải ảnh lên
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomUrlInput(logoUrl);
+                            setIsUrlModalOpen("logo");
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                          title="Nhập link ảnh từ web"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">link</span>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Khuyến nghị: 500x500px, tối đa 5MB
                       </p>
                     </div>
                   </div>
@@ -304,7 +467,7 @@ export default function SellerProfilePage() {
                     <label className="block text-xs font-bold text-slate-800">
                       Ảnh bìa gian hàng (Banner 16:9)
                     </label>
-                    <span className="text-[10px] text-slate-400">Tỷ lệ vàng 16:9</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Tỷ lệ 16:9 khuyến nghị</span>
                   </div>
                   <div className="h-24 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-200 overflow-hidden relative group">
                     {bannerUrl ? (
@@ -316,22 +479,34 @@ export default function SellerProfilePage() {
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full text-slate-400 text-xs">
-                        Chưa có banner
+                        Chưa thiết lập ảnh bìa gian hàng
                       </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const url = prompt("Nhập link ảnh Banner 16:9 mới:", bannerUrl);
-                        if (url) setBannerUrl(url);
-                      }}
-                      className="absolute bottom-2 right-2 px-2.5 py-1 text-xs font-semibold bg-slate-900/80 hover:bg-slate-900 text-white rounded-lg shadow-sm backdrop-blur-sm transition-all flex items-center gap-1"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">
-                        add_photo_alternate
-                      </span>
-                      Đổi ảnh bìa
-                    </button>
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => bannerInputRef.current?.click()}
+                        className="px-2.5 py-1 text-xs font-semibold bg-slate-900/80 hover:bg-slate-900 text-white rounded-lg shadow-sm backdrop-blur-sm transition-all flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          upload
+                        </span>
+                        Tải ảnh
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomUrlInput(bannerUrl);
+                          setIsUrlModalOpen("banner");
+                        }}
+                        className="px-2 py-1 text-xs font-semibold bg-slate-900/80 hover:bg-slate-900 text-white rounded-lg shadow-sm backdrop-blur-sm transition-all"
+                        title="Dán link ảnh"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          link
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -343,46 +518,45 @@ export default function SellerProfilePage() {
                     <label className="font-bold text-slate-800 flex items-center gap-1">
                       <span>Tên gian hàng</span>
                       <span className="text-rose-500">*</span>
-                      <span className="material-symbols-outlined text-slate-400 text-[14px]">
-                        lock
-                      </span>
                     </label>
                     <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
                       <span className="material-symbols-outlined text-[12px]">verified</span>
-                      Đã xác thực
+                      Chính thức
                     </span>
                   </div>
                   <input
                     type="text"
-                    disabled
+                    required
                     value={storeName}
-                    className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-semibold cursor-not-allowed"
+                    onChange={(e) => setStoreName(e.target.value)}
+                    placeholder="VD: TechZone Official Store"
+                    className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[12px]">info</span>
-                    Liên hệ Quản trị viên sàn để yêu cầu đổi tên gian hàng
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Tên hiển thị công khai trên ứng dụng mua sắm và hóa đơn
                   </p>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
-                    Tên định danh (Slug shop) *
+                    Đường dẫn định danh (Slug shop)
                   </label>
                   <div className="flex items-center">
                     <span className="px-2.5 py-2 text-xs bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-slate-400 font-mono">
-                      vibemart.vn/shop/
+                      flashsale.vn/shop/
                     </span>
                     <input
                       type="text"
                       disabled
-                      value={profile?.slug || "utc-fashion"}
+                      value={profile?.slug || storeName.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-") || "store"}
                       className="flex-1 p-2 text-xs bg-slate-50 border border-slate-200 text-slate-700 font-mono font-semibold"
                     />
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(`https://vibemart.vn/shop/${profile?.slug || "utc-fashion"}`);
-                        showToast("Đã sao chép đường link gian hàng!");
+                        const slug = profile?.slug || storeName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+                        navigator.clipboard.writeText(`https://flashsale.vn/shop/${slug}`);
+                        toast.success("Đã sao chép link gian hàng!");
                       }}
                       className="px-3 py-2 text-xs font-semibold bg-white border border-l-0 border-slate-200 rounded-r-xl text-slate-700 hover:bg-slate-50"
                       title="Sao chép link shop"
@@ -422,7 +596,7 @@ export default function SellerProfilePage() {
                   maxLength={1000}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Mô tả phong cách, xuất xứ sản phẩm, chính sách bảo hành của gian hàng..."
+                  placeholder="Mô tả danh mục kinh doanh, xuất xứ sản phẩm, chính sách bảo hành, cam kết chất lượng..."
                   className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 leading-relaxed"
                 />
               </div>
@@ -437,10 +611,10 @@ export default function SellerProfilePage() {
                   </span>
                   <div>
                     <h2 className="text-base font-bold text-slate-900">
-                      Địa chỉ kho lấy hàng
+                      Địa chỉ kho lấy hàng ({addresses.length})
                     </h2>
                     <p className="text-xs text-slate-400">
-                      Đơn vị vận chuyển sẽ đến các địa chỉ này để lấy kiện hàng chuẩn bị giao
+                      Đơn vị vận chuyển (GHTK, SPX, GHN) sẽ đến lấy hàng theo các địa chỉ kho này
                     </p>
                   </div>
                 </div>
@@ -453,87 +627,108 @@ export default function SellerProfilePage() {
                   <span className="material-symbols-outlined text-[16px]">
                     add_location_alt
                   </span>
-                  + Thêm kho lấy hàng mới
+                  + Thêm kho mới
                 </button>
               </div>
 
               {/* Warehouse Items */}
-              <div className="space-y-3">
-                {addresses.map((addr) => (
-                  <div
-                    key={addr.id}
-                    className={`p-4 rounded-xl border transition-all ${
-                      addr.isDefault
-                        ? "border-emerald-300 bg-emerald-50/30 ring-1 ring-emerald-500/10"
-                        : "border-slate-200 bg-slate-50/50"
-                    }`}
+              {addresses.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                  <span className="material-symbols-outlined text-[32px] text-slate-300">
+                    warehouse
+                  </span>
+                  <p className="text-xs font-medium mt-1">Chưa có địa chỉ kho lấy hàng nào</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddWarehouseOpen(true)}
+                    className="mt-2 text-xs font-bold text-emerald-600 hover:underline"
                   >
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 text-xs">
-                            {addr.warehouseCode || `KHO-${addr.id}`}
-                          </span>
-                          {addr.isDefault && (
-                            <span className="inline-flex items-center gap-0.5 px-2 py-0.2 rounded text-[10px] font-bold bg-emerald-600 text-white">
-                              <span className="material-symbols-outlined text-[11px]">check</span>
-                              Kho mặc định
+                    Thêm kho lấy hàng đầu tiên
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={`p-4 rounded-xl border transition-all ${
+                        addr.isDefault
+                          ? "border-emerald-300 bg-emerald-50/30 ring-1 ring-emerald-500/10"
+                          : "border-slate-200 bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-xs">
+                              {addr.warehouseCode || `KHO-${addr.id}`}
                             </span>
-                          )}
-                        </div>
+                            {addr.isDefault && (
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.2 rounded text-[10px] font-bold bg-emerald-600 text-white">
+                                <span className="material-symbols-outlined text-[11px]">check</span>
+                                Kho mặc định
+                              </span>
+                            )}
+                          </div>
 
-                        <p className="text-xs text-slate-700 font-medium">
-                          {addr.detailAddress}, {addr.ward}, {addr.district}, {addr.province}
-                        </p>
+                          <p className="text-xs text-slate-700 font-medium">
+                            {addr.detailAddress}, {addr.ward}, {addr.district}, {addr.province}
+                          </p>
 
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pt-1">
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[13px]">badge</span>
-                            Thủ kho: {addr.contactName}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[13px]">call</span>
-                            {addr.phone}
-                          </span>
-                          {addr.workingHours && (
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 pt-1">
                             <span className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[13px]">schedule</span>
-                              {addr.workingHours}
+                              <span className="material-symbols-outlined text-[13px]">badge</span>
+                              Thủ kho: {addr.contactName}
                             </span>
-                          )}
-                          {addr.latitude && addr.longitude && (
-                            <span className="flex items-center gap-1 font-mono text-[10px] text-slate-400">
-                              <span className="material-symbols-outlined text-[13px]">location_on</span>
-                              GPS: {addr.latitude}, {addr.longitude}
+                            <span className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px]">call</span>
+                              {addr.phone}
                             </span>
-                          )}
+                            {addr.workingHours && (
+                              <span className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[13px]">schedule</span>
+                                {addr.workingHours}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 text-xs flex-shrink-0 pt-2 md:pt-0">
-                        {!addr.isDefault && (
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 text-xs flex-shrink-0 pt-2 md:pt-0">
                           <button
                             type="button"
-                            onClick={() => handleSetDefaultWarehouse(addr.id)}
-                            className="text-emerald-600 hover:text-emerald-700 font-semibold hover:underline"
+                            onClick={() => handleOpenEditWarehouse(addr)}
+                            className="text-slate-600 hover:text-emerald-700 font-semibold hover:underline flex items-center gap-0.5"
                           >
-                            Đặt làm mặc định
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                            Sửa
                           </button>
-                        )}
-                        {!addr.isDefault && <span className="text-slate-300">|</span>}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteWarehouse(addr.id)}
-                          className="text-rose-500 hover:text-rose-700 font-medium"
-                        >
-                          Xóa
-                        </button>
+                          <span className="text-slate-300">|</span>
+                          {!addr.isDefault && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultWarehouse(addr.id)}
+                                className="text-emerald-600 hover:text-emerald-700 font-semibold hover:underline"
+                              >
+                                Đặt mặc định
+                              </button>
+                              <span className="text-slate-300">|</span>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWarehouse(addr.id)}
+                            className="text-rose-500 hover:text-rose-700 font-medium"
+                          >
+                            Xóa
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -545,52 +740,54 @@ export default function SellerProfilePage() {
                 <span className="material-symbols-outlined text-emerald-600 text-[18px]">
                   verified_user
                 </span>
-                <span>Trạng thái gian hàng</span>
+                <span>Thông tin định danh</span>
               </div>
 
               <div className="space-y-2.5 text-xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Mã gian hàng:</span>
                   <span className="font-mono font-bold text-slate-900">
-                    #VM-{profile?.id ? String(profile.id).padStart(4, "0") : "8842"}
+                    #SHOP-{profile?.id ? String(profile.id).padStart(4, "0") : "0010"}
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Ngày tham gia sàn:</span>
+                  <span>Ngày gia nhập:</span>
                   <span className="font-medium text-slate-900">
-                    {profile?.createdAt || "15/03/2025"}
+                    {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString("vi-VN") : "15/03/2025"}
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Tỷ lệ hoa hồng sàn:</span>
+                  <span>Phí hoa hồng sàn:</span>
                   <span className="font-bold text-emerald-700">
-                    {profile?.defaultCommissionRate || 5.0}%
+                    {profile?.defaultCommissionRate ? (Number(profile.defaultCommissionRate) * 100).toFixed(1) : "5.0"}%
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Đánh giá trung bình:</span>
                   <span className="font-bold text-amber-600 flex items-center gap-1">
                     <span className="material-symbols-outlined text-[14px]">star</span>
-                    {profile?.ratingAvg || 4.8} / 5.0
+                    {profile?.ratingAvg ? Number(profile.ratingAvg).toFixed(1) : "5.0"} / 5.0
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-100">
                   <span>Chỉ số vận hành SLA:</span>
-                  <span className="font-bold text-emerald-600">98.6% (Rất tốt)</span>
+                  <span className="font-bold text-emerald-600">99.2% (Xuất sắc)</span>
                 </div>
               </div>
             </div>
 
-            {/* Smartphone Mockup */}
+            {/* Smartphone Mockup Realtime Preview */}
             <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-emerald-600 text-[16px]">
                     smartphone
                   </span>
-                  Xem trước giao diện Shop
+                  Xem trước gian hàng trên Mobile
                 </span>
-                <span className="text-[10px] text-slate-400">Mobile 390px</span>
+                <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">
+                  Realtime
+                </span>
               </div>
 
               {/* Phone Frame */}
@@ -615,7 +812,9 @@ export default function SellerProfilePage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-emerald-700" />
+                    <div className="w-full h-full bg-gradient-to-r from-emerald-600 to-teal-700 flex items-center justify-center text-white/50 text-[10px]">
+                      Banner Shop
+                    </div>
                   )}
                   <div className="absolute -bottom-4 left-3 w-12 h-12 rounded-xl border-2 border-white bg-white overflow-hidden shadow-md">
                     {logoUrl ? (
@@ -627,7 +826,7 @@ export default function SellerProfilePage() {
                       />
                     ) : (
                       <div className="w-full h-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
-                        {storeName ? storeName.slice(0, 3).toUpperCase() : "VM"}
+                        {storeName ? storeName.slice(0, 3).toUpperCase() : "TZ"}
                       </div>
                     )}
                   </div>
@@ -640,11 +839,11 @@ export default function SellerProfilePage() {
                       <p className="font-bold text-slate-900 text-xs flex items-center gap-1">
                         {storeName || "Gian hàng của bạn"}
                         <span className="bg-rose-500 text-white text-[8px] font-bold px-1 rounded">
-                          Mall
+                          Official
                         </span>
                       </p>
                       <p className="text-slate-400 text-[9px]">
-                        12.4k Người theo dõi • 128 SP
+                        12.8k Người theo dõi • Đánh giá 5.0 ★
                       </p>
                     </div>
                     <button
@@ -662,29 +861,63 @@ export default function SellerProfilePage() {
                   {/* Tabs mockup */}
                   <div className="flex items-center justify-around border-t border-slate-200 pt-2 text-[9px] text-slate-500 font-semibold">
                     <span className="text-emerald-700 border-b-2 border-emerald-600 pb-0.5">
-                      Cửa hàng
+                      Sản phẩm
                     </span>
-                    <span>Tất cả SP</span>
-                    <span>Voucher (4)</span>
+                    <span>Flash Sale (2)</span>
+                    <span>Voucher</span>
                     <span>Hồ sơ</span>
                   </div>
                 </div>
               </div>
-
-              <a
-                href={`https://vibemart.vn/shop/${profile?.slug || "utc-fashion"}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 block w-full text-center py-2 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors"
-              >
-                Xem trang shop thực tế trên Vibe Mart ↗
-              </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* Add Warehouse Modal */}
+      {/* Modal dán URL ảnh trực tiếp */}
+      {isUrlModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setIsUrlModalOpen(null)}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden p-5 space-y-4">
+            <h3 className="font-bold text-slate-900 text-sm">
+              {isUrlModalOpen === "logo" ? "Nhập URL ảnh Logo" : "Nhập URL ảnh Bìa (Banner)"}
+            </h3>
+            <input
+              type="url"
+              value={customUrlInput}
+              onChange={(e) => setCustomUrlInput(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            />
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setIsUrlModalOpen(null)}
+                className="px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isUrlModalOpen === "logo") setLogoUrl(customUrlInput.trim());
+                  if (isUrlModalOpen === "banner") setBannerUrl(customUrlInput.trim());
+                  setIsUrlModalOpen(null);
+                  toast.success("Đã cập nhật link ảnh!");
+                }}
+                className="px-3.5 py-1.5 font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Thêm kho lấy hàng mới */}
       {isAddWarehouseOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
@@ -702,6 +935,7 @@ export default function SellerProfilePage() {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAddWarehouseOpen(false)}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
               >
@@ -713,7 +947,7 @@ export default function SellerProfilePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-800 mb-1">
-                    Tên người phụ trách kho *
+                    Người phụ trách kho *
                   </label>
                   <input
                     type="text"
@@ -731,7 +965,7 @@ export default function SellerProfilePage() {
                     Số điện thoại liên hệ *
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
                     value={newWarehouse.phone}
                     onChange={(e) =>
@@ -743,56 +977,82 @@ export default function SellerProfilePage() {
                 </div>
               </div>
 
+              {/* Cascade Location Selectors */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-800 mb-1">
                     Tỉnh / Thành phố *
                   </label>
-                  <input
-                    type="text"
-                    required
+                  <select
                     value={newWarehouse.province}
-                    onChange={(e) =>
-                      setNewWarehouse((p) => ({ ...p, province: e.target.value }))
-                    }
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
+                    onChange={(e) => {
+                      const prov = e.target.value;
+                      const dists = Object.keys(VIETNAM_LOCATIONS[prov] || {});
+                      const defaultDist = dists[0] || "";
+                      const defaultWards = (VIETNAM_LOCATIONS[prov]?.[defaultDist] || []);
+                      setNewWarehouse((p) => ({
+                        ...p,
+                        province: prov,
+                        district: defaultDist,
+                        ward: defaultWards[0] || "",
+                      }));
+                    }}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    {Object.keys(VIETNAM_LOCATIONS).map((prov) => (
+                      <option key={prov} value={prov}>
+                        {prov}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-800 mb-1">
                     Quận / Huyện *
                   </label>
-                  <input
-                    type="text"
-                    required
+                  <select
                     value={newWarehouse.district}
-                    onChange={(e) =>
-                      setNewWarehouse((p) => ({ ...p, district: e.target.value }))
-                    }
-                    placeholder="VD: TP. Thủ Đức"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
+                    onChange={(e) => {
+                      const dist = e.target.value;
+                      const wards = VIETNAM_LOCATIONS[newWarehouse.province]?.[dist] || [];
+                      setNewWarehouse((p) => ({
+                        ...p,
+                        district: dist,
+                        ward: wards[0] || "",
+                      }));
+                    }}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    {Object.keys(VIETNAM_LOCATIONS[newWarehouse.province] || {}).map((dist) => (
+                      <option key={dist} value={dist}>
+                        {dist}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-800 mb-1">
                     Phường / Xã *
                   </label>
-                  <input
-                    type="text"
-                    required
+                  <select
                     value={newWarehouse.ward}
                     onChange={(e) =>
                       setNewWarehouse((p) => ({ ...p, ward: e.target.value }))
                     }
-                    placeholder="VD: Thạnh Mỹ Lợi"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    {(VIETNAM_LOCATIONS[newWarehouse.province]?.[newWarehouse.district] || []).map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-800 mb-1">
-                  Địa chỉ chi tiết (Số nhà, tên đường, tên kho) *
+                  Địa chỉ chi tiết (Số nhà, tên đường, cụm kho) *
                 </label>
                 <input
                   type="text"
@@ -801,8 +1061,8 @@ export default function SellerProfilePage() {
                   onChange={(e) =>
                     setNewWarehouse((p) => ({ ...p, detailAddress: e.target.value }))
                   }
-                  placeholder="VD: Cụm Công nghiệp Cát Lái 2, đường K1"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  placeholder="VD: Số 12 Đường D2, Khu Công Nghệ Cao"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
 
@@ -816,7 +1076,7 @@ export default function SellerProfilePage() {
                   className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
                 />
                 <span className="text-slate-800 font-semibold">
-                  Đặt làm kho lấy hàng mặc định
+                  Đặt làm kho lấy hàng mặc định cho các đơn hàng mới
                 </span>
               </label>
 
@@ -832,7 +1092,187 @@ export default function SellerProfilePage() {
                   type="submit"
                   className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm"
                 >
-                  Thêm kho
+                  Tạo kho lấy hàng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Chỉnh sửa kho lấy hàng */}
+      {editingWarehouse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setEditingWarehouse(null)}
+          />
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-600 text-[20px]">
+                  edit_location_alt
+                </span>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Cập nhật kho: {editingWarehouse.warehouseCode || `KHO-${editingWarehouse.id}`}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingWarehouse(null)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateWarehouse} className="p-5 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Người phụ trách kho *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editWarehousePayload.contactName}
+                    onChange={(e) =>
+                      setEditWarehousePayload((p) => ({ ...p, contactName: e.target.value }))
+                    }
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Số điện thoại liên hệ *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editWarehousePayload.phone}
+                    onChange={(e) =>
+                      setEditWarehousePayload((p) => ({ ...p, phone: e.target.value }))
+                    }
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+
+              {/* Cascade Location Selectors */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Tỉnh / Thành phố *
+                  </label>
+                  <select
+                    value={editWarehousePayload.province}
+                    onChange={(e) => {
+                      const prov = e.target.value;
+                      const dists = Object.keys(VIETNAM_LOCATIONS[prov] || {});
+                      const defaultDist = dists[0] || "";
+                      const defaultWards = (VIETNAM_LOCATIONS[prov]?.[defaultDist] || []);
+                      setEditWarehousePayload((p) => ({
+                        ...p,
+                        province: prov,
+                        district: defaultDist,
+                        ward: defaultWards[0] || "",
+                      }));
+                    }}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    {Object.keys(VIETNAM_LOCATIONS).map((prov) => (
+                      <option key={prov} value={prov}>
+                        {prov}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Quận / Huyện *
+                  </label>
+                  <select
+                    value={editWarehousePayload.district}
+                    onChange={(e) => {
+                      const dist = e.target.value;
+                      const wards = VIETNAM_LOCATIONS[editWarehousePayload.province]?.[dist] || [];
+                      setEditWarehousePayload((p) => ({
+                        ...p,
+                        district: dist,
+                        ward: wards[0] || "",
+                      }));
+                    }}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    {Object.keys(VIETNAM_LOCATIONS[editWarehousePayload.province] || {}).map((dist) => (
+                      <option key={dist} value={dist}>
+                        {dist}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-800 mb-1">
+                    Phường / Xã *
+                  </label>
+                  <select
+                    value={editWarehousePayload.ward}
+                    onChange={(e) =>
+                      setEditWarehousePayload((p) => ({ ...p, ward: e.target.value }))
+                    }
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    {(VIETNAM_LOCATIONS[editWarehousePayload.province]?.[editWarehousePayload.district] || []).map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-800 mb-1">
+                  Địa chỉ chi tiết (Số nhà, tên đường, cụm kho) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editWarehousePayload.detailAddress}
+                  onChange={(e) =>
+                    setEditWarehousePayload((p) => ({ ...p, detailAddress: e.target.value }))
+                  }
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={editWarehousePayload.isDefault}
+                  onChange={(e) =>
+                    setEditWarehousePayload((p) => ({ ...p, isDefault: e.target.checked }))
+                  }
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
+                />
+                <span className="text-slate-800 font-semibold">
+                  Đặt làm kho lấy hàng mặc định
+                </span>
+              </label>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingWarehouse(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm"
+                >
+                  Lưu thay đổi
                 </button>
               </div>
             </form>
