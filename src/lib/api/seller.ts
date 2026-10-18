@@ -12,6 +12,9 @@ import type {
   FlashSaleSlotItem,
   RegisterFlashSaleItemDto,
   RegisteredFlashSaleHistoryItem,
+  SellerWalletResponse,
+  SellerWalletTransaction,
+  SellerWithdrawalRequest,
 } from "@/types/seller";
 
 /**
@@ -769,3 +772,182 @@ export async function getRegisteredFlashSaleHistory(): Promise<
     ];
   }
 }
+
+/**
+ * Lấy thông tin ví & tài khoản ngân hàng của người bán (GET /api/v1/seller/wallet)
+ */
+export async function getSellerWallet(): Promise<SellerWalletResponse> {
+  try {
+    return await apiFetch<SellerWalletResponse>("/seller/wallet");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerWallet();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy danh sách lịch sử giao dịch ví (GET /api/v1/seller/wallet/transactions)
+ */
+export async function getSellerWalletTransactions(
+  page: number = 0,
+  size: number = 10,
+  type?: string
+): Promise<PageResponse<SellerWalletTransaction>> {
+  try {
+    const query: Record<string, string | number> = { page, size };
+    if (type && type !== "ALL") {
+      query.type = type;
+    }
+    return await apiFetch<PageResponse<SellerWalletTransaction>>(
+      "/seller/wallet/transactions",
+      { query }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerWalletTransactions(page, size, type);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Tạo yêu cầu rút tiền về tài khoản ngân hàng (POST /api/v1/seller/wallet/withdraw)
+ */
+export async function requestSellerWithdrawal(
+  payload: SellerWithdrawalRequest
+): Promise<SellerWalletTransaction> {
+  try {
+    return await apiFetch<SellerWalletTransaction>("/seller/wallet/withdraw", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: Math.floor(Math.random() * 10000),
+        transactionCode: `TX-${Date.now().toString().slice(-8)}`,
+        type: "WITHDRAWAL",
+        amount: -payload.amount,
+        balanceAfter: 48250000 - payload.amount,
+        description: `Yêu cầu rút tiền về tài khoản ngân hàng ${payload.bankAccountNumber || "liên kết"}`,
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockSellerWallet(): SellerWalletResponse {
+  return {
+    balance: 48250000,
+    pendingBalance: 5420000,
+    totalWithdrawn: 126800000,
+    bankAccount: {
+      bankName: "Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)",
+      accountNumber: "1029 8839 1204",
+      accountHolder: "NGUYEN VAN AN - UTC FASHION",
+      branch: "Chi nhánh Thủ Đức, TP. Hồ Chí Minh",
+      isVerified: true,
+    },
+  };
+}
+
+function getMockSellerWalletTransactions(
+  page: number = 0,
+  size: number = 10,
+  typeFilter?: string
+): PageResponse<SellerWalletTransaction> {
+  const allTxs: SellerWalletTransaction[] = [
+    {
+      id: 1,
+      transactionCode: "TX-261018-091",
+      orderCode: "FS-261005-M9B2",
+      type: "ORDER_SETTLEMENT",
+      amount: 300200,
+      balanceAfter: 48250000,
+      description: "Quyết toán đơn hàng Flash Sale #FS-261005-M9B2",
+      status: "SUCCESS",
+      createdAt: "2026-10-18T05:30:00Z",
+    },
+    {
+      id: 2,
+      transactionCode: "TX-261018-044",
+      orderCode: "FS-261005-K3A1",
+      type: "ORDER_SETTLEMENT",
+      amount: 268200,
+      balanceAfter: 47949800,
+      description: "Quyết toán đơn hàng Flash Sale #FS-261005-K3A1",
+      status: "SUCCESS",
+      createdAt: "2026-10-18T04:45:00Z",
+    },
+    {
+      id: 3,
+      transactionCode: "TX-261017-102",
+      type: "WITHDRAWAL",
+      amount: -15000000,
+      balanceAfter: 47681600,
+      description: "Rút tiền về Vietcombank 1029****1204",
+      status: "SUCCESS",
+      createdAt: "2026-10-17T11:20:00Z",
+    },
+    {
+      id: 4,
+      transactionCode: "TX-261017-088",
+      orderCode: "ORD-261005-B7D8",
+      type: "ORDER_SETTLEMENT",
+      amount: 405000,
+      balanceAfter: 62681600,
+      description: "Quyết toán đơn hàng tiêu chuẩn #ORD-261005-B7D8",
+      status: "SUCCESS",
+      createdAt: "2026-10-17T09:15:00Z",
+    },
+    {
+      id: 5,
+      transactionCode: "TX-261016-150",
+      orderCode: "ORD-261004-C4E2",
+      type: "ORDER_SETTLEMENT",
+      amount: 350100,
+      balanceAfter: 62276600,
+      description: "Quyết toán đơn hàng tiêu chuẩn #ORD-261004-C4E2",
+      status: "SUCCESS",
+      createdAt: "2026-10-16T17:00:00Z",
+    },
+    {
+      id: 6,
+      transactionCode: "TX-261015-021",
+      orderCode: "FS-261004-X9Z1",
+      type: "REFUND",
+      amount: 0,
+      balanceAfter: 61926500,
+      description: "Hoàn phí sàn cho đơn hủy #FS-261004-X9Z1",
+      status: "SUCCESS",
+      createdAt: "2026-10-15T09:15:00Z",
+    },
+  ];
+
+  let filtered = allTxs;
+  if (typeFilter && typeFilter !== "ALL") {
+    filtered = allTxs.filter((t) => t.type === typeFilter);
+  }
+
+  const start = page * size;
+  const content = filtered.slice(start, start + size);
+  const totalElements = filtered.length;
+  const totalPages = Math.ceil(totalElements / size) || 1;
+
+  return {
+    content,
+    pageNumber: page,
+    pageSize: size,
+    totalElements,
+    totalPages,
+    isFirst: page === 0,
+    isLast: start + size >= totalElements,
+    hasNext: start + size < totalElements,
+    hasPrevious: page > 0,
+  };
+}
+

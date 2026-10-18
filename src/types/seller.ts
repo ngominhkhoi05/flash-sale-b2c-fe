@@ -206,3 +206,37 @@ export interface RegisteredFlashSaleHistoryItem {
   status: "APPROVED" | "PENDING" | "REJECTED" | "ENDED" | string;
   rejectReason?: string;
 }
+
+export interface SellerBankAccount {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  branch?: string;
+  isVerified: boolean;
+}
+
+export interface SellerWalletResponse {
+  balance: number;
+  pendingBalance: number;
+  totalWithdrawn: number;
+  bankAccount: SellerBankAccount;
+}
+
+export interface SellerWalletTransaction {
+  id: number;
+  transactionCode: string;
+  orderCode?: string;
+  type: "ORDER_SETTLEMENT" | "WITHDRAWAL" | "REFUND" | string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  status: "SUCCESS" | "PENDING" | "FAILED" | string;
+  createdAt: string;
+}
+
+export interface SellerWithdrawalRequest {
+  amount: number;
+  bankAccountNumber?: string;
+  note?: string;
+}
+
