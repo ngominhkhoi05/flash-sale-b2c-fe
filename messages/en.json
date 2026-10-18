@@ -912,7 +912,8 @@
       "addToCart": "Add to Cart",
       "buyNow": "Buy Now",
       "buyNowFlash": "⚡ Buy now – Hold for 5 minutes",
-      "disabledReasonContact": "Please contact the shop for pricing and ordering"
+      "disabledReasonContact": "Please contact the shop for pricing and ordering",
+      "disabledReasonOutOfStock": "This product is currently out of stock"
     },
     "store": {
       "viewShop": "View Shop",
@@ -982,6 +983,7 @@
       "flashMaxQty": "During Flash Sale, each customer can order at most {max} items!",
       "saveSuccess": "Saved",
       "variantNotAvailable": "This variant is currently unavailable. Please choose another color or size.",
+      "variantAutoSwitched": "We've auto-selected an in-stock variant for you",
       "cartError": {
         "GENERIC": "Could not update your cart. Please try again.",
         "CART_400_1": "Insufficient stock",
