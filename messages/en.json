@@ -421,6 +421,11 @@
         "loggingOut": "Signing out…"
       },
       "totalLabel": "Grand total",
+      "errorTitle": "Could not load checkout",
+      "errorDescription": "Something went wrong while loading your cart and addresses. Please try again.",
+      "emptyTitle": "No items to checkout",
+      "emptyDescription": "Your cart is empty. Please add products before proceeding to checkout.",
+      "backToShopping": "Back to cart",
       "addressCard": {
         "title": "Shipping address",
         "change": "Change",

@@ -421,6 +421,11 @@
         "loggingOut": "Đang đăng xuất…"
       },
       "totalLabel": "Tổng thanh toán",
+      "errorTitle": "Không thể tải thông tin thanh toán",
+      "errorDescription": "Đã có lỗi xảy ra khi tải giỏ hàng và địa chỉ. Vui lòng thử lại.",
+      "emptyTitle": "Chưa có sản phẩm nào để thanh toán",
+      "emptyDescription": "Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm trước khi tiến hành thanh toán.",
+      "backToShopping": "Quay lại giỏ hàng",
       "addressCard": {
         "title": "Địa chỉ nhận hàng",
         "change": "Thay đổi",

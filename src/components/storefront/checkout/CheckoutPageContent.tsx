@@ -16,9 +16,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { v4 as uuidv4 } from "uuid";
+import { ShoppingCart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { ErrorState } from "@/components/common/ErrorState";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ROUTES } from "@/lib/constants";
 import { formatVND } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -287,6 +290,46 @@ export function CheckoutPageContent({
 
   const canSubmit = Boolean(selectedAddress) && !submitMut.isPending;
   const isInitialLoading = !useMockData && checkoutQuery.isLoading;
+  const isError = !useMockData && checkoutQuery.isError;
+  const isEmpty = !useMockData && !isInitialLoading && !isError && data.shopGroups.length === 0;
+
+  // ── Subplan C (2026-10-18) — error state ─────────────────────────────
+  if (isError) {
+    return (
+      <div
+        className="bg-background min-h-screen pb-32 md:pb-16"
+        data-testid="checkout-page"
+      >
+        <div className="max-w-[1240px] mx-auto px-4 lg:px-8 pt-6 pb-8">
+          <ErrorState
+            title={t("errorTitle")}
+            message={t("errorDescription")}
+            onRetry={() => checkoutQuery.refetch()}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Subplan C (2026-10-18) — empty state (user chọn empty-state) ────
+  if (isEmpty) {
+    return (
+      <div
+        className="bg-background min-h-screen pb-32 md:pb-16"
+        data-testid="checkout-page"
+      >
+        <div className="max-w-[1240px] mx-auto px-4 lg:px-8 pt-6 pb-8">
+          <EmptyState
+            icon={<ShoppingCart className="h-6 w-6" aria-hidden />}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            actionLabel={t("backToShopping")}
+            onAction={() => router.push(ROUTES.CART)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
