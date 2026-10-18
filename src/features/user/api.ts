@@ -51,7 +51,13 @@ export interface ChangePasswordRequest {
 
 const updateProfilePayloadSchema = z.object({
   fullName: fullNameSchema,
-  phone: phoneRegisterSchema.optional(),
+  phone: z
+    .string()
+    .trim()
+    .refine((v) => !v || /^(\+?84|0)\d{9}$/.test(v), {
+      message: 'Số điện thoại không hợp lệ (VD: 0912345678)',
+    })
+    .optional(),
 });
 
 const changePasswordPayloadSchema = z
@@ -92,8 +98,9 @@ export async function updateProfile(
   const body: { fullName: string; phone?: string } = {
     fullName: parsed.fullName,
   };
-  if (parsed.phone) {
-    body.phone = `+84${parsed.phone.replace(/^0/, '')}`;
+  if (parsed.phone && parsed.phone.trim()) {
+    const cleanPhone = parsed.phone.trim().replace(/^0/, '').replace(/^\+84/, '');
+    body.phone = `+84${cleanPhone}`;
   }
   return apiFetch<UserResponse>('/api/v1/users/me', {
     method: 'PUT',

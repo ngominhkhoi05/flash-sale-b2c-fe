@@ -82,7 +82,12 @@ function normalizePhone(raw: string): string {
  * Sanitize payload: convert phone về +84 format, strip undefined fields.
  */
 function buildBody(payload: AddressRequest): Record<string, unknown> {
-  const parsed = addressPayloadSchema.parse(payload);
+  const result = addressPayloadSchema.safeParse(payload);
+  if (!result.success) {
+    const firstMsg = result.error.issues[0]?.message || 'Thông tin địa chỉ không hợp lệ';
+    throw new Error(firstMsg);
+  }
+  const parsed = result.data;
   const body: Record<string, unknown> = {
     contactName: parsed.contactName.trim(),
     phone: normalizePhone(parsed.phone),
