@@ -240,3 +240,34 @@ export interface SellerWithdrawalRequest {
   note?: string;
 }
 
+export interface SellerVoucherItem {
+  id: number;
+  code: string;
+  name: string;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount: number;
+  totalUsageLimit: number;
+  currentUsageCount: number;
+  userUsageLimit: number;
+  startDate: string;
+  endDate: string;
+  status: "ACTIVE" | "UPCOMING" | "EXPIRED" | "DISABLED" | string;
+  createdAt: string;
+}
+
+export interface CreateSellerVoucherPayload {
+  code: string;
+  name: string;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount: number;
+  totalUsageLimit: number;
+  userUsageLimit?: number;
+  startDate: string;
+  endDate: string;
+}
+
+
