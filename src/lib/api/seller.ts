@@ -24,6 +24,10 @@ import type {
   SellerWarehouseAddressItem,
   UpdateStoreProfilePayload,
   CreateStoreAddressPayload,
+  SellerStaffMember,
+  SellerRoleSummary,
+  InviteStaffPayload,
+  UpdateStaffRolePayload,
 } from "@/types/seller";
 
 /**
@@ -1585,6 +1589,223 @@ function getMockStoreAddresses(): SellerWarehouseAddressItem[] {
   ];
 }
 
+function getMockStaffMembers(): SellerStaffMember[] {
+  return [
+    {
+      id: 1,
+      name: "Nguyễn Văn An",
+      email: "an.nguyen@utcfashion.vn",
+      role: "OWNER",
+      roleLabel: "Chủ shop (Toàn quyền)",
+      status: "ACTIVE",
+      addedAt: "15/03/2025",
+      permissions: ["*"],
+    },
+    {
+      id: 2,
+      name: "Trần Thị Mai Phương",
+      email: "phuong.tran@utcfashion.vn",
+      role: "WAREHOUSE_MANAGER",
+      roleLabel: "Quản lý kho",
+      status: "ACTIVE",
+      addedAt: "20/05/2025",
+      permissions: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+    },
+    {
+      id: 3,
+      name: "Lê Hoàng Long",
+      email: "long.le@utcfashion.vn",
+      role: "ACCOUNTANT",
+      roleLabel: "Kế toán đối soát",
+      status: "ACTIVE",
+      addedAt: "12/08/2025",
+      permissions: ["wallet:view", "payout:request", "report:export"],
+    },
+    {
+      id: 4,
+      name: "Đỗ Thị Bích Ngọc",
+      email: "ngoc.do@utcfashion.vn",
+      role: "FLASH_SALE_OPERATOR",
+      roleLabel: "Vận hành Flash Sale",
+      status: "ACTIVE",
+      addedAt: "01/09/2026",
+      permissions: ["flashsale:register", "price:adjust", "campaign:manage"],
+    },
+    {
+      id: 5,
+      name: "Vũ Quốc Hưng",
+      email: "hung.vu@gmail.com",
+      role: "WAREHOUSE_MANAGER",
+      roleLabel: "Quản lý kho",
+      status: "PENDING_INVITE",
+      addedAt: "04/10/2026",
+      permissions: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+    },
+  ];
+}
 
+function getMockRoleSummaries(): SellerRoleSummary[] {
+  return [
+    {
+      id: "role-1",
+      role: "WAREHOUSE_MANAGER",
+      roleName: "Quản lý kho",
+      description: "Chuyên trách nhập xuất, đồng bộ kho & đóng hàng",
+      memberCount: 2,
+      icon: "inventory_2",
+      color: "sky",
+      permissions: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+    },
+    {
+      id: "role-2",
+      role: "ACCOUNTANT",
+      roleName: "Kế toán đối soát",
+      description: "Theo dõi dòng tiền, phiên đối soát và rút tiền ví",
+      memberCount: 1,
+      icon: "account_balance_wallet",
+      color: "emerald",
+      permissions: ["wallet:view", "payout:request", "report:export"],
+    },
+    {
+      id: "role-3",
+      role: "FLASH_SALE_OPERATOR",
+      roleName: "Vận hành Flash Sale",
+      description: "Quản trị các chiến dịch giá sốc và deal độc quyền",
+      memberCount: 1,
+      icon: "bolt",
+      color: "rose",
+      permissions: ["flashsale:register", "price:adjust", "campaign:manage"],
+    },
+  ];
+}
 
+/**
+ * 27. Lấy danh sách nhân viên của shop (GET /api/v1/seller/staff)
+ */
+export async function getSellerStaff(): Promise<SellerStaffMember[]> {
+  try {
+    return await apiFetch<SellerStaffMember[]>("/seller/staff");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockStaffMembers();
+    }
+    throw err;
+  }
+}
 
+/**
+ * 28. Lấy tổng hợp các nhóm quyền vai trò của shop (GET /api/v1/seller/roles)
+ */
+export async function getSellerRoleSummaries(): Promise<SellerRoleSummary[]> {
+  try {
+    return await apiFetch<SellerRoleSummary[]>("/seller/roles");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockRoleSummaries();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 29. Mời nhân viên mới vào shop (POST /api/v1/seller/staff/invite)
+ */
+export async function inviteSellerStaff(
+  payload: InviteStaffPayload
+): Promise<SellerStaffMember> {
+  try {
+    return await apiFetch<SellerStaffMember>("/seller/staff/invite", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const roleMap: Record<string, { label: string; perms: string[] }> = {
+        WAREHOUSE_MANAGER: {
+          label: "Quản lý kho",
+          perms: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+        },
+        ACCOUNTANT: {
+          label: "Kế toán đối soát",
+          perms: ["wallet:view", "payout:request", "report:export"],
+        },
+        FLASH_SALE_OPERATOR: {
+          label: "Vận hành Flash Sale",
+          perms: ["flashsale:register", "price:adjust", "campaign:manage"],
+        },
+        OWNER: {
+          label: "Chủ shop",
+          perms: ["*"],
+        },
+      };
+      const info = roleMap[payload.role] || roleMap.WAREHOUSE_MANAGER;
+      return {
+        id: Math.floor(Math.random() * 1000) + 10,
+        name: payload.email.split("@")[0],
+        email: payload.email,
+        role: payload.role,
+        roleLabel: info.label,
+        status: "PENDING_INVITE",
+        addedAt: new Date().toLocaleDateString("vi-VN"),
+        permissions: info.perms,
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * 30. Đổi nhóm quyền của nhân viên (PUT /api/v1/seller/staff/{id}/role)
+ */
+export async function updateSellerStaffRole(
+  id: number,
+  payload: UpdateStaffRolePayload
+): Promise<void> {
+  try {
+    await apiFetch<void>(`/seller/staff/${id}/role`, {
+      method: "PUT",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 31. Khóa / mở khóa quyền của nhân viên (PATCH /api/v1/seller/staff/{id}/status)
+ */
+export async function toggleLockSellerStaff(
+  id: number,
+  status: "ACTIVE" | "LOCKED"
+): Promise<void> {
+  try {
+    await apiFetch<void>(`/seller/staff/${id}/status`, {
+      method: "PATCH",
+      query: { status },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 32. Xóa hoặc hủy lời mời nhân viên khỏi shop (DELETE /api/v1/seller/staff/{id})
+ */
+export async function deleteSellerStaff(id: number): Promise<void> {
+  try {
+    await apiFetch<void>(`/seller/staff/${id}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}

@@ -359,8 +359,38 @@ export interface CreateStoreAddressPayload {
   latitude?: number;
   longitude?: number;
   isDefault?: boolean;
+}export type SellerStaffRole = 'OWNER' | 'WAREHOUSE_MANAGER' | 'ACCOUNTANT' | 'FLASH_SALE_OPERATOR';
+export type SellerStaffStatus = 'ACTIVE' | 'PENDING_INVITE' | 'LOCKED';
+
+export interface SellerStaffMember {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: SellerStaffRole;
+  roleLabel: string;
+  status: SellerStaffStatus;
+  addedAt: string;
+  permissions: string[];
 }
 
+export interface SellerRoleSummary {
+  id: string;
+  role: SellerStaffRole;
+  roleName: string;
+  description: string;
+  memberCount: number;
+  icon: string;
+  color: string;
+  permissions: string[];
+}
 
+export interface InviteStaffPayload {
+  email: string;
+  role: SellerStaffRole;
+}
 
+export interface UpdateStaffRolePayload {
+  role: SellerStaffRole;
+}
 
