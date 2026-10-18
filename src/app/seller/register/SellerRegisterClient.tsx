@@ -574,7 +574,7 @@ export function SellerRegisterClient() {
                     onChange={(e) => handleProvinceChange(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface text-xs border border-outline-variant focus:outline-none focus:ring-2 focus:ring-[#10B981]/20 font-medium"
                   >
-                    {PROVINCE_NAMES.map((p) => (
+                    {PROVINCE_NAMES.map((p: string) => (
                       <option key={p} value={p}>
                         {p}
                       </option>
@@ -590,7 +590,7 @@ export function SellerRegisterClient() {
                     onChange={(e) => handleDistrictChange(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface text-xs border border-outline-variant focus:outline-none focus:ring-2 focus:ring-[#10B981]/20 font-medium"
                   >
-                    {getDistrictsByProvince(province).map((d) => (
+                    {getDistrictsByProvince(province).map((d: string) => (
                       <option key={d} value={d}>
                         {d}
                       </option>
@@ -606,7 +606,7 @@ export function SellerRegisterClient() {
                     onChange={(e) => setWard(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface text-xs border border-outline-variant focus:outline-none focus:ring-2 focus:ring-[#10B981]/20 font-medium"
                   >
-                    {getWardsByDistrict(province, district).map((w) => (
+                    {getWardsByDistrict(province, district).map((w: string) => (
                       <option key={w} value={w}>
                         {w}
                       </option>
