@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 export interface ProductCtaButtonsProps {
   /** Render mode — standard (2 buttons) or flash sale (1 urgent CTA). */
   mode: "standard" | "flash";
+  /** Khi false → disable nút "Mua ngay" + Add to cart, hiển thị tooltip.
+   *  Dùng khi BE trả giá null (quyết định user 2026-10-18 hide-cta). */
+  canPurchase?: boolean;
   /** Add-to-Cart handler (standard mode only). */
   onAddToCart?: () => void;
   /** Buy-Now handler (both modes). */
@@ -20,11 +23,14 @@ export interface ProductCtaButtonsProps {
 
 export function ProductCtaButtons({
   mode,
+  canPurchase = true,
   onAddToCart,
   onBuyNow,
   className,
 }: ProductCtaButtonsProps) {
   const t = useTranslations("productDetail.cta");
+  const disabledReason = t("disabledReasonContact");
+  const isDisabled = !canPurchase;
 
   if (mode === "flash") {
     return (
@@ -32,7 +38,15 @@ export function ProductCtaButtons({
         <button
           type="button"
           onClick={onBuyNow}
-          className="flex h-13 w-full animate-bounce items-center justify-center gap-2 rounded-lg bg-tertiary px-6 py-3 text-lg font-bold text-white shadow-lg transition-all hover:bg-tertiary-hover"
+          disabled={isDisabled}
+          aria-disabled={isDisabled}
+          title={isDisabled ? disabledReason : undefined}
+          className={cn(
+            "flex h-13 w-full animate-bounce items-center justify-center gap-2 rounded-lg px-6 py-3 text-lg font-bold text-white shadow-lg transition-all",
+            isDisabled
+              ? "cursor-not-allowed bg-on-surface/30 hover:bg-on-surface/30"
+              : "bg-tertiary hover:bg-tertiary-hover"
+          )}
         >
           <BoltIcon className="h-6 w-6" />
           <span>{t("buyNowFlash")}</span>
@@ -49,7 +63,15 @@ export function ProductCtaButtons({
       <button
         type="button"
         onClick={onAddToCart}
-        className="flex h-12 items-center justify-center gap-2 rounded-lg border-2 border-primary bg-surface-container-lowest px-6 text-[13px] font-bold text-primary shadow-sm transition-all hover:bg-surface-container"
+        disabled={isDisabled}
+        aria-disabled={isDisabled}
+        title={isDisabled ? disabledReason : undefined}
+        className={cn(
+          "flex h-12 items-center justify-center gap-2 rounded-lg border-2 px-6 text-[13px] font-bold shadow-sm transition-all",
+          isDisabled
+            ? "cursor-not-allowed border-outline/30 bg-surface-container text-outline/60"
+            : "border-primary bg-surface-container-lowest text-primary hover:bg-surface-container"
+        )}
       >
         <CartIcon className="h-5 w-5" />
         <span>{t("addToCart")}</span>
@@ -57,7 +79,15 @@ export function ProductCtaButtons({
       <button
         type="button"
         onClick={onBuyNow}
-        className="flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-[13px] font-bold text-on-primary shadow-md transition-all hover:bg-primary-hover"
+        disabled={isDisabled}
+        aria-disabled={isDisabled}
+        title={isDisabled ? disabledReason : undefined}
+        className={cn(
+          "flex h-12 items-center justify-center gap-2 rounded-lg px-6 text-[13px] font-bold text-on-primary shadow-md transition-all",
+          isDisabled
+            ? "cursor-not-allowed bg-on-surface/30 text-on-primary/60 hover:bg-on-surface/30"
+            : "bg-primary hover:bg-primary-hover"
+        )}
       >
         <BagIcon className="h-5 w-5" />
         <span>{t("buyNow")}</span>

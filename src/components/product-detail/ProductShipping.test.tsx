@@ -46,4 +46,19 @@ describe("ProductShipping", () => {
     expect(screen.getByText(/Thời gian nhận dự kiến:/)).toBeInTheDocument();
     expect(screen.getByText(/1 - 2 ngày làm việc/)).toBeInTheDocument();
   });
+
+  // ── Defensive null test (2026-10-18 bug #4 fix) ─────────────────────────
+  it("returns null when shipping is null (BE runtime có thể trả null)", () => {
+    const { container } = renderWithIntl(
+      <ProductShipping shipping={null} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("returns null when shipping is undefined", () => {
+    const { container } = renderWithIntl(
+      <ProductShipping shipping={undefined} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
 });

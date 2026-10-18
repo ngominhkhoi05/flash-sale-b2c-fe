@@ -18,7 +18,8 @@ import { cn } from "@/lib/utils";
 import type { ProductSpecsDto } from "@/features/products";
 
 export interface ProductSpecsTableProps {
-  specs: ProductSpecsDto;
+  /** BE có thể trả null khi product không có specs (quyết định 2026-10-18 defensive null). */
+  specs: ProductSpecsDto | null | undefined;
   className?: string;
 }
 
@@ -29,6 +30,9 @@ interface Row {
 
 export function ProductSpecsTable({ specs, className }: ProductSpecsTableProps) {
   const t = useTranslations("productDetail.specs");
+
+  // Defensive: BE runtime có thể trả specs = null. Tránh crash page.
+  if (!specs) return null;
 
   const rows: Row[] = [
     { labelKey: "origin", value: specs.origin },

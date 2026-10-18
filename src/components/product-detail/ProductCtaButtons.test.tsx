@@ -86,3 +86,48 @@ describe("ProductCtaButtons – flash mode", () => {
     expect(onBuyNow).toHaveBeenCalledTimes(1);
   });
 });
+
+// ── Defensive disabled tests (2026-10-18 bug #2 fix — hide-cta) ─────────
+describe("ProductCtaButtons – canPurchase=false (contact-only)", () => {
+  it("disables Add-to-Cart button with title tooltip when canPurchase=false", () => {
+    renderWithIntl(
+      <ProductCtaButtons
+        mode="standard"
+        canPurchase={false}
+        onAddToCart={() => {}}
+        onBuyNow={() => {}}
+      />,
+    );
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    expect(addBtn).toBeDisabled();
+    expect(addBtn).toHaveAttribute("aria-disabled", "true");
+    expect(addBtn).toHaveAttribute("title", "Vui lòng liên hệ shop để biết giá và đặt hàng");
+  });
+
+  it("disables Buy-Now button when canPurchase=false", () => {
+    renderWithIntl(
+      <ProductCtaButtons
+        mode="standard"
+        canPurchase={false}
+        onAddToCart={() => {}}
+        onBuyNow={() => {}}
+      />,
+    );
+    const buyBtn = screen.getByRole("button", { name: /Mua Ngay/ });
+    expect(buyBtn).toBeDisabled();
+    expect(buyBtn).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("disables flash CTA when canPurchase=false", () => {
+    renderWithIntl(
+      <ProductCtaButtons
+        mode="flash"
+        canPurchase={false}
+        onBuyNow={() => {}}
+      />,
+    );
+    const flashBtn = screen.getByRole("button", { name: /Mua ngay.*Giữ hàng 5 phút/ });
+    expect(flashBtn).toBeDisabled();
+    expect(flashBtn).toHaveAttribute("title", "Vui lòng liên hệ shop để biết giá và đặt hàng");
+  });
+});

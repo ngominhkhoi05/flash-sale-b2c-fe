@@ -73,9 +73,10 @@ const PRODUCT_IMAGES: ProductImage[] = [
 ];
 
 // ── Tier variation configs ───────────────────────────────────────────────
+// Key English (BE runtime) — quyết định 2026-10-18: 'be-only'.
 const TIER_CONFIGS: TierVariationConfig[] = [
-  { name: "Màu Sắc", options: ["Trắng Tinh Khôi", "Đen Huyền Bí", "Vàng Pastel"] },
-  { name: "Kích Thước", options: ["S", "M", "L", "XL"] },
+  { name: "Color", options: ["Trắng Tinh Khôi", "Đen Huyền Bí", "Vàng Pastel"] },
+  { name: "Size", options: ["S", "M", "L", "XL"] },
 ];
 
 // ── Variants (3 màu x 4 size, XL hết hàng) ───────────────────────────────
@@ -97,7 +98,7 @@ const VARIANTS: ProductVariant[] = COLORS.flatMap((color, colorIdx) =>
       productId: 1,
       sku: `UTC-TS-001-${color.name.split(" ")[0].toUpperCase()}-${size}`,
       variantName: `${color.name}, ${size}`,
-      attributes: { "Màu Sắc": color.name, "Kích Thước": size },
+      attributes: { Color: color.name, Size: size },
       originalPrice: 159000,
       stockQuantity: isOOS ? 0 : 48,
       imageUrl: null,

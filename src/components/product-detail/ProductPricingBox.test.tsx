@@ -78,6 +78,37 @@ describe("ProductPricingBox – standard variant", () => {
     );
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
+
+  // ── Defensive null tests (2026-10-18 bug #2 fix) ───────────────────────
+  it("renders 'Liên hệ' contact text when minPrice is null", () => {
+    renderWithIntl(
+      <ProductPricingBox
+        variant="standard"
+        minPrice={null}
+        originalPrice={null}
+        discountPercent={0}
+      />,
+    );
+    // 'Liên hệ để biết giá' (i18n key contactForPrice)
+    expect(screen.getByTestId("standard-price-contact")).toHaveTextContent(/Liên hệ/);
+    // Số tiền 0₫ KHÔNG render.
+    expect(screen.queryByTestId("standard-price")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("standard-original")).not.toBeInTheDocument();
+  });
+
+  it("renders 'Liên hệ' contact text when minPrice is null in FLASH mode", () => {
+    renderWithIntl(
+      <ProductPricingBox
+        variant="flash"
+        minPrice={null}
+        originalPrice={null}
+        discountPercent={0}
+        flashSale={FLASH}
+      />,
+    );
+    expect(screen.getByTestId("flash-price-contact")).toHaveTextContent(/Liên hệ/);
+    expect(screen.queryByTestId("flash-price")).not.toBeInTheDocument();
+  });
 });
 
 describe("ProductPricingBox – flash variant", () => {

@@ -56,10 +56,8 @@ export function ProductGallery({
           unoptimized
         />
 
-        {/* Top-left badge */}
-        <div className="absolute left-3 top-3 flex flex-col gap-1.5">
-          <Badge100PercentCotton />
-        </div>
+        {/* Top-left badge (removed: hard-coded "100% Cotton Compact" không khớp nhiều
+            loại sản phẩm — quyết định 2026-10-18 xóa hard-code, chờ BE trả tags[]). */}
 
         {/* Bottom-right zoom button */}
         <button
@@ -114,15 +112,6 @@ export function ProductGallery({
         />
       )}
     </div>
-  );
-}
-
-function Badge100PercentCotton() {
-  return (
-    <span className="flex items-center gap-1 rounded bg-secondary px-2.5 py-1 font-bold text-on-secondary shadow-sm font-label-sm uppercase tracking-wide">
-      <VerifiedIcon className="h-3 w-3" />
-      100% Cotton Compact
-    </span>
   );
 }
 
@@ -198,19 +187,6 @@ function CloseIcon({ className }: { className?: string }) {
       className={className}
     >
       <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
-
-function VerifiedIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
     </svg>
   );
 }

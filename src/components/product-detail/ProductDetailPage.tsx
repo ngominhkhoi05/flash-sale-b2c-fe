@@ -48,7 +48,10 @@ export interface ProductDetailPageProps {
 }
 
 /**
- * Lấy màu đầu tiên từ variants (slug = "Màu Sắc"), fallback dựa trên tier configs.
+ * Lấy màu đầu tiên từ variants (key BE: "Color"), fallback dựa trên tier configs.
+ *
+ * Quyết định 2026-10-18: dùng key BE runtime (English: "Color"). BE trả
+ * `variant.attributes: {Color: "Yellow"}` + `tier.name: "Color"`.
  */
 function deriveColors(
   product: ProductDetail,
@@ -56,7 +59,7 @@ function deriveColors(
   const seen = new Set<string>();
   const out: Array<{ name: string; bgClass: string }> = [];
   for (const v of product.variants) {
-    const c = v.attributes["Màu Sắc"];
+    const c = v.attributes["Color"];
     if (!c || seen.has(c)) continue;
     seen.add(c);
     out.push({ name: c, bgClass: colorToBg(c) });
@@ -64,19 +67,25 @@ function deriveColors(
   if (out.length > 0) return out;
 
   const tier = product.tierVariationConfigs.find(
-    (t) => t.name === "Màu Sắc",
+    (t) => t.name === "Color",
   );
   if (!tier) return [];
   return tier.options.map((name) => ({ name, bgClass: colorToBg(name) }));
 }
 
+/**
+ * Lấy size đầu tiên từ variants (key BE: "Size"), fallback tier configs.
+ *
+ * Quyết định 2026-10-18: dùng key BE runtime (English: "Size"). BE trả
+ * `variant.attributes: {Size: "L"}` + `tier.name: "Size"`.
+ */
 function deriveSizes(
   product: ProductDetail,
 ): Array<{ label: string; disabled: boolean }> {
   const seen = new Set<string>();
   const out: Array<{ label: string; disabled: boolean }> = [];
   for (const v of product.variants) {
-    const s = v.attributes["Kích Thước"];
+    const s = v.attributes["Size"];
     if (!s || seen.has(s)) continue;
     seen.add(s);
     out.push({ label: s, disabled: v.isDisabled });
@@ -84,7 +93,7 @@ function deriveSizes(
   if (out.length > 0) return out;
 
   const tier = product.tierVariationConfigs.find(
-    (t) => t.name === "Kích Thước",
+    (t) => t.name === "Size",
   );
   if (!tier) return [];
   return tier.options.map((label) => ({ label, disabled: false }));
@@ -166,8 +175,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   // Derived: khi color/size không khớp variant nào active, tự động chọn size available.
   const variantForCurrent = product.variants.find(
     (v) =>
-      v.attributes["Màu Sắc"] === selectedColor &&
-      v.attributes["Kích Thước"] === selectedSize,
+      v.attributes["Color"] === selectedColor &&
+      v.attributes["Size"] === selectedSize,
   );
   const effectiveSize =
     variantForCurrent && !variantForCurrent.isDisabled
@@ -185,8 +194,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     setSelectedColor(color);
     const stillValid = product.variants.some(
       (v) =>
-        v.attributes["Màu Sắc"] === color &&
-        v.attributes["Kích Thước"] === selectedSize &&
+        v.attributes["Color"] === color &&
+        v.attributes["Size"] === selectedSize &&
         !v.isDisabled,
     );
     if (!stillValid) {
@@ -197,9 +206,18 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     }
   }
 
-  // Defensive: minPrice/maxPrice có thể null. Fallback 0 cho display.
-  const displayMinPrice = product.minPrice ?? 0;
-  const displayMaxPrice = product.maxPrice ?? 0;
+  // Defensive: minPrice/maxPrice có thể null (BE runtime trả null khi product
+  // chưa set giá ngoài variant level). Truyền null cho PricingBox để render
+  // "Liên hệ" thay vì 0₫.
+  const displayMinPrice = product.minPrice;
+  const displayMaxPrice = product.maxPrice;
+
+  // Quyết định user 2026-10-18 (hide-cta): nút "Mua ngay" bị disable khi
+  // product không có giá min/max. Vẫn cho phép "Thêm vào giỏ" (một số user
+  // thích add trước, liên hệ sau).
+  const canPurchase =
+    product.minPrice !== null ||
+    product.variants.some((v) => v.originalPrice > 0);
 
   // Pricing for box
   const pricingMinPrice = activeFlashSale
@@ -283,9 +301,10 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onChange={setQuantity}
           />
 
-          {/* Section 7: CTA buttons */}
+          {/* Section 7: CTA buttons — disable Buy Now khi không có giá (hide-cta). */}
           <ProductCtaButtons
             mode={variant}
+            canPurchase={canPurchase}
             onAddToCart={() => {
               if (typeof window !== "undefined") {
                 window.alert(t("toast.addedToCart"));
