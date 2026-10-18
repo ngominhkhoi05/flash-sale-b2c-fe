@@ -240,10 +240,20 @@ export default function AdminSkuApprovalsPage() {
   const handleConfirmApprove = async () => {
     try {
       if (isBatchApprove) {
-        await batchApproveFlashSaleSkus(selectedIds);
-        toast.success(
-          `Đã duyệt thành công ${selectedIds.length} SKU và tự động khóa kho!`
-        );
+        const result = await batchApproveFlashSaleSkus(selectedIds);
+        if (result && result.failedReasons && result.failedReasons.length > 0) {
+          const approvedCount = result.approvedItemIds?.length || 0;
+          const failedDetails = result.failedReasons
+            .map((f) => `#${f.itemId}: ${f.reason}`)
+            .join("; ");
+          toast.warning(
+            `Đã duyệt ${approvedCount}/${selectedIds.length} SKU. Thất bại ${result.failedReasons.length} SKU (${failedDetails})`
+          );
+        } else {
+          toast.success(
+            `Đã duyệt thành công toàn bộ ${selectedIds.length} SKU và tự động khóa kho!`
+          );
+        }
         setSelectedIds([]);
       } else if (targetApproveItem) {
         await approveFlashSaleSku(targetApproveItem.id);
