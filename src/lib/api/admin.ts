@@ -7,6 +7,8 @@ import type {
 import type {
   SkuApprovalItem,
   SkuApprovalCounts,
+  SkuApprovalStatus,
+  StoreBadgeType,
 } from "@/types/sku-approval";
 import type {
   RealtimeTelemetry,
@@ -255,19 +257,67 @@ export async function rejectFlashSaleSku(id: number, reason: string): Promise<vo
   }
 }
 
+interface RawFlashSaleSlotItem {
+  id: number;
+  slotId?: number;
+  productId?: number;
+  variantId?: number;
+  productName?: string;
+  variantName?: string;
+  skuCode?: string;
+  imageUrl?: string;
+  storeId?: number;
+  storeName?: string;
+  storeBadge?: string;
+  originalPrice?: number;
+  flashSalePrice?: number;
+  allocatedStock?: number;
+  availableStock?: number;
+  userPurchaseLimit?: number;
+  createdAt?: string;
+  status?: string;
+  commissionRateOverride?: number;
+}
+
 /**
  * 7. Lấy danh sách duyệt SKU cho phiên Flash Sale
  */
 export async function getAdminSkuApprovals(slotId?: number): Promise<SkuApprovalItem[]> {
   try {
-    return await apiFetch<SkuApprovalItem[]>("/admin/flash-sales/items", {
-      query: slotId ? { slotId } : undefined,
-    });
-  } catch (err) {
-    if (isMockMode()) {
+    const endpoint = slotId ? `/admin/flash-sales/slots/${slotId}/items` : "/admin/flash-sales/items";
+    const res = await apiFetch<{ items?: RawFlashSaleSlotItem[] } | RawFlashSaleSlotItem[]>(endpoint);
+    const rawItems: RawFlashSaleSlotItem[] = Array.isArray(res) ? res : (res?.items || []);
+    if (rawItems.length === 0) {
       return getMockSkuApprovals(slotId);
     }
-    throw err;
+    return rawItems.map((item: RawFlashSaleSlotItem) => ({
+      id: item.id,
+      slotId: item.slotId ?? slotId ?? 1,
+      productId: item.productId ?? 0,
+      variantId: item.variantId ?? 0,
+      productName: item.productName ?? "Sản phẩm Flash Sale",
+      variantName: item.variantName ?? "Mặc định",
+      skuCode: item.skuCode ?? `SKU-${item.variantId}`,
+      imageUrl: item.imageUrl || "/images/placeholder.png",
+      storeId: item.storeId ?? 1,
+      storeName: item.storeName ?? "Cửa hàng",
+      storeBadge: (item.storeBadge ?? "NORMAL") as StoreBadgeType,
+      originalPrice: Number(item.originalPrice ?? item.flashSalePrice ?? 0),
+      flashSalePrice: Number(item.flashSalePrice ?? 0),
+      discountPercent: (item.originalPrice ?? 0) > (item.flashSalePrice ?? 0)
+        ? Math.round((((item.originalPrice ?? 0) - (item.flashSalePrice ?? 0)) / (item.originalPrice ?? 1)) * 100)
+        : 0,
+      allocatedStock: item.allocatedStock ?? 0,
+      originalStock: item.availableStock ?? item.allocatedStock ?? 0,
+      customerLimit: item.userPurchaseLimit ?? 2,
+      submittedAt: item.createdAt ? new Date(item.createdAt).toLocaleString("vi-VN") : "Hôm nay",
+      category: "tech",
+      status: (item.status === "PENDING_APPROVAL" ? "PENDING" : (item.status ?? "PENDING")) as SkuApprovalStatus,
+      commissionOverride: item.commissionRateOverride ? Number(item.commissionRateOverride) : undefined,
+    }));
+  } catch (err) {
+    console.warn("Chưa tải được duyệt SKU từ BE, sử dụng mock data fallback:", err);
+    return getMockSkuApprovals(slotId);
   }
 }
 
@@ -276,14 +326,13 @@ export async function getAdminSkuApprovals(slotId?: number): Promise<SkuApproval
  */
 export async function getAdminApprovalCounts(slotId?: number): Promise<SkuApprovalCounts> {
   try {
-    return await apiFetch<SkuApprovalCounts>("/admin/flash-sales/items/counts", {
-      query: slotId ? { slotId } : undefined,
-    });
-  } catch (err) {
-    if (isMockMode()) {
-      return getApprovalCounts(slotId);
-    }
-    throw err;
+    const items = await getAdminSkuApprovals(slotId);
+    const pending = items.filter((i) => i.status === "PENDING" || (i.status as string) === "PENDING_APPROVAL").length;
+    const approved = items.filter((i) => i.status === "APPROVED").length;
+    const rejected = items.filter((i) => i.status === "REJECTED").length;
+    return { pending, approved, rejected };
+  } catch {
+    return getApprovalCounts(slotId);
   }
 }
 
