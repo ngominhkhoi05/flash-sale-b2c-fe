@@ -201,7 +201,10 @@ function buildUrl(path: string, query?: ApiFetchOptions["query"]): string {
     fullBase = base;
   }
 
-  const url = new URL(`${fullBase}${withVersion}`);
+  // Khử trùng lặp: nếu fullBase đã chứa đuôi /api hoặc /api/v1 (do NEXT_PUBLIC_API_URL cấu hình thừa),
+  // ta bỏ đuôi này để tránh bị lặp thành /api/v1/api/v1/...
+  const sanitizedBase = fullBase.replace(/\/api(\/v\d+)?$/, "");
+  const url = new URL(`${sanitizedBase}${withVersion}`);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v === undefined || v === null) continue;
