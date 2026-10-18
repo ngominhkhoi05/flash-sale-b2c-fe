@@ -52,37 +52,33 @@ export default function SellerReviewsPage() {
   };
 
   const triggerReload = () => {
-    setLoading(true);
-    setReloadTrigger((prev) => prev + 1);
+    fetchReviews(false);
+  };
+
+  const fetchReviews = async (silent = false) => {
+    if (!silent && reviews.length === 0) setLoading(true);
+    try {
+      const [summaryData, reviewsData] = await Promise.all([
+        getSellerReviewSummary(),
+        getSellerReviews(0, 100),
+      ]);
+      setSummary(summaryData);
+      const list = reviewsData.content || (reviewsData as any).items || (Array.isArray(reviewsData) ? reviewsData : []);
+      setReviews(list);
+      setError(null);
+    } catch (err: unknown) {
+      if (!silent && reviews.length === 0) {
+        const msg = err instanceof Error ? err.message : "Không thể tải danh sách đánh giá";
+        setError(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    let active = true;
-
-    Promise.all([
-      getSellerReviewSummary(),
-      getSellerReviews(0, 50, selectedRating, replyTab),
-    ])
-      .then(([summaryData, reviewsData]) => {
-        if (active) {
-          setSummary(summaryData);
-          setReviews(reviewsData.content || []);
-          setError(null);
-          setLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          const msg = err instanceof Error ? err.message : "Không thể tải danh sách đánh giá";
-          setError(msg);
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [replyTab, selectedRating, reloadTrigger]);
+    fetchReviews(false);
+  }, []);
 
   // Filtered reviews
   const filteredReviews = useMemo(() => {
@@ -114,13 +110,35 @@ export default function SellerReviewsPage() {
 
     setReplySubmittingId(reviewId);
     try {
-      await replySellerReview({ reviewId, replyText: text });
+      const updated = await replySellerReview({ reviewId, replyText: text });
       showToast("Đã gửi phản hồi thành công đến người mua!");
       setReplyInputs((p) => ({ ...p, [reviewId]: "" }));
-      triggerReload();
+      // Cập nhật phản hồi ngay tại chỗ
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === reviewId
+            ? {
+                ...r,
+                sellerReply: updated.sellerReply || {
+                  id: Date.now(),
+                  replyText: text,
+                  repliedAt: new Date().toISOString(),
+                },
+              }
+            : r
+        )
+      );
+      setSummary((prev) =>
+        prev
+          ? {
+              ...prev,
+              unrepliedCount: Math.max(0, prev.unrepliedCount - 1),
+            }
+          : prev
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể gửi phản hồi";
-      alert(msg);
+      showToast(`Lỗi: ${msg}`);
     } finally {
       setReplySubmittingId(null);
     }
@@ -349,16 +367,31 @@ export default function SellerReviewsPage() {
 
       {/* Reviews List */}
       <div className="space-y-4">
-        {loading ? (
-          <div className="py-20 bg-white rounded-2xl border border-slate-100 text-center flex flex-col items-center justify-center gap-3">
-            <span className="material-symbols-outlined animate-spin text-emerald-600 text-[32px]">
-              progress_activity
-            </span>
-            <p className="text-xs font-medium text-slate-400">
-              Đang tải danh sách đánh giá...
-            </p>
+        {loading && reviews.length === 0 ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm animate-pulse space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200/70"></div>
+                    <div className="space-y-1.5">
+                      <div className="h-4 w-28 bg-slate-200/70 rounded"></div>
+                      <div className="h-2.5 w-20 bg-slate-100 rounded"></div>
+                    </div>
+                  </div>
+                  <div className="h-4 w-24 bg-slate-200/70 rounded"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3.5 w-full bg-slate-100 rounded"></div>
+                  <div className="h-3.5 w-3/4 bg-slate-100 rounded"></div>
+                </div>
+              </div>
+            ))}
           </div>
-        ) : error ? (
+        ) : error && reviews.length === 0 ? (
           <div className="py-16 bg-white rounded-2xl border border-slate-100 text-center">
             <p className="text-xs text-rose-600 font-semibold">{error}</p>
             <button

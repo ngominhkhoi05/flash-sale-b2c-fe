@@ -1428,17 +1428,59 @@ function getMockSellerWalletTransactions(
  */
 export async function getSellerVouchers(
   page: number = 0,
-  size: number = 10,
+  size: number = 50,
   status?: string
 ): Promise<PageResponse<SellerVoucherItem>> {
   try {
-    const query: Record<string, string | number> = { page, size };
+    const raw = await apiFetch<any>("/seller/vouchers");
+    const arr: any[] = Array.isArray(raw)
+      ? raw
+      : raw?.content || raw?.items || raw?.data || [];
+
+    const mapped: SellerVoucherItem[] = arr.map((v: any) => ({
+      id: v.id,
+      code: v.code,
+      name: v.name || v.code,
+      discountType:
+        v.discountType === "PERCENT" || v.discountType === "PERCENTAGE"
+          ? "PERCENTAGE"
+          : "FIXED_AMOUNT",
+      discountValue: Number(v.discountValue) || 0,
+      maxDiscountAmount: v.maxDiscountAmount ? Number(v.maxDiscountAmount) : undefined,
+      minOrderAmount: Number(v.minOrderAmount) || 0,
+      totalUsageLimit: v.totalQuantity ?? v.totalUsageLimit ?? 100,
+      currentUsageCount: v.usedQuantity ?? v.currentUsageCount ?? 0,
+      userUsageLimit: v.userUsageLimit ?? 1,
+      startDate: v.startTime
+        ? typeof v.startTime === "string"
+          ? v.startTime.split("T")[0]
+          : v.startTime
+        : v.startDate || "",
+      endDate: v.endTime
+        ? typeof v.endTime === "string"
+          ? v.endTime.split("T")[0]
+          : v.endTime
+        : v.endDate || "",
+      status: v.status || "ACTIVE",
+      createdAt: v.createdAt || new Date().toISOString(),
+    }));
+
+    let filtered = mapped;
     if (status && status !== "ALL") {
-      query.status = status;
+      filtered = mapped.filter((item) => item.status === status);
     }
-    return await apiFetch<PageResponse<SellerVoucherItem>>("/seller/vouchers", {
-      query,
-    });
+
+    return {
+      content: filtered,
+      pageNumber: page,
+      pageSize: size,
+      totalElements: filtered.length,
+      totalPages: 1,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockSellerVouchers(page, size, status);
@@ -1454,10 +1496,48 @@ export async function createSellerVoucher(
   payload: CreateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
   try {
-    return await apiFetch<SellerVoucherItem>("/seller/vouchers", {
+    const startTime = payload.startDate.includes("T")
+      ? payload.startDate
+      : `${payload.startDate}T00:00:00Z`;
+    const endTime = payload.endDate.includes("T")
+      ? payload.endDate
+      : `${payload.endDate}T23:59:59Z`;
+
+    const body = {
+      code: payload.code.trim().toUpperCase(),
+      discountType: payload.discountType === "PERCENTAGE" ? "PERCENT" : payload.discountType,
+      discountValue: payload.discountValue,
+      minOrderAmount: payload.minOrderAmount,
+      maxDiscountAmount:
+        payload.maxDiscountAmount ||
+        (payload.discountType === "PERCENTAGE" ? payload.discountValue * 1000 : null),
+      totalQuantity: payload.totalUsageLimit,
+      userUsageLimit: payload.userUsageLimit || 1,
+      startTime,
+      endTime,
+    };
+
+    const res = await apiFetch<any>("/seller/vouchers", {
       method: "POST",
-      json: payload,
+      json: body,
     });
+
+    return {
+      id: res.id || Math.floor(Math.random() * 10000),
+      code: res.code || payload.code.toUpperCase(),
+      name: payload.name || res.code || payload.code.toUpperCase(),
+      discountType: payload.discountType,
+      discountValue: payload.discountValue,
+      maxDiscountAmount: payload.maxDiscountAmount,
+      minOrderAmount: payload.minOrderAmount,
+      totalUsageLimit: payload.totalUsageLimit,
+      currentUsageCount: 0,
+      userUsageLimit: payload.userUsageLimit || 1,
+      startDate: payload.startDate,
+      endDate: payload.endDate,
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+    };
   } catch (err) {
     if (isMockMode()) {
       return {

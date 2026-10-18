@@ -51,32 +51,29 @@ export default function SellerVouchersPage() {
   };
 
   const triggerReload = () => {
-    setLoading(true);
-    setReloadTrigger((prev) => prev + 1);
+    fetchVouchers(false);
+  };
+
+  const fetchVouchers = async (silent = false) => {
+    if (!silent && vouchers.length === 0) setLoading(true);
+    try {
+      const res = await getSellerVouchers(0, 100);
+      const list = res.content || [];
+      setVouchers(list);
+      setError(null);
+    } catch (err: unknown) {
+      if (!silent && vouchers.length === 0) {
+        const msg = err instanceof Error ? err.message : "Không thể tải danh sách voucher";
+        setError(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    let active = true;
-    getSellerVouchers(0, 50, currentTab)
-      .then((res) => {
-        if (active) {
-          setVouchers(res.content || []);
-          setError(null);
-          setLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          const msg = err instanceof Error ? err.message : "Không thể tải danh sách voucher";
-          setError(msg);
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [currentTab, reloadTrigger]);
+    fetchVouchers(false);
+  }, []);
 
   // Tab counts
   const tabCounts = useMemo(() => {
@@ -126,15 +123,15 @@ export default function SellerVouchersPage() {
 
     setFormLoading(true);
     try {
-      await createSellerVoucher(formData);
+      const created = await createSellerVoucher(formData);
+      setVouchers((prev) => [created, ...prev]);
       showToast(`Đã tạo thành công voucher #${formData.code.toUpperCase()}`);
       setIsCreateOpen(false);
       // Reset form
       setFormData(DEFAULT_FORM_DATA);
-      triggerReload();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể tạo voucher";
-      alert(msg);
+      showToast(`Lỗi: ${msg}`);
     } finally {
       setFormLoading(false);
     }
@@ -289,14 +286,27 @@ export default function SellerVouchersPage() {
 
       {/* Vouchers Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <span className="material-symbols-outlined animate-spin text-emerald-600 text-[32px]">
-              progress_activity
-            </span>
-            <p className="text-xs font-medium">Đang tải danh sách voucher...</p>
+        {loading && vouchers.length === 0 ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-16 w-full bg-slate-50/70 animate-pulse rounded-xl border border-slate-100 flex items-center justify-between px-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-200/60 rounded-xl"></div>
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-28 bg-slate-200/60 rounded"></div>
+                    <div className="h-2.5 w-20 bg-slate-100 rounded"></div>
+                  </div>
+                </div>
+                <div className="h-4 w-32 bg-slate-200/60 rounded hidden md:block"></div>
+                <div className="h-4 w-24 bg-slate-200/60 rounded"></div>
+                <div className="h-6 w-20 bg-slate-200/60 rounded-full"></div>
+              </div>
+            ))}
           </div>
-        ) : error ? (
+        ) : error && vouchers.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-xs text-rose-600 font-semibold">{error}</p>
             <button
