@@ -1,12 +1,20 @@
 "use client";
 
-import React, { useState, useTransition, useMemo, Suspense } from "react";
+import React, { useState, useTransition, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   ReconciliationOrder,
   ReconciliationRefund,
+  ReconciliationKpis,
 } from "@/types/reconciliation";
 import { reconciliationMockService } from "@/lib/mocks/reconciliation.mock";
+import {
+  getAdminReconciliationKpis,
+  getAdminReconciliationOrders,
+  getAdminReconciliationRefunds,
+  lockAdminReconciliationPeriod,
+} from "@/lib/api/admin";
+import { isMockMode } from "@/lib/api/client";
 import {
   ReconciliationOrdersTable,
   ReconciliationRefundsTable,
@@ -63,41 +71,95 @@ function ReconciliationPageContent() {
     router.replace(`/admin/reconciliation?${params.toString()}`);
   };
 
-  // KPIs
-  const kpis = useMemo(() => {
-    return reconciliationMockService.getKpis();
-  }, []);
+  // State for data
+  const [kpis, setKpis] = useState<ReconciliationKpis>(() =>
+    reconciliationMockService.getKpis()
+  );
+  const [ordersData, setOrdersData] = useState<
+    ReturnType<typeof reconciliationMockService.getOrders>
+  >(() => reconciliationMockService.getOrders({ page: 0, pageSize: 10 }));
+  const [refundsData, setRefundsData] = useState<ReconciliationRefund[]>(() =>
+    reconciliationMockService.getRefunds()
+  );
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Filtered Orders Data
-  const ordersData = useMemo(() => {
-    return reconciliationMockService.getOrders({
-      search: searchQuery,
-      storeId: storeFilter || undefined,
-      paymentMethod: paymentMethodFilter || undefined,
-      status: statusFilter || undefined,
-      page,
-      pageSize,
-    });
-  }, [searchQuery, storeFilter, paymentMethodFilter, statusFilter, page, pageSize]);
+  // Fetch reconciliation data from BE with fallback
+  useEffect(() => {
+    let cancelled = false;
 
-  // Filtered Refunds Data
-  const refundsData = useMemo(() => {
-    return reconciliationMockService.getRefunds({
-      search: searchQuery,
-    });
-  }, [searchQuery]);
-
-  // Handle CSV Export
-  const handleExportCsv = () => {
-    try {
-      const allOrders = reconciliationMockService.getOrders({
+    Promise.all([
+      getAdminReconciliationKpis(selectedPeriod),
+      getAdminReconciliationOrders({
         search: searchQuery,
         storeId: storeFilter || undefined,
         paymentMethod: paymentMethodFilter || undefined,
         status: statusFilter || undefined,
-        page: 0,
-        pageSize: 1000,
-      }).items;
+        page,
+        pageSize,
+        period: selectedPeriod,
+      }),
+      getAdminReconciliationRefunds({
+        search: searchQuery,
+        period: selectedPeriod,
+      }),
+    ])
+      .then(([kpisRes, ordersRes, refundsRes]) => {
+        if (!cancelled) {
+          setKpis(kpisRes);
+          setOrdersData(ordersRes);
+          setRefundsData(refundsRes);
+          setLoadError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          if (isMockMode()) {
+            setKpis(reconciliationMockService.getKpis());
+            setOrdersData(
+              reconciliationMockService.getOrders({
+                search: searchQuery,
+                storeId: storeFilter || undefined,
+                paymentMethod: paymentMethodFilter || undefined,
+                status: statusFilter || undefined,
+                page,
+                pageSize,
+              })
+            );
+            setRefundsData(
+              reconciliationMockService.getRefunds({
+                search: searchQuery,
+              })
+            );
+            setLoadError(null);
+          } else {
+            setLoadError(
+              err instanceof Error
+                ? err.message
+                : "Chức năng đối soát tài chính chưa sẵn sàng trên máy chủ."
+            );
+          }
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedPeriod,
+    searchQuery,
+    storeFilter,
+    paymentMethodFilter,
+    statusFilter,
+    page,
+    pageSize,
+    refreshKey,
+  ]);
+
+  // Handle CSV Export
+  const handleExportCsv = () => {
+    try {
+      const allOrders = ordersData.items;
 
       const csvContent = reconciliationMockService.exportCsv(allOrders);
       const blob = new Blob([csvContent], {
@@ -127,18 +189,25 @@ function ReconciliationPageContent() {
   const handleSyncWallet = () => {
     showToast("Đang đồng bộ giao dịch ví shop kỳ T+3...");
     setTimeout(() => {
+      setRefreshKey((k) => k + 1);
       showToast("Đồng bộ hoàn tất! 318 giao dịch ví shop đã khớp lệnh.");
     }, 1200);
   };
 
   // Handle Lock Period Confirm
-  const handleConfirmLockPeriod = () => {
-    startTransition(() => {
-      setIsLockPeriodModalOpen(false);
-      showToast(
-        `Đã khóa sổ thành công kỳ đối soát Tháng ${selectedPeriod}. Biên bản đối soát đã được lưu trữ an toàn.`
-      );
-    });
+  const handleConfirmLockPeriod = async () => {
+    try {
+      await lockAdminReconciliationPeriod(selectedPeriod);
+      startTransition(() => {
+        setIsLockPeriodModalOpen(false);
+        setRefreshKey((k) => k + 1);
+        showToast(
+          `Đã khóa sổ thành công kỳ đối soát Tháng ${selectedPeriod}. Biên bản đối soát đã được lưu trữ an toàn.`
+        );
+      });
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Không thể khóa sổ kỳ đối soát");
+    }
   };
 
   return (
@@ -152,6 +221,26 @@ function ReconciliationPageContent() {
           <span className="font-body-md text-sm font-medium">
             {toastMessage}
           </span>
+        </div>
+      )}
+
+      {/* Error Banner when BE is down and Mock is disabled */}
+      {loadError && (
+        <div className="p-4 rounded-xl bg-error-container/20 border border-error/30 text-error flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-2xl">error</span>
+            <div>
+              <p className="font-semibold text-sm">Chức năng chưa sẵn sàng</p>
+              <p className="text-xs opacity-80">{loadError}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="px-3 py-1.5 rounded-lg bg-error text-on-error text-xs font-medium hover:opacity-90 transition-opacity"
+            type="button"
+          >
+            Thử lại
+          </button>
         </div>
       )}
 
