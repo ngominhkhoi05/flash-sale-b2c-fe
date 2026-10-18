@@ -136,7 +136,6 @@ function SellerOrdersContent() {
         setLoading(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [markAllAsSeen, allOrders.length, initialCode, selectedOrder]
   );
 
@@ -581,7 +580,7 @@ function SellerOrdersContent() {
             <button
               type="button"
               onClick={triggerReload}
-              className="mt-3 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+              className="mt-3 px-4 py-1.5 text-xs font-semibold text-white bg-[#10B981] rounded-lg hover:bg-emerald-600 transition-colors"
             >
               Thử lại
             </button>
@@ -1057,17 +1056,17 @@ function SellerOrdersContent() {
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
             onClick={() => setCancelModalOrder(null)}
           />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="relative w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/30 overflow-hidden">
+            <div className="p-5 border-b border-surface-container flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
                   <MaterialSymbol name="warning" size="[18px]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
+                  <h3 className="font-bold text-on-surface text-sm">
                     Hủy đơn hàng #{cancelModalOrder.orderCode}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-secondary">
                     Vui lòng chọn lý do chính xác để hoàn tiền khách
                   </p>
                 </div>
@@ -1075,7 +1074,7 @@ function SellerOrdersContent() {
               <button
                 type="button"
                 onClick={() => setCancelModalOrder(null)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container transition-colors"
               >
                 <MaterialSymbol name="close" size="[18px]" />
               </button>
@@ -1083,7 +1082,7 @@ function SellerOrdersContent() {
 
             <div className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-800 mb-2">
+                <label className="block font-semibold text-on-surface mb-2">
                   Chọn lý do hủy đơn *
                 </label>
                 <div className="space-y-2">
@@ -1095,7 +1094,7 @@ function SellerOrdersContent() {
                   ].map((r) => (
                     <label
                       key={r.value}
-                      className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
+                      className="flex items-center gap-2.5 p-2.5 rounded-xl border border-outline-variant/40 hover:bg-surface-container-low cursor-pointer transition-colors"
                     >
                       <input
                         type="radio"
@@ -1105,14 +1104,14 @@ function SellerOrdersContent() {
                         onChange={(e) => setCancelReason(e.target.value)}
                         className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
                       />
-                      <span className="text-slate-800 font-medium">{r.label}</span>
+                      <span className="text-on-surface font-medium">{r.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-800 mb-1.5">
+                <label className="block font-semibold text-on-surface mb-1.5">
                   Ghi chú cho khách & sàn (tùy chọn)
                 </label>
                 <textarea
@@ -1138,7 +1137,7 @@ function SellerOrdersContent() {
               <button
                 type="button"
                 onClick={() => setCancelModalOrder(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-secondary hover:bg-surface-container rounded-xl transition-colors"
               >
                 Bỏ qua
               </button>

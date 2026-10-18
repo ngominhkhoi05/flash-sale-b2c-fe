@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   getAdminUsers,
   updateAdminUserStatus,
@@ -250,9 +251,12 @@ export default function AdminUsersPage() {
                     >
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <img
+                          <Image
                             src={avatarSrc}
-                            alt={user.fullName}
+                            alt={user.fullName || "User"}
+                            width={40}
+                            height={40}
+                            unoptimized
                             className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
                           />
                           <div className="flex flex-col min-w-0">
