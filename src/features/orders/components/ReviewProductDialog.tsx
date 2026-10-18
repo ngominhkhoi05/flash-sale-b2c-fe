@@ -41,6 +41,7 @@ export function ReviewProductDialog({
     resolver: zodResolver(reviewSchema),
     defaultValues: { rating: 0, comment: '', mediaUrls: [], anonymous: false },
   });
+  // eslint-disable-next-line react-hooks/incompatible-library -- RHF watch() pattern hợp lệ
   const rating = watch('rating');
   const comment = watch('comment');
   const [mediaInputs, setMediaInputs] = useState<string[]>([]);

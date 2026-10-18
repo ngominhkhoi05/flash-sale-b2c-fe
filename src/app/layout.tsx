@@ -83,6 +83,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         {/* Material Symbols Outlined – Google Fonts (Stitch icon system) */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- icon font, không phải text font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
           rel="stylesheet"

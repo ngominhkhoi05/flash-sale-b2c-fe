@@ -127,6 +127,10 @@ function FlashSaleSlotModalDialog({
     defaultValues,
   });
 
+  // React Hook Form's watch() không tương thích với React Compiler
+  // memoization, nhưng đây là pattern hợp lệ của RHF (xem rule
+  // react-hooks/incompatible-library). Giữ nguyên, suppress warning.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const holdSec = watch("holdSeconds");
   const startTimeVal = watch("startTime");
   const endTimeVal = watch("endTime");

@@ -35,7 +35,6 @@ const PAYMENT_METHODS = ["Visa", "Mastercard", "MoMo", "ZaloPay", "VNPay", "COD"
 const SHIPPING_PARTNERS = ["GHTK", "GHN", "Viettel Post", "J&T Express"] as const;
 
 export function StorefrontFooter() {
-  const t = useTranslations();
   const tf = useTranslations("storefront.footer");
   const tfLinks = useTranslations("storefront.footer.links");
 

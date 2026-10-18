@@ -22,6 +22,7 @@
  */
 
 import { apiFetch, ApiError } from "@/lib/api";
+import { imageUrlWithFallback } from "@/lib/images/with-fallback";
 
 // ─── Banner types ─────────────────────────────────────────────────────────────
 
@@ -47,13 +48,15 @@ export interface HomeBannersResponse {
 export async function fetchHomeBanners(): Promise<HomeBannersResponse> {
   try {
     const data = await apiFetch<HomeBannersResponse>("/api/v1/banners/home");
-    // Transform relative imageUrl paths to absolute URLs (backend returns /banners/xxx.jpg)
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+    // Helper imageUrlWithFallback cover mọi edge case:
+    // - null/undefined/"" → fallback placeholder
+    // - absolute URL → as-is
+    // - relative path → ghép NEXT_PUBLIC_API_URL
+    // Defense-in-depth: chuẩn hoá ngay tại API layer, KHÔNG để component
+    // phải tự lo (xem plan 2026-10-18-fix-empty-image-url-fallback mục 4.3).
     const transformImageUrl = (banner: BannerResponse): BannerResponse => ({
       ...banner,
-      imageUrl: banner.imageUrl.startsWith("http")
-        ? banner.imageUrl
-        : `${baseUrl.replace(/\/$/, "")}${banner.imageUrl}`,
+      imageUrl: imageUrlWithFallback(banner.imageUrl, "banner"),
     });
     return {
       mainSlides: data.mainSlides.map(transformImageUrl),
@@ -242,6 +245,12 @@ interface ProductPageResponse {
  * fetchFeaturedProducts – dùng làm nguồn fallback cho HeroBanner / FeaturedStores / Recommended.
  * Backend: GET /api/v1/products?size=20&sort=createdAt,desc
  * Khi backend bổ sung /products/recommended hoặc /banners/home, hook sẽ ưu tiên dùng data thật.
+ *
+ * Defense-in-depth: normalize imageUrl ngay tại API layer (xem plan
+ * 2026-10-18-fix-empty-image-url-fallback mục 4.3 + plan
+ * 2026-10-18-hero-banner-prod-ip-hostname-and-normalize mục 4 Fix B).
+ * Helper cover null/undefined/empty (→ fallback), absolute (as-is),
+ * relative (ghép NEXT_PUBLIC_API_URL).
  */
 export async function fetchFeaturedProducts(options: {
   size?: number;
@@ -251,5 +260,9 @@ export async function fetchFeaturedProducts(options: {
   const res = await apiFetch<ProductPageResponse>("/api/v1/products", {
     query: { size, sort },
   });
-  return res.items ?? [];
+  const items = res.items ?? [];
+  return items.map((item) => ({
+    ...item,
+    imageUrl: imageUrlWithFallback(item.imageUrl, "product"),
+  }));
 }

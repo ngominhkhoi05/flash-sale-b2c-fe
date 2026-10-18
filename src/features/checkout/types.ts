@@ -147,10 +147,18 @@ export interface SubmitOrderRequest {
   /** shippingAddressId (BE field). */
   addressId: number;
   paymentMethod: PaymentMethod;
+  /**
+   * @deprecated BE Swagger 2026-10-18 không có `platformVoucherCode`
+   * ở top-level `CreateOrderRequest`. Giữ field này cho tương thích
+   * caller cũ — submitOrder sẽ KHÔNG forward lên BE (xem Bug #3).
+   * Sẽ xoá khi có quyết định BE về voucher sàn.
+   */
   platformVoucherCode?: string;
-  /** Map storeId -> voucher code + note. */
+  /** Map storeId -> voucher code + note + items[]. */
   shopSelections: Array<{
     storeId: number;
+    /** Items trong cart của user — BẮT BUỘC gửi theo Swagger. */
+    items: Array<{ variantId: number; quantity: number }>;
     shopVoucherCode?: string;
     buyerNote?: string;
   }>;
