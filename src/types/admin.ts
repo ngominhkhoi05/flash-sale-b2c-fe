@@ -74,3 +74,16 @@ export interface AdminRealtimeMonitorData {
   items: AdminRealtimeProductMonitor[];
   lastUpdated: string;
 }
+
+export interface AdminUser {
+  id: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: "ADMIN" | "SELLER" | "BUYER" | string;
+  roles?: string[];
+  status: "ACTIVE" | "LOCKED" | string;
+  ordersCount: number;
+  createdAt: string;
+  avatarUrl: string;
+}
