@@ -84,11 +84,14 @@ function QrCodeFrame({
         </div>
       ) : (
         <>
-          <img
+          <Image
             src={qrCodeUrl}
             alt="Mã QR ZaloPay"
+            width={216}
+            height={216}
             className="w-full h-full rounded-lg object-contain bg-white"
             data-testid="qr-image"
+            unoptimized
           />
           {/* Central ZaloPay badge */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

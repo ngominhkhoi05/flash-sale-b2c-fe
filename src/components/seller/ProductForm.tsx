@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { formatVND } from "@/lib/utils";
@@ -548,10 +549,12 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                       idx === 0 ? "ring-2 ring-emerald-500" : ""
                     }`}
                   >
-                    <img
+                    <Image
                       src={imgUrl}
                       alt={`Ảnh sản phẩm ${idx + 1}`}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="80px"
+                      className="object-cover"
                     />
                     {idx === 0 && (
                       <div className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white font-label-sm text-[10px] text-center py-0.5 font-bold">
@@ -1438,13 +1441,15 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
             <div className="rounded-xl overflow-hidden border border-outline-variant/30 bg-surface shadow-xs flex flex-col">
               <div className="relative w-full aspect-square bg-surface-container-low overflow-hidden">
-                <img
+                <Image
                   src={
                     images[0] ||
                     "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60"
                   }
                   alt={name}
-                  className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+                  fill
+                  sizes="(max-width: 640px) 100vw, 400px"
+                  className="object-cover transition-transform hover:scale-105 duration-300"
                 />
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                   <span className="px-2 py-0.5 rounded bg-tertiary text-white font-label-sm text-[10px] font-bold tracking-wider uppercase shadow-xs">

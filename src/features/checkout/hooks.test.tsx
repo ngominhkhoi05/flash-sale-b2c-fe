@@ -214,7 +214,11 @@ describe("useSubmitOrderMutation", () => {
           paymentMethod: "ZALOPAY",
           platformVoucherCode: "VIBE10",
           shopSelections: [
-            { storeId: 1, shopVoucherCode: "SHOP5" },
+            {
+              storeId: 1,
+              items: [{ variantId: 99, quantity: 1 }],
+              shopVoucherCode: "SHOP5",
+            },
           ],
         },
         idempotencyKey: "test-key-1",
@@ -227,7 +231,13 @@ describe("useSubmitOrderMutation", () => {
         addressId: 1,
         paymentMethod: "ZALOPAY",
         platformVoucherCode: "VIBE10",
-        shopSelections: [{ storeId: 1, shopVoucherCode: "SHOP5" }],
+        shopSelections: [
+          {
+            storeId: 1,
+            items: [{ variantId: 99, quantity: 1 }],
+            shopVoucherCode: "SHOP5",
+          },
+        ],
       },
       "test-key-1",
     );

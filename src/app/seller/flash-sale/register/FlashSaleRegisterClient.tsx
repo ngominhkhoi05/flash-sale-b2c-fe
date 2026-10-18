@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { formatVND } from "@/lib/utils";
 import {
@@ -521,11 +522,13 @@ export function FlashSaleRegisterClient() {
                     <tr key={item.id} className="hover:bg-surface-container-low/50 transition-colors">
                       <td className="px-space-md py-3.5">
                         <div className="flex items-center gap-space-sm">
-                          <div className="w-10 h-10 rounded-lg bg-surface-container-high flex-shrink-0 overflow-hidden">
-                            <img
+                          <div className="relative w-10 h-10 rounded-lg bg-surface-container-high flex-shrink-0 overflow-hidden">
+                            <Image
                               src={item.imageUrl || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60"}
                               alt={item.productName}
-                              className="w-full h-full object-cover"
+                              fill
+                              sizes="40px"
+                              className="object-cover"
                             />
                           </div>
                           <div>
@@ -718,14 +721,16 @@ export function FlashSaleRegisterClient() {
                 {selectedProduct && (
                   <div className="p-space-md rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
                     <div className="flex items-center gap-space-md min-w-0">
-                      <div className="w-16 h-16 rounded-lg bg-surface-container-high overflow-hidden flex-shrink-0 shadow-sm">
-                        <img
+                      <div className="relative w-16 h-16 rounded-lg bg-surface-container-high overflow-hidden flex-shrink-0 shadow-sm">
+                        <Image
                           src={
                             selectedProduct.imageUrl ||
                             "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60"
                           }
                           alt={selectedProduct.name}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="64px"
+                          className="object-cover"
                         />
                       </div>
                       <div className="min-w-0">

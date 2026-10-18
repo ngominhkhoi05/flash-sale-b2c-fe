@@ -27,7 +27,7 @@ export async function submitReview(
     method: 'POST',
     json: body,
     headers: {
-      'Idempotency-Key': uuidv4(),
+      'X-Idempotency-Key': uuidv4(),
     },
   });
 }

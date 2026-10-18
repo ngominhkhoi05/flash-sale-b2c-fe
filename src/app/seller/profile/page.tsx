@@ -627,7 +627,7 @@ export default function SellerProfilePage() {
                       />
                     ) : (
                       <div className="w-full h-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
-                        UTC
+                        {storeName ? storeName.slice(0, 3).toUpperCase() : "VM"}
                       </div>
                     )}
                   </div>
@@ -638,7 +638,7 @@ export default function SellerProfilePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold text-slate-900 text-xs flex items-center gap-1">
-                        {storeName || "UTC Fashion"}
+                        {storeName || "Gian hàng của bạn"}
                         <span className="bg-rose-500 text-white text-[8px] font-bold px-1 rounded">
                           Mall
                         </span>

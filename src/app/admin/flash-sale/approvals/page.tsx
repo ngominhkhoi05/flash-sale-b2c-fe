@@ -270,6 +270,7 @@ export default function AdminSkuApprovalsPage() {
     void refreshData();
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature match với modal callback
   const handleConfirmReject = async (reason: string, _note?: string) => {
     try {
       if (isBatchReject) {
