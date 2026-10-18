@@ -47,4 +47,19 @@ describe("ProductSpecsTable", () => {
     const rows = screen.getAllByTestId("spec-row");
     expect(rows).toHaveLength(4);
   });
+
+  // ── Defensive null test (2026-10-18 bug #4 fix) ─────────────────────────
+  it("returns null when specs is null (BE runtime có thể trả null)", () => {
+    const { container } = renderWithIntl(
+      <ProductSpecsTable specs={null} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("returns null when specs is undefined", () => {
+    const { container } = renderWithIntl(
+      <ProductSpecsTable specs={undefined} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
 });

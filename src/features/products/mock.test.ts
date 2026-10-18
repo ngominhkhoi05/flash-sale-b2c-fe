@@ -32,18 +32,27 @@ describe("mockProductDetail", () => {
     expect(mockProductDetail.imageUrl).toBe(mockProductDetail.images[0].url);
   });
 
-  it("có 2 tier variation (Màu Sắc + Kích Thước)", () => {
+  it("có 2 tier variation (Color + Size) — dùng key BE runtime", () => {
     expect(mockProductDetail.tierVariationConfigs).toHaveLength(2);
     const names = mockProductDetail.tierVariationConfigs.map((t) => t.name);
-    expect(names).toContain("Màu Sắc");
-    expect(names).toContain("Kích Thước");
+    expect(names).toContain("Color");
+    expect(names).toContain("Size");
+    // KHÔNG còn key tiếng Việt (đã chốt với user 2026-10-18).
+    expect(names).not.toContain("Màu Sắc");
+    expect(names).not.toContain("Kích Thước");
   });
 
   it("có 12 variants (3 màu x 4 size), 1 disabled (XL)", () => {
     expect(mockProductDetail.variants.length).toBe(12);
     const disabled = mockProductDetail.variants.filter((v) => v.isDisabled);
     expect(disabled).toHaveLength(3); // 3 màu, mỗi màu size XL disabled
-    expect(disabled.every((v) => v.attributes["Kích Thước"] === "XL")).toBe(true);
+    // BE runtime dùng key 'Size' (English) cho attribute.
+    expect(disabled.every((v) => v.attributes["Size"] === "XL")).toBe(true);
+    // variants có đầy đủ color + size key (BE shape).
+    for (const v of mockProductDetail.variants) {
+      expect(v.attributes["Color"]).toBeDefined();
+      expect(v.attributes["Size"]).toBeDefined();
+    }
   });
 
   it("variant ACTIVE có stockQuantity > 0", () => {

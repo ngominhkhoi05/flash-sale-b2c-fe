@@ -853,7 +853,8 @@
       "remaining": "{count} left",
       "maxQtyNote": "Note: Each customer can buy at most {max} products at Flash Sale price",
       "trustGuarantee": "111% money-back guarantee if counterfeit is detected",
-      "goodPriceDaily": "Good daily price"
+      "goodPriceDaily": "Good daily price",
+      "contactForPrice": "Contact for price"
     },
     "vouchers": {
       "label": "Vouchers:",
@@ -883,7 +884,8 @@
     "cta": {
       "addToCart": "Add to Cart",
       "buyNow": "Buy Now",
-      "buyNowFlash": "⚡ Buy now – Hold for 5 minutes"
+      "buyNowFlash": "⚡ Buy now – Hold for 5 minutes",
+      "disabledReasonContact": "Please contact the shop for pricing and ordering"
     },
     "store": {
       "viewShop": "View Shop",

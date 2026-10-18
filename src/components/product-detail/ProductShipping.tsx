@@ -16,12 +16,16 @@ import { cn } from "@/lib/utils";
 import type { ShippingInfo } from "@/features/products";
 
 export interface ProductShippingProps {
-  shipping: ShippingInfo;
+  /** BE có thể trả null khi product không có shipping info. Defensive null (2026-10-18). */
+  shipping: ShippingInfo | null | undefined;
   className?: string;
 }
 
 export function ProductShipping({ shipping, className }: ProductShippingProps) {
   const t = useTranslations("productDetail.shipping");
+
+  // Defensive: BE runtime có thể trả shipping = null. Tránh crash page.
+  if (!shipping) return null;
 
   return (
     <div

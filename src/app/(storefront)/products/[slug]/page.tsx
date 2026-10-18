@@ -85,7 +85,9 @@ export async function generateMetadata({ params }: PageProps) {
   try {
     const product = await fetchProductDetailBySlug(slug);
     return {
-      title: `${product.name} | Vibe Mart`,
+      // Chỉ trả product.name — root layout đã có title.template = '%s | Vibe Mart'.
+      // Trước đây trả `${product.name} | Vibe Mart` gây duplicate "Vibe Mart".
+      title: product.name,
       description: product.description.slice(0, 160),
     };
   } catch {

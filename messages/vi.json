@@ -853,7 +853,8 @@
       "remaining": "Còn lại {count} suất",
       "maxQtyNote": "Lưu ý: Mỗi khách hàng chỉ được mua tối đa {max} sản phẩm theo giá Flash Sale",
       "trustGuarantee": "Cam kết hoàn tiền 111% nếu phát hiện hàng giả, hàng nhái kém chất lượng",
-      "goodPriceDaily": "Giá tốt mỗi ngày"
+      "goodPriceDaily": "Giá tốt mỗi ngày",
+      "contactForPrice": "Liên hệ để biết giá"
     },
     "vouchers": {
       "label": "Mã Giảm Giá:",
@@ -883,7 +884,8 @@
     "cta": {
       "addToCart": "Thêm Vào Giỏ Hàng",
       "buyNow": "Mua Ngay",
-      "buyNowFlash": "⚡ Mua ngay – Giữ hàng 5 phút"
+      "buyNowFlash": "⚡ Mua ngay – Giữ hàng 5 phút",
+      "disabledReasonContact": "Vui lòng liên hệ shop để biết giá và đặt hàng"
     },
     "store": {
       "viewShop": "Xem Shop",

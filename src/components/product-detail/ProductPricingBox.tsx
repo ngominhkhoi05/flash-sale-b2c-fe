@@ -30,10 +30,11 @@ export interface FlashSaleSummary {
 
 export interface ProductPricingBoxProps {
   variant: "standard" | "flash";
-  /** Standard price (used as main price in standard mode, and flash price in flash mode). */
-  minPrice: number;
-  /** Original price before discount (shown line-through). */
-  originalPrice: number;
+  /** Standard price (used as main price in standard mode, and flash price in flash mode).
+   *  null = BE chưa set giá → render "Liên hệ". */
+  minPrice: number | null;
+  /** Original price before discount (shown line-through). null = ẩn. */
+  originalPrice: number | null;
   /** Discount percent (e.g. 44 → "-44%" badge). */
   discountPercent: number;
   /** Required when variant="flash" (provides endsAt, sold/total stock, max qty/user). */
@@ -53,6 +54,7 @@ export function ProductPricingBox({
   className,
 }: ProductPricingBoxProps) {
   const t = useTranslations("productDetail.pricing");
+  const hasPrice = minPrice !== null && minPrice !== undefined;
 
   // ── Flash variant ──────────────────────────────────────────────────────
   if (variant === "flash" && flashSale) {
@@ -102,34 +104,47 @@ export function ProductPricingBox({
         {/* Price body */}
         <div className="bg-surface-container-low p-4 flex flex-col gap-3">
           {/* Price row */}
-          <div className="flex items-baseline flex-wrap gap-3">
-            <span
-              className="font-display-lg font-bold tracking-tight text-tertiary"
-              data-testid="flash-price"
-            >
-              {formatVND(minPrice)}
-            </span>
-            <span
-              className="font-body-lg text-outline line-through"
-              data-testid="flash-original"
-            >
-              {formatVND(originalPrice)}
-            </span>
-            {discountPercent > 0 && (
+          {hasPrice ? (
+            <div className="flex items-baseline flex-wrap gap-3">
               <span
-                className="px-2 py-0.5 rounded text-[13px] font-bold bg-tertiary text-on-tertiary"
-                data-testid="flash-discount"
+                className="font-display-lg font-bold tracking-tight text-tertiary"
+                data-testid="flash-price"
               >
-                -{discountPercent}%
+                {formatVND(minPrice as number)}
               </span>
-            )}
+              {originalPrice !== null && originalPrice !== undefined && originalPrice > (minPrice ?? 0) && (
+                <span
+                  className="font-body-lg text-outline line-through"
+                  data-testid="flash-original"
+                >
+                  {formatVND(originalPrice)}
+                </span>
+              )}
+              {discountPercent > 0 && (
+                <span
+                  className="px-2 py-0.5 rounded text-[13px] font-bold bg-tertiary text-on-tertiary"
+                  data-testid="flash-discount"
+                >
+                  -{discountPercent}%
+                </span>
+              )}
+            </div>
+          ) : (
+            // Flash variant vẫn fallback "Liên hệ" khi null (cùng pattern với standard).
             <span
-              className="px-2.5 py-0.5 rounded text-[13px] font-bold bg-tertiary/10 text-tertiary"
-              data-testid="flash-deal-badge"
+              className="font-headline-sm font-semibold text-outline"
+              data-testid="flash-price-contact"
             >
-              ⚡ {t("flashDeal")}
+              {t("contactForPrice")}
             </span>
-          </div>
+          )}
+
+          <span
+            className="px-2.5 py-0.5 rounded text-[13px] font-bold bg-tertiary/10 text-tertiary self-start"
+            data-testid="flash-deal-badge"
+          >
+            ⚡ {t("flashDeal")}
+          </span>
 
           {/* Progress bar + sold/remaining */}
           <div className="flex flex-col gap-1.5 pt-1" data-testid="flash-progress">
@@ -179,24 +194,38 @@ export function ProductPricingBox({
       data-testid="pricing-box-standard"
     >
       <div className="flex items-baseline flex-wrap gap-3">
-        <span
-          className="font-display-lg font-bold tracking-tight text-primary"
-          data-testid="standard-price"
-        >
-          {formatVND(minPrice)}
-        </span>
-        <span
-          className="font-body-lg text-outline line-through"
-          data-testid="standard-original"
-        >
-          {formatVND(originalPrice)}
-        </span>
-        {discountPercent > 0 && (
+        {hasPrice ? (
+          <>
+            <span
+              className="font-display-lg font-bold tracking-tight text-primary"
+              data-testid="standard-price"
+            >
+              {formatVND(minPrice as number)}
+            </span>
+            {originalPrice !== null && originalPrice !== undefined && originalPrice > (minPrice ?? 0) && (
+              <span
+                className="font-body-lg text-outline line-through"
+                data-testid="standard-original"
+              >
+                {formatVND(originalPrice)}
+              </span>
+            )}
+            {discountPercent > 0 && (
+              <span
+                className="px-2 py-0.5 rounded font-label-sm font-bold bg-error-container text-on-error-container"
+                data-testid="standard-discount"
+              >
+                -{discountPercent}%
+              </span>
+            )}
+          </>
+        ) : (
+          // BE trả null → hiển thị "Liên hệ" (quyết định user 2026-10-18 hide-cta).
           <span
-            className="px-2 py-0.5 rounded font-label-sm font-bold bg-error-container text-on-error-container"
-            data-testid="standard-discount"
+            className="font-headline-sm font-semibold text-outline"
+            data-testid="standard-price-contact"
           >
-            -{discountPercent}%
+            {t("contactForPrice")}
           </span>
         )}
       </div>
