@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useCallback } from "react";
 import type {
   RealtimeTelemetry,
   LiveSkuInventoryItem,
@@ -11,11 +10,13 @@ import type {
   TrafficDataPoint,
 } from "@/types/flash-monitor";
 import type { AdminFlashSaleSession } from "@/types/flash-sale";
+import { useFlashSaleWs } from "@/hooks/useFlashSaleWs";
 import {
   getAdminFlashSaleSlots,
   getAdminRealtimeTelemetry,
   getAdminLiveSkus,
   getAdminLiveLogs,
+  emergencyPauseFlashSaleSlot,
   toggleAdminEmergencyPause,
 } from "@/lib/api/admin";
 import {
@@ -82,24 +83,109 @@ export default function AdminFlashSaleMonitorPage() {
   const [trafficData] = useState<TrafficDataPoint[]>(() => INITIAL_TRAFFIC_DATA);
   const [skus, setSkus] = useState<LiveSkuInventoryItem[]>(() => getMockLiveSkus());
   const [logs, setLogs] = useState<LiveLogEvent[]>(() => getMockLiveLogs());
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isPausing, setIsPausing] = useState<boolean>(false);
+
+  // Realtime STOMP WebSocket subscriber for slot status & stock updates
+  useFlashSaleWs({
+    enabled: !!selectedSessionId,
+    subscribeSlotIds: selectedSessionId ? [selectedSessionId] : [],
+    onMessage: (event) => {
+      if ("slotId" in event && event.slotId === selectedSessionId) {
+        if (event.eventType === "SLOT_CLOSED") {
+          setTelemetry((prev) => ({ ...prev, isPaused: true }));
+        } else if (event.eventType === "SLOT_ACTIVATED") {
+          setTelemetry((prev) => ({ ...prev, isPaused: false }));
+        } else if (
+          event.eventType === "STOCK_DECREMENTED" ||
+          event.eventType === "STOCK_RESTORED"
+        ) {
+          const { flashSaleItemId, availableStock } = event;
+          setSkus((prev) =>
+            prev.map((s) =>
+              s.id === flashSaleItemId
+                ? {
+                    ...s,
+                    availableStock,
+                    soldStock: Math.max(0, s.allocatedStock - availableStock),
+                    status:
+                      availableStock <= 0
+                        ? "SOLD_OUT"
+                        : availableStock < s.allocatedStock * 0.1
+                        ? "ALMOST_OUT"
+                        : "SELLING",
+                  }
+                : s
+            )
+          );
+        } else if (event.eventType === "STOCK_RETURNED_UNSOLD") {
+          const { flashSaleItemId } = event;
+          setSkus((prev) =>
+            prev.map((s) =>
+              s.id === flashSaleItemId
+                ? {
+                    ...s,
+                    availableStock: 0,
+                    status: "SOLD_OUT",
+                  }
+                : s
+            )
+          );
+        }
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+          now.getMinutes()
+        ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}.${String(
+          now.getMilliseconds()
+        ).padStart(3, "0")}`;
+        const itemId = "flashSaleItemId" in event ? ` #${event.flashSaleItemId}` : "";
+        const newEvt: LiveLogEvent = {
+          id: `ws-${Date.now()}-${Math.random()}`,
+          timestamp: timeStr,
+          type:
+            event.eventType === "STOCK_DECREMENTED"
+              ? "LOCK"
+              : event.eventType === "STOCK_RESTORED"
+              ? "EXPIRED_RELEASE"
+              : "SYNC_DB",
+          message: `[WS] Event: ${event.eventType}${itemId}`,
+          tag: event.eventType,
+          tagColor:
+            event.eventType === "STOCK_DECREMENTED" ? "primary" : "warning",
+        };
+        setLogs((prev) => [newEvt, ...prev].slice(0, 50));
+      }
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      getAdminRealtimeTelemetry(selectedSessionId),
-      getAdminLiveSkus(selectedSessionId),
-      getAdminLiveLogs(selectedSessionId),
-    ])
-      .then(([tData, skusData, logsData]) => {
+    async function fetchData() {
+      try {
+        const [tData, skusData, logsData] = await Promise.all([
+          getAdminRealtimeTelemetry(selectedSessionId),
+          getAdminLiveSkus(selectedSessionId),
+          getAdminLiveLogs(selectedSessionId),
+        ]);
         if (!cancelled) {
           setTelemetry(tData);
           setSkus(skusData);
           setLogs(logsData);
+          setLoadError(null);
+          setIsLoadingData(false);
         }
-      })
-      .catch(() => {
-        // fallback
-      });
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const msg =
+            err instanceof Error ? err.message : "Lỗi khi tải dữ liệu giám sát phiên";
+          setLoadError(msg);
+          setIsLoadingData(false);
+        }
+      }
+    }
+    void fetchData();
 
     return () => {
       cancelled = true;
@@ -215,33 +301,50 @@ export default function AdminFlashSaleMonitorPage() {
     }
   };
 
-  const handleConfirmEmergencyPause = async (reason: string, note?: string) => {
+  const handleConfirmEmergencyPause = async (
+    reason: string,
+    rollbackStock: boolean,
+    note?: string
+  ) => {
+    setIsPausing(true);
     try {
-      await toggleAdminEmergencyPause(selectedSessionId, reason);
-    } catch {
-      // fallback
-    }
-    const updated = toggleSessionPause(true);
-    setTelemetry(updated);
-    setIsPauseModalOpen(false);
+      const fullReason = note ? `${reason}: ${note}` : reason;
+      const result = await emergencyPauseFlashSaleSlot(
+        selectedSessionId,
+        fullReason,
+        rollbackStock
+      );
+      setTelemetry((prev) => ({ ...prev, isPaused: true }));
+      setIsPauseModalOpen(false);
 
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
-      now.getMinutes()
-    ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}.000`;
-    const pauseEvt: LiveLogEvent = {
-      id: `pause-${Date.now()}`,
-      timestamp: timeStr,
-      type: "RATE_LIMIT",
-      message: `TẠM DỪNG PHIÊN KHẨN CẤP: ${reason}${
-        note ? ` (${note})` : ""
-      }`,
-      tag: "Tạm dừng khẩn cấp",
-      tagColor: "error",
-      userOrInfo: "Super Admin",
-    };
-    setLogs((prev) => [pauseEvt, ...prev]);
-    toast.error("Đã kích hoạt tạm dừng phiên khẩn cấp!");
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+        now.getMinutes()
+      ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}.000`;
+      const pauseEvt: LiveLogEvent = {
+        id: `pause-${Date.now()}`,
+        timestamp: timeStr,
+        type: "RATE_LIMIT",
+        message: `TẠM DỪNG PHIÊN KHẨN CẤP: ${fullReason}`,
+        tag: "Tạm dừng khẩn cấp",
+        tagColor: "error",
+        userOrInfo: "Ban Quản Trị",
+      };
+      setLogs((prev) => [pauseEvt, ...prev]);
+
+      if (result.stockRolledBack && result.rolledBackItemsCount > 0) {
+        toast.success(
+          `Đã tạm dừng phiên! Đã hoàn trả ${result.totalStockReturned} tồn kho của ${result.rolledBackItemsCount} SKU về kho chính.`
+        );
+      } else {
+        toast.success("Đã kích hoạt tạm dừng phiên khẩn cấp!");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Không thể tạm dừng phiên";
+      toast.error(msg);
+    } finally {
+      setIsPausing(false);
+    }
   };
 
   const handleClearLogs = () => {
@@ -406,19 +509,26 @@ export default function AdminFlashSaleMonitorPage() {
         <div className="flex items-center gap-space-sm flex-wrap">
           <button
             type="button"
+            disabled={isPausing}
             onClick={handleToggleEmergencyPause}
             className={cn(
-              "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-headline-md text-body-sm font-semibold transition-colors border",
+              "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-headline-md text-body-sm font-semibold transition-colors border disabled:opacity-50",
               telemetry.isPaused
                 ? "bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200"
                 : "bg-error-container/40 text-error hover:bg-error-container border-error/30"
             )}
           >
-            <span className="material-symbols-outlined text-[18px]">
-              {telemetry.isPaused ? "play_circle" : "pause_circle"}
-            </span>
+            {isPausing ? (
+              <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[18px]">
+                {telemetry.isPaused ? "play_circle" : "pause_circle"}
+              </span>
+            )}
             <span>
-              {telemetry.isPaused
+              {isPausing
+                ? "Đang xử lý..."
+                : telemetry.isPaused
                 ? "Tiếp tục phiên"
                 : "Tạm dừng phiên khẩn cấp"}
             </span>
@@ -436,6 +546,22 @@ export default function AdminFlashSaleMonitorPage() {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-rose-600">error</span>
+            <span className="text-body-md font-medium">{loadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedSessionId((prev) => prev)}
+            className="px-3 py-1 rounded bg-rose-100 text-rose-800 hover:bg-rose-200 text-body-sm font-medium transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
 
       {/* Telemetry Metric Cards: 5 columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-space-md">
@@ -757,6 +883,15 @@ export default function AdminFlashSaleMonitorPage() {
                   </tr>
                 );
               })}
+              {filteredSkus.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-secondary">
+                    {isLoadingData
+                      ? "Đang tải dữ liệu sản phẩm..."
+                      : "Không có sản phẩm nào trong phiên này."}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -772,6 +907,7 @@ export default function AdminFlashSaleMonitorPage() {
       {/* Emergency Pause Confirmation Modal */}
       <EmergencyPauseModal
         isOpen={isPauseModalOpen}
+        isLoading={isPausing}
         onClose={() => setIsPauseModalOpen(false)}
         onConfirm={handleConfirmEmergencyPause}
         sessionName={currentSession?.name}
