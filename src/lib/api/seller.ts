@@ -2495,6 +2495,53 @@ export async function setDefaultStoreAddress(
   }
 }
 
+/**
+ * Cập nhật địa chỉ kho lấy hàng của shop (PUT /api/v1/stores/me/addresses/{addressId})
+ */
+export async function updateStoreAddress(
+  addressId: number,
+  payload: CreateStoreAddressPayload
+): Promise<SellerWarehouseAddressItem> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem>(`/stores/me/addresses/${addressId}`, {
+      method: "PUT",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: addressId,
+        contactName: payload.contactName,
+        phone: payload.phone,
+        province: payload.province,
+        district: payload.district,
+        ward: payload.ward,
+        detailAddress: payload.detailAddress,
+        isDefault: !!payload.isDefault,
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Upload logo gian hàng lên Cloudinary (POST /api/v1/stores/me/logo)
+ */
+export async function uploadStoreLogo(file: File): Promise<{ url: string } | null> {
+  try {
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+    const res = await apiFetch<{ url?: string; secureUrl?: string }>("/stores/me/logo", {
+      method: "POST",
+      body: formData,
+    });
+    return { url: res?.url || res?.secureUrl || "" };
+  } catch (err) {
+    console.warn("Upload store logo warning:", err);
+    throw err;
+  }
+}
+
 function getMockStoreProfile(): SellerStoreProfileResponse {
   return {
     id: 1,
