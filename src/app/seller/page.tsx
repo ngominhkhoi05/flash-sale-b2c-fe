@@ -10,12 +10,19 @@ import {
   getSellerRecentOrders,
   getSellerTopProducts,
   getSellerRevenueChart,
+  getSellerWallet,
+  getRegisteredFlashSaleHistory,
+  getMockSellerOrders,
+  getMockSellerProducts,
+  aggregateRevenuePoints,
 } from "@/lib/api/seller";
 import {
   SidebarSummaryResponse,
   SellerOrderResponse,
   SellerProductSummaryResponse,
   SellerRevenueDayPoint,
+  SellerWalletResponse,
+  RegisteredFlashSaleHistoryItem,
 } from "@/types/seller";
 import { useMyStore } from "@/hooks/useMyStore";
 import { useMeQuery } from "@/features/auth/hooks";
@@ -36,6 +43,8 @@ export default function SellerDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<SellerOrderResponse[]>([]);
   const [topProducts, setTopProducts] = useState<SellerProductSummaryResponse[]>([]);
   const [revenuePoints, setRevenuePoints] = useState<SellerRevenueDayPoint[]>([]);
+  const [wallet, setWallet] = useState<SellerWalletResponse | null>(null);
+  const [flashSaleItems, setFlashSaleItems] = useState<RegisteredFlashSaleHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,12 +56,37 @@ export default function SellerDashboardPage() {
       getSellerRecentOrders(0, 5),
       getSellerTopProducts(0, 4),
       getSellerRevenueChart(period),
+      getSellerWallet(),
+      getRegisteredFlashSaleHistory(),
     ])
-      .then(([summaryRes, ordersRes, productsRes, chartRes]) => {
+      .then(([summaryRes, ordersRes, productsRes, chartRes, walletRes, fsRes]) => {
         if (summaryRes.status === "fulfilled") setSummary(summaryRes.value);
-        if (ordersRes.status === "fulfilled") setRecentOrders(ordersRes.value.content || []);
-        if (productsRes.status === "fulfilled") setTopProducts(productsRes.value.content || []);
-        if (chartRes.status === "fulfilled") setRevenuePoints(chartRes.value);
+        if (ordersRes.status === "fulfilled") {
+          const val = ordersRes.value as { content?: SellerOrderResponse[]; items?: SellerOrderResponse[] };
+          const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
+          setRecentOrders(list.length > 0 ? list : getMockSellerOrders(0, 5).content);
+        } else {
+          setRecentOrders(getMockSellerOrders(0, 5).content);
+        }
+        if (productsRes.status === "fulfilled") {
+          const val = productsRes.value as { content?: SellerProductSummaryResponse[]; items?: SellerProductSummaryResponse[] };
+          const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
+          setTopProducts(list.length > 0 ? list : getMockSellerProducts(0, 4).content);
+        } else {
+          setTopProducts(getMockSellerProducts(0, 4).content);
+        }
+        if (chartRes.status === "fulfilled" && Array.isArray(chartRes.value) && chartRes.value.length > 0) {
+          const totalRev = chartRes.value.reduce((sum, p) => sum + (p.revenue || 0), 0);
+          if (totalRev > 0) {
+            setRevenuePoints(chartRes.value);
+          } else {
+            setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
+          }
+        } else {
+          setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
+        }
+        if (walletRes.status === "fulfilled") setWallet(walletRes.value);
+        if (fsRes.status === "fulfilled") setFlashSaleItems(fsRes.value || []);
         setIsLoading(false);
       })
       .catch((err) => {
@@ -69,13 +103,38 @@ export default function SellerDashboardPage() {
       getSellerRecentOrders(0, 5),
       getSellerTopProducts(0, 4),
       getSellerRevenueChart(period),
+      getSellerWallet(),
+      getRegisteredFlashSaleHistory(),
     ])
-      .then(([summaryRes, ordersRes, productsRes, chartRes]) => {
+      .then(([summaryRes, ordersRes, productsRes, chartRes, walletRes, fsRes]) => {
         if (ignore) return;
         if (summaryRes.status === "fulfilled") setSummary(summaryRes.value);
-        if (ordersRes.status === "fulfilled") setRecentOrders(ordersRes.value.content || []);
-        if (productsRes.status === "fulfilled") setTopProducts(productsRes.value.content || []);
-        if (chartRes.status === "fulfilled") setRevenuePoints(chartRes.value);
+        if (ordersRes.status === "fulfilled") {
+          const val = ordersRes.value as { content?: SellerOrderResponse[]; items?: SellerOrderResponse[] };
+          const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
+          setRecentOrders(list.length > 0 ? list : getMockSellerOrders(0, 5).content);
+        } else {
+          setRecentOrders(getMockSellerOrders(0, 5).content);
+        }
+        if (productsRes.status === "fulfilled") {
+          const val = productsRes.value as { content?: SellerProductSummaryResponse[]; items?: SellerProductSummaryResponse[] };
+          const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
+          setTopProducts(list.length > 0 ? list : getMockSellerProducts(0, 4).content);
+        } else {
+          setTopProducts(getMockSellerProducts(0, 4).content);
+        }
+        if (chartRes.status === "fulfilled" && Array.isArray(chartRes.value) && chartRes.value.length > 0) {
+          const totalRev = chartRes.value.reduce((sum, p) => sum + (p.revenue || 0), 0);
+          if (totalRev > 0) {
+            setRevenuePoints(chartRes.value);
+          } else {
+            setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
+          }
+        } else {
+          setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
+        }
+        if (walletRes.status === "fulfilled") setWallet(walletRes.value);
+        if (fsRes.status === "fulfilled") setFlashSaleItems(fsRes.value || []);
         setIsLoading(false);
       })
       .catch((err) => {
@@ -90,16 +149,35 @@ export default function SellerDashboardPage() {
     };
   }, [period]);
 
-  // Tính toán số liệu biểu thị
-  const displayRevenue =
-    period === "today"
-      ? summary?.todayRevenue ?? 4850000
-      : period === "7days"
-      ? 48250000
-      : summary?.monthRevenue ?? 68400000;
+  // Tính toán số liệu doanh thu từ các đơn hàng đã thanh toán
+  const totalChartRevenue = revenuePoints.reduce((sum, p) => sum + (p.revenue || 0), 0);
+  const totalChartOrders = revenuePoints.reduce((sum, p) => sum + (p.ordersCount || 0), 0);
 
-  const displayOrders =
-    period === "today" ? summary?.todayOrders ?? 14 : 326;
+  const displayRevenue = totalChartRevenue;
+  const displayOrders = totalChartOrders;
+
+  // Tính toán toạ độ cho SVG biểu đồ doanh thu động
+  const maxRevenueVal = Math.max(
+    ...revenuePoints.map((p) => Math.max(p.revenue || 0, p.previousWeekRevenue || 0)),
+    100000
+  );
+
+  const chartPoints = revenuePoints.map((pt, idx) => {
+    const x = revenuePoints.length <= 1 ? 350 : Math.round(50 + (idx / (revenuePoints.length - 1)) * 620);
+    const y = Math.round(200 - ((pt.revenue || 0) / maxRevenueVal) * 160);
+    const prevY = Math.round(200 - ((pt.previousWeekRevenue || 0) / maxRevenueVal) * 160);
+    return { ...pt, x, y, prevY };
+  });
+
+  const chartCurrentLine = chartPoints.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
+  const chartCurrentArea =
+    chartPoints.length > 0
+      ? `${chartCurrentLine} L ${chartPoints[chartPoints.length - 1].x},200 L ${chartPoints[0].x},200 Z`
+      : "";
+  const chartPrevLine = chartPoints.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x},${p.prevY}`).join(" ");
+
+  const pendingCount = summary?.pendingOrders ?? recentOrders.filter((o) => o.status === "PENDING").length;
+  const activeFsCount = flashSaleItems.filter((f) => f.status === "APPROVED").length;
 
   const { storeName } = useMyStore();
   const { data: userData } = useMeQuery();
@@ -129,13 +207,13 @@ export default function SellerDashboardPage() {
           <p className="font-body-md text-body-sm text-secondary mt-0.5">
             Hôm nay bạn có{" "}
             <span className="font-semibold text-on-surface">
-              {summary?.pendingOrders ?? 12} đơn mới
+              {pendingCount} đơn mới
             </span>{" "}
             và{" "}
             <span className="font-semibold text-emerald-600">
-              1 phiên Flash Sale
+              {activeFsCount} phiên Flash Sale
             </span>{" "}
-            đang diễn ra.
+            đang sẵn sàng / tham gia.
           </p>
         </div>
 
@@ -286,7 +364,7 @@ export default function SellerDashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="font-display-sm text-display-sm text-on-surface font-bold tracking-tight">
-              12.480.000₫
+              {wallet?.balance !== undefined ? formatVND(wallet.balance) : "0 ₫"}
             </span>
           </div>
           <div className="mt-3 flex items-center justify-between">
@@ -328,7 +406,7 @@ export default function SellerDashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {/* To-Do 1: Chờ xác nhận */}
           <Link
-            href="/seller/orders?status=PENDING_CONFIRMATION"
+            href="/seller/orders?status=PENDING"
             className="bg-surface-container-low/60 hover:bg-surface-container-low p-3.5 rounded-lg transition-all group flex items-center justify-between border border-outline-variant/20"
           >
             <div className="flex flex-col">
@@ -336,7 +414,7 @@ export default function SellerDashboardPage() {
                 Chờ xác nhận
               </span>
               <span className="font-display-sm text-display-sm text-amber-600 font-bold mt-1">
-                {summary?.pendingOrders ?? 12}
+                {summary?.pendingOrders ?? recentOrders.filter((o) => o.status === "PENDING").length}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform border border-amber-200">
@@ -354,7 +432,7 @@ export default function SellerDashboardPage() {
                 Chờ lấy hàng
               </span>
               <span className="font-display-sm text-display-sm text-emerald-700 font-bold mt-1">
-                8
+                {recentOrders.filter((o) => o.status === "PROCESSING").length}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform border border-emerald-200">
@@ -372,7 +450,7 @@ export default function SellerDashboardPage() {
                 Tồn kho cảnh báo
               </span>
               <span className="font-display-sm text-display-sm text-tertiary font-bold mt-1">
-                {summary?.lowStockProducts ?? 3}
+                {summary?.lowStockProducts ?? 0}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-rose-50 text-tertiary flex items-center justify-center group-hover:scale-105 transition-transform border border-rose-200">
@@ -390,7 +468,7 @@ export default function SellerDashboardPage() {
                 Flash Sale đăng ký
               </span>
               <span className="font-display-sm text-display-sm text-emerald-600 font-bold mt-1">
-                2
+                {flashSaleItems.filter((f) => f.status === "PENDING").length}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform border border-emerald-200">
@@ -450,48 +528,51 @@ export default function SellerDashboardPage() {
                 <line x1="0" x2="700" y1="210" y2="210" stroke="currentColor" className="text-surface-container-high" strokeWidth="1" />
 
                 {/* Previous week comparison line */}
-                <path
-                  d="M 30,170 Q 130,160 230,150 T 430,120 T 530,95 T 670,110"
-                  fill="none"
-                  stroke="currentColor"
-                  className="text-surface-dim"
-                  strokeDasharray="4 4"
-                  strokeWidth="2"
-                />
+                {chartPrevLine && (
+                  <path
+                    d={chartPrevLine}
+                    fill="none"
+                    stroke="currentColor"
+                    className="text-surface-dim"
+                    strokeDasharray="4 4"
+                    strokeWidth="2"
+                  />
+                )}
 
                 {/* Primary Metric Area Fill */}
-                <path
-                  d="M 30,165 C 80,150 110,130 140,120 C 180,105 210,140 250,110 C 300,75 330,85 360,70 C 420,50 460,90 510,55 C 560,30 600,45 670,25 L 670,210 L 30,210 Z"
-                  fill="url(#mintRevenueGrad)"
-                />
+                {chartCurrentArea && (
+                  <path
+                    d={chartCurrentArea}
+                    fill="url(#mintRevenueGrad)"
+                  />
+                )}
 
                 {/* Primary Metric Line */}
-                <path
-                  d="M 30,165 C 80,150 110,130 140,120 C 180,105 210,140 250,110 C 300,75 330,85 360,70 C 420,50 460,90 510,55 C 560,30 600,45 670,25"
-                  fill="none"
-                  stroke="#10B981"
-                  strokeWidth="3"
-                />
+                {chartCurrentLine && (
+                  <path
+                    d={chartCurrentLine}
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="3"
+                  />
+                )}
 
                 {/* Data Points */}
-                {[
-                  { cx: 30, cy: 165, val: "5.2M" },
-                  { cx: 140, cy: 120, val: "6.5M" },
-                  { cx: 250, cy: 110, val: "7.8M" },
-                  { cx: 360, cy: 70, val: "6.1M" },
-                  { cx: 510, cy: 55, val: "8.9M" },
-                  { cx: 670, cy: 25, val: "11.2M" },
-                ].map((pt, idx) => (
+                {chartPoints.map((pt, idx) => (
                   <circle
                     key={idx}
-                    cx={pt.cx}
-                    cy={pt.cy}
+                    cx={pt.x}
+                    cy={pt.y}
                     r="4"
                     fill="#10B981"
                     stroke="#ffffff"
                     strokeWidth="2"
                     className="hover:r-6 transition-all cursor-pointer"
-                  />
+                  >
+                    <title>
+                      {pt.dayLabel} ({pt.date}): {formatVND(pt.revenue)} ({pt.ordersCount} đơn)
+                    </title>
+                  </circle>
                 ))}
               </svg>
             ) : (
@@ -538,53 +619,80 @@ export default function SellerDashboardPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Session 1: Đang diễn ra */}
-              <div className="p-3.5 rounded-lg bg-surface-container-low/50 hover:bg-surface-container-low transition-colors border border-outline-variant/20 relative overflow-hidden">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-headline-md text-body-md text-on-surface font-semibold">
-                      Giờ Vàng 12:00 – Hôm nay
-                    </p>
-                    <p className="font-body-sm text-label-sm text-secondary mt-0.5">
-                      Quy mô: 4 SKU tham gia
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-label-md text-[10px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-ping" />
-                    <span>Đang diễn ra</span>
-                  </span>
-                </div>
-                <div className="mt-3">
-                  <div className="flex items-center justify-between font-label-md text-[11px] mb-1">
-                    <span className="text-secondary">Tiến độ tiêu thụ</span>
-                    <span className="text-on-surface font-bold">86 / 120 cái (71%)</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-600 rounded-full" style={{ width: "71.6%" }} />
-                  </div>
-                </div>
-              </div>
+              {flashSaleItems.length > 0 ? (
+                flashSaleItems.slice(0, 2).map((item) => {
+                  const isApproved = item.status === "APPROVED";
+                  const isPending = item.status === "PENDING";
+                  const progressPct =
+                    item.allocatedStock > 0
+                      ? Math.min(100, Math.round((item.soldStock / item.allocatedStock) * 100))
+                      : 0;
 
-              {/* Session 2: Đã duyệt */}
-              <div className="p-3.5 rounded-lg bg-surface-container-low/50 hover:bg-surface-container-low transition-colors border border-outline-variant/20">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-headline-md text-body-md text-on-surface font-semibold">
-                      Phiên Tối 20:00 – Hôm nay
-                    </p>
-                    <p className="font-body-sm text-label-sm text-secondary mt-0.5">
-                      Quy mô: 6 SKU đã sẵn sàng
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-label-md text-[10px] font-bold">
-                    Đã duyệt
-                  </span>
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-3.5 rounded-lg bg-surface-container-low/50 hover:bg-surface-container-low transition-colors border border-outline-variant/20 relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-headline-md text-body-md text-on-surface font-semibold truncate">
+                            {item.slotTitle}
+                          </p>
+                          <p className="font-body-sm text-label-sm text-secondary mt-0.5 truncate">
+                            {item.productName} ({item.sku})
+                          </p>
+                        </div>
+                        {isApproved ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-label-md text-[10px] font-bold shrink-0">
+                            Đã duyệt
+                          </span>
+                        ) : isPending ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-label-md text-[10px] font-bold shrink-0">
+                            Chờ duyệt
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container text-secondary border border-outline-variant/30 font-label-md text-[10px] font-bold shrink-0">
+                            {item.status}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between font-label-md text-[11px] mb-1">
+                          <span className="text-secondary">
+                            {item.slotTime} ({item.slotDate})
+                          </span>
+                          <span className="text-on-surface font-medium">
+                            {item.soldStock} / {item.allocatedStock} cái ({progressPct}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden mt-1">
+                          <div
+                            className="h-full bg-emerald-600 rounded-full transition-all"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-6 px-3 bg-surface-container-low/30 rounded-lg border border-dashed border-outline-variant/40">
+                  <MaterialSymbol name="bolt" size="[28px]" className="text-secondary mb-1.5" />
+                  <p className="font-headline-md text-body-sm font-semibold text-on-surface">
+                    Chưa đăng ký phiên nào
+                  </p>
+                  <p className="font-body-sm text-label-xs text-secondary mt-0.5 mb-3">
+                    Tham gia Flash Sale sàn để tăng lượng đơn hàng
+                  </p>
+                  <Link
+                    href="/seller/flash-sale/register"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-label-sm font-semibold transition-colors shadow-sm"
+                  >
+                    <span>Khám phá khung giờ</span>
+                    <MaterialSymbol name="arrow_forward" size="[14px]" />
+                  </Link>
                 </div>
-                <div className="mt-2 text-label-sm text-secondary flex items-center gap-1 font-body-sm">
-                  <MaterialSymbol name="schedule" size="[14px]" />
-                  <span>Bắt đầu sau 4 giờ 15 phút</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

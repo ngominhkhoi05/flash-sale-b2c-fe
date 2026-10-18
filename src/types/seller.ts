@@ -304,6 +304,19 @@ export interface CreateSellerVoucherPayload {
   endDate: string;
 }
 
+export interface UpdateSellerVoucherPayload {
+  name?: string;
+  discountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountValue?: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+  totalUsageLimit?: number;
+  userUsageLimit?: number;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+}
+
 export interface SellerReviewItem {
   id: number;
   productId: number;
