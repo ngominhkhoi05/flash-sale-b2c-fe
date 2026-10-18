@@ -12,6 +12,8 @@ import type {
 } from "@/types/seller";
 import { SellerStatusBadge } from "@/components/seller/SellerStatusBadge";
 import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
+import { useMyStore } from "@/hooks/useMyStore";
+import { createFlashSaleStompClient } from "@/lib/stomp";
 
 type TabKey =
   | "ALL"
@@ -95,46 +97,104 @@ export default function SellerOrdersPage() {
   // Fetch dữ liệu đơn hàng (chế độ silent chạy ngầm 100% êm đềm, không xoay, không giật lag)
   const fetchOrders = useCallback(
     async (silent = false) => {
-      if (!silent) setLoading(true);
+      // Chỉ hiện loading ban đầu khi chưa từng có dữ liệu nào
+      if (!silent && allOrders.length === 0) {
+        setLoading(true);
+      }
 
       try {
-        const [tabRes, allRes] = await Promise.all([
-          getSellerOrders(0, 50, currentTab === "ALL" ? undefined : currentTab),
-          getSellerOrders(0, 50),
-        ]);
+        const res = await getSellerOrders(0, 100);
+        const list = res.items || res.content || [];
 
-        const list = tabRes.items || tabRes.content || [];
-        const allList = allRes.items || allRes.content || [];
-
-        // Chỉ update state khi thật sự có dữ liệu mới hoặc load ban đầu
+        // Cập nhật mượt mà khi có dữ liệu mới
+        setAllOrders((prev) => (!silent || hasOrdersChanged(prev, list) ? list : prev));
         setOrders((prev) => (!silent || hasOrdersChanged(prev, list) ? list : prev));
-        setAllOrders((prev) => (!silent || hasOrdersChanged(prev, allList) ? allList : prev));
         setError(null);
 
         // Đánh dấu đã xem
         markAllAsSeen();
       } catch (err: unknown) {
-        if (!silent) {
+        if (!silent && allOrders.length === 0) {
           const msg = err instanceof Error ? err.message : "Không thể tải danh sách đơn hàng";
           setError(msg);
         }
       } finally {
-        if (!silent) setLoading(false);
+        setLoading(false);
       }
     },
-    [currentTab, markAllAsSeen]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [markAllAsSeen, allOrders.length]
   );
 
-  // Load ban đầu hoặc khi đổi tab / trigger reload
+  // Load ban đầu 1 lần duy nhất khi mount hoặc khi bấm reload
   useEffect(() => {
     fetchOrders(false);
-  }, [fetchOrders, reloadTrigger]);
+  }, [reloadTrigger]);
 
-  // Tự động load dữ liệu thời gian thực trong nền (hoàn toàn êm dịu, không xoay xoay màn hình)
+  const { store } = useMyStore();
+
+  // Tự động kết nối WebSocket STOMP để đón nhận đơn hàng mới tức thì (Event-Driven Realtime)
+  useEffect(() => {
+    let stomp: { disconnect: () => void } | null = null;
+    try {
+      const client = createFlashSaleStompClient(null);
+      stomp = client;
+
+      const handleIncomingOrder = (newOrder: SellerOrderResponse) => {
+        if (!newOrder || (!newOrder.id && !newOrder.orderCode)) return;
+        setAllOrders((prev) => {
+          const exists = prev.some((o) => o.id === newOrder.id || (newOrder.orderCode && o.orderCode === newOrder.orderCode));
+          if (exists) {
+            // Cập nhật trạng thái nếu đơn đã có
+            return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
+          }
+          return [newOrder, ...prev];
+        });
+        setOrders((prev) => {
+          const exists = prev.some((o) => o.id === newOrder.id || (newOrder.orderCode && o.orderCode === newOrder.orderCode));
+          if (exists) {
+            return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
+          }
+          return [newOrder, ...prev];
+        });
+        showToast(`🔔 Có đơn hàng mới #${newOrder.orderCode}!`);
+      };
+
+      // Subscribe topic chung của seller
+      client.subscribe("/topic/seller/orders", (msg) => {
+        try {
+          const payload = JSON.parse(msg.body);
+          handleIncomingOrder(payload.data || payload);
+        } catch (e) {
+          console.warn("Parse WS /topic/seller/orders error:", e);
+        }
+      });
+
+      // Subscribe topic riêng của gian hàng này (nếu có storeId)
+      if (store?.id) {
+        client.subscribe(`/topic/stores/${store.id}/orders`, (msg) => {
+          try {
+            const payload = JSON.parse(msg.body);
+            handleIncomingOrder(payload.data || payload);
+          } catch (e) {
+            console.warn("Parse WS store orders error:", e);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn("Init seller STOMP warning:", err);
+    }
+
+    return () => {
+      stomp?.disconnect();
+    };
+  }, [store?.id]);
+
+  // Tự động cập nhật ngầm theo thời gian thực (100% êm dịu, không xoay màn hình)
   useEffect(() => {
     const timer = setInterval(() => {
       fetchOrders(true);
-    }, 5000);
+    }, 6000);
 
     return () => clearInterval(timer);
   }, [fetchOrders]);
@@ -475,14 +535,27 @@ export default function SellerOrdersPage() {
 
       {/* Orders Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <span className="material-symbols-outlined animate-spin text-[32px] text-emerald-600">
-              progress_activity
-            </span>
-            <p className="text-sm font-medium">Đang tải danh sách đơn hàng...</p>
+        {loading && allOrders.length === 0 ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-16 w-full bg-slate-50/70 animate-pulse rounded-xl border border-slate-100 flex items-center justify-between px-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 bg-slate-200/60 rounded"></div>
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-28 bg-slate-200/60 rounded"></div>
+                    <div className="h-2.5 w-16 bg-slate-100 rounded"></div>
+                  </div>
+                </div>
+                <div className="h-4 w-36 bg-slate-200/60 rounded hidden md:block"></div>
+                <div className="h-4 w-24 bg-slate-200/60 rounded"></div>
+                <div className="h-6 w-20 bg-slate-200/60 rounded-full"></div>
+              </div>
+            ))}
           </div>
-        ) : error ? (
+        ) : error && allOrders.length === 0 ? (
           <div className="py-16 flex flex-col items-center justify-center text-center p-6">
             <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-3">
               <span className="material-symbols-outlined text-[24px]">error</span>
