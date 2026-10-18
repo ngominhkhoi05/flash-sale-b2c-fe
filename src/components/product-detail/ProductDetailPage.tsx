@@ -176,6 +176,10 @@ function computeDiscountPercent(
 
 export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const t = useTranslations("productDetail");
+  // Subplan C (2026-10-18): dùng namespace `error` chung theo convention
+  // i18n.mdc mục 5. ApiError.code có thể là HTTP_401, HTTP_500, UNAUTHORIZED,
+  // CART_400_1, ... — tất cả đều map qua error.<CODE> (đã có trong messages).
+  const tErr = useTranslations("error");
 
   // BE shape: flashSales[] (Active). Pick first ACTIVE, fallback first.
   const activeFlashSale = useMemo(
@@ -215,11 +219,15 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const addToCartMut = useAddToCart({
     onError: (err) => {
       // Map ApiError code → user message. Fallback cho non-ApiError.
+      // Subplan C (2026-10-18): ưu tiên namespace `error` chung (theo i18n.mdc
+      // mục 5), fallback về productDetail.toast.cartError.GENERIC cho UX nhất
+      // quán trên product detail. Tránh MISSING_MESSAGE khi code = HTTP_401.
       if (err instanceof ApiError) {
         const code = err.code;
-        const translated = t(`toast.cartError.${code}`, {
-          defaultValue: t("toast.cartError.GENERIC"),
-        });
+        const fallback = t("toast.cartError.GENERIC");
+        // next-intl: dùng tErr.has() thay vì defaultValue để fallback chắc chắn
+        // (defaultValue ở 1 số version không hoạt động khi namespace con không tồn tại).
+        const translated = tErr.has(code) ? tErr(code) : fallback;
         toast.error(translated);
       } else {
         toast.error(t("toast.cartError.GENERIC"));

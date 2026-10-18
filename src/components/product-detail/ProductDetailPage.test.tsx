@@ -17,15 +17,28 @@ const mockAddMutateAsync = vi.fn();
 const mockPush = vi.fn();
 const mockUseAuth = vi.fn();
 
+// Subplan C (2026-10-18): mock useAddToCart giữ onError callback để test
+// i18n error mapping. Hook thật (TanStack Query) tự gọi options.onError khi
+// mutateAsync reject — mock phải replicate behavior này.
+let capturedOnError:
+  | ((error: unknown, variables: unknown) => void)
+  | undefined;
+
 vi.mock("@/features/cart", async () => {
   const actual =
     await vi.importActual<typeof import("@/features/cart")>("@/features/cart");
   return {
     ...actual,
-    useAddToCart: () => ({
-      mutateAsync: mockAddMutateAsync,
-      isPending: false,
-    }),
+    useAddToCart: (options?: {
+      onSuccess?: (data: unknown, variables: unknown) => void;
+      onError?: (error: unknown, variables: unknown) => void;
+    }) => {
+      capturedOnError = options?.onError;
+      return {
+        mutateAsync: mockAddMutateAsync,
+        isPending: false,
+      };
+    },
   };
 });
 
@@ -40,6 +53,18 @@ vi.mock("next/navigation", async () => {
 
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+// Subplan C (2026-10-18): mock sonner toast để verify error mapping
+const mockToastError = vi.fn();
+const mockToastSuccess = vi.fn();
+const mockToastInfo = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    error: (...args: unknown[]) => mockToastError(...args),
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    info: (...args: unknown[]) => mockToastInfo(...args),
+  },
 }));
 
 // default mock: isAuthenticated = true
@@ -162,6 +187,97 @@ describe("ProductDetailPage - wire cart CTA (2026-10-18)", () => {
 
     expect(mockAddMutateAsync).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith("/checkout");
+  });
+});
+
+// Subplan C (2026-10-18) - i18n error mapping: ApiError.code -> message
+// Bug: code "HTTP_401" không tồn tại trong productDetail.toast.cartError.*
+// nên next-intl throw MISSING_MESSAGE warning. Fix: map qua namespace `error.*`
+// chung (i18n.mdc mục 5) + fallback về productDetail.toast.cartError.GENERIC.
+describe("ProductDetailPage - cart error i18n mapping (2026-10-18)", () => {
+  beforeEach(() => {
+    mockAddMutateAsync.mockReset();
+    mockPush.mockReset();
+    mockUseAuth.mockReset();
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isHydrated: true,
+    });
+    mockToastError.mockReset();
+    mockToastSuccess.mockReset();
+    mockToastInfo.mockReset();
+  });
+
+  test("khi useAddToCart throw ApiError code='HTTP_401' (HTTP fallback), fallback về cartError.GENERIC (không MISSING_MESSAGE)", async () => {
+    // Arrange: import ApiError để tạo instance đúng shape
+    const { ApiError } = await import("@/lib/api/client");
+    const apiErr = new ApiError({
+      status: 401,
+      code: "HTTP_401",
+      message: "Unauthorized",
+    });
+
+    const standardProduct = {
+      ...mockProductDetail,
+      flashSales: [],
+    };
+
+    // Spy console.error để verify KHÔNG có MISSING_MESSAGE warning
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<ProductDetailPage product={standardProduct} />, {
+      wrapper: TestWrapper,
+    });
+
+    expect(capturedOnError).toBeDefined();
+
+    // Act: gọi captured onError trực tiếp (mock mất TanStack Query nên fire manually)
+    const vars = { variantId: 1, quantity: 1 };
+    capturedOnError!(apiErr, vars);
+
+    // Assert 1: toast.error được gọi với fallback message (vì error.HTTP_401 không tồn tại)
+    expect(mockToastError).toHaveBeenCalled();
+    const callArg = mockToastError.mock.calls[0]?.[0];
+    expect(callArg).toBe("Không thể cập nhật giỏ hàng. Vui lòng thử lại.");
+
+    // Assert 2: KHÔNG có MISSING_MESSAGE warning trong console (bug gốc)
+    const missingMessageCalls = errSpy.mock.calls.filter((args) =>
+      String(args[0] ?? "").includes("MISSING_MESSAGE"),
+    );
+    expect(missingMessageCalls).toHaveLength(0);
+
+    errSpy.mockRestore();
+  });
+
+  test("khi useAddToCart throw ApiError code='UNAUTHORIZED' (proper code), dùng error.UNAUTHORIZED tiếng Việt", async () => {
+    // Arrange: BE trả code semantic "UNAUTHORIZED" (không phải HTTP fallback)
+    const { ApiError } = await import("@/lib/api/client");
+    const apiErr = new ApiError({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Phiên đăng nhập đã hết hạn",
+    });
+
+    const standardProduct = {
+      ...mockProductDetail,
+      flashSales: [],
+    };
+
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<ProductDetailPage product={standardProduct} />, {
+      wrapper: TestWrapper,
+    });
+
+    expect(capturedOnError).toBeDefined();
+    capturedOnError!(apiErr, { variantId: 1, quantity: 1 });
+
+    // Assert: message = error.UNAUTHORIZED (mapping đúng)
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+    );
+
+    errSpy.mockRestore();
   });
 });
 
