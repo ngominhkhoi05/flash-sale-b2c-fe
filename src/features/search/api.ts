@@ -103,26 +103,35 @@ async function searchProductsMock(query: SearchQuery): Promise<SearchResult> {
 
   let items = [...MOCK_SEARCH_ITEMS];
 
-  // Filter theo services
+  // Filter theo services — map sang field `label` (BE contract).
+  //   - "freeship"  → label === "freeship"
+  //   - "voucher"   → label === "voucher"
+  //   - "flash-sale" → label === "flash_sale"
+  //   - "official"  → không filter (Mall status, hiện chưa có field trong mock)
   if (query.filters.services?.includes("freeship")) {
-    items = items.filter((it) => it.voucherLabel === "Freeship");
+    items = items.filter((it) => it.label === "freeship");
   }
   if (query.filters.services?.includes("voucher")) {
-    items = items.filter((it) => it.voucherLabel?.startsWith("Giảm"));
+    items = items.filter((it) => it.label === "voucher");
+  }
+  if (query.filters.services?.includes("flash-sale")) {
+    items = items.filter((it) => it.label === "flash_sale");
   }
 
-  // Filter theo khoảng giá
+  // Filter theo khoảng giá — dùng `minPrice` (giá bán hiện tại).
   if (query.filters.priceMin !== undefined) {
-    items = items.filter((it) => it.price >= query.filters.priceMin!);
+    items = items.filter((it) => it.minPrice >= query.filters.priceMin!);
   }
   if (query.filters.priceMax !== undefined) {
-    items = items.filter((it) => it.price <= query.filters.priceMax!);
+    items = items.filter((it) => it.minPrice <= query.filters.priceMax!);
   }
 
-  // Filter theo rating tối thiểu
-  if (query.filters.minRating !== undefined) {
-    items = items.filter((it) => (it.rating ?? 0) >= query.filters.minRating!);
-  }
+  // Note: filter theo `minRating` tạm thời bỏ — BE chưa trả field `rating`
+  // trong `RecommendedProductResponse` (xem map-to-product-card.ts L28).
+  // Khi BE bổ sung field `rating?: number` thì enable lại filter này.
+  // if (query.filters.minRating !== undefined) {
+  //   items = items.filter((it) => (it.rating ?? 0) >= query.filters.minRating!);
+  // }
 
   // Sort
   items = sortItems(items, query.sort);
@@ -142,16 +151,16 @@ async function searchProductsMock(query: SearchQuery): Promise<SearchResult> {
   };
 }
 
-function sortItems<T extends { price: number; totalSold?: number; rating?: number }>(
+function sortItems<T extends { minPrice: number; totalSold?: number }>(
   items: T[],
   sort: SearchSortKey,
 ): T[] {
   const copy = [...items];
   switch (sort) {
     case "price_asc":
-      return copy.sort((a, b) => a.price - b.price);
+      return copy.sort((a, b) => a.minPrice - b.minPrice);
     case "price_desc":
-      return copy.sort((a, b) => b.price - a.price);
+      return copy.sort((a, b) => b.minPrice - a.minPrice);
     case "best_selling":
       return copy.sort((a, b) => (b.totalSold ?? 0) - (a.totalSold ?? 0));
     case "newest":

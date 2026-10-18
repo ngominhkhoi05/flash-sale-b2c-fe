@@ -70,7 +70,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <main className="mx-auto w-full max-w-[1240px] px-4 py-6 lg:px-8">
       <div className="flex flex-col gap-6">
-        <SearchBreadcrumb />
+        <SearchBreadcrumb query={query.q} />
         <Suspense>
           <SearchPageContent
             query={query}

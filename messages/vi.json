@@ -624,13 +624,14 @@
     "search": {
       "title": "Tìm kiếm sản phẩm",
       "loading": "Đang tìm kiếm…",
-      "resultsFor": "Kết quả cho '{q}'",
+      "resultsFor": "Kết quả cho \"{q}\"",
       "resultsCount": "({total} sản phẩm tìm thấy trên toàn sàn)",
       "resultsCountZero": "(Không tìm thấy sản phẩm nào)",
       "breadcrumbs": {
         "home": "Trang chủ",
         "category": "Thiết bị điện tử",
-        "current": "Tai nghe"
+        "current": "\"{q}\"",
+        "currentEmpty": "Tất cả sản phẩm"
       },
       "filter": {
         "title": "BỘ LỌC TÌM KIẾM",
