@@ -58,8 +58,6 @@ import {
   getMockAdminStores,
   getMockAdminUsers,
   getMockAdminProducts,
-  type MockUserItem,
-  type MockStoreItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
 import type { PageResponse } from "@/types/api";
