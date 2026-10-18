@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   getAdminProducts,
   updateAdminProductStatus,
@@ -231,6 +232,17 @@ export default function AdminProductsPage() {
                             <span className="material-symbols-outlined text-[20px]">image</span>
                           </div>
                         )}
+                filteredProducts.map((prod) => (
+                    <tr key={prod.id} className="hover:bg-surface transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <Image
+                          src={prod.primaryImageUrl}
+                          alt={prod.name}
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 rounded-lg object-cover shadow-xs shrink-0 bg-surface-container"
+                        />
                         <div className="flex flex-col min-w-0 max-w-xs sm:max-w-sm">
                           <span className="font-semibold text-on-surface line-clamp-1">
                             {prod.name}

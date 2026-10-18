@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   getAdminStores,
   updateAdminStoreStatus,
@@ -177,9 +178,11 @@ export default function AdminStoresPage() {
                   <tr key={store.id} className="hover:bg-surface transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <img
+                        <Image
                           src={store.avatarUrl}
                           alt={store.name}
+                          width={40}
+                          height={40}
                           className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
                         />
                         <div className="flex flex-col min-w-0">

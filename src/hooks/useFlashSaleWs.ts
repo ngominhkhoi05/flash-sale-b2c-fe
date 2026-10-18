@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   createFlashSaleStompClient,
   type FlashSaleStompClient,
@@ -86,8 +86,16 @@ export function useFlashSaleWs(
   }
 
   const enabled = options.enabled ?? true;
-  const subscribeSlotIds = options.subscribeSlotIds ?? [];
-  const subscribeOrderCodes = options.subscribeOrderCodes ?? [];
+  // useMemo để giữ reference ổn định qua các render — tránh trigger
+  // re-subscribe mỗi lần parent re-render (xem rule react-hooks/exhaustive-deps).
+  const subscribeSlotIds = useMemo(
+    () => options.subscribeSlotIds ?? [],
+    [options.subscribeSlotIds],
+  );
+  const subscribeOrderCodes = useMemo(
+    () => options.subscribeOrderCodes ?? [],
+    [options.subscribeOrderCodes],
+  );
   const onMessage = options.onMessage;
 
   const cbRef = useRef(onMessage);
@@ -166,8 +174,8 @@ export function useFlashSaleWs(
     };
   }, [
     enabled,
-    subscribeSlotIds.join(","),
-    subscribeOrderCodes.join(","),
+    subscribeSlotIds,
+    subscribeOrderCodes,
     setSnapshot,
     legacyDestinationRef,
   ]);

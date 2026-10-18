@@ -63,6 +63,13 @@ import {
   type MockStoreItem,
   type MockUserItem,
 } from "@/lib/mocks/admin.mock";
+import type { PageResponse } from "@/types/api";
+import type {
+  AdminWithdrawalResponse,
+  ApproveWithdrawalPayload,
+  RejectWithdrawalPayload,
+} from "@/types/admin";
+
 
 
 /** BE Response DTO */
@@ -834,18 +841,59 @@ export async function updateAdminStoreStatus(
 // 32. Quản lý Người dùng (Stitch Screen 31)
 // ============================================================================
 
-export type AdminUser = MockUserItem;
+export type AdminUser = import("@/types/admin").AdminUser;
 
-export async function getAdminUsers(params?: {
+export interface GetAdminUsersParams {
   role?: string;
   status?: string;
   search?: string;
-}): Promise<AdminUser[]> {
+  page?: number;
+  size?: number;
+}
+
+export async function getAdminUsers(
+  params?: GetAdminUsersParams
+): Promise<import("@/types/api").PageResponse<AdminUser>> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.role && params.role !== "ALL") {
+    queryParams.role = params.role;
+  }
+  if (params?.status && params.status !== "ALL") {
+    queryParams.status = params.status;
+  }
+  if (params?.search?.trim()) {
+    queryParams.search = params.search.trim();
+  }
+  if (params?.page !== undefined) {
+    queryParams.page = params.page;
+  }
+  if (params?.size !== undefined) {
+    queryParams.size = params.size;
+  }
+
   try {
-    return await apiFetch<AdminUser[]>("/admin/users");
+    const res = await apiFetch<import("@/types/api").PageResponse<AdminUser>>("/admin/users", {
+      query: queryParams,
+    });
+    return {
+      ...res,
+      content: res.content ?? res.items ?? [],
+    };
   } catch (err) {
     if (isMockMode()) {
-      return getMockAdminUsers(params);
+      const mockItems = getMockAdminUsers(params);
+      return {
+        content: mockItems,
+        items: mockItems,
+        pageNumber: 0,
+        pageSize: mockItems.length,
+        totalElements: mockItems.length,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
     }
     throw err;
   }
@@ -853,16 +901,13 @@ export async function getAdminUsers(params?: {
 
 export async function updateAdminUserStatus(
   id: number,
-  status: "ACTIVE" | "LOCKED"
+  status: "ACTIVE" | "LOCKED",
+  reason?: string
 ): Promise<void> {
-  try {
-    await apiFetch<void>(`/admin/users/${id}/status`, {
-      method: "PATCH",
-      json: { status },
-    });
-  } catch (err) {
-    if (!isMockMode()) throw err;
-  }
+  await apiFetch<void>(`/admin/users/${id}/status`, {
+    method: "PATCH",
+    json: { status, reason },
+  });
 }
 
 // ============================================================================
@@ -922,6 +967,88 @@ export async function updateAdminProductStatus(
     json: { status, reason },
   });
 }
+
+// ============================================================================
+// 34. Quản lý Lệnh Rút tiền Ví Người Bán (Admin Wallets / Withdrawals)
+// ============================================================================
+
+export async function getAdminWithdrawals(params?: {
+  status?: string;
+  storeId?: number;
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<AdminWithdrawalResponse>> {
+  try {
+    const query: Record<string, string | number> = {
+      page: params?.page ?? 0,
+      size: params?.size ?? 10,
+    };
+    if (params?.status && params.status !== "ALL") {
+      query.status = params.status;
+    }
+    if (params?.storeId) {
+      query.storeId = params.storeId;
+    }
+    return await apiFetch<PageResponse<AdminWithdrawalResponse>>("/admin/wallets/withdrawals", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const mockList: AdminWithdrawalResponse[] = [
+        {
+          id: 1,
+          requestCode: "WDR-261018-9921",
+          walletId: 1,
+          storeId: 1,
+          storeName: "UTC Fashion",
+          amount: 500000,
+          status: "PENDING",
+          bankName: "Ngân hàng Ngoại thương Việt Nam (Vietcombank)",
+          bankCode: "VCB",
+          accountNumber: "102988391204",
+          accountHolder: "NGUYEN VAN AN",
+          branch: "Chi nhánh Thủ Đức",
+          sellerNote: "Rút tiền doanh thu đợt 1",
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      return {
+        content: mockList,
+        items: mockList,
+        pageNumber: 0,
+        pageSize: 10,
+        totalElements: 1,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
+    }
+    throw err;
+  }
+}
+
+export async function approveWithdrawal(
+  id: number,
+  payload?: ApproveWithdrawalPayload
+): Promise<AdminWithdrawalResponse> {
+  return await apiFetch<AdminWithdrawalResponse>(`/admin/wallets/withdrawals/${id}/approve`, {
+    method: "PATCH",
+    json: payload || {},
+  });
+}
+
+export async function rejectWithdrawal(
+  id: number,
+  payload: RejectWithdrawalPayload
+): Promise<AdminWithdrawalResponse> {
+  return await apiFetch<AdminWithdrawalResponse>(`/admin/wallets/withdrawals/${id}/reject`, {
+    method: "PATCH",
+    json: payload,
+  });
+}
+
 
 
 

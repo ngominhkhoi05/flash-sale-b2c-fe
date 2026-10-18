@@ -1,28 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
 import { Providers } from "@/providers/Providers";
 import { defaultSeo } from "@/config/seo.config";
 import I18nProvider from "./I18nProvider";
 import "./globals.css";
 
 /**
- * Be Vietnam Pro – subset vietnamese, weight 400/500/600 (rule §3).
- * Gán vào CSS variable --font-be-vietnam; globals.css dùng làm --font-sans.
+ * Be Vietnam Pro & Material Symbols – load qua Google Fonts CDN link trong <head>.
+ * Tránh lỗi Turbopack build timeout khi tải Google font trên local network.
  */
-const beVietnam = Be_Vietnam_Pro({
-  variable: "--font-be-vietnam",
-  subsets: ["vietnamese"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-/**
- * Material Symbols Outlined – load từ Google Fonts CDN.
- * Dùng cho toàn bộ storefront (Stitch design system yêu cầu icon font này).
- * Variant U+000FILL=1 để render filled icon (verified, bolt khi ở trạng thái "đang cháy").
- * Helper: src/components/ui/material-symbol.tsx
- * Tailwind mapping: globals.css không cần thêm vì font-family được Stitch gán trực tiếp.
- */
+const beVietnamVariable = "font-sans";
 
 export const metadata: Metadata = {
   title: {
@@ -80,17 +66,24 @@ export default function RootLayout({
     // chứa runtime state.
     <html
       lang="vi"
-      className={`${beVietnam.variable} h-full antialiased`}
+      className="h-full antialiased font-sans"
       suppressHydrationWarning
     >
       <head>
-        {/* Material Symbols Outlined – Google Fonts (Stitch icon system) */}
+        {/* Google Fonts Preconnect */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
           href="https://fonts.gstatic.com"
           crossOrigin=""
         />
+        {/* Be Vietnam Pro – Primary font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+        {/* Material Symbols Outlined – Google Fonts (Stitch icon system) */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- icon font, không phải text font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
           rel="stylesheet"

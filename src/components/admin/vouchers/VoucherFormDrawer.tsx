@@ -156,6 +156,7 @@ export function VoucherFormDrawer({
   }, [initialData, reset, defaultStartDate, defaultEndDate]);
 
   // Watch for live preview
+  // eslint-disable-next-line react-hooks/incompatible-library -- RHF watch() pattern hợp lệ
   const watchedCode = watch("code");
   const watchedType = watch("discountType");
   const watchedValue = watch("discountValue");
