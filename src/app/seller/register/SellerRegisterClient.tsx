@@ -76,12 +76,17 @@ export function SellerRegisterClient() {
 
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.email) setContactEmail(currentUser.email);
-      if (currentUser.fullName) setWarehouseContact(currentUser.fullName);
-      if ((currentUser as any).phone) {
-        setContactPhone((currentUser as any).phone);
-        setWarehousePhone((currentUser as any).phone);
-      }
+      const userRecord = currentUser as unknown as Record<string, unknown>;
+      const userPhone = typeof userRecord.phone === "string" ? userRecord.phone : "";
+      const timer = setTimeout(() => {
+        if (currentUser.email) setContactEmail(currentUser.email);
+        if (currentUser.fullName) setWarehouseContact(currentUser.fullName);
+        if (userPhone) {
+          setContactPhone(userPhone);
+          setWarehousePhone(userPhone);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [currentUser]);
 
@@ -186,8 +191,8 @@ export function SellerRegisterClient() {
 
       toast.success("Hồ sơ đăng ký gian hàng đã được gửi thành công!");
       setViewState("pending");
-    } catch (err: any) {
-      const msg = err?.message || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       if (msg.includes("đã có gian hàng") || msg.includes("already")) {
         toast.info("Tài khoản của bạn đã có gian hàng trên hệ thống!");
         setViewState("pending");
@@ -339,7 +344,7 @@ export function SellerRegisterClient() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (step > item.s) setStep(item.s as any);
+                    if (step > item.s) setStep(item.s as 1 | 2 | 3);
                   }}
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all",
@@ -574,7 +579,7 @@ export function SellerRegisterClient() {
                     onChange={(e) => handleProvinceChange(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface text-xs border border-outline-variant focus:outline-none focus:ring-2 focus:ring-[#10B981]/20 font-medium"
                   >
-                    {PROVINCE_NAMES.map((p) => (
+                    {PROVINCE_NAMES.map((p: string) => (
                       <option key={p} value={p}>
                         {p}
                       </option>
@@ -590,7 +595,7 @@ export function SellerRegisterClient() {
                     onChange={(e) => handleDistrictChange(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface text-xs border border-outline-variant focus:outline-none focus:ring-2 focus:ring-[#10B981]/20 font-medium"
                   >
-                    {getDistrictsByProvince(province).map((d) => (
+                    {getDistrictsByProvince(province).map((d: string) => (
                       <option key={d} value={d}>
                         {d}
                       </option>
@@ -606,7 +611,7 @@ export function SellerRegisterClient() {
                     onChange={(e) => setWard(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surface-container-lowest text-on-surface text-xs border border-outline-variant focus:outline-none focus:ring-2 focus:ring-[#10B981]/20 font-medium"
                   >
-                    {getWardsByDistrict(province, district).map((w) => (
+                    {getWardsByDistrict(province, district).map((w: string) => (
                       <option key={w} value={w}>
                         {w}
                       </option>
