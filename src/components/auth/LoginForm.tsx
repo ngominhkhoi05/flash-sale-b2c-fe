@@ -12,8 +12,9 @@ import {
   loginSchema,
   type LoginInput,
 } from '@/features/auth';
+import { decodeJwtPrimaryRole } from '@/features/auth/jwt';
 import { mapGoogleErrorToI18nKey } from '@/features/auth/google-oauth-errors';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, ROLES } from '@/lib/constants';
 import { sanitizeRedirectPath } from '@/lib/auth/require-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,11 +73,24 @@ export function LoginForm() {
   const onSubmit = (data: LoginInput) => {
     setApiError(null);
     login.mutate(data, {
-      onSuccess: () => {
+      onSuccess: (res) => {
         toast.success(t('title'));
         // Đọc ?redirect= từ URL (sanitize để chống open redirect attack)
-        const redirect = sanitizeRedirectPath(searchParams.get('redirect'));
-        router.push(redirect);
+        const redirectParam = searchParams.get('redirect');
+        if (redirectParam) {
+          router.push(sanitizeRedirectPath(redirectParam));
+          return;
+        }
+
+        // Nếu không có redirect param, điều hướng thông minh theo role
+        const role = decodeJwtPrimaryRole(res.accessToken);
+        if (role === ROLES.ADMIN) {
+          router.push(ROUTES.ADMIN_HOME);
+        } else if (role === ROLES.SELLER) {
+          router.push(ROUTES.SELLER_HOME);
+        } else {
+          router.push(ROUTES.HOME);
+        }
       },
       onError: () => {
         setApiError(tErr('invalidCredentials'));

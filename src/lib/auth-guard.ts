@@ -23,6 +23,7 @@ interface JwtPayload {
   sub?: string;
   email?: string;
   role?: Role | string;
+  authorities?: string[];
   exp?: number;
   [k: string]: unknown;
 }
@@ -38,6 +39,22 @@ function decodeJwt(token: string): JwtPayload | null {
   }
 }
 
+function extractRole(payload: JwtPayload): Role | null {
+  if (payload.role) {
+    const r = String(payload.role).toUpperCase();
+    if (r === "ROLE_ADMIN" || r === "ADMIN") return "ADMIN";
+    if (r === "ROLE_SELLER" || r === "SELLER") return "SELLER";
+    if (r === "ROLE_BUYER" || r === "BUYER") return "BUYER";
+  }
+  const auths = payload.authorities;
+  if (Array.isArray(auths)) {
+    if (auths.some((a) => a === "ROLE_ADMIN" || a === "ADMIN")) return "ADMIN";
+    if (auths.some((a) => a === "ROLE_SELLER" || a === "SELLER")) return "SELLER";
+    if (auths.some((a) => a === "ROLE_BUYER" || a === "BUYER")) return "BUYER";
+  }
+  return null;
+}
+
 /** Đọc session hiện tại từ cookie (chỉ server). Trả null nếu thiếu/hết hạn. */
 export async function getServerSession(): Promise<ServerSession | null> {
   const store = await cookies();
@@ -45,7 +62,10 @@ export async function getServerSession(): Promise<ServerSession | null> {
   if (!token) return null;
 
   const payload = decodeJwt(token);
-  if (!payload || !payload.sub || !payload.role) return null;
+  if (!payload || !payload.sub) return null;
+
+  const role = extractRole(payload);
+  if (!role) return null;
 
   // exp tính theo giây
   if (typeof payload.exp === "number" && payload.exp * 1000 < Date.now()) {
@@ -56,7 +76,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
     token,
     userId: payload.sub,
     email: payload.email ?? "",
-    role: payload.role as Role,
+    role,
     exp: payload.exp,
   };
 }
