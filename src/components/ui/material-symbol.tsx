@@ -104,6 +104,11 @@ export type MaterialSymbolName =
   | "account_balance_wallet"
   | "group"
   | "open_in_new"
+  | "local_mall"
+  | "query_stats"
+  | "pending_actions"
+  | "drag_handle"
+  | "arrow_upward"
   // Security / auth (added for Forbidden 403 page)
   | "shield_lock"
   | "home"

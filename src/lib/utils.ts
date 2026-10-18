@@ -8,3 +8,11 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
+
+/**
+ * Định dạng số tiền sang định dạng tiền tệ Việt Nam Đồng (VND).
+ */
+export function formatVND(value: number): string {
+  if (typeof value !== "number" || isNaN(value)) return "0₫";
+  return new Intl.NumberFormat("vi-VN").format(Math.round(value)) + "₫";
+}
