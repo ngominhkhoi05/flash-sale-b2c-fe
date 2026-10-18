@@ -110,12 +110,95 @@ export async function getSellerOrders(
     if (status && status !== "ALL") {
       query.status = status;
     }
-    return await apiFetch<PageResponse<SellerOrderResponse>>("/seller/orders", {
+    interface RawOrderPageData {
+      items?: SellerOrderResponse[];
+      content?: SellerOrderResponse[];
+      totalElements?: number;
+      totalPages?: number;
+      pageNumber?: number;
+      pageSize?: number;
+      isFirst?: boolean;
+      first?: boolean;
+      isLast?: boolean;
+      last?: boolean;
+      hasNext?: boolean;
+      hasPrevious?: boolean;
+    }
+
+    const res = await apiFetch<RawOrderPageData | SellerOrderResponse[]>("/seller/orders", {
       query,
     });
+
+    const isArray = Array.isArray(res);
+    const pageObj: RawOrderPageData = !isArray && res && typeof res === "object" ? (res as RawOrderPageData) : {};
+    const rawList: SellerOrderResponse[] = isArray
+      ? (res as SellerOrderResponse[])
+      : Array.isArray(pageObj.items)
+      ? pageObj.items
+      : Array.isArray(pageObj.content)
+      ? pageObj.content
+      : [];
+
+    const list: SellerOrderResponse[] = rawList.map((o) => ({
+      ...o,
+      recipientAddress: o.recipientAddress || o.shippingAddressText || "Địa chỉ nhận hàng",
+      shippingAddressText: o.shippingAddressText || o.recipientAddress || "Địa chỉ nhận hàng",
+      totalAmount: typeof o.totalAmount === "number" ? o.totalAmount : (o.finalAmount ?? o.subtotalAmount ?? 0),
+      paymentMethod: o.paymentMethod || "ZALOPAY",
+      status: o.status || "PENDING",
+      items: Array.isArray(o.items)
+        ? o.items.map((it) => ({
+            ...it,
+            imageUrl: it.imageUrl || it.productImage || "",
+            productImage: it.productImage || it.imageUrl || "",
+            priceAtPurchase: typeof it.priceAtPurchase === "number" ? it.priceAtPurchase : (it.unitPrice ?? 0),
+            unitPrice: typeof it.unitPrice === "number" ? it.unitPrice : (it.priceAtPurchase ?? 0),
+            itemSubtotal:
+              typeof it.itemSubtotal === "number"
+                ? it.itemSubtotal
+                : ((it.priceAtPurchase || it.unitPrice || 0) * (it.quantity || 1)),
+          }))
+        : [],
+    }));
+
+    return {
+      content: list,
+      items: list,
+      totalElements: pageObj.totalElements ?? list.length,
+      totalPages: pageObj.totalPages ?? Math.max(1, Math.ceil(list.length / size)),
+      pageNumber: pageObj.pageNumber ?? page,
+      pageSize: pageObj.pageSize ?? size,
+      isFirst: pageObj.isFirst ?? pageObj.first ?? page === 0,
+      isLast: pageObj.isLast ?? pageObj.last ?? true,
+      hasNext: pageObj.hasNext ?? false,
+      hasPrevious: pageObj.hasPrevious ?? false,
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockSellerOrders(page, size, status);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy chi tiết đơn hàng (KHỚP BE: GET /api/v1/seller/orders/{id})
+ */
+export async function getSellerOrderById(id: number): Promise<SellerOrderResponse> {
+  try {
+    return await apiFetch<SellerOrderResponse>(`/seller/orders/${id}`);
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerOrders(0, 50).content.find((o) => o.id === id) || {
+        id,
+        orderCode: `ORD-${id}`,
+        recipientName: "Khách hàng",
+        recipientPhone: "0901234567",
+        recipientAddress: "123 Lê Lợi, Q.1, TP. Hồ Chí Minh",
+        paymentMethod: "ZALOPAY",
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      };
     }
     throw err;
   }

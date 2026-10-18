@@ -38,6 +38,7 @@ const TABS: TabItem[] = [
 
 export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<SellerOrderResponse[]>([]);
+  const [allOrders, setAllOrders] = useState<SellerOrderResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,10 +74,14 @@ export default function SellerOrdersPage() {
 
   useEffect(() => {
     let active = true;
-    getSellerOrders(0, 50, currentTab)
+    getSellerOrders(0, 50, currentTab === "ALL" ? undefined : currentTab)
       .then((res) => {
         if (active) {
-          setOrders(res.content || []);
+          const list = res.items || res.content || [];
+          setOrders(list);
+          if (currentTab === "ALL") {
+            setAllOrders(list);
+          }
           setError(null);
           setLoading(false);
         }
@@ -96,8 +101,9 @@ export default function SellerOrdersPage() {
 
   // Tab counts
   const tabCounts = useMemo(() => {
+    const list = allOrders.length > 0 ? allOrders : orders;
     const counts: Record<TabKey, number> = {
-      ALL: orders.length,
+      ALL: list.length,
       PENDING_PAYMENT: 0,
       PENDING: 0,
       PROCESSING: 0,
@@ -105,14 +111,14 @@ export default function SellerOrdersPage() {
       COMPLETED: 0,
       CANCELLED: 0,
     };
-    orders.forEach((o) => {
+    list.forEach((o) => {
       const st = (o.status || "").toUpperCase() as TabKey;
       if (st in counts) {
         counts[st]++;
       }
     });
     return counts;
-  }, [orders]);
+  }, [allOrders, orders]);
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
@@ -643,19 +649,18 @@ export default function SellerOrdersPage() {
         )}
       </div>
 
-      {/* Slide-over Detail Drawer (520px) */}
+      {/* Centered Modal Chi tiết đơn hàng (Cửa sổ nổi nằm giữa màn hình) */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
             onClick={() => setSelectedOrder(null)}
           />
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-[540px] bg-white shadow-2xl flex flex-col border-l border-slate-200">
-              {/* Drawer Header */}
-              <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-3xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -901,7 +906,6 @@ export default function SellerOrdersPage() {
                 </div>
               </div>
             </div>
-          </div>
         </div>
       )}
 
