@@ -238,6 +238,12 @@ export function CheckoutPageContent({
           platformVoucherCode: appliedPlatformVoucher?.code,
           shopSelections: shopGroups.map((g) => ({
             storeId: g.storeId,
+            // Fix Bug #2 (2026-10-18): BE CheckoutStoreOrderRequest REQUIRED items[].
+            // Map từ CheckoutShopGroup.items (đã có variantId + quantity).
+            items: g.items.map((it) => ({
+              variantId: it.variantId,
+              quantity: it.quantity,
+            })),
             shopVoucherCode: g.appliedShopVoucher?.code,
             buyerNote: g.buyerNote,
           })),

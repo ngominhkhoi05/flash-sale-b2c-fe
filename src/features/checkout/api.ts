@@ -27,7 +27,7 @@ import type {
   Voucher,
 } from "./types";
 
-// ─── Backend DTO types (matching Swagger 2026-10-17) ────────────────────────
+// ─── Backend DTO types (matching Swagger 2026-10-18) ────────────────────────
 
 interface BackendCartItem {
   id: number;
@@ -405,31 +405,41 @@ export async function applyVoucher(input: {
 /**
  * POST /api/v1/orders/checkout – submit multi-shop cart as separate orders.
  *
- * Backend request (from Swagger):
+ * Backend request (from Swagger 2026-10-18):
  * {
  *   shippingAddressId: number,
  *   storeOrders: [{
  *     storeId: number,
- *     items: [{ variantId: number, quantity: number }],
+ *     items: [{ variantId: number, quantity: number }],   // REQUIRED
  *     voucherCode?: string
  *   }]
  * }
  *
  * Idempotency-Key sent via header (rule §8 mục 3).
+ *
+ * Bug #2 (2026-10-18): FE trước đây chỉ gửi { storeId, voucherCode } — thiếu
+ * `items[]` → BE trả 400 do `items` là required. Fix: caller phải truyền
+ * `items` trong `shopSelections`, FE build sang `items[]` cho mỗi storeOrder.
+ *
+ * Bug #3 (2026-10-18): Swagger `CreateOrderRequest` không có
+ * `platformVoucherCode` ở top-level. Drop field này khỏi body (voucher sàn
+ * nếu có sẽ được BE xử lý riêng hoặc qua storeOrders — chờ BE confirm).
  */
 export async function submitOrder(
   payload: SubmitOrderRequest,
   idempotencyKey: string,
 ): Promise<OrderSubmitResponse> {
-  // Build storeOrders from shopSelections
   const storeOrders = payload.shopSelections.map((s) => ({
     storeId: s.storeId,
+    items: s.items.map((it) => ({
+      variantId: it.variantId,
+      quantity: it.quantity,
+    })),
     voucherCode: s.shopVoucherCode,
   }));
 
   const body = {
     shippingAddressId: payload.addressId,
-    platformVoucherCode: payload.platformVoucherCode,
     storeOrders,
   };
 
