@@ -87,6 +87,20 @@ describe("buildUrl – base URL handling", () => {
     expect(calledUrl).toBe("http://localhost:8080/api/v1/auth/login");
   });
 
+  it("base có sẵn /api/v1 – KHÔNG bị double /api/v1/api/v1", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080/api/v1";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: null }), { status: 200 })
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const mod = await loadApi();
+    await mod.apiFetch("/api/v1/auth/login");
+
+    const calledUrl = (fetchMock.mock.calls[0]?.[0] as string) ?? "";
+    expect(calledUrl).toBe("http://localhost:8080/api/v1/auth/login");
+  });
+
   it("relative base + query params – giữ query string đúng", async () => {
     process.env.NEXT_PUBLIC_API_URL = "/api/v1";
     const fetchMock = vi.fn().mockResolvedValue(
