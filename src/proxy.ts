@@ -81,6 +81,10 @@ function handleAuthPages(ctx: GuardContext): NextResponse | null {
 function handleSeller(ctx: GuardContext): NextResponse | null {
   const { req, role, storeStatus, pathname } = ctx;
   if (!pathname.startsWith("/seller")) return null;
+  // Cho phép truy cập trực tiếp khi bật chế độ mock (dev-only, không chặn login)
+  if (process.env.NEXT_PUBLIC_USE_MOCKS === "true") {
+    return null;
+  }
   // Cho phép trang "hồ sơ chờ duyệt" mà không cần role SELLER (vì chính nó là kết quả redirect).
   if (pathname.startsWith("/seller/pending-review")) {
     if (role === ROLES.SELLER && storeStatus === "PENDING") return null;
