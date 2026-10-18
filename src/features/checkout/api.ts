@@ -449,7 +449,7 @@ export async function submitOrder(
       method: "POST",
       json: body,
       headers: {
-        "Idempotency-Key": idempotencyKey,
+        "X-Idempotency-Key": idempotencyKey,
       },
     },
   );

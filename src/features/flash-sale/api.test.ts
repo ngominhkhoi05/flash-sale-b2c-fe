@@ -74,7 +74,7 @@ describe("Flash Sale Reservation API", () => {
             quantity: 1,
           },
           headers: expect.objectContaining({
-            "Idempotency-Key": "test-uuid-123",
+            "X-Idempotency-Key": "test-uuid-123",
           }),
         })
       );
