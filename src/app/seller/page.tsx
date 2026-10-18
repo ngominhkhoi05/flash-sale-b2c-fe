@@ -641,7 +641,7 @@ export default function SellerDashboardPage() {
                           </div>
                         </td>
                         <td className="font-data-tabular text-body-sm text-on-surface font-semibold">
-                          {formatVND(order.finalAmount)}
+                          {formatVND(order.finalAmount || order.totalAmount || 0)}
                         </td>
                         <td className="text-right">
                           <SellerStatusBadge status={order.status} />

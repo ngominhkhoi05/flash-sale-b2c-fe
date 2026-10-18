@@ -15,39 +15,67 @@ export interface SidebarSummaryResponse {
   storeStatus: string;
 }
 
+export interface OrderTimelineItem {
+  status: string;
+  label: string;
+  at: string;
+}
+
 export interface SellerOrderItemResponse {
   id: number;
-  productId: number;
+  productId?: number;
   productName: string;
-  variantId: number;
-  variantSku: string;
-  productImage: string;
-  unitPrice: number;
+  variantId?: number;
+  variantSku?: string;
+  variantName?: string;
+  productImage?: string;
+  imageUrl?: string;
+  unitPrice?: number;
+  priceAtPurchase?: number;
   quantity: number;
-  totalPrice: number;
+  totalPrice?: number;
+  itemSubtotal?: number;
+  flashSaleItemId?: number | null;
 }
 
 export interface SellerOrderResponse {
   id: number;
   orderCode: string;
-  buyerId: number;
-  storeId: number;
-  storeName: string;
+  buyerId?: number;
+  storeId?: number;
+  storeName?: string;
   slotId?: number | null;
   voucherId?: number | null;
   recipientName: string;
   recipientPhone: string;
-  recipientAddress: string;
+  recipientAddress?: string;
+  shippingAddressText?: string;
   recipientCity?: string;
   recipientDistrict?: string;
   recipientWard?: string;
-  totalItemAmount: number;
-  discountAmount: number;
-  shippingFee: number;
-  finalAmount: number;
+  totalItemAmount?: number;
+  subtotalAmount?: number;
+  discountAmount?: number;
+  voucherDiscountAmount?: number;
+  shippingFee?: number;
+  finalAmount?: number;
+  totalAmount?: number;
+  platformFee?: number;
+  commissionRate?: number;
+  sellerAmount?: number;
   paymentMethod: string;
+  paymentStatus?: string;
+  paymentUrl?: string;
+  qrCodeUrl?: string;
+  trackingNumber?: string;
+  carrierName?: string;
   status: string;
+  expiresAt?: string;
   createdAt: string;
+  updatedAt?: string;
+  shippedAt?: string;
+  completedAt?: string;
+  timeline?: OrderTimelineItem[];
   items?: SellerOrderItemResponse[];
 }
 
@@ -178,3 +206,37 @@ export interface RegisteredFlashSaleHistoryItem {
   status: "APPROVED" | "PENDING" | "REJECTED" | "ENDED" | string;
   rejectReason?: string;
 }
+
+export interface SellerBankAccount {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  branch?: string;
+  isVerified: boolean;
+}
+
+export interface SellerWalletResponse {
+  balance: number;
+  pendingBalance: number;
+  totalWithdrawn: number;
+  bankAccount: SellerBankAccount;
+}
+
+export interface SellerWalletTransaction {
+  id: number;
+  transactionCode: string;
+  orderCode?: string;
+  type: "ORDER_SETTLEMENT" | "WITHDRAWAL" | "REFUND" | string;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  status: "SUCCESS" | "PENDING" | "FAILED" | string;
+  createdAt: string;
+}
+
+export interface SellerWithdrawalRequest {
+  amount: number;
+  bankAccountNumber?: string;
+  note?: string;
+}
+

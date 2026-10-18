@@ -12,6 +12,9 @@ import type {
   FlashSaleSlotItem,
   RegisterFlashSaleItemDto,
   RegisteredFlashSaleHistoryItem,
+  SellerWalletResponse,
+  SellerWalletTransaction,
+  SellerWithdrawalRequest,
 } from "@/types/seller";
 
 /**
@@ -67,9 +70,426 @@ export async function getSellerRecentOrders(
   page: number = 0,
   size: number = 5
 ): Promise<PageResponse<SellerOrderResponse>> {
-  return apiFetch<PageResponse<SellerOrderResponse>>("/seller/orders", {
-    query: { page, size },
-  });
+  try {
+    return await apiFetch<PageResponse<SellerOrderResponse>>("/seller/orders", {
+      query: { page, size },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerOrders(page, size);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy toàn bộ danh sách đơn hàng có lọc theo trạng thái và phân trang (KHỚP BE: GET /api/v1/seller/orders)
+ */
+export async function getSellerOrders(
+  page: number = 0,
+  size: number = 10,
+  status?: string
+): Promise<PageResponse<SellerOrderResponse>> {
+  try {
+    const query: Record<string, string | number> = { page, size };
+    if (status && status !== "ALL") {
+      query.status = status;
+    }
+    return await apiFetch<PageResponse<SellerOrderResponse>>("/seller/orders", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerOrders(page, size, status);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cập nhật trạng thái đơn hàng (KHỚP BE: PATCH /api/v1/seller/orders/{id}/status)
+ */
+export async function updateSellerOrderStatus(
+  id: number,
+  status: string
+): Promise<SellerOrderResponse> {
+  try {
+    return await apiFetch<SellerOrderResponse>(`/seller/orders/${id}/status`, {
+      method: "PATCH",
+      json: { status },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id,
+        orderCode: `ORD-${id}`,
+        recipientName: "Khách hàng",
+        recipientPhone: "0901234567",
+        recipientAddress: "123 Lê Lợi, Q.1, TP. Hồ Chí Minh",
+        paymentMethod: "ZALOPAY",
+        status,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockSellerOrders(
+  page: number = 0,
+  size: number = 10,
+  statusFilter?: string
+): PageResponse<SellerOrderResponse> {
+  const allOrders: SellerOrderResponse[] = [
+    {
+      id: 201,
+      orderCode: "FS-261005-M9B2",
+      buyerId: 1001,
+      storeId: 1,
+      storeName: "UTC Fashion",
+      slotId: 4,
+      recipientName: "Nguyễn Văn An",
+      recipientPhone: "0912 345 678",
+      recipientAddress: "Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+      shippingAddressText: "Số 45 Lê Duẩn, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+      recipientCity: "TP. Hồ Chí Minh",
+      recipientDistrict: "Quận 1",
+      recipientWard: "Phường Bến Nghé",
+      subtotalAmount: 380000,
+      totalItemAmount: 380000,
+      discountAmount: 76000,
+      voucherDiscountAmount: 20000,
+      shippingFee: 25000,
+      totalAmount: 334000,
+      finalAmount: 334000,
+      commissionRate: 5,
+      platformFee: 16700,
+      sellerAmount: 300200,
+      paymentMethod: "ZALOPAY",
+      paymentStatus: "PAID",
+      status: "PENDING",
+      createdAt: "2026-10-18T05:02:15Z",
+      expiresAt: "2026-10-18T09:00:00Z",
+      trackingNumber: "SPX-VN-88392100",
+      carrierName: "SPX Express",
+      timeline: [
+        { status: "PENDING_PAYMENT", label: "Người mua đặt hàng", at: "2026-10-18T05:00:10Z" },
+        { status: "PAID", label: "Thanh toán ZaloPay thành công", at: "2026-10-18T05:02:15Z" },
+        { status: "PENDING", label: "Chờ người bán xác nhận chuẩn bị hàng", at: "2026-10-18T05:02:16Z" },
+      ],
+      items: [
+        {
+          id: 501,
+          productId: 1,
+          productName: "Áo Hoodie Unisex Oversize Nỉ Bông",
+          variantId: 1,
+          variantSku: "HD-DEN-L",
+          variantName: "Đen / Size L",
+          imageUrl: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 380000,
+          priceAtPurchase: 304000,
+          quantity: 1,
+          totalPrice: 304000,
+          itemSubtotal: 304000,
+          flashSaleItemId: 101,
+        },
+      ],
+    },
+    {
+      id: 202,
+      orderCode: "FS-261005-K3A1",
+      buyerId: 1002,
+      storeId: 1,
+      storeName: "UTC Fashion",
+      slotId: 4,
+      recipientName: "Trần Thị Bích",
+      recipientPhone: "0988 765 432",
+      recipientAddress: "Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
+      shippingAddressText: "Tòa nhà Keangnam, Phạm Hùng, Cầu Giấy, Hà Nội",
+      recipientCity: "Hà Nội",
+      recipientDistrict: "Cầu Giấy",
+      subtotalAmount: 360000,
+      totalItemAmount: 360000,
+      discountAmount: 90000,
+      voucherDiscountAmount: 0,
+      shippingFee: 28000,
+      totalAmount: 298000,
+      finalAmount: 298000,
+      commissionRate: 5,
+      platformFee: 14900,
+      sellerAmount: 268200,
+      paymentMethod: "ZALOPAY",
+      paymentStatus: "PAID",
+      status: "PROCESSING",
+      createdAt: "2026-10-18T04:20:00Z",
+      trackingNumber: "GHTK-HN-9921445",
+      carrierName: "Giao Hàng Tiết Kiệm",
+      timeline: [
+        { status: "PENDING_PAYMENT", label: "Đặt hàng", at: "2026-10-18T04:18:00Z" },
+        { status: "PAID", label: "Thanh toán ZaloPay", at: "2026-10-18T04:20:00Z" },
+        { status: "PROCESSING", label: "Shop đã xác nhận, đang đóng gói", at: "2026-10-18T04:35:00Z" },
+      ],
+      items: [
+        {
+          id: 502,
+          productId: 2,
+          productName: "Áo thun Basic Cotton Organic",
+          variantId: 3,
+          variantSku: "AT-TRANG-XL",
+          variantName: "Trắng / Size XL",
+          imageUrl: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 180000,
+          priceAtPurchase: 135000,
+          quantity: 2,
+          totalPrice: 270000,
+          itemSubtotal: 270000,
+          flashSaleItemId: 102,
+        },
+      ],
+    },
+    {
+      id: 203,
+      orderCode: "ORD-261005-B7D8",
+      buyerId: 1003,
+      storeId: 1,
+      storeName: "UTC Fashion",
+      recipientName: "Lê Hoàng Nam",
+      recipientPhone: "0977 112 233",
+      recipientAddress: "Hải Châu, Đà Nẵng",
+      shippingAddressText: "12 Bạch Đằng, Hải Châu, Đà Nẵng",
+      recipientCity: "Đà Nẵng",
+      subtotalAmount: 490000,
+      totalItemAmount: 490000,
+      discountAmount: 50000,
+      voucherDiscountAmount: 30000,
+      shippingFee: 30000,
+      totalAmount: 450000,
+      finalAmount: 450000,
+      commissionRate: 5,
+      platformFee: 22500,
+      sellerAmount: 405000,
+      paymentMethod: "COD",
+      paymentStatus: "PENDING",
+      status: "SHIPPING",
+      createdAt: "2026-10-17T14:10:00Z",
+      shippedAt: "2026-10-18T02:00:00Z",
+      trackingNumber: "VTP-DN-110293",
+      carrierName: "Viettel Post",
+      timeline: [
+        { status: "PENDING", label: "Đặt hàng (COD)", at: "2026-10-17T14:10:00Z" },
+        { status: "PROCESSING", label: "Shop xác nhận đơn", at: "2026-10-17T15:00:00Z" },
+        { status: "SHIPPING", label: "Đã bàn giao cho Viettel Post", at: "2026-10-18T02:00:00Z" },
+      ],
+      items: [
+        {
+          id: 503,
+          productId: 3,
+          productName: "Quần Jean Slimfit Co Giãn 4 Chiều",
+          variantId: 5,
+          variantSku: "QJ-XANH-32",
+          variantName: "Xanh Đậm / Size 32",
+          imageUrl: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 490000,
+          priceAtPurchase: 440000,
+          quantity: 1,
+          totalPrice: 440000,
+          itemSubtotal: 440000,
+        },
+      ],
+    },
+    {
+      id: 204,
+      orderCode: "ORD-261004-C4E2",
+      buyerId: 1004,
+      storeId: 1,
+      storeName: "UTC Fashion",
+      recipientName: "Phạm Thu Trang",
+      recipientPhone: "0933 445 566",
+      recipientAddress: "Ninh Kiều, Cần Thơ",
+      shippingAddressText: "88 Nguyễn Trãi, Ninh Kiều, Cần Thơ",
+      recipientCity: "Cần Thơ",
+      subtotalAmount: 410000,
+      totalItemAmount: 410000,
+      discountAmount: 45000,
+      voucherDiscountAmount: 0,
+      shippingFee: 24000,
+      totalAmount: 389000,
+      finalAmount: 389000,
+      commissionRate: 5,
+      platformFee: 19450,
+      sellerAmount: 350100,
+      paymentMethod: "ZALOPAY",
+      paymentStatus: "PAID",
+      status: "COMPLETED",
+      createdAt: "2026-10-16T10:00:00Z",
+      shippedAt: "2026-10-16T16:00:00Z",
+      completedAt: "2026-10-18T03:00:00Z",
+      trackingNumber: "SPX-CT-5544321",
+      carrierName: "SPX Express",
+      timeline: [
+        { status: "PENDING", label: "Đặt hàng", at: "2026-10-16T10:00:00Z" },
+        { status: "PROCESSING", label: "Shop xác nhận", at: "2026-10-16T11:00:00Z" },
+        { status: "SHIPPING", label: "Đang giao hàng", at: "2026-10-16T16:00:00Z" },
+        { status: "COMPLETED", label: "Giao hàng thành công", at: "2026-10-18T03:00:00Z" },
+      ],
+      items: [
+        {
+          id: 504,
+          productId: 4,
+          productName: "Áo Polo Thể Thao Quick-Dry",
+          variantId: 7,
+          variantSku: "PL-XAM-M",
+          variantName: "Xám / Size M",
+          imageUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 260000,
+          priceAtPurchase: 239000,
+          quantity: 1,
+          totalPrice: 239000,
+          itemSubtotal: 239000,
+        },
+        {
+          id: 505,
+          productId: 5,
+          productName: "Vớ Cổ Cao Dệt Kim Thể Thao",
+          variantId: 9,
+          variantSku: "VO-TRANG-FREESIZE",
+          variantName: "Trắng / Freesize",
+          imageUrl: "https://images.unsplash.com/photo-1582966772680-860e372bb558?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1582966772680-860e372bb558?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 50000,
+          priceAtPurchase: 50000,
+          quantity: 3,
+          totalPrice: 150000,
+          itemSubtotal: 150000,
+        },
+      ],
+    },
+    {
+      id: 205,
+      orderCode: "FS-261004-X9Z1",
+      buyerId: 1005,
+      storeId: 1,
+      storeName: "UTC Fashion",
+      slotId: 2,
+      recipientName: "Vũ Đình Trọng",
+      recipientPhone: "0944 556 677",
+      recipientAddress: "Lê Chân, Hải Phòng",
+      shippingAddressText: "56 Cầu Đất, Lê Chân, Hải Phòng",
+      recipientCity: "Hải Phòng",
+      subtotalAmount: 750000,
+      totalItemAmount: 750000,
+      discountAmount: 150000,
+      voucherDiscountAmount: 0,
+      shippingFee: 20000,
+      totalAmount: 620000,
+      finalAmount: 620000,
+      commissionRate: 5,
+      platformFee: 0,
+      sellerAmount: 0,
+      paymentMethod: "ZALOPAY",
+      paymentStatus: "REFUNDED",
+      status: "CANCELLED",
+      createdAt: "2026-10-15T08:00:00Z",
+      trackingNumber: "SPX-HP-998811",
+      carrierName: "SPX Express",
+      timeline: [
+        { status: "PENDING", label: "Đặt hàng", at: "2026-10-15T08:00:00Z" },
+        { status: "CANCELLED", label: "Đơn hàng đã hủy bởi Shop (Hết hàng)", at: "2026-10-15T09:12:00Z" },
+      ],
+      items: [
+        {
+          id: 506,
+          productId: 6,
+          productName: "Giày Sneaker Retro Classic",
+          variantId: 11,
+          variantSku: "SNK-RETRO-42",
+          variantName: "Trắng Đỏ / Size 42",
+          imageUrl: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 750000,
+          priceAtPurchase: 600000,
+          quantity: 1,
+          totalPrice: 600000,
+          itemSubtotal: 600000,
+          flashSaleItemId: 98,
+        },
+      ],
+    },
+    {
+      id: 206,
+      orderCode: "ORD-261005-W1Q8",
+      buyerId: 1006,
+      storeId: 1,
+      storeName: "UTC Fashion",
+      recipientName: "Đỗ Minh Quân",
+      recipientPhone: "0966 889 900",
+      recipientAddress: "Bình Thạnh, TP. Hồ Chí Minh",
+      shippingAddressText: "210 Điện Biên Phủ, Phường 25, Bình Thạnh, TP. Hồ Chí Minh",
+      recipientCity: "TP. Hồ Chí Minh",
+      subtotalAmount: 180000,
+      totalItemAmount: 180000,
+      discountAmount: 35000,
+      voucherDiscountAmount: 0,
+      shippingFee: 20000,
+      totalAmount: 165000,
+      finalAmount: 165000,
+      commissionRate: 5,
+      platformFee: 8250,
+      sellerAmount: 148500,
+      paymentMethod: "ZALOPAY",
+      paymentStatus: "PENDING",
+      status: "PENDING_PAYMENT",
+      createdAt: "2026-10-18T05:25:00Z",
+      expiresAt: "2026-10-18T05:30:00Z",
+      timeline: [
+        { status: "PENDING_PAYMENT", label: "Đang chờ thanh toán ZaloPay (còn 5 phút)", at: "2026-10-18T05:25:00Z" },
+      ],
+      items: [
+        {
+          id: 507,
+          productId: 7,
+          productName: "Mũ Lưỡi Trai Unisex Canvas",
+          variantId: 14,
+          variantSku: "MU-CANVAS-DEN",
+          variantName: "Đen / Freesize",
+          imageUrl: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=500&auto=format&fit=crop&q=60",
+          productImage: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=500&auto=format&fit=crop&q=60",
+          unitPrice: 180000,
+          priceAtPurchase: 145000,
+          quantity: 1,
+          totalPrice: 145000,
+          itemSubtotal: 145000,
+        },
+      ],
+    },
+  ];
+
+  let filtered = allOrders;
+  if (statusFilter && statusFilter !== "ALL") {
+    filtered = allOrders.filter((o) => o.status === statusFilter);
+  }
+
+  const start = page * size;
+  const content = filtered.slice(start, start + size);
+  const pageNumber = page;
+  const pageSize = size;
+  const totalElements = filtered.length;
+  const totalPages = Math.ceil(totalElements / pageSize) || 1;
+  return {
+    content,
+    pageNumber,
+    pageSize,
+    totalElements,
+    totalPages,
+    isFirst: pageNumber === 0,
+    isLast: start + pageSize >= totalElements,
+    hasNext: start + pageSize < totalElements,
+    hasPrevious: pageNumber > 0,
+  };
 }
 
 /**
@@ -352,3 +772,182 @@ export async function getRegisteredFlashSaleHistory(): Promise<
     ];
   }
 }
+
+/**
+ * Lấy thông tin ví & tài khoản ngân hàng của người bán (GET /api/v1/seller/wallet)
+ */
+export async function getSellerWallet(): Promise<SellerWalletResponse> {
+  try {
+    return await apiFetch<SellerWalletResponse>("/seller/wallet");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerWallet();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy danh sách lịch sử giao dịch ví (GET /api/v1/seller/wallet/transactions)
+ */
+export async function getSellerWalletTransactions(
+  page: number = 0,
+  size: number = 10,
+  type?: string
+): Promise<PageResponse<SellerWalletTransaction>> {
+  try {
+    const query: Record<string, string | number> = { page, size };
+    if (type && type !== "ALL") {
+      query.type = type;
+    }
+    return await apiFetch<PageResponse<SellerWalletTransaction>>(
+      "/seller/wallet/transactions",
+      { query }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerWalletTransactions(page, size, type);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Tạo yêu cầu rút tiền về tài khoản ngân hàng (POST /api/v1/seller/wallet/withdraw)
+ */
+export async function requestSellerWithdrawal(
+  payload: SellerWithdrawalRequest
+): Promise<SellerWalletTransaction> {
+  try {
+    return await apiFetch<SellerWalletTransaction>("/seller/wallet/withdraw", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: Math.floor(Math.random() * 10000),
+        transactionCode: `TX-${Date.now().toString().slice(-8)}`,
+        type: "WITHDRAWAL",
+        amount: -payload.amount,
+        balanceAfter: 48250000 - payload.amount,
+        description: `Yêu cầu rút tiền về tài khoản ngân hàng ${payload.bankAccountNumber || "liên kết"}`,
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockSellerWallet(): SellerWalletResponse {
+  return {
+    balance: 48250000,
+    pendingBalance: 5420000,
+    totalWithdrawn: 126800000,
+    bankAccount: {
+      bankName: "Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)",
+      accountNumber: "1029 8839 1204",
+      accountHolder: "NGUYEN VAN AN - UTC FASHION",
+      branch: "Chi nhánh Thủ Đức, TP. Hồ Chí Minh",
+      isVerified: true,
+    },
+  };
+}
+
+function getMockSellerWalletTransactions(
+  page: number = 0,
+  size: number = 10,
+  typeFilter?: string
+): PageResponse<SellerWalletTransaction> {
+  const allTxs: SellerWalletTransaction[] = [
+    {
+      id: 1,
+      transactionCode: "TX-261018-091",
+      orderCode: "FS-261005-M9B2",
+      type: "ORDER_SETTLEMENT",
+      amount: 300200,
+      balanceAfter: 48250000,
+      description: "Quyết toán đơn hàng Flash Sale #FS-261005-M9B2",
+      status: "SUCCESS",
+      createdAt: "2026-10-18T05:30:00Z",
+    },
+    {
+      id: 2,
+      transactionCode: "TX-261018-044",
+      orderCode: "FS-261005-K3A1",
+      type: "ORDER_SETTLEMENT",
+      amount: 268200,
+      balanceAfter: 47949800,
+      description: "Quyết toán đơn hàng Flash Sale #FS-261005-K3A1",
+      status: "SUCCESS",
+      createdAt: "2026-10-18T04:45:00Z",
+    },
+    {
+      id: 3,
+      transactionCode: "TX-261017-102",
+      type: "WITHDRAWAL",
+      amount: -15000000,
+      balanceAfter: 47681600,
+      description: "Rút tiền về Vietcombank 1029****1204",
+      status: "SUCCESS",
+      createdAt: "2026-10-17T11:20:00Z",
+    },
+    {
+      id: 4,
+      transactionCode: "TX-261017-088",
+      orderCode: "ORD-261005-B7D8",
+      type: "ORDER_SETTLEMENT",
+      amount: 405000,
+      balanceAfter: 62681600,
+      description: "Quyết toán đơn hàng tiêu chuẩn #ORD-261005-B7D8",
+      status: "SUCCESS",
+      createdAt: "2026-10-17T09:15:00Z",
+    },
+    {
+      id: 5,
+      transactionCode: "TX-261016-150",
+      orderCode: "ORD-261004-C4E2",
+      type: "ORDER_SETTLEMENT",
+      amount: 350100,
+      balanceAfter: 62276600,
+      description: "Quyết toán đơn hàng tiêu chuẩn #ORD-261004-C4E2",
+      status: "SUCCESS",
+      createdAt: "2026-10-16T17:00:00Z",
+    },
+    {
+      id: 6,
+      transactionCode: "TX-261015-021",
+      orderCode: "FS-261004-X9Z1",
+      type: "REFUND",
+      amount: 0,
+      balanceAfter: 61926500,
+      description: "Hoàn phí sàn cho đơn hủy #FS-261004-X9Z1",
+      status: "SUCCESS",
+      createdAt: "2026-10-15T09:15:00Z",
+    },
+  ];
+
+  let filtered = allTxs;
+  if (typeFilter && typeFilter !== "ALL") {
+    filtered = allTxs.filter((t) => t.type === typeFilter);
+  }
+
+  const start = page * size;
+  const content = filtered.slice(start, start + size);
+  const totalElements = filtered.length;
+  const totalPages = Math.ceil(totalElements / size) || 1;
+
+  return {
+    content,
+    pageNumber: page,
+    pageSize: size,
+    totalElements,
+    totalPages,
+    isFirst: page === 0,
+    isLast: start + size >= totalElements,
+    hasNext: start + size < totalElements,
+    hasPrevious: page > 0,
+  };
+}
+
