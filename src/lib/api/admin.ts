@@ -58,7 +58,6 @@ import {
   getMockAdminStores,
   getMockAdminUsers,
   getMockAdminProducts,
-  type MockStoreItem,
   type MockUserItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
@@ -805,15 +804,63 @@ export async function deleteAdminCategory(id: number): Promise<void> {
 // 31. Quản lý Gian hàng (Stitch Screen 32)
 // ============================================================================
 
-export type AdminStore = MockStoreItem;
+export type AdminStore = import("@/types/admin").AdminStore;
 
-export async function getAdminStores(status?: string): Promise<AdminStore[]> {
+export interface GetAdminStoresParams {
+  status?: string;
+  search?: string;
+  page?: number;
+  size?: number;
+}
+
+export async function getAdminStores(
+  params?: string | GetAdminStoresParams
+): Promise<import("@/types/api").PageResponse<AdminStore>> {
+  const queryParams: Record<string, string | number> = {};
+
+  if (typeof params === "string") {
+    if (params && params !== "ALL") {
+      queryParams.status = params;
+    }
+  } else if (params) {
+    if (params.status && params.status !== "ALL") {
+      queryParams.status = params.status;
+    }
+    if (params.search?.trim()) {
+      queryParams.search = params.search.trim();
+    }
+    if (params.page !== undefined) {
+      queryParams.page = params.page;
+    }
+    if (params.size !== undefined) {
+      queryParams.size = params.size;
+    }
+  }
+
   try {
-    const query = status && status !== "ALL" ? `?status=${status}` : "";
-    return await apiFetch<AdminStore[]>(`/admin/stores${query}`);
+    const res = await apiFetch<import("@/types/api").PageResponse<AdminStore>>("/admin/stores", {
+      query: queryParams,
+    });
+    return {
+      ...res,
+      content: res.content ?? res.items ?? [],
+    };
   } catch (err) {
     if (isMockMode()) {
-      return getMockAdminStores(status);
+      const statusFilter = typeof params === "string" ? params : params?.status;
+      const mockItems = getMockAdminStores(statusFilter);
+      return {
+        content: mockItems,
+        items: mockItems,
+        pageNumber: 0,
+        pageSize: mockItems.length,
+        totalElements: mockItems.length,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
     }
     throw err;
   }
