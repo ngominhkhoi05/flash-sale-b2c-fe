@@ -1145,11 +1145,28 @@ export async function getRegisteredFlashSaleHistory(): Promise<
   try {
     const raw = await apiFetch<unknown>("/seller/flash-sales/items");
     const rawObj = raw as { content?: unknown[] } | unknown[];
-    const items = (Array.isArray(rawObj) ? rawObj : (rawObj?.content || [])) as Array<Record<string, unknown>>;
+    const items = (Array.isArray(rawObj) ? rawObj : (rawObj?.content || [])) as Array<{
+      id: number;
+      productId?: number;
+      variantId?: number;
+      productName?: string;
+      skuCode?: string;
+      sku?: string;
+      imageUrl?: string;
+      slotId?: number;
+      slotTitle?: string;
+      slotStartTime?: string;
+      slotEndTime?: string;
+      flashSalePrice?: number;
+      allocatedStock?: number;
+      availableStock?: number;
+      status?: string;
+      rejectReason?: string;
+    }>;
     if (Array.isArray(items) && items.length > 0) {
       return items.map((item) => ({
-        id: Number(item.id),
-        productName: String(item.productName || `Sản phẩm #${item.productId || item.variantId}`),
+        id: item.id,
+        productName: item.productName || `Sản phẩm #${item.productId || item.variantId}`,
         sku: item.skuCode || item.sku || `SKU-${item.variantId}`,
         imageUrl:
           item.imageUrl ||
@@ -1483,10 +1500,29 @@ export async function getSellerVouchers(
       Array.isArray(rawObj)
         ? rawObj
         : rawObj?.content || rawObj?.items || rawObj?.data || []
-    ) as Array<Record<string, unknown>>;
+    ) as Array<{
+      id: number;
+      code: string;
+      name?: string;
+      discountType?: string;
+      discountValue?: number;
+      maxDiscountAmount?: number;
+      minOrderAmount?: number;
+      totalQuantity?: number;
+      totalUsageLimit?: number;
+      usedQuantity?: number;
+      currentUsageCount?: number;
+      userUsageLimit?: number;
+      startTime?: string;
+      startDate?: string;
+      endTime?: string;
+      endDate?: string;
+      status?: string;
+      createdAt?: string;
+    }>;
 
     const mapped: SellerVoucherItem[] = arr.map((v) => ({
-      id: Number(v.id),
+      id: v.id,
       code: v.code,
       name: v.name || v.code,
       discountType:
