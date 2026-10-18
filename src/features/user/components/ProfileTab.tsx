@@ -22,9 +22,14 @@ export function ProfileTab() {
 
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.fullName) setFullName(currentUser.fullName);
-      if ((currentUser as any).phone) setPhone((currentUser as any).phone);
-      if (currentUser.avatarUrl) setAvatarPreview(currentUser.avatarUrl);
+      const userRecord = currentUser as unknown as Record<string, unknown>;
+      const userPhone = typeof userRecord.phone === "string" ? userRecord.phone : "";
+      const timer = setTimeout(() => {
+        if (currentUser.fullName) setFullName(currentUser.fullName);
+        if (userPhone) setPhone(userPhone);
+        if (currentUser.avatarUrl) setAvatarPreview(currentUser.avatarUrl);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [currentUser]);
 
@@ -59,8 +64,9 @@ export function ProfileTab() {
         onSuccess: () => {
           toast.success("Cập nhật hồ sơ thành công vào cơ sở dữ liệu!");
         },
-        onError: (err: any) => {
-          toast.error(err?.message || "Cập nhật hồ sơ thất bại");
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Cập nhật hồ sơ thất bại";
+          toast.error(msg);
         },
       }
     );
@@ -150,7 +156,7 @@ export function ProfileTab() {
                     type="radio"
                     name="gender"
                     checked={gender === g.val}
-                    onChange={() => setGender(g.val as any)}
+                    onChange={() => setGender(g.val as "male" | "female" | "other")}
                     className="w-4 h-4 text-primary focus:ring-primary border-outline"
                   />
                   <span>{g.label}</span>

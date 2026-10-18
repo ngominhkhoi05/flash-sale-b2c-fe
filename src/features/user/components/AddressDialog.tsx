@@ -61,33 +61,36 @@ export function AddressDialog({
   };
 
   useEffect(() => {
-    setErrors({});
-    if (initialData) {
-      setContactName(initialData.contactName || "");
-      setPhone(initialData.phone?.replace(/^\+84/, "0") || "");
-      const prov = initialData.province || "Hồ Chí Minh";
-      setProvince(prov);
-      const dist = initialData.district || getDistrictsByProvince(prov)[0] || "";
-      setDistrict(dist);
-      const w = initialData.ward || getWardsByDistrict(prov, dist)[0] || "";
-      setWard(w);
-      setDetailAddress(initialData.detailAddress || "");
-      setIsDefault(Boolean(initialData.isDefault));
-      if (initialData.latitude && initialData.longitude) {
-        setCoordinates({ lat: initialData.latitude, lng: initialData.longitude });
+    const timer = setTimeout(() => {
+      setErrors({});
+      if (initialData) {
+        setContactName(initialData.contactName || "");
+        setPhone(initialData.phone?.replace(/^\+84/, "0") || "");
+        const prov = initialData.province || "Hồ Chí Minh";
+        setProvince(prov);
+        const dist = initialData.district || getDistrictsByProvince(prov)[0] || "";
+        setDistrict(dist);
+        const w = initialData.ward || getWardsByDistrict(prov, dist)[0] || "";
+        setWard(w);
+        setDetailAddress(initialData.detailAddress || "");
+        setIsDefault(Boolean(initialData.isDefault));
+        if (initialData.latitude && initialData.longitude) {
+          setCoordinates({ lat: initialData.latitude, lng: initialData.longitude });
+        }
+      } else {
+        setContactName("");
+        setPhone("");
+        setProvince("Hồ Chí Minh");
+        const dist = getDistrictsByProvince("Hồ Chí Minh")[0] || "";
+        setDistrict(dist);
+        const w = getWardsByDistrict("Hồ Chí Minh", dist)[0] || "";
+        setWard(w);
+        setDetailAddress("");
+        setIsDefault(false);
+        setCoordinates({ lat: 10.8446, lng: 106.7976 });
       }
-    } else {
-      setContactName("");
-      setPhone("");
-      setProvince("Hồ Chí Minh");
-      const dist = getDistrictsByProvince("Hồ Chí Minh")[0] || "";
-      setDistrict(dist);
-      const w = getWardsByDistrict("Hồ Chí Minh", dist)[0] || "";
-      setWard(w);
-      setDetailAddress("");
-      setIsDefault(false);
-      setCoordinates({ lat: 10.8446, lng: 106.7976 });
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [initialData, open]);
 
   if (!open) return null;
