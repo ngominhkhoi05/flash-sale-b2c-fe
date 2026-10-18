@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { formatVND } from "@/lib/utils";
 import {
@@ -444,6 +445,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   ]);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [isAddingImage, setIsAddingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   // SPU / SKU Variations
   const [hasVariations, setHasVariations] = useState(true);
@@ -567,6 +570,14 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       ];
     }
 
+    const normalizeSkuPart = (str: string) =>
+      str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/gi, "d")
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .toUpperCase();
+
     const t1List = tier1Options.length > 0 ? tier1Options : ["Mặc định"];
     const t2List = tier2Options.length > 0 ? tier2Options : ["Mặc định"];
     const rows: SkuRowState[] = [];
@@ -577,13 +588,13 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         const ov = skuOverrides[rowKey];
         const price = ov?.originalPrice ?? (Number(batchPrice) || 149000);
         const stock = ov?.stockQuantity ?? (Number(batchStock) || 50);
+        const p1 = normalizeSkuPart(t1).slice(0, 3) || "SKU";
+        const p2 = normalizeSkuPart(t2).slice(0, 3) || "DEF";
         rows.push({
           key: rowKey,
           tier1Val: t1,
           tier2Val: t2 === "Mặc định" ? "-" : t2,
-          sku:
-            ov?.sku ||
-            `AT-${t1.toUpperCase().slice(0, 3)}-${t2.toUpperCase().slice(0, 2)}`,
+          sku: ov?.sku || `AT-${p1}-${p2}`,
           originalPrice: price,
           stockQuantity: stock,
           isActive: ov?.isActive ?? true,
@@ -635,13 +646,96 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     setTier2Options(tier2Options.filter((o) => o !== opt));
   };
 
-  // Add image
+  // Image Upload Handlers (Local computer file picker & Drag/Drop)
+  const processFiles = (files: File[]) => {
+    const validImages = files.filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`Tệp "${file.name}" không phải là ảnh hợp lệ.`);
+        return false;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error(`Ảnh "${file.name}" vượt quá giới hạn 8MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validImages.length === 0) return;
+
+    const remainingSlots = 9 - images.length;
+    if (remainingSlots <= 0) {
+      toast.error("Đã đạt giới hạn tối đa 9 ảnh cho sản phẩm.");
+      return;
+    }
+
+    const toLoad = validImages.slice(0, remainingSlots);
+    let loadedCount = 0;
+
+    toLoad.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          setImages((prev) => {
+            if (prev.length >= 9) return prev;
+            return [...prev, dataUrl];
+          });
+          loadedCount++;
+          if (loadedCount === toLoad.length) {
+            toast.success(`Đã thêm thành công ${loadedCount} ảnh từ máy tính!`);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    processFiles(Array.from(fileList));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleSetCoverImage = (index: number) => {
+    if (index === 0) return;
+    setImages((prev) => {
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      return [selected, ...copy];
+    });
+    toast.success("Đã đặt làm ảnh bìa sản phẩm!");
+  };
+
+  // Add image by URL
   const handleAddImage = () => {
     const trimmed = newImageUrl.trim();
     if (trimmed && images.length < 9) {
       setImages([...images, trimmed]);
       setNewImageUrl("");
       setIsAddingImage(false);
+      toast.success("Đã thêm ảnh từ liên kết!");
     }
   };
 
@@ -723,27 +817,35 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     setSuccessMessage(null);
 
     if (!name.trim()) {
-      setErrorMessage("Vui lòng nhập tên sản phẩm.");
+      const msg = "Vui lòng nhập tên sản phẩm.";
+      setErrorMessage(msg);
+      toast.error(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     if (!categoryId) {
-      setErrorMessage("Vui lòng chọn ngành hàng sản phẩm.");
+      const msg = "Vui lòng chọn ngành hàng sản phẩm.";
+      setErrorMessage(msg);
+      toast.error(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     if (skuMatrix.length === 0) {
-      setErrorMessage("Sản phẩm phải có ít nhất 1 biến thể SKU.");
+      const msg = "Sản phẩm phải có ít nhất 1 biến thể SKU.";
+      setErrorMessage(msg);
+      toast.error(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     const invalidRow = skuMatrix.find((r) => r.originalPrice <= 0);
     if (invalidRow) {
-      setErrorMessage(
-        `Biến thể [${invalidRow.tier1Val} - ${invalidRow.tier2Val}] có giá bán không hợp lệ (phải > 0).`
-      );
+      const msg = `Biến thể [${invalidRow.tier1Val} - ${invalidRow.tier2Val}] có giá bán không hợp lệ (phải > 0).`;
+      setErrorMessage(msg);
+      toast.error(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -783,10 +885,11 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           variants,
         };
         await createSellerProduct(payload);
+        toast.success("Đăng bán sản phẩm thành công!");
         setSuccessMessage("Đăng bán sản phẩm thành công!");
         setTimeout(() => {
           router.push("/seller/products");
-        }, 1200);
+        }, 1000);
       } else if (mode === "edit" && productId) {
         const payload: UpdateProductPayload = {
           categoryId,
@@ -798,16 +901,20 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           variants,
         };
         await updateSellerProduct(productId, payload);
+        toast.success("Cập nhật sản phẩm thành công!");
         setSuccessMessage("Cập nhật sản phẩm thành công!");
         setTimeout(() => {
           router.push("/seller/products");
-        }, 1200);
+        }, 1000);
       }
     } catch (err: unknown) {
       const errObj = err as { message?: string };
-      setErrorMessage(
-        errObj?.message || "Có lỗi xảy ra khi lưu sản phẩm. Vui lòng kiểm tra lại."
-      );
+      const msg =
+        errObj?.message ||
+        "Có lỗi xảy ra khi lưu sản phẩm. Vui lòng kiểm tra lại.";
+      setErrorMessage(msg);
+      toast.error(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setIsSubmitting(false);
     }
@@ -914,107 +1021,205 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             </div>
 
             {/* Image Gallery */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="font-headline-md text-body-md text-on-surface font-semibold">
-                  Hình ảnh sản phẩm
-                </label>
-                <span className="font-body-sm text-body-sm text-secondary">
-                  Tối đa 9 ảnh, tỷ lệ vuông 1:1, dung lượng &lt; 3MB/ảnh
-                </span>
-              </div>
-              <div className="flex items-center gap-3 overflow-x-auto py-2">
-                {images.map((imgUrl, idx) => (
-                  <div
-                    key={idx}
-                    className={`relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-sm group ${
-                      idx === 0 ? "ring-2 ring-emerald-500" : ""
-                    }`}
+            <div className="flex flex-col gap-2.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className="font-headline-md text-body-md text-on-surface font-semibold flex items-center gap-1.5">
+                    <span>Hình ảnh sản phẩm</span>
+                    <span className="text-tertiary">*</span>
+                    <span className="text-xs font-normal text-secondary">
+                      ({images.length}/9 ảnh)
+                    </span>
+                  </label>
+                  <p className="font-body-sm text-label-sm text-secondary">
+                    Ảnh đầu tiên là ảnh bìa hiển thị trên trang chủ &amp; kết quả tìm kiếm.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-xs font-semibold shadow-xs transition-colors"
                   >
-                    <Image
-                      src={imgUrl}
-                      alt={`Ảnh sản phẩm ${idx + 1}`}
-                      fill
-                      sizes="80px"
-                      className="object-cover"
-                      unoptimized
-                    />
-                    {idx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white font-label-sm text-[10px] text-center py-0.5 font-bold">
-                        Ảnh bìa
-                      </div>
-                    )}
+                    <MaterialSymbol name="upload" size="[16px]" />
+                    <span>Chọn ảnh từ máy tính</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingImage(!isAddingImage)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container-low text-secondary hover:text-on-surface font-label-md text-xs font-medium transition-colors"
+                  >
+                    <MaterialSymbol name="link" size="[16px]" />
+                    <span>Dán URL</span>
+                  </button>
+                  {images.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setImages([])}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-error/80 hover:text-error hover:bg-error-container/20 font-label-md text-xs font-medium transition-colors"
                     >
-                      <MaterialSymbol name="close" size="[14px]" />
+                      <MaterialSymbol name="delete" size="[14px]" />
+                      <span>Xóa hết</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* URL Input dropdown */}
+              {isAddingImage && (
+                <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-50/20 flex flex-col sm:flex-row items-center gap-2 shadow-xs animate-in fade-in duration-200">
+                  <input
+                    type="text"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    placeholder="Dán đường dẫn ảnh trực tuyến (https://...)..."
+                    className="h-9 w-full sm:flex-1 px-3 text-body-sm bg-surface-container-lowest border border-outline-variant/40 rounded-lg focus:outline-none focus:border-emerald-500"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddImage();
+                      }
+                    }}
+                  />
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingImage(false)}
+                      className="px-3 py-1.5 text-xs rounded-lg text-secondary hover:bg-surface-container-low"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddImage}
+                      className="px-3.5 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+                    >
+                      Thêm link
                     </button>
                   </div>
-                ))}
+                </div>
+              )}
 
-                {/* Add Image Slot */}
-                {images.length < 9 && (
-                  <div className="relative">
-                    {isAddingImage ? (
-                      <div className="w-64 p-2 rounded-lg border border-emerald-500 bg-surface-container-lowest shadow-md flex flex-col gap-2">
-                        <input
-                          type="text"
-                          value={newImageUrl}
-                          onChange={(e) => setNewImageUrl(e.target.value)}
-                          placeholder="Dán URL ảnh vào đây..."
-                          className="h-8 px-2 text-body-sm border border-outline-variant/40 rounded focus:outline-none focus:border-emerald-500"
+              {/* Drag and Drop Container */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`rounded-xl transition-all p-3 border-2 ${
+                  isDraggingOver
+                    ? "border-emerald-500 bg-emerald-50/40 scale-[1.005]"
+                    : "border-outline-variant/30 bg-surface-container-lowest"
+                }`}
+              >
+                {images.length === 0 ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="py-10 flex flex-col items-center justify-center gap-3 cursor-pointer group text-center hover:bg-surface-container-low/40 rounded-lg transition-colors border border-dashed border-outline-variant/60 hover:border-emerald-500"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                      <MaterialSymbol name="upload" size="[28px]" />
+                    </div>
+                    <div className="flex flex-col gap-1 px-4">
+                      <p className="font-headline-md text-body-md font-semibold text-on-surface">
+                        Bấm để chọn ảnh từ máy tính (Laptop) hoặc kéo thả vào đây
+                      </p>
+                      <p className="font-body-sm text-label-sm text-secondary">
+                        Hỗ trợ PNG, JPG, JPEG, WEBP. Chọn nhiều ảnh cùng lúc, tối đa 9 ảnh.
+                      </p>
+                    </div>
+                    <span className="mt-1 px-4 py-2 rounded-lg bg-emerald-600 group-hover:bg-emerald-700 text-white font-label-md text-xs font-semibold shadow-sm transition-colors">
+                      Tải ảnh từ máy tính
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 overflow-x-auto py-1">
+                    {images.map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low shadow-sm group border ${
+                          idx === 0
+                            ? "ring-2 ring-emerald-500 border-emerald-500"
+                            : "border-outline-variant/40"
+                        }`}
+                      >
+                        <Image
+                          src={imgUrl}
+                          alt={`Ảnh sản phẩm ${idx + 1}`}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                          unoptimized
                         />
-                        <div className="flex items-center justify-end gap-1.5">
+                        {idx === 0 ? (
+                          <div className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white font-label-sm text-[10px] text-center py-0.5 font-bold shadow-xs">
+                            Ảnh bìa
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => setIsAddingImage(false)}
-                            className="px-2 py-1 text-[11px] rounded text-secondary hover:bg-surface-container-low"
+                            onClick={() => handleSetCoverImage(idx)}
+                            className="absolute bottom-0 inset-x-0 bg-black/70 hover:bg-emerald-600 text-white font-label-sm text-[9px] text-center py-0.5 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            Hủy
+                            Đặt làm ảnh bìa
                           </button>
-                          <button
-                            type="button"
-                            onClick={handleAddImage}
-                            className="px-2 py-1 text-[11px] rounded bg-emerald-600 text-white font-semibold"
-                          >
-                            Thêm ảnh
-                          </button>
-                        </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          title="Xóa ảnh"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 hover:bg-error text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xs"
+                        >
+                          <MaterialSymbol name="close" size="[14px]" />
+                        </button>
                       </div>
-                    ) : (
+                    ))}
+
+                    {/* Add Image Slot */}
+                    {images.length < 9 && (
                       <button
                         type="button"
-                        onClick={() => setIsAddingImage(true)}
-                        className="w-20 h-20 rounded-lg flex-shrink-0 bg-surface-container-low/70 border border-dashed border-outline-variant hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer flex flex-col items-center justify-center text-center p-1 transition-all group"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-24 h-24 rounded-lg flex-shrink-0 bg-surface-container-low/70 border-2 border-dashed border-outline-variant hover:border-emerald-500 hover:bg-emerald-50/30 cursor-pointer flex flex-col items-center justify-center text-center p-2 transition-all group"
                       >
                         <MaterialSymbol
-                          name="add_photo_alternate"
-                          size="[22px]"
-                          className="text-outline group-hover:text-emerald-600"
+                          name="upload"
+                          size="[24px]"
+                          className="text-outline group-hover:text-emerald-600 transition-colors"
                         />
-                        <span className="font-label-sm text-[10px] text-secondary group-hover:text-emerald-700 leading-tight mt-0.5">
-                          + Thêm
+                        <span className="font-label-sm text-[11px] font-semibold text-secondary group-hover:text-emerald-700 leading-tight mt-1">
+                          + Tải thêm
+                        </span>
+                        <span className="text-[9px] text-secondary/70">
+                          {images.length}/9
                         </span>
                       </button>
                     )}
-                  </div>
-                )}
 
-                {/* Empty placeholders up to 6 */}
-                {Array.from({ length: Math.max(0, 6 - images.length - 1) }).map(
-                  (_, i) => (
-                    <div
-                      key={`placeholder-${i}`}
-                      className="w-20 h-20 rounded-lg flex-shrink-0 bg-surface-container-low/40 border border-dashed border-outline-variant/60 flex flex-col items-center justify-center text-outline/50"
-                    >
-                      <MaterialSymbol name="photo_camera" size="[20px]" />
-                      <span className="font-label-sm text-[10px]">
-                        {images.length + i + 1}/9
-                      </span>
-                    </div>
-                  )
+                    {/* Empty placeholders */}
+                    {Array.from({ length: Math.max(0, 5 - images.length) }).map(
+                      (_, i) => (
+                        <div
+                          key={`placeholder-${i}`}
+                          className="w-24 h-24 rounded-lg flex-shrink-0 bg-surface-container-low/30 border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-outline/40"
+                        >
+                          <MaterialSymbol name="photo_camera" size="[20px]" />
+                          <span className="font-label-sm text-[10px] mt-0.5">
+                            {images.length + i + 2}/9
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
                 )}
               </div>
             </div>
