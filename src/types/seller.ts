@@ -270,4 +270,127 @@ export interface CreateSellerVoucherPayload {
   endDate: string;
 }
 
+export interface SellerReviewItem {
+  id: number;
+  productId: number;
+  productName: string;
+  productImage?: string;
+  variantSku?: string;
+  variantName?: string;
+  orderCode?: string;
+  buyerName: string;
+  buyerAvatar?: string;
+  rating: number;
+  comment: string;
+  mediaUrls?: string[];
+  sellerReply?: {
+    id: number;
+    replyText: string;
+    repliedAt: string;
+  } | null;
+  createdAt: string;
+}
+
+export interface SellerReviewSummaryResponse {
+  averageRating: number;
+  totalReviews: number;
+  responseRate: number;
+  unrepliedCount: number;
+  ratingBreakdown: {
+    5: number;
+    4: number;
+    3: number;
+    2: number;
+    1: number;
+  };
+}
+
+export interface ReplySellerReviewPayload {
+  reviewId: number;
+  replyText: string;
+}
+
+export interface SellerStoreProfileResponse {
+  id: number;
+  userId: number;
+  storeName: string;
+  slug?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  description?: string;
+  defaultCommissionRate?: number;
+  status: string;
+  createdAt: string;
+  ratingAvg?: number;
+  totalFollowers?: number;
+  totalProducts?: number;
+}
+
+export interface SellerWarehouseAddressItem {
+  id: number;
+  contactName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  detailAddress: string;
+  latitude?: number;
+  longitude?: number;
+  isDefault: boolean;
+  warehouseCode?: string;
+  workingHours?: string;
+  createdAt?: string;
+}
+
+export interface UpdateStoreProfilePayload {
+  storeName: string;
+  description?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+}
+
+export interface CreateStoreAddressPayload {
+  contactName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  detailAddress: string;
+  latitude?: number;
+  longitude?: number;
+  isDefault?: boolean;
+}export type SellerStaffRole = 'OWNER' | 'WAREHOUSE_MANAGER' | 'ACCOUNTANT' | 'FLASH_SALE_OPERATOR';
+export type SellerStaffStatus = 'ACTIVE' | 'PENDING_INVITE' | 'LOCKED';
+
+export interface SellerStaffMember {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: SellerStaffRole;
+  roleLabel: string;
+  status: SellerStaffStatus;
+  addedAt: string;
+  permissions: string[];
+}
+
+export interface SellerRoleSummary {
+  id: string;
+  role: SellerStaffRole;
+  roleName: string;
+  description: string;
+  memberCount: number;
+  icon: string;
+  color: string;
+  permissions: string[];
+}
+
+export interface InviteStaffPayload {
+  email: string;
+  role: SellerStaffRole;
+}
+
+export interface UpdateStaffRolePayload {
+  role: SellerStaffRole;
+}
 

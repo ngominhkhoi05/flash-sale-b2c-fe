@@ -13,7 +13,7 @@
 |:---:|---|---|
 | **P0** | **Cốt lõi cho Demo Đề tài Flash Sale**<br>• Luồng đăng ký SKU của Seller & Phê duyệt của Admin<br>• Hệ thống giám sát Realtime & Chống bán vượt kho | 1. [`seller-flash-sale-registration.md`](seller-flash-sale-registration.md)<br>2. [`admin-flash-sale-approvals.md`](admin-flash-sale-approvals.md)<br>3. [`admin-flash-sale-monitor.md`](admin-flash-sale-monitor.md) |
 | **P1** | **Seller Center Cơ bản (Hoàn thiện Đợt 5)**<br>• Quản lý sản phẩm shop & tìm kiếm SKU<br>• Quản lý đơn hàng shop, lọc trạng thái, chi tiết đơn | 4. [`seller-orders.md`](seller-orders.md)<br>5. [`seller-products.md`](seller-products.md)<br>6. [`seller-dashboard.md`](seller-dashboard.md) |
-| **P2** | **Quản trị Mở rộng (Admin Console Đợt 7, 8, 9)**<br>• Quản trị voucher sàn nâng cao<br>• Quản lý người dùng & gian hàng<br>• Phân hệ đối soát tài chính<br>• Phân quyền RBAC & Feature Flags | 7. [`admin-vouchers.md`](admin-vouchers.md)<br>8. [`admin-stores.md`](admin-stores.md)<br>9. [`admin-users.md`](admin-users.md)<br>10. [`admin-reconciliation.md`](admin-reconciliation.md)<br>11. [`admin-permissions.md`](admin-permissions.md) |
+| **P2** | **Quản trị Mở rộng (Admin Console Đợt 7, 8, 9 & Seller RBAC)**<br>• Quản trị voucher sàn nâng cao<br>• Quản lý người dùng & gian hàng<br>• Phân hệ đối soát tài chính<br>• Phân quyền RBAC & Feature Flags<br>• Phân quyền nhân viên gian hàng | 7. [`admin-vouchers.md`](admin-vouchers.md)<br>8. [`admin-stores.md`](admin-stores.md)<br>9. [`admin-users.md`](admin-users.md)<br>10. [`admin-reconciliation.md`](admin-reconciliation.md)<br>11. [`admin-permissions.md`](admin-permissions.md)<br>12. [`seller-staff.md`](seller-staff.md) |
 
 ---
 

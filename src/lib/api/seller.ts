@@ -17,6 +17,17 @@ import type {
   SellerWithdrawalRequest,
   SellerVoucherItem,
   CreateSellerVoucherPayload,
+  SellerReviewItem,
+  SellerReviewSummaryResponse,
+  ReplySellerReviewPayload,
+  SellerStoreProfileResponse,
+  SellerWarehouseAddressItem,
+  UpdateStoreProfilePayload,
+  CreateStoreAddressPayload,
+  SellerStaffMember,
+  SellerRoleSummary,
+  InviteStaffPayload,
+  UpdateStaffRolePayload,
 } from "@/types/seller";
 
 /**
@@ -1169,4 +1180,632 @@ function getMockSellerVouchers(
   };
 }
 
+/**
+ * Lấy thống kê tổng quan đánh giá của shop (GET /api/v1/seller/reviews/summary)
+ */
+export async function getSellerReviewSummary(): Promise<SellerReviewSummaryResponse> {
+  try {
+    return await apiFetch<SellerReviewSummaryResponse>("/seller/reviews/summary");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerReviewSummary();
+    }
+    throw err;
+  }
+}
 
+/**
+ * Lấy danh sách đánh giá của khách hàng (GET /api/v1/seller/reviews)
+ */
+export async function getSellerReviews(
+  page: number = 0,
+  size: number = 10,
+  rating?: number,
+  replyStatus?: "ALL" | "UNREPLIED" | "REPLIED"
+): Promise<PageResponse<SellerReviewItem>> {
+  try {
+    const query: Record<string, string | number> = { page, size };
+    if (rating && rating > 0) {
+      query.rating = rating;
+    }
+    if (replyStatus && replyStatus !== "ALL") {
+      query.replyStatus = replyStatus;
+    }
+    return await apiFetch<PageResponse<SellerReviewItem>>("/seller/reviews", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerReviews(page, size, rating, replyStatus);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Người bán phản hồi đánh giá khách hàng (POST /api/v1/seller/reviews/{id}/reply)
+ */
+export async function replySellerReview(
+  payload: ReplySellerReviewPayload
+): Promise<SellerReviewItem> {
+  try {
+    return await apiFetch<SellerReviewItem>(
+      `/seller/reviews/${payload.reviewId}/reply`,
+      {
+        method: "POST",
+        json: { replyText: payload.replyText },
+      }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: payload.reviewId,
+        productId: 1,
+        productName: "Áo thun Basic Cotton Organic",
+        buyerName: "Lê Minh Trang",
+        rating: 3,
+        comment: "Áo đẹp nhưng size M hơi rộng so với mình nghĩ...",
+        sellerReply: {
+          id: Math.floor(Math.random() * 1000),
+          replyText: payload.replyText,
+          repliedAt: new Date().toISOString(),
+        },
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockSellerReviewSummary(): SellerReviewSummaryResponse {
+  return {
+    averageRating: 4.8,
+    totalReviews: 1326,
+    responseRate: 99.7,
+    unrepliedCount: 3,
+    ratingBreakdown: {
+      5: 1150,
+      4: 120,
+      3: 35,
+      2: 13,
+      1: 8,
+    },
+  };
+}
+
+function getMockSellerReviews(
+  page: number = 0,
+  size: number = 10,
+  ratingFilter?: number,
+  replyStatusFilter?: "ALL" | "UNREPLIED" | "REPLIED"
+): PageResponse<SellerReviewItem> {
+  const allReviews: SellerReviewItem[] = [
+    {
+      id: 1,
+      productId: 1,
+      productName: "Áo Hoodie Unisex Oversize Nỉ Bông",
+      productImage:
+        "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=60",
+      variantSku: "HD-DEN-L",
+      variantName: "Đen / Size L",
+      orderCode: "FS-261001-A7K2Q",
+      buyerName: "Nguyễn Văn Tuấn",
+      rating: 5,
+      comment:
+        "Chất vải nỉ dày dặn ấm áp, form oversize chuẩn đẹp. Mua trong Flash Sale giá hời bất ngờ!",
+      sellerReply: {
+        id: 11,
+        replyText:
+          "Cảm ơn bạn Tuấn đã tin tưởng ủng hộ UTC Fashion ạ! Chúc bạn luôn có trải nghiệm tuyệt vời cùng shop nhé ❤️",
+        repliedAt: "2026-10-02T14:15:00Z",
+      },
+      createdAt: "2026-10-02T10:00:00Z",
+    },
+    {
+      id: 2,
+      productId: 2,
+      productName: "Áo thun Basic Cotton Organic",
+      productImage:
+        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+      variantSku: "AT-TRANG-M",
+      variantName: "Trắng ngà / Size M",
+      orderCode: "ORD-261004-R2X9",
+      buyerName: "Lê Minh Trang",
+      rating: 3,
+      comment:
+        "Áo đẹp nhưng size M hơi rộng so với mình nghĩ, shop có hỗ trợ đổi sang size S không ạ?",
+      sellerReply: null,
+      createdAt: "2026-10-18T02:30:00Z",
+    },
+    {
+      id: 3,
+      productId: 3,
+      productName: "Quần Jean Slimfit Co Giãn 4 Chiều",
+      productImage:
+        "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+      variantSku: "QJ-XANH-XL",
+      variantName: "Xanh Navy / Size XL",
+      orderCode: "FS-260928-V9L1P",
+      buyerName: "Trần Hoàng Long",
+      rating: 5,
+      comment:
+        "Giao hàng siêu nhanh, đóng gói hộp carton cứng cáp rất chỉn chu. Đường may tỉ mỉ, đáng tiền 10/10.",
+      sellerReply: {
+        id: 12,
+        replyText:
+          "Dạ shop cảm ơn anh Long rất nhiều ạ! Mong anh tiếp tục ủng hộ các bộ sưu tập mới của UTC Fashion ạ!",
+        repliedAt: "2026-09-30T09:00:00Z",
+      },
+      createdAt: "2026-09-29T19:40:00Z",
+    },
+    {
+      id: 4,
+      productId: 4,
+      productName: "Áo Polo Thể Thao Quick-Dry",
+      productImage:
+        "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
+      variantSku: "PL-XAM-M",
+      variantName: "Xám / Size M",
+      orderCode: "ORD-261003-P4Y7",
+      buyerName: "Đặng Mỹ Linh",
+      rating: 4,
+      comment:
+        "Màu sắc bên ngoài nhạt hơn hình một chút nhưng chất vải mềm mát, thấm hút mồ hôi tốt khi tập thể thao.",
+      sellerReply: null,
+      createdAt: "2026-10-17T11:00:00Z",
+    },
+    {
+      id: 5,
+      productId: 5,
+      productName: "Vớ Cổ Cao Dệt Kim Thể Thao",
+      productImage:
+        "https://images.unsplash.com/photo-1582966772680-860e372bb558?w=500&auto=format&fit=crop&q=60",
+      variantSku: "VO-TRANG-FREESIZE",
+      variantName: "Trắng / Freesize",
+      orderCode: "ORD-261002-L1K0",
+      buyerName: "Phạm Hải Đăng",
+      rating: 2,
+      comment:
+        "Vớ bị xước sợi chỉ ngay đường may mũi chân, hơi thất vọng vì mua combo 3 đôi.",
+      sellerReply: null,
+      createdAt: "2026-10-18T04:10:00Z",
+    },
+  ];
+
+  let filtered = allReviews;
+  if (ratingFilter && ratingFilter > 0) {
+    filtered = filtered.filter((r) => r.rating === ratingFilter);
+  }
+  if (replyStatusFilter === "UNREPLIED") {
+    filtered = filtered.filter((r) => !r.sellerReply);
+  } else if (replyStatusFilter === "REPLIED") {
+    filtered = filtered.filter((r) => !!r.sellerReply);
+  }
+
+  const start = page * size;
+  const content = filtered.slice(start, start + size);
+  const totalElements = filtered.length;
+  const totalPages = Math.ceil(totalElements / size) || 1;
+
+  return {
+    content,
+    pageNumber: page,
+    pageSize: size,
+    totalElements,
+    totalPages,
+    isFirst: page === 0,
+    isLast: start + size >= totalElements,
+    hasNext: start + size < totalElements,
+    hasPrevious: page > 0,
+  };
+}
+
+/**
+ * Lấy thông tin hồ sơ gian hàng của tôi (GET /api/v1/stores/me)
+ */
+export async function getMyStoreProfile(): Promise<SellerStoreProfileResponse> {
+  try {
+    return await apiFetch<SellerStoreProfileResponse>("/stores/me");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockStoreProfile();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cập nhật hồ sơ gian hàng của tôi (PUT /api/v1/stores/me)
+ */
+export async function updateMyStoreProfile(
+  payload: UpdateStoreProfilePayload
+): Promise<SellerStoreProfileResponse> {
+  try {
+    return await apiFetch<SellerStoreProfileResponse>("/stores/me", {
+      method: "PUT",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const current = getMockStoreProfile();
+      return {
+        ...current,
+        storeName: payload.storeName,
+        description: payload.description,
+        logoUrl: payload.logoUrl || current.logoUrl,
+        bannerUrl: payload.bannerUrl || current.bannerUrl,
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy danh sách địa chỉ kho lấy hàng của shop (GET /api/v1/stores/me/addresses)
+ */
+export async function getStoreAddresses(): Promise<SellerWarehouseAddressItem[]> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem[]>("/stores/me/addresses");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockStoreAddresses();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Thêm địa chỉ kho lấy hàng mới (POST /api/v1/stores/me/addresses)
+ */
+export async function createStoreAddress(
+  payload: CreateStoreAddressPayload
+): Promise<SellerWarehouseAddressItem> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem>("/stores/me/addresses", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: Math.floor(Math.random() * 10000),
+        contactName: payload.contactName,
+        phone: payload.phone,
+        province: payload.province,
+        district: payload.district,
+        ward: payload.ward,
+        detailAddress: payload.detailAddress,
+        latitude: payload.latitude || 10.8457,
+        longitude: payload.longitude || 106.7943,
+        isDefault: !!payload.isDefault,
+        warehouseCode: `KHO-${Date.now().toString().slice(-4)}`,
+        workingHours: "08:00 - 18:00",
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Xóa địa chỉ kho lấy hàng (DELETE /api/v1/stores/me/addresses/{addressId})
+ */
+export async function deleteStoreAddress(addressId: number): Promise<void> {
+  try {
+    await apiFetch<void>(`/stores/me/addresses/${addressId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Đặt địa chỉ kho làm kho mặc định (PATCH /api/v1/stores/me/addresses/{addressId}/default)
+ */
+export async function setDefaultStoreAddress(
+  addressId: number
+): Promise<SellerWarehouseAddressItem> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem>(
+      `/stores/me/addresses/${addressId}/default`,
+      { method: "PATCH" }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: addressId,
+        contactName: "Nguyễn Văn Tuấn",
+        phone: "0912345458",
+        province: "TP. Hồ Chí Minh",
+        district: "TP. Thủ Đức",
+        ward: "Phường Thạnh Mỹ Lợi",
+        detailAddress: "Cụm Công nghiệp Cát Lái 2",
+        isDefault: true,
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockStoreProfile(): SellerStoreProfileResponse {
+  return {
+    id: 1,
+    userId: 2,
+    storeName: "UTC Fashion",
+    slug: "utc-fashion",
+    logoUrl:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60",
+    bannerUrl:
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop&q=80",
+    description:
+      "UTC Fashion – Thương hiệu thời trang đường phố đương đại dành cho giới trẻ. Cam kết chất lượng vải nỉ bông hữu cơ 100%, bảo hành đường chỉ trọn đời và hỗ trợ đổi trả miễn phí trong 7 ngày.",
+    defaultCommissionRate: 5.0,
+    status: "APPROVED",
+    createdAt: "15/03/2025",
+    ratingAvg: 4.8,
+    totalFollowers: 12400,
+    totalProducts: 128,
+  };
+}
+
+function getMockStoreAddresses(): SellerWarehouseAddressItem[] {
+  return [
+    {
+      id: 1,
+      contactName: "Nguyễn Văn Tuấn",
+      phone: "0912 345 458",
+      province: "TP. Hồ Chí Minh",
+      district: "TP. Thủ Đức",
+      ward: "Phường Thạnh Mỹ Lợi",
+      detailAddress:
+        "Kho A3 - Hub Cát Lái, Cụm Công nghiệp Cát Lái 2, Phường Thạnh Mỹ Lợi, TP. Thủ Đức, TP. Hồ Chí Minh",
+      latitude: 10.8457,
+      longitude: 106.7943,
+      isDefault: true,
+      warehouseCode: "KHO-SGN-01",
+      workingHours: "08:00 - 18:30 (Thứ 2 - Thứ 7)",
+      createdAt: "2025-03-20T08:00:00Z",
+    },
+    {
+      id: 2,
+      contactName: "Trần Văn Bình",
+      phone: "0988 765 234",
+      province: "TP. Hà Nội",
+      district: "Quận Hoàng Mai",
+      ward: "Phường Định Công",
+      detailAddress:
+        "Số 45 Ngõ 120 Định Công, Phường Định Công, Quận Hoàng Mai, TP. Hà Nội",
+      latitude: 20.9835,
+      longitude: 105.8412,
+      isDefault: false,
+      warehouseCode: "KHO-HAN-02",
+      workingHours: "08:30 - 17:30",
+      createdAt: "2025-06-10T10:00:00Z",
+    },
+  ];
+}
+
+function getMockStaffMembers(): SellerStaffMember[] {
+  return [
+    {
+      id: 1,
+      name: "Nguyễn Văn An",
+      email: "an.nguyen@utcfashion.vn",
+      role: "OWNER",
+      roleLabel: "Chủ shop (Toàn quyền)",
+      status: "ACTIVE",
+      addedAt: "15/03/2025",
+      permissions: ["*"],
+    },
+    {
+      id: 2,
+      name: "Trần Thị Mai Phương",
+      email: "phuong.tran@utcfashion.vn",
+      role: "WAREHOUSE_MANAGER",
+      roleLabel: "Quản lý kho",
+      status: "ACTIVE",
+      addedAt: "20/05/2025",
+      permissions: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+    },
+    {
+      id: 3,
+      name: "Lê Hoàng Long",
+      email: "long.le@utcfashion.vn",
+      role: "ACCOUNTANT",
+      roleLabel: "Kế toán đối soát",
+      status: "ACTIVE",
+      addedAt: "12/08/2025",
+      permissions: ["wallet:view", "payout:request", "report:export"],
+    },
+    {
+      id: 4,
+      name: "Đỗ Thị Bích Ngọc",
+      email: "ngoc.do@utcfashion.vn",
+      role: "FLASH_SALE_OPERATOR",
+      roleLabel: "Vận hành Flash Sale",
+      status: "ACTIVE",
+      addedAt: "01/09/2026",
+      permissions: ["flashsale:register", "price:adjust", "campaign:manage"],
+    },
+    {
+      id: 5,
+      name: "Vũ Quốc Hưng",
+      email: "hung.vu@gmail.com",
+      role: "WAREHOUSE_MANAGER",
+      roleLabel: "Quản lý kho",
+      status: "PENDING_INVITE",
+      addedAt: "04/10/2026",
+      permissions: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+    },
+  ];
+}
+
+function getMockRoleSummaries(): SellerRoleSummary[] {
+  return [
+    {
+      id: "role-1",
+      role: "WAREHOUSE_MANAGER",
+      roleName: "Quản lý kho",
+      description: "Chuyên trách nhập xuất, đồng bộ kho & đóng hàng",
+      memberCount: 2,
+      icon: "inventory_2",
+      color: "sky",
+      permissions: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+    },
+    {
+      id: "role-2",
+      role: "ACCOUNTANT",
+      roleName: "Kế toán đối soát",
+      description: "Theo dõi dòng tiền, phiên đối soát và rút tiền ví",
+      memberCount: 1,
+      icon: "account_balance_wallet",
+      color: "emerald",
+      permissions: ["wallet:view", "payout:request", "report:export"],
+    },
+    {
+      id: "role-3",
+      role: "FLASH_SALE_OPERATOR",
+      roleName: "Vận hành Flash Sale",
+      description: "Quản trị các chiến dịch giá sốc và deal độc quyền",
+      memberCount: 1,
+      icon: "bolt",
+      color: "rose",
+      permissions: ["flashsale:register", "price:adjust", "campaign:manage"],
+    },
+  ];
+}
+
+/**
+ * 27. Lấy danh sách nhân viên của shop (GET /api/v1/seller/staff)
+ */
+export async function getSellerStaff(): Promise<SellerStaffMember[]> {
+  try {
+    return await apiFetch<SellerStaffMember[]>("/seller/staff");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockStaffMembers();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 28. Lấy tổng hợp các nhóm quyền vai trò của shop (GET /api/v1/seller/roles)
+ */
+export async function getSellerRoleSummaries(): Promise<SellerRoleSummary[]> {
+  try {
+    return await apiFetch<SellerRoleSummary[]>("/seller/roles");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockRoleSummaries();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 29. Mời nhân viên mới vào shop (POST /api/v1/seller/staff/invite)
+ */
+export async function inviteSellerStaff(
+  payload: InviteStaffPayload
+): Promise<SellerStaffMember> {
+  try {
+    return await apiFetch<SellerStaffMember>("/seller/staff/invite", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const roleMap: Record<string, { label: string; perms: string[] }> = {
+        WAREHOUSE_MANAGER: {
+          label: "Quản lý kho",
+          perms: ["product:update", "inventory:sync", "order:pack", "order:shipping"],
+        },
+        ACCOUNTANT: {
+          label: "Kế toán đối soát",
+          perms: ["wallet:view", "payout:request", "report:export"],
+        },
+        FLASH_SALE_OPERATOR: {
+          label: "Vận hành Flash Sale",
+          perms: ["flashsale:register", "price:adjust", "campaign:manage"],
+        },
+        OWNER: {
+          label: "Chủ shop",
+          perms: ["*"],
+        },
+      };
+      const info = roleMap[payload.role] || roleMap.WAREHOUSE_MANAGER;
+      return {
+        id: Math.floor(Math.random() * 1000) + 10,
+        name: payload.email.split("@")[0],
+        email: payload.email,
+        role: payload.role,
+        roleLabel: info.label,
+        status: "PENDING_INVITE",
+        addedAt: new Date().toLocaleDateString("vi-VN"),
+        permissions: info.perms,
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * 30. Đổi nhóm quyền của nhân viên (PUT /api/v1/seller/staff/{id}/role)
+ */
+export async function updateSellerStaffRole(
+  id: number,
+  payload: UpdateStaffRolePayload
+): Promise<void> {
+  try {
+    await apiFetch<void>(`/seller/staff/${id}/role`, {
+      method: "PUT",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 31. Khóa / mở khóa quyền của nhân viên (PATCH /api/v1/seller/staff/{id}/status)
+ */
+export async function toggleLockSellerStaff(
+  id: number,
+  status: "ACTIVE" | "LOCKED"
+): Promise<void> {
+  try {
+    await apiFetch<void>(`/seller/staff/${id}/status`, {
+      method: "PATCH",
+      query: { status },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 32. Xóa hoặc hủy lời mời nhân viên khỏi shop (DELETE /api/v1/seller/staff/{id})
+ */
+export async function deleteSellerStaff(id: number): Promise<void> {
+  try {
+    await apiFetch<void>(`/seller/staff/${id}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
