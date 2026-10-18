@@ -183,3 +183,102 @@ describe("searchProducts (apiFetch path)", () => {
     expect(result.page).toBe(3);
   });
 });
+
+/**
+ * Tests cho `searchProductsMock` — verify filter/sort/page trên local mock.
+ *
+ * Plan: docs/superpowers/plans/2026-10-18-fix-search-mock-filter-shape.md
+ *
+ * Quy tắc: service filter (freeship, voucher) map sang field `label`
+ * trong `RecommendedProductResponse` (BE contract). Price filter dùng
+ * `minPrice` (giá bán hiện tại) vì BE chưa trả field `price` riêng.
+ */
+describe("searchProductsMock (NEXT_PUBLIC_USE_MOCK=true)", () => {
+  let originalMockEnv: string | undefined;
+
+  beforeEach(() => {
+    originalMockEnv = process.env.NEXT_PUBLIC_USE_MOCK;
+    process.env.NEXT_PUBLIC_USE_MOCK = "true";
+    mockApiFetch.mockReset();
+  });
+
+  afterEach(() => {
+    if (originalMockEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_USE_MOCK;
+    } else {
+      process.env.NEXT_PUBLIC_USE_MOCK = originalMockEnv;
+    }
+  });
+
+  it("filters by freeship service via label === 'freeship'", async () => {
+    const { searchProducts } = await import("./api");
+    const result = await searchProducts({
+      q: "",
+      filters: { services: ["freeship"] },
+      sort: "relevance",
+      page: 1,
+    });
+    // Mỗi item phải có label === "freeship" (hoặc nếu BE đổi shape thì tất cả
+    // đều match — test này vẫn pass vì filter ở client)
+    for (const item of result.items) {
+      expect(item.label).toBe("freeship");
+    }
+    // Phải có ít nhất 1 item (mock có nhiều freeship)
+    expect(result.items.length).toBeGreaterThan(0);
+  });
+
+  it("filters by voucher service via label === 'voucher'", async () => {
+    const { searchProducts } = await import("./api");
+    const result = await searchProducts({
+      q: "",
+      filters: { services: ["voucher"] },
+      sort: "relevance",
+      page: 1,
+    });
+    for (const item of result.items) {
+      expect(item.label).toBe("voucher");
+    }
+    expect(result.items.length).toBeGreaterThan(0);
+  });
+
+  it("filters by priceMin using minPrice field", async () => {
+    const { searchProducts } = await import("./api");
+    const result = await searchProducts({
+      q: "",
+      filters: { priceMin: 1_000_000 },
+      sort: "relevance",
+      page: 1,
+    });
+    for (const item of result.items) {
+      expect(item.minPrice).toBeGreaterThanOrEqual(1_000_000);
+    }
+  });
+
+  it("filters by priceMax using minPrice field", async () => {
+    const { searchProducts } = await import("./api");
+    const result = await searchProducts({
+      q: "",
+      filters: { priceMax: 1_000_000 },
+      sort: "relevance",
+      page: 1,
+    });
+    for (const item of result.items) {
+      expect(item.minPrice).toBeLessThanOrEqual(1_000_000);
+    }
+  });
+
+  it("sorts by price_asc using minPrice (ascending)", async () => {
+    const { searchProducts } = await import("./api");
+    const result = await searchProducts({
+      q: "",
+      filters: {},
+      sort: "price_asc",
+      page: 1,
+    });
+    for (let i = 1; i < result.items.length; i++) {
+      expect(result.items[i]!.minPrice).toBeGreaterThanOrEqual(
+        result.items[i - 1]!.minPrice,
+      );
+    }
+  });
+});
