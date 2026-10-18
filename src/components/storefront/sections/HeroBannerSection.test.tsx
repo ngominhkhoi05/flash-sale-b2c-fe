@@ -3,6 +3,7 @@ import { act, render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
 import { HeroBannerSection } from "./HeroBannerSection";
+import { PLACEHOLDER_PRODUCT } from "@/lib/images/placeholders";
 import viMessages from "../../../../messages/vi.json";
 import type { HomeBannersResponse } from "@/features/homepage/api";
 
@@ -289,5 +290,99 @@ describe("HeroBannerSection – image 404 fallback", () => {
     // Sau khi onError fire: img bị remove, placeholder xuất hiện
     expect(queryByTestId("hero-img-0")).toBeNull();
     expect(queryByTestId("hero-placeholder-0")).toBeTruthy();
+  });
+});
+
+// ── imageUrl normalization tại component layer ────────────────────────────
+//
+// Background (plan 2026-10-18-hero-banner-prod-ip-hostname-and-normalize):
+// HeroBannerSection render <Image src={slide.imageUrl}> ném bug khi:
+//   - imageUrl = null (BE /api/v1/products trả null khi chưa upload)
+//   - imageUrl = "" (entity JPA serialize field rỗng)
+//   - imageUrl absolute URL trỏ về hostname chưa whitelist (vd
+//     http://180.93.137.28/banners/hero-1.jpg)
+//
+// Fix: dùng imageUrlWithFallback() helper (đã có ở src/lib/images/with-fallback.ts)
+// Helper chuẩn hoá 4 case: null/empty → fallback, absolute → as-is,
+// relative → ghép NEXT_PUBLIC_API_URL.
+describe("HeroBannerSection – imageUrl normalization", () => {
+  function setupMockBanners(imageUrl: string) {
+    mockBanners.value = {
+      mainSlides: [
+        {
+          id: 1,
+          type: "HERO",
+          position: 1,
+          imageUrl,
+          imageAlt: "Test slide",
+          ctaHref: "/flash-sale",
+          ctaText: "Mua ngay",
+          isActive: true,
+          startDate: null,
+          endDate: null,
+          createdAt: "2026-01-01",
+        },
+      ],
+      sideBanners: [],
+    };
+  }
+
+  it("khi imageUrl null, render <Image> với src fallback placeholder (không throw)", () => {
+    setupMockBanners(null as unknown as string);
+
+    const { container } = renderWithProviders(<HeroBannerSection />);
+    const img = container.querySelector(
+      '[data-testid="hero-img-0"]',
+    ) as HTMLImageElement | null;
+
+    expect(img).toBeTruthy();
+    // src phải là URL fallback, KHÔNG phải "null" hay rỗng
+    expect(img?.getAttribute("src")).not.toBeNull();
+    expect(img?.getAttribute("src")).not.toBe("");
+    // src phải chứa placeholder path (helper trả PLACEHOLDER_PRODUCT khi null)
+    expect(img?.getAttribute("src") ?? "").toContain(PLACEHOLDER_PRODUCT);
+  });
+
+  it("khi imageUrl empty string '', render <Image> với src fallback placeholder", () => {
+    setupMockBanners("");
+
+    const { container } = renderWithProviders(<HeroBannerSection />);
+    const img = container.querySelector(
+      '[data-testid="hero-img-0"]',
+    ) as HTMLImageElement | null;
+
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute("src")).not.toBe("");
+    expect(img?.getAttribute("src") ?? "").toContain(PLACEHOLDER_PRODUCT);
+  });
+
+  it("khi imageUrl là absolute URL trỏ về IP 180.93.137.28 (production), render src giữ nguyên", () => {
+    const prodUrl = "http://180.93.137.28/banners/hero-1.jpg";
+    setupMockBanners(prodUrl);
+
+    const { container } = renderWithProviders(<HeroBannerSection />);
+    const img = container.querySelector(
+      '[data-testid="hero-img-0"]',
+    ) as HTMLImageElement | null;
+
+    expect(img).toBeTruthy();
+    // src phải chứa hostname IP — quan trọng là KHÔNG throw runtime error
+    expect(img?.getAttribute("src") ?? "").toContain("180.93.137.28");
+    expect(img?.getAttribute("src") ?? "").toContain("/banners/hero-1.jpg");
+  });
+
+  it("khi imageUrl relative '/banners/hero-1.jpg', ghép NEXT_PUBLIC_API_URL vào src", () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://180.93.137.28";
+    setupMockBanners("/banners/hero-1.jpg");
+
+    const { container } = renderWithProviders(<HeroBannerSection />);
+    const img = container.querySelector(
+      '[data-testid="hero-img-0"]',
+    ) as HTMLImageElement | null;
+
+    expect(img).toBeTruthy();
+    expect(img?.getAttribute("src")).toBe(
+      "http://180.93.137.28/banners/hero-1.jpg",
+    );
   });
 });

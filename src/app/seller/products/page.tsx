@@ -103,7 +103,10 @@ export default function SellerProductsPage() {
       try {
         const detail = await getSellerProductDetail(productId);
         setDetailsCache((prev) => ({ ...prev, [productId]: detail }));
-      } catch (err) {
+      } catch (
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- catch chỉ để suppress, không dùng error
+        _err
+      ) {
         toast.error("Không thể lấy danh sách biến thể SKU.");
       } finally {
         setLoadingDetails((prev) => ({ ...prev, [productId]: false }));

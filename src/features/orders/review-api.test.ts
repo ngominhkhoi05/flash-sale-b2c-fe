@@ -29,7 +29,7 @@ describe('submitReview', () => {
         method: 'POST',
         json: expect.objectContaining({ rating: 5, comment: 'Tốt' }),
         headers: expect.objectContaining({
-          'Idempotency-Key': expect.any(String),
+          'X-Idempotency-Key': expect.any(String),
         }),
       })
     );
@@ -44,8 +44,8 @@ describe('submitReview', () => {
     const calls = vi.mocked(apiFetch).mock.calls;
     const opts1 = calls[0][1] as { headers: Record<string, string> };
     const opts2 = calls[1][1] as { headers: Record<string, string> };
-    const key1 = opts1.headers['Idempotency-Key'];
-    const key2 = opts2.headers['Idempotency-Key'];
+    const key1 = opts1.headers['X-Idempotency-Key'];
+    const key2 = opts2.headers['X-Idempotency-Key'];
     expect(key1).toBeTruthy();
     expect(key2).toBeTruthy();
     expect(key1).not.toEqual(key2);
