@@ -31,7 +31,8 @@ export function getGoogleConsentUrlMock(): GoogleConsentUrlResponse {
  * Dùng để test popup flow end-to-end mà không cần Google thật.
  */
 export function loginWithGoogleMock(
-  _payload: GoogleOAuth2LoginRequest
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mock signature khớp với GoogleOAuth2LoginRequest
+  _: GoogleOAuth2LoginRequest
 ): AuthResponse {
   return {
     accessToken: "MOCK_GOOGLE_ACCESS_TOKEN",

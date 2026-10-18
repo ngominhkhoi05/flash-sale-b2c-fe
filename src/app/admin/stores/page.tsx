@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   getAdminStores,
   updateAdminStoreStatus,
@@ -223,6 +224,35 @@ export default function AdminStoresPage() {
                   const pCount = store.productsCount ?? store.totalProducts ?? 0;
                   const oCount = store.ordersCount ?? store.totalOrders ?? 0;
                   const rating = store.ratingAvg ?? 0;
+                filteredStores.map((store) => (
+                  <tr key={store.id} className="hover:bg-surface transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <Image
+                          src={store.avatarUrl}
+                          alt={store.name}
+                          width={40}
+                          height={40}
+                          className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-on-surface truncate">
+                            {store.name}
+                          </span>
+                          <span className="text-xs text-secondary truncate">
+                            {store.legalName || "Cá nhân kinh doanh"}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3 px-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-on-surface">{store.ownerName}</span>
+                        <span className="text-xs text-secondary">{store.phone}</span>
+                        <span className="text-xs text-outline">{store.ownerEmail}</span>
+                      </div>
+                    </td>
 
                   return (
                     <tr

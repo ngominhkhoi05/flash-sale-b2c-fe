@@ -1,49 +1,21 @@
-/**
- * Trang Kho voucher cá nhân (Storefront) — `/vouchers`.
- * Stub page: render AuthGuard + EmptyState + skeleton.
- * UI đầy đủ sẽ làm sau khi backend cung cấp GET /api/v1/vouchers/mine.
- */
-import Link from "next/link";
-import { Ticket } from "lucide-react";
-import { useTranslations } from "next-intl";
+"use client";
+
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { EmptyState } from "@/components/common/EmptyState";
-import { ROUTES } from "@/lib/constants";
+import { VoucherWalletClient } from "@/features/vouchers/components/VoucherWalletClient";
 
-function VoucherContent() {
-  const t = useTranslations("storefront.voucher");
-
-  return (
-    <div className="mx-auto max-w-3xl py-8">
-      <h1 className="mb-6 text-2xl font-semibold text-on-surface">{t("title")}</h1>
-      <EmptyState
-        icon={<Ticket className="h-6 w-6" aria-hidden />}
-        title={t("empty")}
-        description={t("emptyDescription")}
-      />
-      <div className="mt-6 text-center">
-        <Link
-          href={ROUTES.HOME}
-          className="text-sm font-semibold text-primary hover:underline"
-        >
-          ← {t("browseVouchers")}
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-export default function KhoVoucherPage() {
+export default function VouchersPage() {
   return (
     <AuthGuard
       fallback={
-        <div className="mx-auto max-w-3xl py-8">
-          <div className="mb-6 h-8 w-48 animate-pulse rounded bg-surface-container" />
-          <div className="h-64 animate-pulse rounded-xl bg-surface-container" />
+        <div className="mx-auto max-w-7xl px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-3 h-72 animate-pulse rounded-2xl bg-surface-container" />
+            <div className="lg:col-span-9 h-96 animate-pulse rounded-2xl bg-surface-container" />
+          </div>
         </div>
       }
     >
-      <VoucherContent />
+      <VoucherWalletClient />
     </AuthGuard>
   );
 }

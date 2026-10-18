@@ -32,6 +32,7 @@ const PRODUCT_LIMIT = 4;
 
 function mapToProductCardProps(
   product: RecommendedProductResponse,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved cho variant label theo index
   index: number,
 ): ProductCardBaseProps {
   const hasDiscount = product.minPrice < product.maxPrice;
@@ -40,7 +41,6 @@ function mapToProductCardProps(
     : undefined;
 
   // Chọn variant phù hợp với Stitch design
-  const variant: ProductCardBaseProps["onClick"] = undefined;
   if (product.label === "Freeship") {
     // Freeship card - variant freeship
   } else if (product.label && product.label !== "Freeship") {

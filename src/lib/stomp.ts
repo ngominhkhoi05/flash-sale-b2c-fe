@@ -30,21 +30,28 @@ function getWsUrl(): string {
   // NEXT_PUBLIC_WS_URL có thể là host thuần (vd "http://localhost:8080")
   // hoặc đã có /ws. Luôn normalize về `<base>/ws` + ?token=<JWT>.
   //
-  // Lưu ý quan trọng (VPS bug 2026-10-18): KHÔNG fallback "http://localhost:8080/ws"
-  // — trên production, SockJS sẽ resolve URL tương đối về same-origin
-  // (window.location.host) và gọi /info lên Next.js, gây 404 liên tục vì
-  // Next.js không handle SockJS endpoint. Throw error sớm để dev/prod biết
-  // phải config env đúng. Xem:
-  // docs/superpowers/handoffs/2026-10-18-vps-ws-404-handoff.md
+  // Lưu ý quan trọng (VPS bug 2026-10-18): khi env rỗng/undefined/whitespace,
+  // KHÔNG throw — fallback về same-origin (`window.location.host`) để SockJS
+  // resolve <window.location.host>/ws. Đây là pattern build production qua
+  // Nginx reverse-proxy cùng host (xem `.env.production.example`). Vẫn
+  // `console.warn` để dev/prod biết env bị thiếu. Trước đó commit 8ed08b5
+  // đã throw sớm nhưng làm app crash trên VPS — revert lại fail-safe behavior.
   const raw = process.env.NEXT_PUBLIC_WS_URL?.trim();
   if (!raw) {
-    throw new Error(
-      "[stomp] NEXT_PUBLIC_WS_URL is empty. Set it to your backend SockJS endpoint. " +
-        "Recommended: 'https://vibe-mart-utc2.canluaz.io.vn/ws' " +
-        "(Nginx reverse-proxies /ws to backend:8080/ws). " +
-        "Or direct: 'https://<backend-host>/ws'. " +
-        "See docs/superpowers/handoffs/2026-10-18-vps-ws-404-handoff.md.",
-    );
+    // Chỉ chạy được trên browser (WebSocket client). SSR fallback
+    // về localhost để tránh crash server bundle (không có window).
+    const fallback =
+      typeof window !== "undefined" && window.location?.host
+        ? `${window.location.protocol}//${window.location.host}/ws`
+        : "http://localhost:8080/ws";
+    if (typeof console !== "undefined") {
+      console.warn(
+        "[stomp] NEXT_PUBLIC_WS_URL is empty. Falling back to",
+        fallback,
+        "— set NEXT_PUBLIC_WS_URL in your env to silence this warning.",
+      );
+    }
+    return fallback.replace(/\/$/, "");
   }
   return raw.replace(/\/$/, "");
 }

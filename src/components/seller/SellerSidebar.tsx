@@ -56,6 +56,8 @@ const SELLER_NAV_GROUPS: SellerNavGroup[] = [
   },
 ];
 
+import { useMyStore } from "@/hooks/useMyStore";
+
 interface SellerSidebarProps {
   storeName?: string;
   storeCode?: string;
@@ -63,15 +65,24 @@ interface SellerSidebarProps {
 }
 
 /**
- * SellerSidebar – Sidebar Kênh Người Bán chuẩn Stitch (Batch 5 & 6).
+ * SellerSidebar – Sidebar Kênh Người Bán chuẩn Stitch.
  * Cố định 240px (w-60), theme Mint/Emerald (#10B981).
+ * Tự động lấy tên gian hàng thật của tài khoản đăng nhập từ useMyStore().
  */
 export function SellerSidebar({
-  storeName = "UTC Fashion",
-  storeCode = "#VM-8842",
-  storeStatus = "Đã duyệt",
+  storeName: propStoreName,
+  storeCode: propStoreCode,
+  storeStatus: propStoreStatus,
 }: SellerSidebarProps) {
   const pathname = usePathname();
+  const { store, storeName: realStoreName, storeCode: realStoreCode, storeStatusText, initials } = useMyStore();
+
+  const finalStoreName = propStoreName || realStoreName || "Gian hàng";
+  const finalStoreCode = propStoreCode || realStoreCode || (store?.id ? `#VM-${store.id}` : "#VM-CHUA-CO");
+  const finalStoreStatus = propStoreStatus || storeStatusText;
+  const avatarInitials = initials || "VM";
+  const logoUrl = store?.logoUrl;
+  const isApproved = store?.status === "APPROVED" || store?.status === "ACTIVE";
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-surface-container-lowest z-50 flex flex-col border-r border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.02)] select-none">
@@ -92,24 +103,45 @@ export function SellerSidebar({
 
       {/* Store Profile Card */}
       <div className="px-space-md py-space-sm flex-shrink-0">
-        <div className="p-space-sm rounded-lg bg-surface-container-low border border-outline-variant/30 flex items-center gap-space-sm">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-label-md text-label-md font-bold flex-shrink-0">
-            {storeName.slice(0, 3).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-1">
-              <p className="font-headline-md text-body-sm text-on-surface truncate font-semibold">
-                {storeName}
-              </p>
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0">
-                {storeStatus}
-              </span>
+        <Link
+          href="/seller/profile"
+          className="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-normal border border-outline-variant/30 flex items-center gap-space-sm transition-colors group cursor-pointer block"
+          title="Xem hồ sơ gian hàng"
+        >
+          <div className="flex items-center gap-space-sm w-full">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-label-md text-label-md font-bold flex-shrink-0 overflow-hidden">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt={finalStoreName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{avatarInitials}</span>
+              )}
             </div>
-            <p className="font-body-sm text-label-sm text-secondary truncate">
-              Mã: {storeCode}
-            </p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1">
+                <p className="font-headline-md text-body-sm text-on-surface truncate font-semibold group-hover:text-emerald-700 transition-colors">
+                  {finalStoreName}
+                </p>
+                <span
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 border ${
+                    isApproved
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
+                >
+                  {finalStoreStatus}
+                </span>
+              </div>
+              <p className="font-body-sm text-label-sm text-secondary truncate">
+                Mã: {finalStoreCode}
+              </p>
+            </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Navigation Groups */}

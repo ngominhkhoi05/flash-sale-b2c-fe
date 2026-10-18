@@ -59,8 +59,16 @@ import {
   getMockAdminUsers,
   getMockAdminProducts,
   type MockUserItem,
+  type MockStoreItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
+import type { PageResponse } from "@/types/api";
+import type {
+  AdminWithdrawalResponse,
+  ApproveWithdrawalPayload,
+  RejectWithdrawalPayload,
+} from "@/types/admin";
+
 
 
 /** BE Response DTO */
@@ -332,12 +340,52 @@ export async function undoFlashSaleSku(id: number): Promise<void> {
   }
 }
 
+export interface EmergencyPauseResult {
+  slotId: number;
+  status: string;
+  isPaused: boolean;
+  stockRolledBack: boolean;
+  rolledBackItemsCount: number;
+  totalStockReturned: number;
+  message?: string;
+}
+
+interface BeTelemetryResponse {
+  slotId?: number;
+  status?: string;
+  isPaused?: boolean;
+  currentRps?: number;
+  rps?: number;
+  totalRequests?: number;
+  activeLocks?: number;
+  successfulOrders?: number;
+  completedOrders?: number;
+  totalRevenue?: number;
+  failedRequests?: number;
+  expiredReleases?: number;
+  oversoldIncidents?: number;
+  redisLatencyMs?: number;
+  p99LatencyMs?: number;
+  systemHealth?: string;
+  lastUpdated?: string;
+}
+
 /**
  * 12. Lấy dữ liệu Realtime Telemetry cho phiên Flash Sale
  */
 export async function getAdminRealtimeTelemetry(slotId: number): Promise<RealtimeTelemetry> {
   try {
-    return await apiFetch<RealtimeTelemetry>(`/admin/flash-sales/slots/${slotId}/telemetry`);
+    const res = await apiFetch<BeTelemetryResponse>(`/admin/flash-sales/slots/${slotId}/telemetry`);
+    return {
+      rps: res.currentRps ?? res.rps ?? 0,
+      activeLocks: res.activeLocks ?? 0,
+      completedOrders: res.successfulOrders ?? res.completedOrders ?? 0,
+      totalRevenue: res.totalRevenue ?? 0,
+      expiredReleases: res.expiredReleases ?? 0,
+      p99LatencyMs: res.redisLatencyMs ?? res.p99LatencyMs ?? 0,
+      isPaused: res.isPaused ?? false,
+      lastUpdated: res.lastUpdated ?? new Date().toLocaleTimeString("vi-VN"),
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockTelemetry();
@@ -375,27 +423,57 @@ export async function getAdminLiveLogs(slotId: number): Promise<LiveLogEvent[]> 
 }
 
 /**
- * 15. Tạm dừng / Tiếp tục phiên khẩn cấp (Emergency Pause)
+ * 15. Tạm dừng khẩn cấp phiên Flash Sale (Emergency Pause)
  */
-export async function toggleAdminEmergencyPause(
+export async function emergencyPauseFlashSaleSlot(
   slotId: number,
-  reason: string
-): Promise<boolean> {
+  reason: string,
+  rollbackStock: boolean = true
+): Promise<EmergencyPauseResult> {
   try {
-    const res = await apiFetch<{ isPaused: boolean }>(
+    const res = await apiFetch<EmergencyPauseResult>(
       `/admin/flash-sales/slots/${slotId}/emergency-pause`,
       {
         method: "POST",
-        json: { reason },
+        json: { reason, rollbackStock },
       }
     );
-    return res.isPaused;
+    return {
+      slotId: res.slotId ?? slotId,
+      status: res.status ?? "PAUSED",
+      isPaused: res.isPaused ?? true,
+      stockRolledBack: res.stockRolledBack ?? rollbackStock,
+      rolledBackItemsCount: res.rolledBackItemsCount ?? 0,
+      totalStockReturned: res.totalStockReturned ?? 0,
+      message: res.message,
+    };
   } catch (err) {
     if (isMockMode()) {
-      return toggleSessionPause(true).isPaused;
+      const mockRes = toggleSessionPause(true);
+      return {
+        slotId,
+        status: "PAUSED",
+        isPaused: mockRes.isPaused,
+        stockRolledBack: rollbackStock,
+        rolledBackItemsCount: 3,
+        totalStockReturned: 45,
+        message: "Đã dừng phiên khẩn cấp (Mock Mode)",
+      };
     }
     throw err;
   }
+}
+
+/**
+ * Wrapper tương thích ngược cho toggleAdminEmergencyPause
+ */
+export async function toggleAdminEmergencyPause(
+  slotId: number,
+  reason: string,
+  rollbackStock: boolean = true
+): Promise<boolean> {
+  const result = await emergencyPauseFlashSaleSlot(slotId, reason, rollbackStock);
+  return result.isPaused;
 }
 
 interface BeVoucherResponse {
@@ -880,18 +958,59 @@ export async function updateAdminStoreStatus(
 // 32. Quản lý Người dùng (Stitch Screen 31)
 // ============================================================================
 
-export type AdminUser = MockUserItem;
+export type AdminUser = import("@/types/admin").AdminUser;
 
-export async function getAdminUsers(params?: {
+export interface GetAdminUsersParams {
   role?: string;
   status?: string;
   search?: string;
-}): Promise<AdminUser[]> {
+  page?: number;
+  size?: number;
+}
+
+export async function getAdminUsers(
+  params?: GetAdminUsersParams
+): Promise<import("@/types/api").PageResponse<AdminUser>> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.role && params.role !== "ALL") {
+    queryParams.role = params.role;
+  }
+  if (params?.status && params.status !== "ALL") {
+    queryParams.status = params.status;
+  }
+  if (params?.search?.trim()) {
+    queryParams.search = params.search.trim();
+  }
+  if (params?.page !== undefined) {
+    queryParams.page = params.page;
+  }
+  if (params?.size !== undefined) {
+    queryParams.size = params.size;
+  }
+
   try {
-    return await apiFetch<AdminUser[]>("/admin/users");
+    const res = await apiFetch<import("@/types/api").PageResponse<AdminUser>>("/admin/users", {
+      query: queryParams,
+    });
+    return {
+      ...res,
+      content: res.content ?? res.items ?? [],
+    };
   } catch (err) {
     if (isMockMode()) {
-      return getMockAdminUsers(params);
+      const mockItems = getMockAdminUsers(params);
+      return {
+        content: mockItems,
+        items: mockItems,
+        pageNumber: 0,
+        pageSize: mockItems.length,
+        totalElements: mockItems.length,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
     }
     throw err;
   }
@@ -899,16 +1018,13 @@ export async function getAdminUsers(params?: {
 
 export async function updateAdminUserStatus(
   id: number,
-  status: "ACTIVE" | "LOCKED"
+  status: "ACTIVE" | "LOCKED",
+  reason?: string
 ): Promise<void> {
-  try {
-    await apiFetch<void>(`/admin/users/${id}/status`, {
-      method: "PATCH",
-      json: { status },
-    });
-  } catch (err) {
-    if (!isMockMode()) throw err;
-  }
+  await apiFetch<void>(`/admin/users/${id}/status`, {
+    method: "PATCH",
+    json: { status, reason },
+  });
 }
 
 // ============================================================================
@@ -931,6 +1047,88 @@ export async function getAdminProducts(params?: {
     throw err;
   }
 }
+
+// ============================================================================
+// 34. Quản lý Lệnh Rút tiền Ví Người Bán (Admin Wallets / Withdrawals)
+// ============================================================================
+
+export async function getAdminWithdrawals(params?: {
+  status?: string;
+  storeId?: number;
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<AdminWithdrawalResponse>> {
+  try {
+    const query: Record<string, string | number> = {
+      page: params?.page ?? 0,
+      size: params?.size ?? 10,
+    };
+    if (params?.status && params.status !== "ALL") {
+      query.status = params.status;
+    }
+    if (params?.storeId) {
+      query.storeId = params.storeId;
+    }
+    return await apiFetch<PageResponse<AdminWithdrawalResponse>>("/admin/wallets/withdrawals", {
+      query,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const mockList: AdminWithdrawalResponse[] = [
+        {
+          id: 1,
+          requestCode: "WDR-261018-9921",
+          walletId: 1,
+          storeId: 1,
+          storeName: "UTC Fashion",
+          amount: 500000,
+          status: "PENDING",
+          bankName: "Ngân hàng Ngoại thương Việt Nam (Vietcombank)",
+          bankCode: "VCB",
+          accountNumber: "102988391204",
+          accountHolder: "NGUYEN VAN AN",
+          branch: "Chi nhánh Thủ Đức",
+          sellerNote: "Rút tiền doanh thu đợt 1",
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      return {
+        content: mockList,
+        items: mockList,
+        pageNumber: 0,
+        pageSize: 10,
+        totalElements: 1,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
+    }
+    throw err;
+  }
+}
+
+export async function approveWithdrawal(
+  id: number,
+  payload?: ApproveWithdrawalPayload
+): Promise<AdminWithdrawalResponse> {
+  return await apiFetch<AdminWithdrawalResponse>(`/admin/wallets/withdrawals/${id}/approve`, {
+    method: "PATCH",
+    json: payload || {},
+  });
+}
+
+export async function rejectWithdrawal(
+  id: number,
+  payload: RejectWithdrawalPayload
+): Promise<AdminWithdrawalResponse> {
+  return await apiFetch<AdminWithdrawalResponse>(`/admin/wallets/withdrawals/${id}/reject`, {
+    method: "PATCH",
+    json: payload,
+  });
+}
+
 
 
 

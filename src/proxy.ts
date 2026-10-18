@@ -109,17 +109,30 @@ function handleSeller(ctx: GuardContext): NextResponse | null {
   if (process.env.NEXT_PUBLIC_USE_MOCKS === "true") {
     return null;
   }
-  // Cho phép trang "hồ sơ chờ duyệt" mà không cần role SELLER (vì chính nó là kết quả redirect).
-  if (pathname.startsWith("/seller/pending-review")) {
-    if (role === ROLES.SELLER && storeStatus === "PENDING") return null;
+  // Cho phép trang đăng ký gian hàng cho tất cả tài khoản đã đăng nhập
+  if (pathname.startsWith("/seller/register")) {
     if (!role) return redirect(buildLoginRedirect(req), req);
-    // Role khác hoặc không còn PENDING → đẩy về portal tương ứng
-    const url = req.nextUrl.clone();
-    url.pathname = role === ROLES.ADMIN ? "/admin" : "/";
-    url.search = "";
-    return redirect(url, req);
+    return null;
   }
+
+  // Cho phép trang "hồ sơ chờ duyệt" mà không cần role SELLER
+  if (pathname.startsWith("/seller/pending-review")) {
+    if (!role) return redirect(buildLoginRedirect(req), req);
+    return null;
+  }
+
+  // Bắt buộc đăng nhập trước khi vào Kênh Người Bán
   if (!role) return redirect(buildLoginRedirect(req), req);
+
+  // Nếu là ADMIN, cho phép vào xem tất cả
+  if (role === ROLES.ADMIN) return null;
+
+  // Trong môi trường dev/local: Cho phép tài khoản đã đăng nhập truy cập /seller để quản lý gian hàng
+  // (tránh bị kẹt 403 khi gian hàng đang PENDING hoặc JWT chưa kịp refresh role)
+  if (process.env.NODE_ENV === "development") {
+    return null;
+  }
+
   if (role !== ROLES.SELLER) {
     const url = req.nextUrl.clone();
     url.pathname = "/forbidden";

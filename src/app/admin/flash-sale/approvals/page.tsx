@@ -260,7 +260,8 @@ export default function AdminSkuApprovalsPage() {
     void refreshData();
   };
 
-  const handleConfirmReject = async (reason: string, note?: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature match với modal callback
+  const handleConfirmReject = async (reason: string, _note?: string) => {
     try {
       if (isBatchReject) {
         await batchRejectFlashSaleSkus(selectedIds, reason);

@@ -110,7 +110,7 @@ export async function reserveFlashSale(
 
   // Gửi Idempotency-Key để chống double order khi retry
   if (idempotencyKey) {
-    headers["Idempotency-Key"] = idempotencyKey;
+    headers["X-Idempotency-Key"] = idempotencyKey;
   }
 
   return apiFetch<ReservationResponse>("/api/v1/flash-sales/reserve", {

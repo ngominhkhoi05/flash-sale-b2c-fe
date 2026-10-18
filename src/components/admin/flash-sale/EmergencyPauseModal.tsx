@@ -4,8 +4,9 @@ import React, { useState } from "react";
 
 interface EmergencyPauseModalProps {
   isOpen: boolean;
+  isLoading?: boolean;
   onClose: () => void;
-  onConfirm: (reason: string, note?: string) => void;
+  onConfirm: (reason: string, rollbackStock: boolean, note?: string) => void;
   sessionName?: string;
 }
 
@@ -19,6 +20,7 @@ const EMERGENCY_REASONS = [
 
 export function EmergencyPauseModal({
   isOpen,
+  isLoading = false,
   onClose,
   onConfirm,
   sessionName = "Giờ Vàng 12:00",
@@ -26,21 +28,29 @@ export function EmergencyPauseModal({
   const [selectedReason, setSelectedReason] = useState<string>(
     EMERGENCY_REASONS[0]
   );
+  const [rollbackStock, setRollbackStock] = useState<boolean>(true);
   const [note, setNote] = useState<string>("");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   if (!isOpen) return null;
 
   const handleClose = () => {
+    if (isLoading) return;
     setSelectedReason(EMERGENCY_REASONS[0]);
+    setRollbackStock(true);
     setNote("");
+    setErrorMsg("");
     onClose();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirm(selectedReason, note.trim());
-    setSelectedReason(EMERGENCY_REASONS[0]);
-    setNote("");
+    if (selectedReason === "Khác" && !note.trim()) {
+      setErrorMsg("Vui lòng nhập chi tiết lý do khi chọn 'Khác'");
+      return;
+    }
+    setErrorMsg("");
+    onConfirm(selectedReason, rollbackStock, note.trim());
   };
 
   return (
@@ -90,19 +100,41 @@ export function EmergencyPauseModal({
               </p>
             </div>
 
+            {/* Checkbox Rollback Stock */}
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50/70 border border-amber-200">
+              <input
+                type="checkbox"
+                id="rollbackStockCheckbox"
+                checked={rollbackStock}
+                disabled={isLoading}
+                onChange={(e) => setRollbackStock(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-amber-300 text-rose-600 focus:ring-rose-500"
+              />
+              <label
+                htmlFor="rollbackStockCheckbox"
+                className="text-body-sm text-amber-950 cursor-pointer"
+              >
+                <span className="font-semibold block">Hoàn trả tồn kho về kho chính ngay lập tức (Khuyến nghị)</span>
+                <span className="text-secondary text-label-md">
+                  Tồn kho khả dụng còn lại trên Redis sẽ được hoàn trả nguyên vẹn về kho chính của biến thể SKU và xóa trên cache.
+                </span>
+              </label>
+            </div>
+
             {/* Select Reason */}
             <div className="flex flex-col gap-1.5">
               <label
                 className="font-body-md text-body-md font-semibold text-on-surface"
                 htmlFor="emergencyReasonSelect"
               >
-                Lý do kích hoạt tạm dừng khẩn cấp:
+                Lý do kích hoạt tạm dừng khẩn cấp: <span className="text-rose-600">*</span>
               </label>
               <select
                 id="emergencyReasonSelect"
                 value={selectedReason}
+                disabled={isLoading}
                 onChange={(e) => setSelectedReason(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                className="w-full h-11 px-3.5 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-rose-500/30 disabled:opacity-50"
               >
                 {EMERGENCY_REASONS.map((r) => (
                   <option key={r} value={r}>
@@ -118,16 +150,26 @@ export function EmergencyPauseModal({
                 className="font-body-md text-body-md font-semibold text-on-surface"
                 htmlFor="emergencyNote"
               >
-                Ghi chú nội bộ cho SRE / Ban Quản Trị (tùy chọn):
+                Ghi chú nội bộ cho SRE / Ban Quản Trị {selectedReason === "Khác" ? <span className="text-rose-600">* (bắt buộc)</span> : "(tùy chọn)"}:
               </label>
               <textarea
                 id="emergencyNote"
                 rows={2}
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
+                disabled={isLoading}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                  if (errorMsg) setErrorMsg("");
+                }}
                 placeholder="Ví dụ: Tạm dừng trong 5 phút để restart Redis cluster..."
-                className="w-full p-3 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                className="w-full p-3 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-rose-500/30 disabled:opacity-50"
               />
+              {errorMsg && (
+                <p className="text-body-sm text-rose-600 font-medium flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  {errorMsg}
+                </p>
+              )}
             </div>
           </div>
 
@@ -135,19 +177,30 @@ export function EmergencyPauseModal({
           <div className="px-6 py-4 bg-surface-container-low flex items-center justify-end gap-3 border-t border-surface-container/50">
             <button
               type="button"
-              className="px-4 py-2 rounded-lg hover:bg-surface-container text-secondary font-headline-md text-body-md font-medium transition-colors"
+              disabled={isLoading}
+              className="px-4 py-2 rounded-lg hover:bg-surface-container text-secondary font-headline-md text-body-md font-medium transition-colors disabled:opacity-50"
               onClick={handleClose}
             >
               Hủy bỏ
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-headline-md text-body-md font-semibold transition-all shadow-sm flex items-center gap-1.5"
+              disabled={isLoading}
+              className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-headline-md text-body-md font-semibold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px]">
-                pause_circle
-              </span>
-              <span>Xác nhận Tạm dừng phiên</span>
+              {isLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Đang xử lý dừng phiên...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[18px]">
+                    pause_circle
+                  </span>
+                  <span>Xác nhận Tạm dừng phiên</span>
+                </>
+              )}
             </button>
           </div>
         </form>
