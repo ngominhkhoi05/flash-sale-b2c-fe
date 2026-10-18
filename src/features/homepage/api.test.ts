@@ -409,3 +409,140 @@ describe("fetchPlatformVouchers (guest guard)", () => {
     expect(result[0]?.storeId).toBeNull();
   });
 });
+
+/**
+ * Test normalize imageUrl tại API layer (xem plan
+ * 2026-10-18-fix-empty-image-url-fallback). Backend dev localhost
+ * có thể trả `imageUrl: ""` khi JPA field null serialize không chuẩn.
+ * API layer PHẢI chuẩn hoá thành URL hợp lệ trước khi trả cho UI.
+ */
+describe("fetchFeaturedProducts — imageUrl normalization", () => {
+  it("preserves absolute https URL as-is", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        items: [
+          {
+            id: 1,
+            storeId: 1,
+            storeName: "Shop A",
+            name: "Product 1",
+            imageUrl: "https://cdn.x.com/p1.jpg",
+            minPrice: 99000,
+            maxPrice: 199000,
+            totalStock: 50,
+            totalSold: 0,
+            label: null,
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      }),
+    );
+
+    const result = await fetchFeaturedProducts();
+    expect(result[0]?.imageUrl).toBe("https://cdn.x.com/p1.jpg");
+  });
+
+  it("replaces empty string imageUrl with product placeholder", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        items: [
+          {
+            id: 1,
+            storeId: 1,
+            storeName: "Shop A",
+            name: "Product Empty",
+            imageUrl: "",
+            minPrice: 99000,
+            maxPrice: 199000,
+            totalStock: 50,
+            totalSold: 0,
+            label: null,
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      }),
+    );
+
+    const result = await fetchFeaturedProducts();
+    expect(result[0]?.imageUrl).toBe("/images/placeholder-product.png");
+    expect(result[0]?.imageUrl).not.toBe("");
+  });
+
+  it("prepends NEXT_PUBLIC_API_URL to relative path", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        items: [
+          {
+            id: 1,
+            storeId: 1,
+            storeName: "Shop A",
+            name: "Product Relative",
+            imageUrl: "/products/p1.jpg",
+            minPrice: 99000,
+            maxPrice: 199000,
+            totalStock: 50,
+            totalSold: 0,
+            label: null,
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      }),
+    );
+
+    const result = await fetchFeaturedProducts();
+    expect(result[0]?.imageUrl).toBe("http://localhost:8080/products/p1.jpg");
+  });
+});
+
+describe("fetchHomeBanners — imageUrl normalization", () => {
+  it("replaces empty string imageUrl with banner placeholder", async () => {
+    mockFetch.mockResolvedValueOnce(
+      makeResponse(200, {
+        mainSlides: [
+          {
+            id: 1,
+            type: "HERO",
+            position: 1,
+            imageUrl: "",
+            imageAlt: "Empty banner",
+            ctaHref: "/x",
+            ctaText: null,
+            isActive: true,
+            startDate: null,
+            endDate: null,
+            createdAt: "2026-10-01",
+          },
+        ],
+        sideBanners: [],
+      }),
+    );
+
+    const result = await fetchHomeBanners();
+    const firstSlide = result.mainSlides[0];
+    expect(firstSlide).toBeDefined();
+    expect(firstSlide?.imageUrl).not.toBe("");
+    expect(firstSlide?.imageUrl).toBe("/images/placeholder-product.png");
+  });
+});

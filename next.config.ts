@@ -31,10 +31,15 @@ const nextConfig: NextConfig = {
   //    Khi backend /api/v1/banners/home trả 404, HeroBannerSection fallback
   //    sang useFeaturedProducts() → BE trả imageUrl: "https://picsum.photos/...".
   //    Khi BE đổi sang CDN thật (vd cdn.vibemart.vn), xóa entry này.
-  // 5. localhost — backend Spring Boot dev local chạy ở http://localhost:8080
-  //    và trả banner imageUrl dạng "http://localhost:8080/banners/hero-1.jpg".
-  //    Thêm cả http + https để cover self-signed TLS khi dev dùng mkcert.
-  //    Khi deploy production (hoặc khi BE đổi sang CDN thật), xóa 2 entry này.
+  // 5. localhost:8080 + 127.0.0.1:8080 — dev backend. Khi chạy `npm run dev`,
+  //    `NEXT_PUBLIC_API_URL=http://localhost:8080` (hoặc 127.0.0.1), backend
+  //    Spring Boot local trả relative imageUrl. `src/features/homepage/api.ts`
+  //    ghép thành `http://localhost:8080/banners/...`. Next.js yêu cầu
+  //    whitelist hostname cho `/_next/image` optimization, nếu thiếu sẽ
+  //    throw runtime error: "hostname is not configured under images".
+  //    Thêm 2026-10-18: fix HeroBannerSection crash trên dev environment.
+  //    Port 8080 chỉ — KHÔNG dùng wildcard `*` để tránh lộ ảnh private nếu
+  //    có service khác chạy port khác.
   //
   // Khi thêm domain thật mới, cập nhật hostname tại đây.
   images: {
@@ -67,12 +72,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "http",
         hostname: "localhost",
-        pathname: "/banners/**",
+        port: "8080",
+        pathname: "/**",
       },
       {
-        protocol: "https",
-        hostname: "localhost",
-        pathname: "/banners/**",
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "8080",
+        pathname: "/**",
       },
     ],
   },
