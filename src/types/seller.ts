@@ -310,5 +310,57 @@ export interface ReplySellerReviewPayload {
   replyText: string;
 }
 
+export interface SellerStoreProfileResponse {
+  id: number;
+  userId: number;
+  storeName: string;
+  slug?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  description?: string;
+  defaultCommissionRate?: number;
+  status: string;
+  createdAt: string;
+  ratingAvg?: number;
+  totalFollowers?: number;
+  totalProducts?: number;
+}
+
+export interface SellerWarehouseAddressItem {
+  id: number;
+  contactName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  detailAddress: string;
+  latitude?: number;
+  longitude?: number;
+  isDefault: boolean;
+  warehouseCode?: string;
+  workingHours?: string;
+  createdAt?: string;
+}
+
+export interface UpdateStoreProfilePayload {
+  storeName: string;
+  description?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+}
+
+export interface CreateStoreAddressPayload {
+  contactName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  detailAddress: string;
+  latitude?: number;
+  longitude?: number;
+  isDefault?: boolean;
+}
+
+
 
 

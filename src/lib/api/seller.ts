@@ -20,6 +20,10 @@ import type {
   SellerReviewItem,
   SellerReviewSummaryResponse,
   ReplySellerReviewPayload,
+  SellerStoreProfileResponse,
+  SellerWarehouseAddressItem,
+  UpdateStoreProfilePayload,
+  CreateStoreAddressPayload,
 } from "@/types/seller";
 
 /**
@@ -1391,6 +1395,196 @@ function getMockSellerReviews(
     hasPrevious: page > 0,
   };
 }
+
+/**
+ * Lấy thông tin hồ sơ gian hàng của tôi (GET /api/v1/stores/me)
+ */
+export async function getMyStoreProfile(): Promise<SellerStoreProfileResponse> {
+  try {
+    return await apiFetch<SellerStoreProfileResponse>("/stores/me");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockStoreProfile();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cập nhật hồ sơ gian hàng của tôi (PUT /api/v1/stores/me)
+ */
+export async function updateMyStoreProfile(
+  payload: UpdateStoreProfilePayload
+): Promise<SellerStoreProfileResponse> {
+  try {
+    return await apiFetch<SellerStoreProfileResponse>("/stores/me", {
+      method: "PUT",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      const current = getMockStoreProfile();
+      return {
+        ...current,
+        storeName: payload.storeName,
+        description: payload.description,
+        logoUrl: payload.logoUrl || current.logoUrl,
+        bannerUrl: payload.bannerUrl || current.bannerUrl,
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Lấy danh sách địa chỉ kho lấy hàng của shop (GET /api/v1/stores/me/addresses)
+ */
+export async function getStoreAddresses(): Promise<SellerWarehouseAddressItem[]> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem[]>("/stores/me/addresses");
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockStoreAddresses();
+    }
+    throw err;
+  }
+}
+
+/**
+ * Thêm địa chỉ kho lấy hàng mới (POST /api/v1/stores/me/addresses)
+ */
+export async function createStoreAddress(
+  payload: CreateStoreAddressPayload
+): Promise<SellerWarehouseAddressItem> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem>("/stores/me/addresses", {
+      method: "POST",
+      json: payload,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: Math.floor(Math.random() * 10000),
+        contactName: payload.contactName,
+        phone: payload.phone,
+        province: payload.province,
+        district: payload.district,
+        ward: payload.ward,
+        detailAddress: payload.detailAddress,
+        latitude: payload.latitude || 10.8457,
+        longitude: payload.longitude || 106.7943,
+        isDefault: !!payload.isDefault,
+        warehouseCode: `KHO-${Date.now().toString().slice(-4)}`,
+        workingHours: "08:00 - 18:00",
+        createdAt: new Date().toISOString(),
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Xóa địa chỉ kho lấy hàng (DELETE /api/v1/stores/me/addresses/{addressId})
+ */
+export async function deleteStoreAddress(addressId: number): Promise<void> {
+  try {
+    await apiFetch<void>(`/stores/me/addresses/${addressId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Đặt địa chỉ kho làm kho mặc định (PATCH /api/v1/stores/me/addresses/{addressId}/default)
+ */
+export async function setDefaultStoreAddress(
+  addressId: number
+): Promise<SellerWarehouseAddressItem> {
+  try {
+    return await apiFetch<SellerWarehouseAddressItem>(
+      `/stores/me/addresses/${addressId}/default`,
+      { method: "PATCH" }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: addressId,
+        contactName: "Nguyễn Văn Tuấn",
+        phone: "0912345458",
+        province: "TP. Hồ Chí Minh",
+        district: "TP. Thủ Đức",
+        ward: "Phường Thạnh Mỹ Lợi",
+        detailAddress: "Cụm Công nghiệp Cát Lái 2",
+        isDefault: true,
+      };
+    }
+    throw err;
+  }
+}
+
+function getMockStoreProfile(): SellerStoreProfileResponse {
+  return {
+    id: 1,
+    userId: 2,
+    storeName: "UTC Fashion",
+    slug: "utc-fashion",
+    logoUrl:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60",
+    bannerUrl:
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&auto=format&fit=crop&q=80",
+    description:
+      "UTC Fashion – Thương hiệu thời trang đường phố đương đại dành cho giới trẻ. Cam kết chất lượng vải nỉ bông hữu cơ 100%, bảo hành đường chỉ trọn đời và hỗ trợ đổi trả miễn phí trong 7 ngày.",
+    defaultCommissionRate: 5.0,
+    status: "APPROVED",
+    createdAt: "15/03/2025",
+    ratingAvg: 4.8,
+    totalFollowers: 12400,
+    totalProducts: 128,
+  };
+}
+
+function getMockStoreAddresses(): SellerWarehouseAddressItem[] {
+  return [
+    {
+      id: 1,
+      contactName: "Nguyễn Văn Tuấn",
+      phone: "0912 345 458",
+      province: "TP. Hồ Chí Minh",
+      district: "TP. Thủ Đức",
+      ward: "Phường Thạnh Mỹ Lợi",
+      detailAddress:
+        "Kho A3 - Hub Cát Lái, Cụm Công nghiệp Cát Lái 2, Phường Thạnh Mỹ Lợi, TP. Thủ Đức, TP. Hồ Chí Minh",
+      latitude: 10.8457,
+      longitude: 106.7943,
+      isDefault: true,
+      warehouseCode: "KHO-SGN-01",
+      workingHours: "08:00 - 18:30 (Thứ 2 - Thứ 7)",
+      createdAt: "2025-03-20T08:00:00Z",
+    },
+    {
+      id: 2,
+      contactName: "Trần Văn Bình",
+      phone: "0988 765 234",
+      province: "TP. Hà Nội",
+      district: "Quận Hoàng Mai",
+      ward: "Phường Định Công",
+      detailAddress:
+        "Số 45 Ngõ 120 Định Công, Phường Định Công, Quận Hoàng Mai, TP. Hà Nội",
+      latitude: 20.9835,
+      longitude: 105.8412,
+      isDefault: false,
+      warehouseCode: "KHO-HAN-02",
+      workingHours: "08:30 - 17:30",
+      createdAt: "2025-06-10T10:00:00Z",
+    },
+  ];
+}
+
 
 
 
