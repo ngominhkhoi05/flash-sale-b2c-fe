@@ -623,36 +623,55 @@ export async function getSellerProducts(
     query.status = status;
   }
   try {
-    const res = await apiFetch<
-      PageResponse<SellerProductSummaryResponse> | SellerProductSummaryResponse[]
-    >("/seller/products", {
+    interface RawPageData {
+      items?: SellerProductSummaryResponse[];
+      content?: SellerProductSummaryResponse[];
+      totalElements?: number;
+      totalPages?: number;
+      pageNumber?: number;
+      pageSize?: number;
+      isFirst?: boolean;
+      first?: boolean;
+      isLast?: boolean;
+      last?: boolean;
+      hasNext?: boolean;
+      hasPrevious?: boolean;
+    }
+
+    const res = await apiFetch<RawPageData | SellerProductSummaryResponse[]>("/seller/products", {
       query,
     });
-    if (Array.isArray(res)) {
-      return {
-        content: res,
-        totalElements: res.length,
-        totalPages: 1,
-        pageNumber: page,
-        pageSize: size,
-        isFirst: true,
-        isLast: true,
-        hasNext: false,
-        hasPrevious: false,
-      };
-    }
+
+    const isArray = Array.isArray(res);
+    const pageObj: RawPageData = !isArray && res && typeof res === "object" ? (res as RawPageData) : {};
+    const rawList: SellerProductSummaryResponse[] = isArray
+      ? (res as SellerProductSummaryResponse[])
+      : Array.isArray(pageObj.items)
+      ? pageObj.items
+      : Array.isArray(pageObj.content)
+      ? pageObj.content
+      : [];
+
+    const list: SellerProductSummaryResponse[] = rawList.map((item) => ({
+      ...item,
+      minPrice: typeof item.minPrice === "number" ? item.minPrice : 0,
+      maxPrice: typeof item.maxPrice === "number" ? item.maxPrice : (item.minPrice ?? 0),
+      totalStock: typeof item.totalStock === "number" ? item.totalStock : 0,
+      totalSold: typeof item.totalSold === "number" ? item.totalSold : 0,
+      status: item.status || "ACTIVE",
+    }));
+
     return {
-      content: Array.isArray(res?.content) ? res.content : [],
-      totalElements:
-        res?.totalElements ??
-        (Array.isArray(res?.content) ? res.content.length : 0),
-      totalPages: res?.totalPages ?? 1,
-      pageNumber: res?.pageNumber ?? page,
-      pageSize: res?.pageSize ?? size,
-      isFirst: res?.isFirst ?? true,
-      isLast: res?.isLast ?? true,
-      hasNext: res?.hasNext ?? false,
-      hasPrevious: res?.hasPrevious ?? false,
+      content: list,
+      items: list,
+      totalElements: pageObj.totalElements ?? list.length,
+      totalPages: pageObj.totalPages ?? Math.max(1, Math.ceil(list.length / size)),
+      pageNumber: pageObj.pageNumber ?? page,
+      pageSize: pageObj.pageSize ?? size,
+      isFirst: pageObj.isFirst ?? pageObj.first ?? page === 0,
+      isLast: pageObj.isLast ?? pageObj.last ?? true,
+      hasNext: pageObj.hasNext ?? false,
+      hasPrevious: pageObj.hasPrevious ?? false,
     };
   } catch {
     // Luôn fallback về mock data khi Backend chưa chạy hoặc lỗi kết nối
@@ -664,6 +683,7 @@ export async function getSellerProducts(
     const paginated = filtered.slice(start, start + size);
     return {
       content: paginated,
+      items: paginated,
       totalElements: filtered.length,
       totalPages: Math.ceil(filtered.length / size) || 1,
       pageNumber: page,

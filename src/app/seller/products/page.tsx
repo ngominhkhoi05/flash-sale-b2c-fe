@@ -190,19 +190,22 @@ export default function SellerProductsPage() {
   // Lọc sản phẩm theo tìm kiếm và sort tồn kho phía client
   const filteredProducts = useMemo(() => {
     if (!pageData) return [];
-    const sourceList = Array.isArray(pageData.content)
-      ? pageData.content
-      : Array.isArray(pageData)
-      ? (pageData as unknown as SellerProductSummaryResponse[])
-      : [];
+    const sourceList =
+      Array.isArray(pageData.items) && pageData.items.length > 0
+        ? pageData.items
+        : Array.isArray(pageData.content)
+        ? pageData.content
+        : Array.isArray(pageData)
+        ? (pageData as unknown as SellerProductSummaryResponse[])
+        : [];
     let list = [...sourceList];
 
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       list = list.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.slug.toLowerCase().includes(q) ||
+          (p.name && p.name.toLowerCase().includes(q)) ||
+          (p.slug && p.slug.toLowerCase().includes(q)) ||
           String(p.id).includes(q)
       );
     }
@@ -222,7 +225,30 @@ export default function SellerProductsPage() {
     return list;
   }, [pageData, searchTerm, stockSort]);
 
+  const rawList = useMemo(() => {
+    if (!pageData) return [];
+    return Array.isArray(pageData.items) && pageData.items.length > 0
+      ? pageData.items
+      : Array.isArray(pageData.content)
+      ? pageData.content
+      : Array.isArray(pageData)
+      ? (pageData as unknown as SellerProductSummaryResponse[])
+      : [];
+  }, [pageData]);
+
   const totalCount = pageData?.totalElements ?? filteredProducts.length;
+
+  const tabCounts = useMemo(() => {
+    return {
+      ALL: totalCount,
+      ACTIVE: rawList.filter((p) => p.status === "ACTIVE").length,
+      OUT_OF_STOCK: rawList.filter(
+        (p) => p.status === "OUT_OF_STOCK" || p.totalStock <= 0
+      ).length,
+      INACTIVE: rawList.filter((p) => p.status === "INACTIVE").length,
+      BANNED: rawList.filter((p) => p.status === "BANNED").length,
+    };
+  }, [rawList, totalCount]);
 
   return (
     <div className="flex flex-col w-full gap-space-lg">
@@ -260,11 +286,15 @@ export default function SellerProductsPage() {
       <div className="bg-surface-container-lowest rounded-xl shadow-sm px-space-md pt-2 flex items-center justify-between overflow-x-auto border border-outline-variant/30">
         <div className="flex items-center gap-space-md">
           {[
-            { key: "ALL", label: "Tất cả", count: totalCount },
-            { key: "ACTIVE", label: "Đang bán", count: Math.max(0, totalCount - 5) },
-            { key: "OUT_OF_STOCK", label: "Hết hàng", count: 2 },
-            { key: "INACTIVE", label: "Đã ẩn", count: 3 },
-            { key: "BANNED", label: "Vi phạm", count: 0 },
+            { key: "ALL", label: "Tất cả", count: tabCounts.ALL },
+            { key: "ACTIVE", label: "Đang bán", count: tabCounts.ACTIVE },
+            {
+              key: "OUT_OF_STOCK",
+              label: "Hết hàng",
+              count: tabCounts.OUT_OF_STOCK,
+            },
+            { key: "INACTIVE", label: "Đã ẩn", count: tabCounts.INACTIVE },
+            { key: "BANNED", label: "Vi phạm", count: tabCounts.BANNED },
           ].map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -524,7 +554,7 @@ export default function SellerProductsPage() {
 
                         {/* Đã bán */}
                         <td className="px-space-md font-data-tabular text-body-md text-secondary">
-                          {product.totalSold.toLocaleString("vi-VN")}
+                          {(product.totalSold ?? 0).toLocaleString("vi-VN")}
                         </td>
 
                         {/* Trạng thái */}
