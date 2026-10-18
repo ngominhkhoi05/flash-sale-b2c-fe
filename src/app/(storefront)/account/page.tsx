@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AccountSidebar, type AccountSidebarItem } from "@/components/account/AccountSidebar";
@@ -12,7 +12,6 @@ import { useAuth } from "@/hooks/useAuth";
 
 function AccountPageInner() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { user } = useAuth();
 
   const tabParam = searchParams.get("tab") as AccountSidebarItem | null;

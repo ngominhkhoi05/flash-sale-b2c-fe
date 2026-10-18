@@ -61,9 +61,7 @@ import {
   getMockAdminUsers,
   getMockAdminProducts,
   type MockStoreItem,
-  type MockUserItem,
 } from "@/lib/mocks/admin.mock";
-import type { PageResponse } from "@/types/api";
 import type {
   AdminWithdrawalResponse,
   ApproveWithdrawalPayload,
