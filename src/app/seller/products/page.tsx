@@ -125,7 +125,7 @@ export default function SellerProductsPage() {
           : `Đã tạm ẩn sản phẩm: ${product.name}`
       );
       // Cập nhật lại UI state tại chỗ
-      if (pageData) {
+      if (pageData && Array.isArray(pageData.content)) {
         setPageData({
           ...pageData,
           content: pageData.content.map((p: SellerProductSummaryResponse) =>
@@ -156,13 +156,14 @@ export default function SellerProductsPage() {
 
   // Xuất file CSV danh sách sản phẩm
   const handleExportCSV = () => {
-    if (!pageData || pageData.content.length === 0) {
+    const contentList = Array.isArray(pageData?.content) ? pageData.content : [];
+    if (contentList.length === 0) {
       toast.error("Không có sản phẩm để xuất file.");
       return;
     }
 
     const headers = ["ID", "Tên sản phẩm", "Mã Slug", "Giá thấp nhất", "Giá cao nhất", "Tồn kho", "Đã bán", "Trạng thái"];
-    const rows = pageData.content.map((p: SellerProductSummaryResponse) => [
+    const rows = contentList.map((p: SellerProductSummaryResponse) => [
       p.id,
       `"${p.name.replace(/"/g, '""')}"`,
       p.slug,
@@ -189,7 +190,12 @@ export default function SellerProductsPage() {
   // Lọc sản phẩm theo tìm kiếm và sort tồn kho phía client
   const filteredProducts = useMemo(() => {
     if (!pageData) return [];
-    let list = [...pageData.content];
+    const sourceList = Array.isArray(pageData.content)
+      ? pageData.content
+      : Array.isArray(pageData)
+      ? (pageData as unknown as SellerProductSummaryResponse[])
+      : [];
+    let list = [...sourceList];
 
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();

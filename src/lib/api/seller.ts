@@ -551,9 +551,50 @@ export async function getSellerProducts(
   if (status && status !== "ALL") {
     query.status = status;
   }
-  return apiFetch<PageResponse<SellerProductSummaryResponse>>("/seller/products", {
-    query,
-  });
+  try {
+    const res = await apiFetch<PageResponse<SellerProductSummaryResponse> | SellerProductSummaryResponse[]>("/seller/products", {
+      query,
+    });
+    if (Array.isArray(res)) {
+      return {
+        content: res,
+        totalElements: res.length,
+        totalPages: 1,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
+    }
+    return {
+      content: Array.isArray(res?.content) ? res.content : [],
+      totalElements: res?.totalElements ?? (Array.isArray(res?.content) ? res.content.length : 0),
+      totalPages: res?.totalPages ?? 1,
+      pageNumber: res?.pageNumber ?? page,
+      pageSize: res?.pageSize ?? size,
+      isFirst: res?.isFirst ?? true,
+      isLast: res?.isLast ?? true,
+      hasNext: res?.hasNext ?? false,
+      hasPrevious: res?.hasPrevious ?? false,
+    };
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        content: [],
+        totalElements: 0,
+        totalPages: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
+    }
+    throw err;
+  }
 }
 
 /**
