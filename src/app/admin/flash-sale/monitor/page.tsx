@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useCallback } from "react";
 import type {
   RealtimeTelemetry,
   LiveSkuInventoryItem,
@@ -10,6 +11,13 @@ import type {
   TrafficDataPoint,
 } from "@/types/flash-monitor";
 import type { AdminFlashSaleSession } from "@/types/flash-sale";
+import {
+  getAdminFlashSaleSlots,
+  getAdminRealtimeTelemetry,
+  getAdminLiveSkus,
+  getAdminLiveLogs,
+  toggleAdminEmergencyPause,
+} from "@/lib/api/admin";
 import {
   getMockTelemetry,
   toggleSessionPause,
@@ -35,14 +43,33 @@ const formatCountdown = (totalSeconds: number) => {
 
 export default function AdminFlashSaleMonitorPage() {
   // 1. Session Picker
-  const [sessions] = useState<AdminFlashSaleSession[]>(() =>
+  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() =>
     getMockFlashSaleSessions()
   );
-  const [selectedSessionId, setSelectedSessionId] = useState<number>(() => {
-    const active = sessions.find((s) => s.status === "ACTIVE");
-    return active ? active.id : 3;
-  });
+  const [selectedSessionId, setSelectedSessionId] = useState<number>(3);
   const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
+
+  // Load sessions from BE API
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSessions() {
+      try {
+        const slots = await getAdminFlashSaleSlots();
+        if (!cancelled && slots.length > 0) {
+          setSessions(slots);
+          const active = slots.find((s) => s.status === "ACTIVE");
+          if (active) setSelectedSessionId(active.id);
+          else setSelectedSessionId(slots[0].id);
+        }
+      } catch {
+        // fallback to default sessions
+      }
+    }
+    void loadSessions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const currentSession = useMemo(() => {
     return sessions.find((s) => s.id === selectedSessionId) || sessions[0];
@@ -53,8 +80,31 @@ export default function AdminFlashSaleMonitorPage() {
     getMockTelemetry()
   );
   const [trafficData] = useState<TrafficDataPoint[]>(() => INITIAL_TRAFFIC_DATA);
-  const [skus] = useState<LiveSkuInventoryItem[]>(() => getMockLiveSkus());
+  const [skus, setSkus] = useState<LiveSkuInventoryItem[]>(() => getMockLiveSkus());
   const [logs, setLogs] = useState<LiveLogEvent[]>(() => getMockLiveLogs());
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      getAdminRealtimeTelemetry(selectedSessionId),
+      getAdminLiveSkus(selectedSessionId),
+      getAdminLiveLogs(selectedSessionId),
+    ])
+      .then(([tData, skusData, logsData]) => {
+        if (!cancelled) {
+          setTelemetry(tData);
+          setSkus(skusData);
+          setLogs(logsData);
+        }
+      })
+      .catch(() => {
+        // fallback
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSessionId]);
 
   // 3. Filters
   const [skuSearch, setSkuSearch] = useState("");
@@ -134,9 +184,14 @@ export default function AdminFlashSaleMonitorPage() {
   }, [skus, skuSearch]);
 
   // Handlers
-  const handleToggleEmergencyPause = () => {
+  const handleToggleEmergencyPause = async () => {
     if (telemetry.isPaused) {
       // Resume
+      try {
+        await toggleAdminEmergencyPause(selectedSessionId, "Resume by admin");
+      } catch {
+        // fallback
+      }
       const updated = toggleSessionPause(false);
       setTelemetry(updated);
 
@@ -160,7 +215,12 @@ export default function AdminFlashSaleMonitorPage() {
     }
   };
 
-  const handleConfirmEmergencyPause = (reason: string, note?: string) => {
+  const handleConfirmEmergencyPause = async (reason: string, note?: string) => {
+    try {
+      await toggleAdminEmergencyPause(selectedSessionId, reason);
+    } catch {
+      // fallback
+    }
     const updated = toggleSessionPause(true);
     setTelemetry(updated);
     setIsPauseModalOpen(false);

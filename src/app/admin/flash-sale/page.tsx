@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -11,16 +11,16 @@ import {
 import { FlashSaleCalendar, FlashSaleSlotModal } from "@/components/admin/flash-sale";
 import type { AdminFlashSaleSession, CreateFlashSaleSessionInput } from "@/types/flash-sale";
 import {
-  getMockFlashSaleSessions,
-  createMockFlashSaleSession,
-  updateMockFlashSaleSession,
-  cancelMockFlashSaleSession,
-} from "@/lib/mocks/flash-sessions.mock";
+  getAdminFlashSaleSlots,
+  createAdminFlashSaleSlot,
+  updateAdminFlashSaleSlot,
+  preWarmAdminFlashSaleSlot,
+} from "@/lib/api/admin";
+import { cancelMockFlashSaleSession } from "@/lib/mocks/flash-sessions.mock";
 
 export default function AdminFlashSaleSessionsPage() {
-  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() =>
-    getMockFlashSaleSessions()
-  );
+  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   // Search & Filter trong list view
@@ -36,6 +36,40 @@ export default function AdminFlashSaleSessionsPage() {
   // Confirm Cancel Modal
   const [sessionToCancel, setSessionToCancel] = useState<AdminFlashSaleSession | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [, startTransition] = useTransition();
+
+  // Load sessions from BE API
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSessions() {
+      try {
+        setLoading(true);
+        const data = await getAdminFlashSaleSlots();
+        if (!cancelled) {
+          setSessions(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "Không thể tải danh sách khung giờ Flash Sale"
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadSessions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Thống kê nhanh
   const activeCount = useMemo(
@@ -63,35 +97,60 @@ export default function AdminFlashSaleSessionsPage() {
   };
 
   const handleSaveSlot = (input: CreateFlashSaleSessionInput) => {
-    if (editingSession) {
-      const updated = updateMockFlashSaleSession(editingSession.id, input);
-      if (updated) {
-        setSessions(getMockFlashSaleSessions());
-        toast.success("Cập nhật khung giờ thành công!", {
-          description: `Phiên "${updated.name}" đã được cập nhật thông tin.`,
-        });
+    startTransition(async () => {
+      try {
+        if (editingSession) {
+          const updated = await updateAdminFlashSaleSlot(editingSession.id, input);
+          const freshSessions = await getAdminFlashSaleSlots();
+          setSessions(freshSessions);
+          toast.success("Cập nhật khung giờ thành công!", {
+            description: `Phiên "${updated.name}" đã được cập nhật thông tin.`,
+          });
+        } else {
+          const created = await createAdminFlashSaleSlot(input);
+          const freshSessions = await getAdminFlashSaleSlots();
+          setSessions(freshSessions);
+          toast.success("Tạo khung giờ Flash Sale mới thành công!", {
+            description: `Phiên "${created.name}" đã được thêm vào lịch tuần.`,
+          });
+        }
+        setIsModalOpen(false);
+        setEditingSession(null);
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "Lưu khung giờ Flash Sale thất bại"
+        );
       }
-    } else {
-      const created = createMockFlashSaleSession(input);
-      setSessions(getMockFlashSaleSessions());
-      toast.success("Tạo khung giờ Flash Sale mới thành công!", {
-        description: `Phiên "${created.name}" đã được thêm vào lịch tuần.`,
+    });
+  };
+
+  // Pre-warm Redis nạp kho trước phiên
+  const handlePreWarmSlot = async (slotId: number, slotName: string) => {
+    try {
+      await preWarmAdminFlashSaleSlot(slotId);
+      toast.success("Pre-warm nạp kho Redis thành công!", {
+        description: `Tồn kho phiên "${slotName}" đã được đẩy lên Redis sẵn sàng mở bán.`,
       });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Pre-warm kho Redis thất bại"
+      );
     }
-    setIsModalOpen(false);
-    setEditingSession(null);
   };
 
   // Xử lý hủy phiên
   const handleConfirmCancel = (data: { reason: string; note: string }) => {
     if (!sessionToCancel) return;
     setIsCancelling(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       const ok = cancelMockFlashSaleSession(sessionToCancel.id);
       setIsCancelling(false);
       setSessionToCancel(null);
       if (ok) {
-        setSessions(getMockFlashSaleSessions());
+        const fresh = await getAdminFlashSaleSlots();
+        setSessions(fresh);
         toast.success("Hủy phiên Flash Sale thành công!", {
           description: `Phiên "${sessionToCancel.name}" đã bị hủy. Lý do: ${data.reason}`,
         });
@@ -295,6 +354,14 @@ export default function AdminFlashSaleSessionsPage() {
               <>
                 <button
                   type="button"
+                  onClick={() => handlePreWarmSlot(row.id, row.name)}
+                  className="p-1.5 rounded-lg text-secondary hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+                  title="Pre-warm nạp kho Redis"
+                >
+                  <span className="material-symbols-outlined text-[18px]">bolt</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleOpenEdit(row)}
                   className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
                   title="Chỉnh sửa khung giờ"
@@ -493,6 +560,7 @@ export default function AdminFlashSaleSessionsPage() {
 
             {/* Main DataTable */}
             <DataTable
+              isLoading={loading}
               columns={columns}
               data={filteredSessions.slice((currentPage - 1) * pageSize, currentPage * pageSize)}
               rowKey={(s) => s.id}

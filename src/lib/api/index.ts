@@ -25,3 +25,5 @@ export {
   updateProductStatus,
   deleteProduct,
 } from "./seller";
+
+export * from "./admin";

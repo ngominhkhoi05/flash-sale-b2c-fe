@@ -10,14 +10,20 @@ import type {
   SkuApprovalCounts,
 } from "@/types/sku-approval";
 import type { AdminFlashSaleSession } from "@/types/flash-sale";
+import { useEffect, useCallback } from "react";
+import {
+  getAdminFlashSaleSlots,
+  getAdminSkuApprovals,
+  getAdminApprovalCounts,
+  approveFlashSaleSku,
+  rejectFlashSaleSku,
+  batchApproveFlashSaleSkus,
+  batchRejectFlashSaleSkus,
+  undoFlashSaleSku,
+} from "@/lib/api/admin";
 import {
   getMockSkuApprovals,
   getApprovalCounts,
-  approveSku,
-  rejectSku,
-  undoSku,
-  batchApproveSkus,
-  batchRejectSkus,
 } from "@/lib/mocks/sku-approvals.mock";
 import { getMockFlashSaleSessions } from "@/lib/mocks/flash-sessions.mock";
 import {
@@ -32,14 +38,33 @@ const formatVnd = (amount: number) => {
 
 export default function AdminSkuApprovalsPage() {
   // 1. Sessions List & Selected Session
-  const [sessions] = useState<AdminFlashSaleSession[]>(() =>
+  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() =>
     getMockFlashSaleSessions()
   );
-  const [selectedSessionId, setSelectedSessionId] = useState<number>(() => {
-    const active = sessions.find((s) => s.status === "ACTIVE");
-    return active ? active.id : sessions[0]?.id || 3;
-  });
+  const [selectedSessionId, setSelectedSessionId] = useState<number>(3);
   const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
+
+  // Load sessions from BE API
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSessions() {
+      try {
+        const slots = await getAdminFlashSaleSlots();
+        if (!cancelled && slots.length > 0) {
+          setSessions(slots);
+          const active = slots.find((s) => s.status === "ACTIVE");
+          if (active) setSelectedSessionId(active.id);
+          else setSelectedSessionId(slots[0].id);
+        }
+      } catch {
+        // fallback to default sessions
+      }
+    }
+    void loadSessions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const currentSession = useMemo(() => {
     return sessions.find((s) => s.id === selectedSessionId) || sessions[0];
@@ -53,10 +78,35 @@ export default function AdminSkuApprovalsPage() {
     getApprovalCounts()
   );
 
-  const refreshData = () => {
-    setItems(getMockSkuApprovals());
-    setCounts(getApprovalCounts());
-  };
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  const refreshData = useCallback(() => {
+    setReloadTrigger((prev) => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      getAdminSkuApprovals(selectedSessionId),
+      getAdminApprovalCounts(selectedSessionId),
+    ])
+      .then(([itemsData, countsData]) => {
+        if (!cancelled) {
+          setItems(itemsData);
+          setCounts(countsData);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setItems(getMockSkuApprovals(selectedSessionId));
+          setCounts(getApprovalCounts(selectedSessionId));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSessionId, reloadTrigger]);
 
   // 3. Tab State
   const [activeTab, setActiveTab] = useState<SkuApprovalStatus>("PENDING");
@@ -187,44 +237,62 @@ export default function AdminSkuApprovalsPage() {
     setRejectModalOpen(true);
   };
 
-  const handleConfirmApprove = (commission?: number) => {
-    if (isBatchApprove) {
-      batchApproveSkus(selectedIds, commission);
-      toast.success(
-        `Đã duyệt thành công ${selectedIds.length} SKU và tự động khóa kho!`
-      );
-      setSelectedIds([]);
-    } else if (targetApproveItem) {
-      approveSku(targetApproveItem.id, commission);
-      toast.success(
-        `Đã duyệt "${targetApproveItem.productName}" vào Flash Sale!`
+  const handleConfirmApprove = async () => {
+    try {
+      if (isBatchApprove) {
+        await batchApproveFlashSaleSkus(selectedIds);
+        toast.success(
+          `Đã duyệt thành công ${selectedIds.length} SKU và tự động khóa kho!`
+        );
+        setSelectedIds([]);
+      } else if (targetApproveItem) {
+        await approveFlashSaleSku(targetApproveItem.id);
+        toast.success(
+          `Đã duyệt "${targetApproveItem.productName}" vào Flash Sale!`
+        );
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Duyệt sản phẩm thất bại"
       );
     }
     setApproveModalOpen(false);
-    refreshData();
+    void refreshData();
   };
 
-  const handleConfirmReject = (reason: string, note?: string) => {
-    if (isBatchReject) {
-      batchRejectSkus(selectedIds, reason, note);
+  const handleConfirmReject = async (reason: string, note?: string) => {
+    try {
+      if (isBatchReject) {
+        await batchRejectFlashSaleSkus(selectedIds, reason);
+        toast.error(
+          `Đã từ chối ${selectedIds.length} SKU và gửi phản hồi cho Seller!`
+        );
+        setSelectedIds([]);
+      } else if (targetRejectItem) {
+        await rejectFlashSaleSku(targetRejectItem.id, reason);
+        toast.error(
+          `Đã từ chối "${targetRejectItem.productName}" và gửi thông báo!`
+        );
+      }
+    } catch (err) {
       toast.error(
-        `Đã từ chối ${selectedIds.length} SKU và gửi phản hồi cho Seller!`
-      );
-      setSelectedIds([]);
-    } else if (targetRejectItem) {
-      rejectSku(targetRejectItem.id, reason, note);
-      toast.error(
-        `Đã từ chối "${targetRejectItem.productName}" và gửi thông báo!`
+        err instanceof Error ? err.message : "Từ chối sản phẩm thất bại"
       );
     }
     setRejectModalOpen(false);
-    refreshData();
+    void refreshData();
   };
 
-  const handleUndo = (item: SkuApprovalItem) => {
-    undoSku(item.id);
-    toast.info(`Đã hoàn tác "${item.productName}" về trạng thái Chờ duyệt!`);
-    refreshData();
+  const handleUndo = async (item: SkuApprovalItem) => {
+    try {
+      await undoFlashSaleSku(item.id);
+      toast.info(`Đã hoàn tác "${item.productName}" về trạng thái Chờ duyệt!`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Hoàn tác trạng thái thất bại"
+      );
+    }
+    void refreshData();
   };
 
   // Handlers for batch actions
