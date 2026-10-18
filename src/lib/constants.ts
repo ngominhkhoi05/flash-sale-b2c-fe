@@ -348,7 +348,28 @@ export const ROUTES = {
 
   SELLER_HOME: "/seller",
   SELLER_PENDING: "/seller/pending-review",
+  SELLER_PRODUCTS: "/seller/products",
+  SELLER_PRODUCT_NEW: "/seller/products/new",
+  SELLER_PRODUCT_EDIT: (id: string | number) => `/seller/products/${id}/edit`,
+  SELLER_ORDERS: "/seller/orders",
+  SELLER_FLASH_SALE_REGISTER: "/seller/flash-sale/register",
+  SELLER_WALLET: "/seller/wallet",
+  SELLER_VOUCHERS: "/seller/vouchers",
+  SELLER_REVIEWS: "/seller/reviews",
+  SELLER_PROFILE: "/seller/profile",
+  SELLER_STAFF: "/seller/staff",
+
   ADMIN_HOME: "/admin",
+  ADMIN_USERS: "/admin/users",
+  ADMIN_STORES: "/admin/stores",
+  ADMIN_PRODUCTS: "/admin/products",
+  ADMIN_CATEGORIES: "/admin/categories",
+  ADMIN_FLASH_SALE: "/admin/flash-sale",
+  ADMIN_FLASH_SALE_APPROVALS: "/admin/flash-sale/approvals",
+  ADMIN_FLASH_SALE_MONITOR: "/admin/flash-sale/monitor",
+  ADMIN_VOUCHERS: "/admin/vouchers",
+  ADMIN_RECONCILIATION: "/admin/reconciliation",
+  ADMIN_PERMISSIONS: "/admin/permissions",
 
   // Static / info pages
   HELP: "/help",
