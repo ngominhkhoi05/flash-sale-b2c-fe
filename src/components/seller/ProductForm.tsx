@@ -994,9 +994,25 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           : "Cập nhật sản phẩm thành công!";
       toast.success(successNotice);
       setSuccessMessage(successNotice);
+
+      // Phát sự kiện và đánh dấu cờ để trang danh sách sản phẩm tự động load lại dữ liệu mới nhất
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem("seller_products_need_reload", Date.now().toString());
+          window.dispatchEvent(
+            new CustomEvent("seller_products_updated", {
+              detail: { productId: savedId, mode, timestamp: Date.now() },
+            })
+          );
+        } catch {
+          // ignore sessionStorage errors
+        }
+      }
+
       setTimeout(() => {
+        router.refresh();
         router.push("/seller/products");
-      }, 1000);
+      }, 800);
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       const msg =

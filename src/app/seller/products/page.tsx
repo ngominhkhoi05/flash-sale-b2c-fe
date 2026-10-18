@@ -37,6 +37,7 @@ export default function SellerProductsPage() {
 
   const [pageData, setPageData] = useState<PageResponse<SellerProductSummaryResponse> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Expanded rows state (Map productId -> ProductDetailResponse)
@@ -48,23 +49,41 @@ export default function SellerProductsPage() {
   const [deleteModalProduct, setDeleteModalProduct] = useState<SellerProductSummaryResponse | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Load lại danh sách sản phẩm khi người dùng tương tác (xóa, thử lại)
-  const handleReload = useCallback(() => {
-    setIsLoading(true);
-    setError(null);
-    getSellerProducts(page, pageSize, activeTab === "ALL" ? undefined : activeTab)
-      .then((res) => {
-        setPageData(res);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Không thể nạp danh sách sản phẩm.");
-        setIsLoading(false);
-      });
-  }, [page, pageSize, activeTab]);
+  // Tải danh sách sản phẩm (hỗ trợ cả tải ban đầu và nạp ngầm tự động)
+  const loadProducts = useCallback(
+    (isInitial = false) => {
+      if (isInitial) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+      setError(null);
 
+      return getSellerProducts(page, pageSize, activeTab === "ALL" ? undefined : activeTab)
+        .then((res) => {
+          setPageData(res);
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Không thể nạp danh sách sản phẩm.");
+        })
+        .finally(() => {
+          setIsLoading(false);
+          setIsRefreshing(false);
+        });
+    },
+    [page, pageSize, activeTab]
+  );
+
+  // Handle reload kích hoạt thủ công hoặc từ các action
+  const handleReload = useCallback(() => {
+    return loadProducts(false);
+  }, [loadProducts]);
+
+  // Nạp lần đầu hoặc khi đổi tab/trang/phân trang
   useEffect(() => {
     let ignore = false;
+    setIsLoading(true);
+    setError(null);
 
     getSellerProducts(page, pageSize, activeTab === "ALL" ? undefined : activeTab)
       .then((res) => {
@@ -84,6 +103,53 @@ export default function SellerProductsPage() {
       ignore = true;
     };
   }, [page, pageSize, activeTab]);
+
+  // Tự động load lại khi thêm/sửa sản phẩm quay về, chuyển tab, hoặc focus lại trang
+  useEffect(() => {
+    // 1. Kiểm tra cờ cần reload trong sessionStorage
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage.getItem("seller_products_need_reload")) {
+        window.sessionStorage.removeItem("seller_products_need_reload");
+        loadProducts(false);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Lắng nghe CustomEvent seller_products_updated phát từ ProductForm
+    const handleProductsUpdated = () => {
+      loadProducts(false);
+    };
+
+    // 3. Lắng nghe khi tab trình duyệt được active lại (focus)
+    const handleWindowFocus = () => {
+      try {
+        if (window.sessionStorage.getItem("seller_products_need_reload")) {
+          window.sessionStorage.removeItem("seller_products_need_reload");
+          loadProducts(false);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    // 4. Lắng nghe storage event (trường hợp mở form thêm/sửa ở tab trình duyệt khác)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "seller_products_need_reload") {
+        loadProducts(false);
+      }
+    };
+
+    window.addEventListener("seller_products_updated", handleProductsUpdated);
+    window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("seller_products_updated", handleProductsUpdated);
+      window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [loadProducts]);
 
   // Toggle expand row xem biến thể SKU
   const toggleExpandRow = async (productId: number) => {
@@ -114,17 +180,11 @@ export default function SellerProductsPage() {
     }
   };
 
-  // Toggle bật/tắt trạng thái SPU
+  // Toggle bật/tắt trạng thái SPU (Ẩn / Mở bán) - Tự động reload cập nhật ngay lập tức
   const handleToggleStatus = async (product: SellerProductSummaryResponse) => {
     const newStatus = product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     try {
-      await updateProductStatus(product.id, newStatus);
-      toast.success(
-        newStatus === "ACTIVE"
-          ? `Đã mở bán lại sản phẩm: ${product.name}`
-          : `Đã tạm ẩn sản phẩm: ${product.name}`
-      );
-      // Cập nhật lại UI state tại chỗ
+      // Cập nhật trạng thái lạc quan trên UI ngay lập tức
       if (pageData && Array.isArray(pageData.content)) {
         setPageData({
           ...pageData,
@@ -133,20 +193,58 @@ export default function SellerProductsPage() {
           ),
         });
       }
+
+      await updateProductStatus(product.id, newStatus);
+      toast.success(
+        newStatus === "ACTIVE"
+          ? `Đã mở bán lại sản phẩm: ${product.name}`
+          : `Đã tạm ẩn sản phẩm: ${product.name}`
+      );
+
+      // Xóa cache chi tiết để nếu mở lại sẽ nạp dữ liệu mới
+      setDetailsCache((prev) => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      });
+
+      // Tự động load lại danh sách sản phẩm từ backend để cập nhật chuẩn phân trang và tab
+      handleReload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Cập nhật trạng thái thất bại.");
+      handleReload();
     }
   };
 
-  // Xác nhận xóa sản phẩm
+  // Xác nhận xóa sản phẩm - Tự động reload cập nhật ngay lập tức
   const handleConfirmDelete = async () => {
     if (!deleteModalProduct) return;
+    const deletedId = deleteModalProduct.id;
     setIsDeleting(true);
     try {
-      await deleteProduct(deleteModalProduct.id);
+      await deleteProduct(deletedId);
       toast.success(`Đã xóa sản phẩm: ${deleteModalProduct.name}`);
       setDeleteModalProduct(null);
-      handleReload();
+
+      // Dọn cache chi tiết và hàng đang expand
+      setExpandedRowIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deletedId);
+        return next;
+      });
+      setDetailsCache((prev) => {
+        const next = { ...prev };
+        delete next[deletedId];
+        return next;
+      });
+
+      // Nếu xóa sản phẩm duy nhất còn lại trên trang hiện tại (page > 0), lùi về trang trước
+      const currentListLength = Array.isArray(pageData?.content) ? pageData.content.length : 0;
+      if (currentListLength <= 1 && page > 0) {
+        setPage((prev) => prev - 1);
+      } else {
+        handleReload();
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Xóa sản phẩm thất bại.");
     } finally {
@@ -264,6 +362,20 @@ export default function SellerProductsPage() {
         </div>
 
         <div className="flex items-center gap-space-sm">
+          <button
+            type="button"
+            disabled={isRefreshing || isLoading}
+            onClick={() => handleReload()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface-container-lowest text-secondary hover:text-on-surface hover:bg-surface-container-low transition-all font-body-md text-body-md shadow-sm border border-outline-variant/30 font-medium disabled:opacity-50"
+            title="Đồng bộ & làm mới danh sách sản phẩm"
+          >
+            <MaterialSymbol
+              name="sync"
+              size="[18px]"
+              className={isRefreshing ? "animate-spin text-emerald-600" : ""}
+            />
+            <span className="hidden sm:inline">Làm mới</span>
+          </button>
           <button
             type="button"
             onClick={handleExportCSV}
@@ -417,7 +529,12 @@ export default function SellerProductsPage() {
       )}
 
       {/* Products Table Container */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden relative">
+        {isRefreshing && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-100/50 overflow-hidden z-20">
+            <div className="h-full bg-emerald-600 animate-pulse w-full"></div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -555,7 +672,6 @@ export default function SellerProductsPage() {
                         {/* Đã bán */}
                         <td className="px-space-md font-data-tabular text-body-md text-secondary">
                           {(product.totalSold ?? 0).toLocaleString("vi-VN")}
-                          {(product.totalSold || 0).toLocaleString("vi-VN")}
                         </td>
 
                         {/* Trạng thái */}
