@@ -1,11 +1,10 @@
 /**
  * Search feature – API layer.
  *
- * Hiện tại: chỉ hỗ trợ MOCK (mirror `MOCK_SEARCH_RESULT`).
- * Khi BE sẵn sàng (xem `docs/api-document.md` mục search), sửa `searchProducts`
- * để gọi `apiFetch('/products/search', { query: ... })`.
+ * Wire to backend `GET /api/v1/products/search` (added in this plan).
+ * Falls back to local mock when `NEXT_PUBLIC_USE_MOCK === "true"` (dev only).
  *
- * Plan: docs/superpowers/plans/2026-10-13-search-page-ui-stitch.md (Subplan A)
+ * Plan: docs/superpowers/plans/2026-10-18-search-endpoint-be-wire-fe.md
  */
 
 import { apiFetch } from "@/lib/api";
@@ -26,29 +25,76 @@ export const TOTAL_PAGES_MOCK = 42;
  * searchProducts – entry chính cho SearchPage.
  *
  * @param query – `q`, `filters`, `sort`, `page` đã chuẩn hoá từ URL.
+ *                `page` is 1-based on the FE side; converted to 0-based
+ *                before being sent to the BE.
  * @returns `SearchResult` (items + total + facets + optional mall).
  *
  * Branch:
- *  - `NEXT_PUBLIC_USE_MOCK === "true"` → filter/sort/page trên mock data local.
- *    Hỗ trợ dev không cần BE.
- *  - Ngược lại → gọi `apiFetch('/products/search', ...)` (BE TODO).
+ *  - `NEXT_PUBLIC_USE_MOCK === "true"` → local mock (dev only).
+ *  - Ngược lại → gọi `apiFetch('/api/v1/products/search', ...)`.
  */
 export async function searchProducts(query: SearchQuery): Promise<SearchResult> {
   if (process.env.NEXT_PUBLIC_USE_MOCK === "true") {
     return searchProductsMock(query);
   }
-  // TODO(api): gọi BE thật khi ready.
-  // return apiFetch<SearchResult>("/products/search", {
-  //   query: {
-  //     q: query.q,
-  //     page: query.page,
-  //     pageSize: DEFAULT_SEARCH_PAGE_SIZE,
-  //     sort: query.sort,
-  //     ...query.filters,
-  //   },
-  // });
-  return searchProductsMock(query);
+  return searchProductsApi(query);
 }
+
+/** Build URL query string from a SearchQuery. Exported for unit tests. */
+export function buildSearchQueryString(query: SearchQuery): string {
+  const params = new URLSearchParams();
+
+  if (query.q) params.set("q", query.q);
+  if (query.filters.categories?.length) {
+    for (const c of query.filters.categories) params.append("subcategory", c);
+  }
+  if (query.filters.cities?.length) {
+    for (const c of query.filters.cities) params.append("city", c);
+  }
+  if (query.filters.services?.length) {
+    for (const s of query.filters.services) params.append("service", s);
+  }
+  if (query.filters.priceMin !== undefined) {
+    params.set("priceMin", String(query.filters.priceMin));
+  }
+  if (query.filters.priceMax !== undefined) {
+    params.set("priceMax", String(query.filters.priceMax));
+  }
+  if (query.filters.minRating !== undefined) {
+    params.set("rating", String(query.filters.minRating));
+  }
+  params.set("sort", query.sort ?? DEFAULT_SEARCH_SORT);
+  // Page conversion: FE 1-based → BE 0-based
+  params.set("page", String((query.page ?? DEFAULT_SEARCH_PAGE) - 1));
+  params.set("size", String(DEFAULT_SEARCH_PAGE_SIZE));
+
+  return params.toString();
+}
+
+/** Real BE call. */
+async function searchProductsApi(query: SearchQuery): Promise<SearchResult> {
+  const qs = buildSearchQueryString(query);
+  const data = await apiFetch<SearchResponseEnvelope>(
+    `/api/v1/products/search?${qs}`,
+  );
+  return {
+    items: data.items,
+    total: data.total,
+    page: data.page + 1, // convert BE 0-based back to FE 1-based
+    pageSize: data.pageSize,
+    facets: data.facets,
+  };
+}
+
+/** Minimal shape we read off the BE response. Backend may add fields we ignore. */
+type SearchResponseEnvelope = {
+  items: SearchResult["items"];
+  total: number;
+  page: number;
+  pageSize: number;
+  facets: SearchResult["facets"];
+  mall?: SearchResult["mall"];
+};
 
 /** Local mock: lọc/sort/page trên 20 items Stitch. */
 async function searchProductsMock(query: SearchQuery): Promise<SearchResult> {
@@ -126,6 +172,3 @@ export const __searchInternals = {
   DEFAULT_SEARCH_PAGE_SIZE,
 };
 
-// Silence unused import warning khi BE chưa ready.
-// biome-ignore lint/correctness/noUnusedImports: keep apiFetch import để sẵn sàng dùng khi BE ready
-void apiFetch;
