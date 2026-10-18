@@ -212,7 +212,11 @@ describe("getCheckout — cart shape (M.3 + M.4)", () => {
     mockApiFetch.mockReset();
   });
 
-  const MOCK_CART_WITH_NEW_FIELDS: BackendCartResponse = {
+  const MOCK_BE_CART_RESPONSE: BackendCartResponse = {
+    // ── M.3 + 2026-10-18: BE Swagger thật trả field tên `storeSubtotal`
+    //    (KHÔNG phải `shopSubtotal`). Đây là root cause của "giá = 0"
+    //    ở trang /checkout.
+    //    Test RED này khóa field name theo Swagger để FE không lệch nữa.
     id: 1,
     userId: 5,
     storeGroups: [
@@ -237,7 +241,7 @@ describe("getCheckout — cart shape (M.3 + M.4)", () => {
             stockQuantity: 50,
           } satisfies BackendCartItem,
         ],
-        shopSubtotal: 198_000,
+        storeSubtotal: 198_000, // ← BE Swagger field name
       },
     ],
     subtotal: 198_000,
@@ -250,7 +254,7 @@ describe("getCheckout — cart shape (M.3 + M.4)", () => {
 
   it("uses cart.grandTotal from BE when present (M.3)", async () => {
     mockApiFetch.mockImplementation(async (url: string) => {
-      if (url === "/api/v1/cart") return MOCK_CART_WITH_NEW_FIELDS;
+      if (url === "/api/v1/cart") return MOCK_BE_CART_RESPONSE;
       if (url === "/api/v1/users/addresses") return [];
       return null;
     });
@@ -262,9 +266,27 @@ describe("getCheckout — cart shape (M.3 + M.4)", () => {
     expect(checkout.shippingFee).toBe(30_000);
   });
 
+  it("reads storeSubtotal from BE and maps to shopGroups[].shopSubtotal (Bug #1 fix)", async () => {
+    // BE Swagger 2026-10-18: CartStoreGroupResponse.storeSubtotal
+    // FE phải map sang domain CheckoutShopGroup.shopSubtotal.
+    // Trước fix: FE đọc g.shopSubtotal (undefined) → subtotal=0.
+    mockApiFetch.mockImplementation(async (url: string) => {
+      if (url === "/api/v1/cart") return MOCK_BE_CART_RESPONSE;
+      if (url === "/api/v1/users/addresses") return [];
+      return null;
+    });
+
+    const checkout = await getCheckout();
+
+    // Mỗi shopGroup phải có shopSubtotal = 198_000 từ BE.storeSubtotal
+    expect(checkout.shopGroups).toHaveLength(1);
+    expect(checkout.shopGroups[0]?.shopSubtotal).toBe(198_000);
+    expect(checkout.shopGroups[0]?.shippingFee).toBe(30_000);
+  });
+
   it("falls back to local calculation when BE response lacks grandTotal (backward compat)", async () => {
     const CART_WITHOUT_GRAND_TOTAL: BackendCartResponse = {
-      ...MOCK_CART_WITH_NEW_FIELDS,
+      ...MOCK_BE_CART_RESPONSE,
       totalAmount: undefined,
       grandTotal: undefined,
     };
@@ -295,5 +317,131 @@ describe("getCheckout — cart shape (M.3 + M.4)", () => {
       stockQuantity: 10, // M.4 — phải có field này
     };
     expect(item.stockQuantity).toBe(10);
+  });
+});
+
+// ── Bug #2 (2026-10-18): submitOrder body phải chứa items[] ────────────
+
+import { submitOrder } from "./api";
+
+describe("submitOrder — items[] in CheckoutStoreOrderRequest (Bug #2)", () => {
+  beforeEach(() => {
+    mockApiFetch.mockReset();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sends items[{ variantId, quantity }] for each storeOrder (Bug #2 RED)", async () => {
+    // BE Swagger 2026-10-18: CheckoutStoreOrderRequest REQUIRED items[]
+    // Trước fix: FE chỉ gửi { storeId, voucherCode } → BE trả 400.
+    mockApiFetch.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          orderCode: "FS-261018-ABCD",
+          storeId: 2,
+          storeName: "Shop ABC",
+          status: "PENDING_PAYMENT",
+          paymentStatus: "PENDING",
+          items: [],
+          subtotal: 198_000,
+          shippingFee: 30_000,
+          discountAmount: 0,
+          totalAmount: 228_000,
+        },
+      ],
+    });
+
+    await submitOrder(
+      {
+        addressId: 10,
+        paymentMethod: "ZALOPAY",
+        platformVoucherCode: "VIBE10",
+        shopSelections: [
+          {
+            storeId: 2,
+            shopVoucherCode: "SHOP5",
+            buyerNote: "Giao giờ hành chính",
+            // items[] — Bug #2: caller BẮT BUỘC truyền items theo
+            // SubmitOrderRequest.shopSelections[].items.
+            items: [{ variantId: 42, quantity: 2 }],
+          },
+        ],
+      },
+      "idem-key-123",
+    );
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      "/api/v1/orders/checkout",
+      expect.objectContaining({
+        method: "POST",
+        json: expect.objectContaining({
+          shippingAddressId: 10,
+          storeOrders: expect.arrayContaining([
+            expect.objectContaining({
+              storeId: 2,
+              voucherCode: "SHOP5",
+              items: expect.arrayContaining([
+                expect.objectContaining({
+                  variantId: expect.any(Number),
+                  quantity: expect.any(Number),
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("does NOT include platformVoucherCode at top level (Bug #3 — Swagger CreateOrderRequest không có field này)", async () => {
+    // BE Swagger: CreateOrderRequest chỉ có shippingAddressId + storeOrders[].
+    // FE đang gửi thêm platformVoucherCode ở top → có thể gây 400 hoặc
+    // bị Jackson bỏ qua. Test này chỉ verify field name bị loại bỏ
+    // khỏi top-level body (move vào storeOrders hoặc bỏ hẳn tuỳ BE quyết).
+    mockApiFetch.mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          orderCode: "FS-261018-ABCD",
+          storeId: 2,
+          storeName: "Shop ABC",
+          status: "PENDING_PAYMENT",
+          paymentStatus: "PENDING",
+          items: [],
+          subtotal: 100_000,
+          shippingFee: 0,
+          discountAmount: 0,
+          totalAmount: 100_000,
+        },
+      ],
+    });
+
+    await submitOrder(
+      {
+        addressId: 10,
+        paymentMethod: "ZALOPAY",
+        platformVoucherCode: "VIBE10",
+        shopSelections: [
+          {
+            storeId: 2,
+            items: [{ variantId: 42, quantity: 1 }],
+            // Cần items[] cho bug #2 — FE phải build từ cart.
+          },
+        ],
+      },
+      "idem-key-456",
+    );
+
+    const body = (
+      mockApiFetch.mock.calls[0]?.[1] as { json?: Record<string, unknown> }
+    )?.json;
+
+    // Bug #3: top-level KHÔNG có platformVoucherCode.
+    // (Có thể FE sẽ move xuống từng storeOrder hoặc bỏ hẳn — verify
+    // ở top là không có.)
+    expect(body).not.toHaveProperty("platformVoucherCode");
   });
 });
