@@ -138,6 +138,10 @@ export type MaterialSymbolName =
   | "nights_stay"
   | "weekend"
   | "send"
+  | "visibility"
+  | "progress_activity"
+  | "inbox"
+  | "info"
   | "more_vert"
   | "cancel"
   // Security / auth (added for Forbidden 403 page)
