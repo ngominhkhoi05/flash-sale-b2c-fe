@@ -1,4 +1,6 @@
 import { apiFetch, isMockMode } from "./client";
+import type { PageResponse } from "@/types/api";
+import type { AdminProduct } from "@/types/admin";
 import type {
   AdminFlashSaleSession,
   CreateFlashSaleSessionInput,
@@ -60,7 +62,6 @@ import {
   getMockAdminProducts,
   type MockStoreItem,
   type MockUserItem,
-  type MockProductItem,
 } from "@/lib/mocks/admin.mock";
 
 
@@ -868,21 +869,58 @@ export async function updateAdminUserStatus(
 // 33. Quản lý Sản phẩm toàn sàn (Stitch Screen 33)
 // ============================================================================
 
-export type AdminProduct = MockProductItem;
+export type { AdminProduct };
 
 export async function getAdminProducts(params?: {
   categoryId?: number;
   status?: string;
   search?: string;
-}): Promise<AdminProduct[]> {
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<AdminProduct>> {
   try {
-    return await apiFetch<AdminProduct[]>("/products");
+    const query: Record<string, string | number> = {};
+    if (params?.status && params.status !== "ALL") query.status = params.status;
+    if (params?.categoryId) query.categoryId = params.categoryId;
+    if (params?.search) query.search = params.search;
+    if (params?.page !== undefined) query.page = params.page;
+    if (params?.size !== undefined) query.size = params.size;
+
+    const res = await apiFetch<PageResponse<AdminProduct>>("/admin/products", { query });
+    return {
+      ...res,
+      content: res.content ?? res.items ?? [],
+      items: res.content ?? res.items ?? [],
+    };
   } catch (err) {
     if (isMockMode()) {
-      return getMockAdminProducts(params);
+      const mockItems = getMockAdminProducts(params) as unknown as AdminProduct[];
+      return {
+        content: mockItems,
+        items: mockItems,
+        pageNumber: 0,
+        pageSize: mockItems.length,
+        totalElements: mockItems.length,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
     }
     throw err;
   }
+}
+
+export async function updateAdminProductStatus(
+  id: number,
+  status: "ACTIVE" | "INACTIVE" | "BANNED",
+  reason?: string
+): Promise<AdminProduct> {
+  return await apiFetch<AdminProduct>(`/admin/products/${id}/status`, {
+    method: "PATCH",
+    json: { status, reason },
+  });
 }
 
 

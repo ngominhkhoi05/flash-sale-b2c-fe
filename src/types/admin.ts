@@ -74,3 +74,20 @@ export interface AdminRealtimeMonitorData {
   items: AdminRealtimeProductMonitor[];
   lastUpdated: string;
 }
+
+export interface AdminProduct {
+  id: number;
+  name: string;
+  slug: string;
+  storeId?: number;
+  storeName: string;
+  categoryId?: number;
+  categoryName: string;
+  minPrice: number;
+  maxPrice: number;
+  totalStock: number;
+  status: "ACTIVE" | "INACTIVE" | "BANNED" | string;
+  primaryImageUrl?: string;
+  imageUrl?: string;
+  createdAt?: string;
+}
