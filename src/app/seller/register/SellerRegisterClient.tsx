@@ -76,12 +76,17 @@ export function SellerRegisterClient() {
 
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.email) setContactEmail(currentUser.email);
-      if (currentUser.fullName) setWarehouseContact(currentUser.fullName);
-      if ((currentUser as any).phone) {
-        setContactPhone((currentUser as any).phone);
-        setWarehousePhone((currentUser as any).phone);
-      }
+      const userRecord = currentUser as unknown as Record<string, unknown>;
+      const userPhone = typeof userRecord.phone === "string" ? userRecord.phone : "";
+      const timer = setTimeout(() => {
+        if (currentUser.email) setContactEmail(currentUser.email);
+        if (currentUser.fullName) setWarehouseContact(currentUser.fullName);
+        if (userPhone) {
+          setContactPhone(userPhone);
+          setWarehousePhone(userPhone);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [currentUser]);
 
@@ -186,8 +191,8 @@ export function SellerRegisterClient() {
 
       toast.success("Hồ sơ đăng ký gian hàng đã được gửi thành công!");
       setViewState("pending");
-    } catch (err: any) {
-      const msg = err?.message || "";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
       if (msg.includes("đã có gian hàng") || msg.includes("already")) {
         toast.info("Tài khoản của bạn đã có gian hàng trên hệ thống!");
         setViewState("pending");
@@ -339,7 +344,7 @@ export function SellerRegisterClient() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (step > item.s) setStep(item.s as any);
+                    if (step > item.s) setStep(item.s as 1 | 2 | 3);
                   }}
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all",
