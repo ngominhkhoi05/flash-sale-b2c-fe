@@ -31,6 +31,14 @@ const nextConfig: NextConfig = {
   //    Khi backend /api/v1/banners/home trả 404, HeroBannerSection fallback
   //    sang useFeaturedProducts() → BE trả imageUrl: "https://picsum.photos/...".
   //    Khi BE đổi sang CDN thật (vd cdn.vibemart.vn), xóa entry này.
+  // 5. localhost — backend Spring Boot local dev chạy ở localhost:8080
+  //    (xem application-local.yaml + .env NEXT_PUBLIC_API_URL=http://localhost:8080).
+  //    Khi HeroBannerSection fallback sang useFeaturedProducts() và BE trả
+  //    imageUrl dạng absolute URL "http://localhost:8080/banners/..." (hoặc
+  //    relative được FE ghép với NEXT_PUBLIC_API_URL), next/image cần
+  //    whitelist hostname này để tối ưu qua /_next/image.
+  //    Scope CHỈ là local dev (HTTP, không wildcard). Khi deploy production
+  //    hoặc khi BE chuyển sang CDN thật, xóa entry này.
   //
   // Khi thêm domain thật mới, cập nhật hostname tại đây.
   images: {
@@ -58,6 +66,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "picsum.photos",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
         pathname: "/**",
       },
     ],
