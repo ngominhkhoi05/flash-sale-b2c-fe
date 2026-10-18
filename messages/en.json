@@ -892,22 +892,28 @@
       "products": "Products",
       "productsUnit": "items",
       "responseRate": "Response Rate",
-      "joined": "Joined",
       "online": "Online {time} ago",
       "officialBadge": "Official Mall"
     },
     "specs": {
       "title": "Product Details",
-      "category": "Category",
-      "material": "Material",
       "origin": "Origin",
-      "style": "Style",
-      "sku": "SKU",
-      "careInstructions": "Care instructions"
+      "weight": "Weight",
+      "material": "Material",
+      "warranty": "Warranty"
     },
     "description": {
       "title": "Detailed Product Description",
-      "featureTitle": "Vietnamese Standard Size Chart (Reference)"
+      "featureTitle": "Key Features",
+      "sizeChartTitle": "Size Chart",
+      "sizeChart": {
+        "size": "Size",
+        "widthCm": "Width (cm)",
+        "heightCm": "Height (cm)",
+        "standard": "Standard",
+        "large": "Large"
+      },
+      "emptyHighlights": "No highlights available."
     },
     "reviews": {
       "title": "Product Reviews",
@@ -932,7 +938,9 @@
       "sameStore": "Same Store",
       "seeAll": "See all",
       "bestSellers": "Best Sellers in Category",
-      "hot": "HOT"
+      "hot": "HOT",
+      "emptySameStore": "No products from this store yet.",
+      "emptyBestSellers": "No best sellers yet."
     },
     "commitments": {
       "natural": "100% Natural Cotton",

@@ -6,11 +6,16 @@
  *   - `selectedSize`: size hiện tại (mặc định = size đầu tiên KHÔNG disabled)
  *   - `quantity`: số lượng (mặc định = 1)
  *
- * Auto-select variant: nếu product có flashSale → dùng variant "flash",
+ * Auto-select variant: nếu product có flashSale active → dùng variant "flash",
  * ngược lại dùng variant "standard". KHÔNG có switcher UI.
  *
  * Layout: 2-col desktop (1/3 gallery + 2/3 sidebar),
  * stack 1-col trên mobile.
+ *
+ * Updated 2026-10-18 — align với BE `ProductDetailResponse`:
+ *   - `flashSale` (singular) → `flashSales: ActiveFlashSaleDto[]`. Pick `flashSales[0]`.
+ *   - `specs.sku` (FE-only) → KHÔNG truyền sku xuống ProductHeaderInfo (BE không trả).
+ *   - `minPrice`/`maxPrice` (nullable) → defensive khi null.
  */
 "use client";
 
@@ -33,7 +38,10 @@ import { ProductDescriptionCard } from "@/components/product-detail/ProductDescr
 import { ProductReviewsCard } from "@/components/product-detail/ProductReviewsCard";
 import { ProductRelatedStores } from "@/components/product-detail/ProductRelatedStores";
 import { ProductBestSellers } from "@/components/product-detail/ProductBestSellers";
-import type { ProductDetail } from "@/features/products";
+import type {
+  ActiveFlashSaleDto,
+  ProductDetail,
+} from "@/features/products";
 
 export interface ProductDetailPageProps {
   product: ProductDetail;
@@ -45,7 +53,6 @@ export interface ProductDetailPageProps {
 function deriveColors(
   product: ProductDetail,
 ): Array<{ name: string; bgClass: string }> {
-  // Nếu variants đã có attributes "Màu Sắc", dedupe theo tên + giữ thứ tự.
   const seen = new Set<string>();
   const out: Array<{ name: string; bgClass: string }> = [];
   for (const v of product.variants) {
@@ -56,7 +63,6 @@ function deriveColors(
   }
   if (out.length > 0) return out;
 
-  // Fallback: đọc từ tier configs
   const tier = product.tierVariationConfigs.find(
     (t) => t.name === "Màu Sắc",
   );
@@ -85,8 +91,7 @@ function deriveSizes(
 }
 
 /**
- * Best-effort mapping tên màu → Tailwind bg utility. Trả về bg hợp lý
- * dựa trên keyword để chip hiển thị đúng màu trên UI.
+ * Best-effort mapping tên màu → Tailwind bg utility.
  */
 function colorToBg(name: string): string {
   const n = name.toLowerCase();
@@ -109,11 +114,36 @@ function totalStockCount(product: ProductDetail): number {
   return total;
 }
 
+/**
+ * Pick flash sale ACTIVE đầu tiên, hoặc fallback slot gần nhất.
+ * BE `slotStatus` là string — chấp nhận "ACTIVE" / "ONGOING" / fallback first.
+ */
+function pickActiveFlashSale(
+  flashSales: ActiveFlashSaleDto[],
+): ActiveFlashSaleDto | null {
+  if (flashSales.length === 0) return null;
+  const active = flashSales.find((f) => f.slotStatus === "ACTIVE");
+  return active ?? flashSales[0] ?? null;
+}
+
+/** Discount % = round((1 - flashPrice/originalPrice) * 100), 0 nếu invalid. */
+function computeDiscountPercent(
+  originalPrice: number,
+  flashPrice: number,
+): number {
+  if (originalPrice <= 0 || flashPrice <= 0) return 0;
+  return Math.round((1 - flashPrice / originalPrice) * 100);
+}
+
 export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const t = useTranslations("productDetail");
 
-  // Auto-select variant: có flashSale → "flash", không có → "standard"
-  const isFlashSale = Boolean(product.flashSale);
+  // BE shape: flashSales[] (Active). Pick first ACTIVE, fallback first.
+  const activeFlashSale = useMemo(
+    () => pickActiveFlashSale(product.flashSales),
+    [product.flashSales],
+  );
+  const isFlashSale = activeFlashSale !== null;
   const variant: "standard" | "flash" = isFlashSale ? "flash" : "standard";
 
   const colors = useMemo(() => deriveColors(product), [product]);
@@ -129,7 +159,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const [quantity, setQuantity] = useState<number>(1);
 
   const stockCount = totalStockCount(product);
-  const flashMaxQty = product.flashSale?.maxQtyPerUser ?? 2;
+  // BE không trả `maxQtyPerUser` cho product detail → tạm default 2.
+  const flashMaxQty = activeFlashSale ? 2 : 2;
   const maxQty = isFlashSale ? flashMaxQty : stockCount;
 
   // Derived: khi color/size không khớp variant nào active, tự động chọn size available.
@@ -147,7 +178,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   function clampQuantity(qty: number, cap: number) {
     return Math.max(1, Math.min(cap, qty));
   }
-  const safeQuantity = clampQuantity(quantity, maxQty);
+  const safeQuantity = clampQuantity(quantity, Math.max(1, maxQty));
 
   // Khi user đổi color mà size hiện tại không available, tự động đổi size.
   function handleColorChange(color: string) {
@@ -165,6 +196,24 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       if (firstAvailable) setSelectedSize(firstAvailable.label);
     }
   }
+
+  // Defensive: minPrice/maxPrice có thể null. Fallback 0 cho display.
+  const displayMinPrice = product.minPrice ?? 0;
+  const displayMaxPrice = product.maxPrice ?? 0;
+
+  // Pricing for box
+  const pricingMinPrice = activeFlashSale
+    ? activeFlashSale.flashSalePrice
+    : displayMinPrice;
+  const pricingOriginalPrice = activeFlashSale
+    ? activeFlashSale.originalPrice
+    : displayMaxPrice;
+  const pricingDiscount = activeFlashSale
+    ? computeDiscountPercent(
+        activeFlashSale.originalPrice,
+        activeFlashSale.flashSalePrice,
+      )
+    : (product.discountPercent ?? 0);
 
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-4">
@@ -189,7 +238,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             tags={{
               favorite: true,
               official: product.storeProfile.isOfficial,
-              sku: product.specs.sku,
+              // BE không trả sku ở ProductSpecsDto → bỏ luôn.
             }}
             title={product.name}
             ratingAvg={product.ratingAvg}
@@ -198,23 +247,19 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             questionCount={product.questionCount}
           />
 
-          {/* Section 4: Pricing box (auto-select flash/standard based on product.flashSale) */}
+          {/* Section 4: Pricing box (auto-select flash/standard) */}
           <ProductPricingBox
             variant={variant}
-            minPrice={
-              isFlashSale && product.flashSale
-                ? product.flashSale.price
-                : product.minPrice
-            }
-            originalPrice={product.maxPrice}
-            discountPercent={product.discountPercent ?? 0}
+            minPrice={pricingMinPrice}
+            originalPrice={pricingOriginalPrice}
+            discountPercent={pricingDiscount}
             flashSale={
-              product.flashSale
+              activeFlashSale
                 ? {
-                    endsAt: product.flashSale.endsAt,
-                    soldStock: product.flashSale.soldStock,
-                    totalStock: product.flashSale.totalStock,
-                    maxQtyPerUser: product.flashSale.maxQtyPerUser,
+                    endsAt: activeFlashSale.slotEndTime,
+                    soldStock: 0, // BE không trả soldStock ở product detail
+                    totalStock: activeFlashSale.stockAvailable,
+                    maxQtyPerUser: flashMaxQty,
                   }
                 : null
             }
@@ -233,7 +278,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
           {/* Section 6: Quantity stepper */}
           <ProductQuantityStepper
             value={safeQuantity}
-            max={maxQty}
+            max={Math.max(1, maxQty)}
             stockCount={stockCount}
             onChange={setQuantity}
           />

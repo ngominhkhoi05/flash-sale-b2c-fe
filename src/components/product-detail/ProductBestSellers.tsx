@@ -1,9 +1,14 @@
 /**
  * ProductBestSellers - Section 20 (Stitch `31bc6af5`).
  *
- * Card with:
- *   - Section heading "Bán Chạy Cùng Ngành" with HOT badge + "Xem hết" link
- *   - Product list: each item shows image, name, price, rating, sold count
+ * Card với:
+ *   - Section heading "Bán Chạy Cùng Ngành" + HOT badge + "Xem hết" link
+ *   - Product list: mỗi item shows image, name, price, store name, stock
+ *
+ * Updated 2026-10-18 — align với BE `ProductDetailResponse.relatedBestSellers` shape:
+ *   - Input đổi từ `RecommendedProduct[]` (rating, totalSold) sang
+ *     `RelatedProductSummary[]` (minPrice, totalStock, storeName).
+ *   - Loại bỏ hiển thị `rating` + `totalSold` (BE không trả). Thay bằng `storeName` + stock.
  *
  * i18n namespace: `productDetail.related.*`.
  */
@@ -12,13 +17,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { RecommendedProduct } from "@/features/products";
+import type { RelatedProductSummary } from "@/features/products";
 
 export interface ProductBestSellersProps {
   /** BE có thể trả null/undefined. Component tự defensive. */
-  products: RecommendedProduct[] | null | undefined;
+  products: RelatedProductSummary[] | null | undefined;
   className?: string;
 }
 
@@ -27,8 +31,8 @@ function asArray<T>(input: T[] | null | undefined): T[] {
 }
 
 /** Dedupe theo id để phòng backend trả duplicate rows → React warning. */
-function dedupeById<T extends { id: string }>(items: T[]): T[] {
-  const seen = new Set<string>();
+function dedupeById<T extends { id: number }>(items: T[]): T[] {
+  const seen = new Set<number>();
   const out: T[] = [];
   for (const item of items) {
     if (!seen.has(item.id)) {
@@ -39,7 +43,10 @@ function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return out;
 }
 
-export function ProductBestSellers({ products, className }: ProductBestSellersProps) {
+export function ProductBestSellers({
+  products,
+  className,
+}: ProductBestSellersProps) {
   const t = useTranslations("productDetail.related");
   const format = useFormatter();
   const list = dedupeById(asArray(products));
@@ -68,43 +75,43 @@ export function ProductBestSellers({ products, className }: ProductBestSellersPr
       </div>
 
       {list.length === 0 ? (
-        <p className="text-body-sm text-outline">Chưa có sản phẩm bán chạy.</p>
+        <p className="text-body-sm text-outline">{t("emptyBestSellers")}</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {list.map((product) => (
-            <Link
-              key={product.id}
-              href={product.href}
-              className="group flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-container"
-            >
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-container">
-                <Image
-                  src={product.imageUrl}
-                  alt={product.imageAlt}
-                  width={64}
-                  height={64}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                />
-              </div>
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium text-on-surface transition-colors group-hover:text-primary">
-                  {product.name}
-                </span>
-                <span className="text-sm font-bold text-tertiary">
-                  {format.number(product.price, { style: "currency", currency: "VND" })}
-                </span>
-                {product.rating !== undefined && (
-                  <span className="flex items-center gap-1 text-xs text-outline">
-                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                    {product.rating.toFixed(1)}
-                    {product.totalSold !== undefined && (
-                      <> • Đã bán {format.number(product.totalSold)}</>
-                    )}
+          {list.map((product) => {
+            const href = `/products/${product.id}`;
+            return (
+              <Link
+                key={product.id}
+                href={href}
+                className="group flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-container"
+              >
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-container">
+                  <Image
+                    src={product.imageUrl}
+                    alt={product.name}
+                    width={64}
+                    height={64}
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  />
+                </div>
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-medium text-on-surface transition-colors group-hover:text-primary">
+                    {product.name}
                   </span>
-                )}
-              </div>
-            </Link>
-          ))}
+                  <span className="text-sm font-bold text-tertiary">
+                    {format.number(product.minPrice, {
+                      style: "currency",
+                      currency: "VND",
+                    })}
+                  </span>
+                  <span className="text-xs text-outline">
+                    {product.storeName} • Kho: {format.number(product.totalStock)}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

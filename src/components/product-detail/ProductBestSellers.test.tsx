@@ -2,42 +2,54 @@ import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProductBestSellers } from "@/components/product-detail/ProductBestSellers";
 import { TestWrapper } from "@/__tests__/test-wrapper";
-import type { RecommendedProduct } from "@/features/products";
+import type { RelatedProductSummary } from "@/features/products";
 
 function renderWithIntl(ui: React.ReactElement) {
   return render(<TestWrapper>{ui}</TestWrapper>);
 }
 
-const MOCK_BESTSELLERS: RecommendedProduct[] = [
+const MOCK_BESTSELLERS: RelatedProductSummary[] = [
   {
-    id: "6",
+    id: 6,
+    storeId: 2,
+    storeName: "Vibe Mart",
+    categoryId: 10,
+    categoryName: "Áo thun",
     name: "Áo Boxy Heavy Cotton",
     imageUrl: "https://lh3.googleusercontent.com/boxy1",
-    imageAlt: "Áo Boxy",
-    price: 145000,
-    rating: 4.9,
-    totalSold: 4800,
-    href: "/products/ao-boxy-heavy-cotton",
+    minPrice: 145000,
+    maxPrice: 145000,
+    totalStock: 100,
+    status: "ACTIVE",
+    createdAt: "2026-10-12T00:00:00Z",
   },
   {
-    id: "7",
+    id: 7,
+    storeId: 2,
+    storeName: "Vibe Mart",
+    categoryId: 10,
+    categoryName: "Áo thun",
     name: "Áo thun thể thao Dri-Fit",
     imageUrl: "https://lh3.googleusercontent.com/drifit1",
-    imageAlt: "Áo Dri-Fit",
-    price: 129000,
-    rating: 4.8,
-    totalSold: 2100,
-    href: "/products/ao-thun-the-thao-dri-fit",
+    minPrice: 129000,
+    maxPrice: 129000,
+    totalStock: 75,
+    status: "ACTIVE",
+    createdAt: "2026-10-12T00:00:00Z",
   },
   {
-    id: "8",
+    id: 8,
+    storeId: 2,
+    storeName: "Vibe Mart",
+    categoryId: 10,
+    categoryName: "Áo thun",
     name: "Áo thun tay dài sọc ngang",
     imageUrl: "https://lh3.googleusercontent.com/long1",
-    imageAlt: "Áo dài",
-    price: 169000,
-    rating: 4.7,
-    totalSold: 950,
-    href: "/products/ao-thun-tay-dai-soc-ngang",
+    minPrice: 169000,
+    maxPrice: 169000,
+    totalStock: 50,
+    status: "ACTIVE",
+    createdAt: "2026-10-12T00:00:00Z",
   },
 ];
 
@@ -53,16 +65,17 @@ describe("ProductBestSellers", () => {
     expect(screen.getByText("Áo thun thể thao Dri-Fit")).toBeInTheDocument();
   });
 
-  test("renders product prices", () => {
+  test("renders product prices formatted in VND", () => {
     renderWithIntl(<ProductBestSellers products={MOCK_BESTSELLERS} />);
     expect(screen.getByText(/145/)).toBeInTheDocument();
-    // 4800 formatted with thousand separator: "4.800"
-    expect(screen.getByText(/4\.800/)).toBeInTheDocument();
   });
 
-  test("renders ratings when present", () => {
+  test("renders store name + total stock for each item", () => {
     renderWithIntl(<ProductBestSellers products={MOCK_BESTSELLERS} />);
-    expect(screen.getByText(/4.9/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Vibe Mart/).length).toBeGreaterThanOrEqual(3);
+    // totalStock 100 / 75 / 50
+    expect(screen.getByText(/100/)).toBeInTheDocument();
+    expect(screen.getByText(/75/)).toBeInTheDocument();
   });
 
   test("renders product images", () => {
@@ -71,19 +84,24 @@ describe("ProductBestSellers", () => {
     expect(images.length).toBeGreaterThanOrEqual(3);
   });
 
-  test("renders links for each product", () => {
+  test("renders links for each product with /products/<id> href", () => {
     renderWithIntl(<ProductBestSellers products={MOCK_BESTSELLERS} />);
     const links = screen.getAllByRole("link");
-    expect(links.length).toBeGreaterThanOrEqual(3);
+    const hrefs = links.map((l) => l.getAttribute("href"));
+    expect(hrefs).toContain("/products/6");
+    expect(hrefs).toContain("/products/7");
+    expect(hrefs).toContain("/products/8");
   });
 
-  test("renders empty state", () => {
+  test("renders empty state when products=[]", () => {
     renderWithIntl(<ProductBestSellers products={[]} />);
     expect(screen.getByTestId("product-best-sellers")).toBeInTheDocument();
   });
 
   test("applies custom className", () => {
-    renderWithIntl(<ProductBestSellers products={MOCK_BESTSELLERS} className="my-custom-class" />);
+    renderWithIntl(
+      <ProductBestSellers products={MOCK_BESTSELLERS} className="my-custom-class" />,
+    );
     expect(screen.getByTestId("product-best-sellers")).toHaveClass("my-custom-class");
   });
 });
@@ -92,7 +110,9 @@ describe("ProductBestSellers – defensive guards (BE nullable)", () => {
   test("does NOT crash when products is undefined (BE missing field)", () => {
     expect(() =>
       renderWithIntl(
-        <ProductBestSellers products={undefined as unknown as RecommendedProduct[]} />,
+        <ProductBestSellers
+          products={undefined as unknown as RelatedProductSummary[]}
+        />,
       ),
     ).not.toThrow();
     expect(screen.getByTestId("product-best-sellers")).toBeInTheDocument();
@@ -101,17 +121,15 @@ describe("ProductBestSellers – defensive guards (BE nullable)", () => {
   test("does NOT crash when products is null (BE explicit null)", () => {
     expect(() =>
       renderWithIntl(
-        <ProductBestSellers products={null as unknown as RecommendedProduct[]} />,
+        <ProductBestSellers
+          products={null as unknown as RelatedProductSummary[]}
+        />,
       ),
     ).not.toThrow();
     expect(screen.getByTestId("product-best-sellers")).toBeInTheDocument();
   });
 });
 
-/**
- * Defensive: khi backend trả duplicate id trong cùng list, component
- * PHẢI render 1 link duy nhất và KHÔNG phát React warning duplicate key.
- */
 describe("ProductBestSellers – duplicate id defensive", () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -124,13 +142,11 @@ describe("ProductBestSellers – duplicate id defensive", () => {
   });
 
   test("renders only one link when API returns duplicate ids", () => {
-    const dup: RecommendedProduct = {
-      id: "9",
+    const dup: RelatedProductSummary = {
+      ...MOCK_BESTSELLERS[0]!,
+      id: 99,
       name: "Áo duplicate",
       imageUrl: "https://example.com/dup.jpg",
-      imageAlt: "dup",
-      price: 100000,
-      href: "/products/dup",
     };
     renderWithIntl(
       <ProductBestSellers products={[dup, dup, MOCK_BESTSELLERS[0]!]} />,
@@ -141,13 +157,11 @@ describe("ProductBestSellers – duplicate id defensive", () => {
   });
 
   test("does NOT emit duplicate-key warning when ids collide", () => {
-    const dup: RecommendedProduct = {
-      id: "9",
+    const dup: RelatedProductSummary = {
+      ...MOCK_BESTSELLERS[0]!,
+      id: 99,
       name: "Áo duplicate",
       imageUrl: "https://example.com/dup.jpg",
-      imageAlt: "dup",
-      price: 100000,
-      href: "/products/dup",
     };
     renderWithIntl(<ProductBestSellers products={[dup, dup]} />);
     const dupKeyWarnings = consoleErrorSpy.mock.calls.filter((args) =>

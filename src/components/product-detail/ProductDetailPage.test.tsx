@@ -43,6 +43,9 @@ describe("ProductDetailPage", () => {
 
   test("renders store card", () => {
     render(<ProductDetailPage {...defaultProps} />, { wrapper: TestWrapper });
-    expect(screen.getByText("UTC Fashion Official")).toBeInTheDocument();
+    // Store name appears in store card (also in breadcrumb, so use getAllByText)
+    expect(
+      screen.getAllByText("UTC Fashion Official").length,
+    ).toBeGreaterThan(0);
   });
 });

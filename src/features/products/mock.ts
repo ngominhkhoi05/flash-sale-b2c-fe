@@ -1,10 +1,18 @@
 /**
  * Mock data cho Product Detail page.
- * Mirror `ProductDetailResponse` của BE + bổ sung field Stitch yêu cầu
- * (xem docs/superpowers/plans/2026-10-12-product-detail-be-required.md).
  *
- * Khi BE bổ sung Phase 1 P0 (rating, soldCount, images[], reviews, related),
- * sẽ xoá các field bổ sung ở đây và gọi API thật.
+ * Updated 2026-10-18 — align với BE `ProductDetailResponse` runtime shape:
+ *   - `descriptionRich`: {intro, highlights[], paragraphs[]}
+ *   - `specs`: {origin, weight, material, warranty}
+ *   - `features`: string[]
+ *   - `sizeChart`: {large: {...}, standard: {...}}
+ *   - `flashSales`: ActiveFlashSaleDto[] (array, BE đặt product có thể
+ *     tham gia nhiều slot)
+ *   - `relatedSameStore`/`relatedBestSellers`: RelatedProductSummary[]
+ *   - `minPrice`/`maxPrice`: number | null
+ *   - `storeProfile.joinedAt`: đã bỏ (BE không trả)
+ *
+ * Khi BE ready (đã chạy ổn định), có thể xoá mock và gọi API thật 1:1.
  */
 
 import type {
@@ -12,14 +20,17 @@ import type {
   ProductImage,
   ProductVariant,
   Review,
-  SizeChartRow,
-  ProductFeature,
   StoreProfile,
   ShopVoucher,
   ShippingInfo,
   BackendProductCommitment,
-  FlashSaleInfo,
   TierVariationConfig,
+  RelatedProductSummary,
+  ActiveFlashSaleDto,
+  ProductSpecsDto,
+  SizeChartDto,
+  DescriptionRichDto,
+  RatingDistributionDto,
 } from "./types";
 
 // ── Images (5 ảnh Stitch) ──────────────────────────────────────────────────
@@ -98,20 +109,23 @@ const VARIANTS: ProductVariant[] = COLORS.flatMap((color, colorIdx) =>
   })
 );
 
-// ── Flash sale info ───────────────────────────────────────────────────────
-const FLASH_SALE: FlashSaleInfo = {
-  flashSaleItemId: 1,
-  variantId: 1,
-  price: 89000,
-  originalPrice: 159000,
-  discountPercent: 44,
-  totalStock: 100,
-  soldStock: 72,
-  maxQtyPerUser: 2,
-  endsAt: "2026-10-14T18:00:00Z",
-};
+// ── Flash sales (BE shape — array, slot ACTIVE) ───────────────────────────
+// 1 slot ACTIVE + 1 slot UPCOMING để test render UI có thể pick đầu tiên.
+const FLASH_SALES: ActiveFlashSaleDto[] = [
+  {
+    slotId: 1,
+    slotStartTime: "2026-10-14T12:00:00Z",
+    slotEndTime: "2026-10-14T18:00:00Z",
+    slotStatus: "ACTIVE",
+    itemId: 1,
+    variantId: 1,
+    originalPrice: 159000,
+    flashSalePrice: 89000,
+    stockAvailable: 28, // 100 - 72 đã bán
+  },
+];
 
-// ── Reviews (3 sample) ────────────────────────────────────────────────────
+// ── Reviews (3 sample — BE sẽ trả empty ở runtime; defer endpoint reviews) ─
 const REVIEWS: Review[] = [
   {
     id: 1,
@@ -148,8 +162,8 @@ const REVIEWS: Review[] = [
     variantSku: "UTC-TS-001-DEN-M",
     variantAttributes: { "Màu Sắc": "Đen", "Kích Thước": "M" },
     mediaUrls: [
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuA1eFQomJhyTVC0UuD571qcAlkyHyX1-NV0VK5uG_PY3jeaJ3hLNCPJsUVeVw4NwmVsnN9YotuFqpbF4YKgfEQGK5fw_lvDp-zowIDaOPoEopuw3RUS40S9P9KYMGjtcJWJi0087G-OOQbWRxI1S-B0BoFI-6DCUhin1S46plEc8rCfD1FBQBAdbAtGNcVK8B9bu6BSBKObo2eyOoyAOcf7QulBlTHqmLEBIe8KhngQ23MD5qW-HY2rQQ",
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDp0VoTfJqshIFMstqsylewBM_u0HbwBH_zGFRCPpZYomcxRkIopj-xq9SNdjRFzcERa8NLL7_n_2OrRjtwU-8s5Kha4bJ61XL40z8r9RC1jqY5raSzb4PvDchOpy-7RcDEgD_NKFXX5pB0UuXPTu6-3LLiHdSdURNuXlNTQOZIAYiyVxVk1ueLy9eGRqrCnZ2_78h0lEQOMp3bpOCrjYwEDChjydTN0fQcqPBLGzg07WlL-PtxTqkvJQ",
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuA1eFQomJhyTVC0UuD571qcAlkyHyX1-NV0VK5uG_PY3jeaJ3hLNCPJsUVeVw99NwmVsnN9YotuFqpbF4YKgfEQGK5fw_lvDp-zowIDaOPoEopuw3RUS40S9P9KYMGjtcJWJi0087G-OOQbWRxI1S-B0BoFI-6DCUhin1S46plEc8rCfD1FBQBAdbAtGNcVK8B9bu6BSBKObo2eyOoyAOcf7QulBlTHqmLEBIe8KhngQ23MD5qW-HY2rQQ",
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuDp0VoTfJqshIFMstqsylewBM_u0HbwBH_zGFRCPpZYomcxRkIopj-xq9SNdjRFzcERa8NLL7_n_2OrRjtwU-8s5Kha4bJ61XL40z8r9RC1jqY5raSzb4PvDchOpy-7RcDEgD_NKFXX5pB0UuXPTu6-3LLiHdSdURNuXlNTQOZIAYiyVxVk1ueLy9eGRqrCnZ2_78h0lEQOMp3bpOCrYwEDChjydTN0fQcqPBLGzg07WlL-PtxTqkvJQ",
     ],
     sellerReply: null,
     isVerifiedPurchase: true,
@@ -172,43 +186,22 @@ const REVIEWS: Review[] = [
   },
 ];
 
-// ── Size chart (4 size) ───────────────────────────────────────────────────
-const SIZE_CHART: SizeChartRow[] = [
-  { size: "S", height: "1m50 - 1m62", weight: "45 - 55 kg", width: "48 cm", length: "66 cm", isCurrent: false, isOutOfStock: false },
-  { size: "M", height: "1m60 - 1m70", weight: "55 - 65 kg", width: "50 cm", length: "69 cm", isCurrent: true, isOutOfStock: false },
-  { size: "L", height: "1m68 - 1m78", weight: "65 - 75 kg", width: "53 cm", length: "72 cm", isCurrent: false, isOutOfStock: false },
-  { size: "XL", height: "1m75 - 1m85", weight: "75 - 88 kg", width: "56 cm", length: "75 cm", isCurrent: false, isOutOfStock: true },
+// ── Size chart (BE shape — object {large, standard}) ──────────────────────
+const SIZE_CHART: SizeChartDto = {
+  large: { width_cm: 56, height_cm: 75 },
+  standard: { width_cm: 50, height_cm: 69 },
+};
+
+// ── Features (5 string theo BE) ────────────────────────────────────────────
+const FEATURES: string[] = [
+  "Thoáng khí tối đa nhờ cấu trúc dệt mắt lưới siêu nhỏ",
+  "Co giãn 4 chiều, đàn hồi tự nhiên nhờ kỹ thuật xe sợi xoắn kép",
+  "Bo cổ dệt gân 3 lớp chống quăn mép, giữ nếp chuẩn form",
+  "Cotton Compact 220gsm chải kỹ, giảm xù lông, thấm hút vượt trội",
+  "Form Regular Fit hiện đại chuẩn cơ thể người trẻ Việt",
 ];
 
-// ── Features (3) ──────────────────────────────────────────────────────────
-const FEATURES: ProductFeature[] = [
-  {
-    icon: "air",
-    iconBgClass: "bg-primary-fixed",
-    iconTextClass: "text-primary",
-    title: "Thoáng Khí Tối Đa",
-    description:
-      "Cấu trúc dệt mắt lưới siêu nhỏ giúp lưu thông khí và bay hơi nhanh chóng trong ngày nắng nóng.",
-  },
-  {
-    icon: "all_inclusive",
-    iconBgClass: "bg-secondary-container",
-    iconTextClass: "text-on-secondary-container",
-    title: "Co Giãn 4 Chiều",
-    description:
-      "Độ đàn hồi tự nhiên nhờ kỹ thuật xe sợi xoắn kép, hạn chế dão form sau nhiều lần giặt.",
-  },
-  {
-    icon: "layers",
-    iconBgClass: "bg-surface-container-highest",
-    iconTextClass: "text-on-surface",
-    title: "Bo Cổ Dệt Gân 3 Lớp",
-    description:
-      "Cổ áo bổ sung sợi spandex tăng cường độ đàn hồi, chống quăn mép và giữ nếp chuẩn form.",
-  },
-];
-
-// ── Store profile ─────────────────────────────────────────────────────────
+// ── Store profile (BE không có joinedAt) ──────────────────────────────────
 const STORE_PROFILE: StoreProfile = {
   id: 1,
   name: "UTC Fashion Official",
@@ -221,7 +214,6 @@ const STORE_PROFILE: StoreProfile = {
   productCountUnit: "mẫu",
   responseRate: 99,
   responseTimeLabel: "Vài phút",
-  joinedAt: "2024-10-12T00:00:00Z",
   lastActiveLabel: "Online 5 phút trước",
 };
 
@@ -248,89 +240,148 @@ const COMMITMENTS: BackendProductCommitment = {
   free_shipping_threshold: 0,
 };
 
-// ── Description (2 paragraphs) ────────────────────────────────────────────
-const DESCRIPTION_RICH = [
-  "Áo thun basic unisex <strong>UTC Basic Cotton Compact</strong> là sản phẩm chủ lực định nghĩa tiêu chuẩn mới cho thời trang tối giản thường nhật tại Việt Nam. Sử dụng sợi <strong>100% Organic Cotton Compact</strong> cao cấp chải kỹ 2 lượt, bề mặt vải giảm thiểu tối đa hiện tượng xù lông, tăng cường độ bóng mịn tự nhiên và khả năng thấm hút mồ hôi vượt trội trong điều kiện khí hậu nhiệt đới.",
-  "Thiết kế form dáng <em>Regular Fit</em> hiện đại chuẩn form cơ thể người trẻ Việt, phần vai ôm gọn gàng, độ dài thân áo vừa vặn giúp tôn dáng linh hoạt cho cả nam và nữ dù kết hợp cùng quần short năng động, quần âu thanh lịch hay phong cách street style.",
-];
+// ── Description rich (BE shape — object) ──────────────────────────────────
+const DESCRIPTION_RICH: DescriptionRichDto = {
+  intro:
+    "Áo thun basic unisex UTC Basic Cotton Compact — sản phẩm chủ lực định nghĩa tiêu chuẩn mới cho thời trang tối giản thường nhật tại Việt Nam.",
+  highlights: [
+    "Sợi 100% Organic Cotton Compact cao cấp chải kỹ 2 lượt",
+    "Định lượng 220gsm dày dặn nhưng vẫn thoáng mát",
+    "Form Regular Fit hiện đại chuẩn cơ thể người trẻ Việt",
+    "Bo cổ dệt gân 3 lớp chống quăn mép",
+  ],
+  paragraphs: [
+    "Sử dụng sợi 100% Organic Cotton Compact cao cấp chải kỹ 2 lượt, bề mặt vải giảm thiểu tối đa hiện tượng xù lông, tăng cường độ bóng mịn tự nhiên và khả năng thấm hút mồ hôi vượt trội trong điều kiện khí hậu nhiệt đới.",
+    "Thiết kế form dáng Regular Fit hiện đại chuẩn form cơ thể người trẻ Việt, phần vai ôm gọn gàng, độ dài thân áo vừa vặn giúp tôn dáng linh hoạt cho cả nam và nữ dù kết hợp cùng quần short năng động, quần âu thanh lịch hay phong cách street style.",
+  ],
+};
 
-// ── Related products (4 cùng shop, 3 bán chạy) ───────────────────────────
-const RELATED_SAME_STORE = [
+// ── Specs (BE shape — object 4 field) ─────────────────────────────────────
+const SPECS: ProductSpecsDto = {
+  origin: "Việt Nam (Xưởng dệt kim UTC Tân Bình)",
+  weight: "220gsm (cotton compact)",
+  material: "100% Organic Cotton Compact chải kỹ 2 lượt",
+  warranty: "6 tháng (lỗi nhà sản xuất)",
+};
+
+// ── Rating distribution (BE bổ sung) ──────────────────────────────────────
+const RATING_DISTRIBUTION: RatingDistributionDto = {
+  stars5: 250,
+  stars4: 50,
+  stars3: 15,
+  stars2: 6,
+  stars1: 5,
+};
+
+// ── Related products (RelatedProductSummary — BE int64 id) ────────────────
+const RELATED_SAME_STORE: RelatedProductSummary[] = [
   {
-    id: "2",
+    id: 2,
+    storeId: 1,
+    storeName: "UTC Fashion Official",
+    categoryId: 1,
+    categoryName: "Thời trang Unisex",
     name: "Quần short kaki co giãn",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuAUJlgK01EGGFJNYSutryWBJwFdmM7KcyeyWSEkGB7WI_PmzmdoeeV0FSapM2nga-i9IOp4xUZjDfGVWcqSBgdpmA1GeTcakIL5-lAqMQX3EF0z604qQv3xxPMbxzWdgi7_TEkIfzc20EixemOuOg3iMKAxaBbEhZKVaQ6_kBfeo_6nDu6X4K8dtXtu8Nl3_G_qjOjoGEYTxoj_tjtFnXkv1gRwTodsYebNzpJvo2wIOlZBMwGZEC8HIA",
-    imageAlt: "Quần short kaki co giãn",
-    price: 139000,
-    totalSold: 890,
-    href: "/products/quan-short-kaki-co-gian",
+    minPrice: 139000,
+    maxPrice: 139000,
+    totalStock: 890,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
   {
-    id: "3",
+    id: 3,
+    storeId: 1,
+    storeName: "UTC Fashion Official",
+    categoryId: 1,
+    categoryName: "Thời trang Unisex",
     name: "Áo polo pique thoáng mát",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuCvWRhY0wZNHqWvOWyZjGsD1P-vrj5fbqJ3-owYFyC1NwpZX6rxELyGcJ4aO3jhibdwRVLsTdWUoLbrY0TMbuBq1lgnwi3N6nDFBGULfSV216B5pSPWrVKFMjD4w4H4PowtQF5gQMcZ4KZYMMhWHAjI5M0BuPpnbm8HiFPUnNqwLD4vZtvsB3_cSf9x1hIenUD39QT-JAc_lG_SUIhKN6oltxq0nuviNQ3ta7Scwe5PF8YcmuF4WXWlEw",
-    imageAlt: "Áo polo pique xanh navy",
-    price: 189000,
-    totalSold: 1400,
-    href: "/products/ao-polo-pique-thoang-mat",
+    minPrice: 189000,
+    maxPrice: 189000,
+    totalStock: 1400,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
   {
-    id: "4",
+    id: 4,
+    storeId: 1,
+    storeName: "UTC Fashion Official",
+    categoryId: 1,
+    categoryName: "Thời trang Unisex",
     name: "Áo thun oversize graphic",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuArsIHTzqJ6sujvj8itO7BjiYWpgrE3pM5uyJLL7EEMqyYj2N9UBIBMxCVb59UMlOZFKf_mx3J4C6H60o1UAUZ_XVqrplEhbE7n2tbGvrheXtmxsOUrW2gL4I4FjtcFICv5UhDvsDfU2c5pHs6yZCmI7Pl9rj6kJJB3SabijYODA4K1IbtsfNEPPLbBpT8NFfTcyeWtyGPG7TwFmN1_ngYbf3SeohukYpInA2wOnlM--TV5R9VKrRE-JA",
-    imageAlt: "Áo thun oversize graphic",
-    price: 179000,
-    totalSold: 3200,
-    href: "/products/ao-thun-oversize-graphic",
+    minPrice: 179000,
+    maxPrice: 179000,
+    totalStock: 3200,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
   {
-    id: "5",
+    id: 5,
+    storeId: 1,
+    storeName: "UTC Fashion Official",
+    categoryId: 1,
+    categoryName: "Thời trang Unisex",
     name: "Quần jogger nỉ cotton",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDcvF-gyXALBTYu9iKrKwCgOqhzfjNb-_1ytKHkVsAy5P5qn55MGUj-Pmza4qNfieBbknF-GJvwFkjbzQXrgf50zv6I_CSN8GRDP4xpKYD7ck6DcfpGnV0vUoA7dHVpo5VNfrjlpBGFgvhBD5G1xG2yL1LAZGs98ZVp8TABYI4sdIRsZ3-iFG3dSNFTCAFyDelWPVzj5Y-Y1iHcBCj1hQU430nPmnPQuWx5tBj_YWMShTDs0bh5lTrUtA",
-    imageAlt: "Quần jogger nỉ cotton",
-    price: 219000,
-    totalSold: 640,
-    href: "/products/quan-jogger-ni-cotton",
+    minPrice: 219000,
+    maxPrice: 219000,
+    totalStock: 640,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
 ];
 
-const RELATED_BEST_SELLERS = [
+const RELATED_BEST_SELLERS: RelatedProductSummary[] = [
   {
-    id: "6",
+    id: 6,
+    storeId: 2,
+    storeName: "TechZone Official",
+    categoryId: 2,
+    categoryName: "Women Fashion",
     name: "Áo Boxy Heavy Cotton",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDtEr9mnVPdaSTUNzwHtuHTUOdEoxEUr0D2fVZYv28x-hTvMi36tGzQYnWq6Z3bFFJXNEpoYrMIjdm-tqYc8xn32RmMgaK-B__NAXn5XtxLa35EJVatWLyuIElnwAT5wNbzK3tFBW6fLSDCJ3Um4a2kOkq_TR_jpjq53-vDWdtd0JsHPjNQYJ8-jdYA0cKJSzL0cQGlZHyIaIWyiYr7vyktm2waawYeG6QTqvqIDQA_9KRBPZJHWeb-Dg",
-    imageAlt: "Áo Boxy Heavy Cotton",
-    price: 145000,
-    rating: 4.9,
-    totalSold: 4800,
-    href: "/products/ao-boxy-heavy-cotton",
+    minPrice: 145000,
+    maxPrice: 145000,
+    totalStock: 4800,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
   {
-    id: "7",
+    id: 7,
+    storeId: 3,
+    storeName: "Mom and Baby Shop",
+    categoryId: 2,
+    categoryName: "Women Fashion",
     name: "Áo thun thể thao Dri-Fit",
     imageUrl:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDsdekfAo8dA-aacAbD6EgmGPaD1U4STNwS2gAgVJDuxbVYyk5OdK3AVGwEvefHBWErudCzRRWC1EWpCkg0eiQtjntI4N7HpO7keEAHLPndaYfXKHkTkQbTM1ABISpfWg20cK11T5GLXv25kfKal05ryFtMFDzMkSmNHOYZ2xvCYWR0UIGjIfHJuXKKI0zL-eHupdrnfhHyMMKdxXAvBon_i3rg1IH19GzuuU7Aa5vRjAXOLiyYBFV4mA",
-    imageAlt: "Áo thun thể thao Dri-Fit",
-    price: 129000,
-    rating: 4.8,
-    totalSold: 2100,
-    href: "/products/ao-thun-the-thao-dri-fit",
+    minPrice: 129000,
+    maxPrice: 129000,
+    totalStock: 2100,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
   {
-    id: "8",
+    id: 8,
+    storeId: 2,
+    storeName: "Fashion Street",
+    categoryId: 2,
+    categoryName: "Women Fashion",
     name: "Áo thun tay dài sọc ngang",
     imageUrl:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuA1zK40TQCSqu197sFsxL-Iz-Z7xQ8q_xEf7YcDv5yfMCI5XxcRafw2dSowtn3G-TG-tB-dUnSGGsqAy9-jDmHX0I4kuDqvBgc_eqO-JugauOVrwBtN3Nd9VHLhEM25yihj1pgNV3DXjDRi3xej23y04zMVHobKMBrQXmccrBRAxWCU_A9NhwGxxeZRm9djmO8F0oxTM6GEO6xjuwqYbwQB4yRSUt_24iPXFw5f9UuO-wipiY95pmA9Dw",
-    imageAlt: "Áo thun tay dài sọc ngang",
-    price: 169000,
-    rating: 4.7,
-    totalSold: 950,
-    href: "/products/ao-thun-tay-dai-soc-ngang",
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuA1zK40TQCSqu197sFsxL-Iz-ZX7-3UuQq_xEf7YcDv5yfMCI5XxcRafw2dSowtn3G-TG-tB-dUnSGGsqAy9-jDmHX0I4kuDqvBgc_eqO-JugauOVrwBtN3Nd9VHLhEM25yihj1pgNV3DXjDRi3xej23y04zMVHobKMBrQXmccrBRAxWCU_A9NhwGxxeZRm9djmO8F0oxTM6GEO6xjuwqYbwQB4yRSUt_24iPXFw5f9UuO-wipiY95pmA9Dw",
+    minPrice: 169000,
+    maxPrice: 169000,
+    totalStock: 950,
+    status: "ACTIVE",
+    createdAt: "2026-10-01T00:00:00Z",
   },
 ];
 
@@ -344,8 +395,7 @@ export const mockProductDetail: ProductDetail = {
   categoryName: "Thời trang Unisex",
   name: "Áo thun unisex cotton UTC Basic thoáng khí dệt kim cao cấp",
   imageUrl: PRODUCT_IMAGES[0].url,
-  images: PRODUCT_IMAGES,
-  description: DESCRIPTION_RICH.join(" "),
+  description: `${DESCRIPTION_RICH.intro} ${DESCRIPTION_RICH.paragraphs.join(" ")}`,
   tierVariationConfigs: TIER_CONFIGS,
   status: "ACTIVE",
   createdAt: "2026-10-01T00:00:00Z",
@@ -354,23 +404,17 @@ export const mockProductDetail: ProductDetail = {
   ratingCount: 326,
   soldCount: 2100,
   questionCount: 76,
+  // FE mock giữ giá trị số (BE có thể null khi variant chưa set — defer test null).
   minPrice: 89000,
   maxPrice: 159000,
   discountPercent: 44,
-  flashSale: FLASH_SALE,
+  images: PRODUCT_IMAGES,
+  flashSales: FLASH_SALES,
   reviews: REVIEWS,
   relatedSameStore: RELATED_SAME_STORE,
   relatedBestSellers: RELATED_BEST_SELLERS,
   variants: VARIANTS,
-  specs: {
-    category: "Vibe Mart > Thời trang Unisex > Áo thun cổ tròn",
-    material: "100% Cotton Compact chải kỹ định lượng dày 220gsm",
-    origin: "Việt Nam (Xưởng dệt kim UTC Tân Bình)",
-    style: "Unisex suông vừa Regular Fit, tay lỡ nhẹ thoải mái",
-    sku: "UTC-TS-001-WHT",
-    careInstructions:
-      "Giặt máy chế độ êm, lộn trái khi giặt và phơi bóng râm để bảo vệ màu sợi cotton",
-  },
+  specs: SPECS,
   sizeChart: SIZE_CHART,
   features: FEATURES,
   descriptionRich: DESCRIPTION_RICH,
@@ -378,11 +422,13 @@ export const mockProductDetail: ProductDetail = {
   vouchers: VOUCHERS,
   shipping: SHIPPING,
   commitments: COMMITMENTS,
+  ratingDistribution: RATING_DISTRIBUTION,
 };
 
 /**
- * Mock store keyed by slug. Khi BE ready, sẽ fetch qua
- * GET /api/v1/products/{id} (BE cần thêm slug lookup).
+ * Mock store keyed by slug. Khi BE ready, có thể gọi qua
+ * GET /api/v1/products/{id} (BE cần thêm slug lookup) hoặc
+ * GET /api/v1/products/slug/{slug}.
  */
 export const mockProductsBySlug: Record<string, ProductDetail> = {
   [mockProductDetail.slug]: mockProductDetail,

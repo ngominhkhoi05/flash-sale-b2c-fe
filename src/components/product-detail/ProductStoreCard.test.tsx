@@ -20,7 +20,6 @@ const STORE: StoreProfile = {
   productCountUnit: "mẫu",
   responseRate: 99,
   responseTimeLabel: "Vài phút",
-  joinedAt: "2024-10-12T00:00:00Z",
   lastActiveLabel: "Online 5 phút trước",
 };
 
@@ -28,15 +27,13 @@ describe("ProductStoreCard", () => {
   it("renders store name", () => {
     renderWithIntl(<ProductStoreCard store={STORE} />);
     expect(
-      screen.getByRole("heading", { name: /UTC Fashion Official/ })
+      screen.getByRole("heading", { name: /UTC Fashion Official/ }),
     ).toBeInTheDocument();
   });
 
   it("renders store initials (UTC)", () => {
     const { container } = renderWithIntl(<ProductStoreCard store={STORE} />);
-    // Initials displayed in avatar circle
     expect(container.textContent).toContain("UTC");
-    // Initials appear inside avatar (rendered as text in a div)
     const avatar = container.querySelector('[data-testid="store-initials"]');
     expect(avatar).toBeInTheDocument();
     expect(avatar).toHaveTextContent("UTC");
@@ -52,8 +49,8 @@ describe("ProductStoreCard", () => {
     expect(screen.getByText(/Official Mall/)).toBeInTheDocument();
   });
 
-  it("renders 4 stat columns", () => {
-    renderWithIntl(<ProductStoreCard store={STORE} />);
+  it("renders 3 stat columns (BE shape — no joinedAt)", () => {
+    const { container } = renderWithIntl(<ProductStoreCard store={STORE} />);
     // Shop rating
     expect(screen.getByText(/Đánh Giá Shop/)).toBeInTheDocument();
     expect(screen.getByText("4.9")).toBeInTheDocument();
@@ -63,18 +60,20 @@ describe("ProductStoreCard", () => {
     // Response rate
     expect(screen.getByText(/Tỉ Lệ Phản Hồi/)).toBeInTheDocument();
     expect(screen.getByText(/99%/)).toBeInTheDocument();
-    // Joined
-    expect(screen.getByText(/Tham Gia Sàn/)).toBeInTheDocument();
-    expect(screen.getByText(/2 năm/)).toBeInTheDocument();
+    // BE không trả joinedAt → KHÔNG còn col "Tham Gia Sàn" / "2 năm"
+    expect(screen.queryByText(/Tham Gia Sàn/)).not.toBeInTheDocument();
+    // Stats grid có 3 children
+    const stats = container.querySelector('[data-testid="store-stats"]');
+    expect(stats?.children).toHaveLength(3);
   });
 
   it("renders 'Xem Shop' + 'Chat ngay' buttons", () => {
     renderWithIntl(<ProductStoreCard store={STORE} />);
     expect(
-      screen.getByRole("button", { name: /Xem Shop/ })
+      screen.getByRole("button", { name: /Xem Shop/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Chat ngay/ })
+      screen.getByRole("button", { name: /Chat ngay/ }),
     ).toBeInTheDocument();
   });
 
@@ -86,7 +85,6 @@ describe("ProductStoreCard", () => {
 
 describe("ProductStoreCard – defensive guards (BE nullable)", () => {
   it("does NOT crash when ratingCount is undefined (BE missing field)", () => {
-    // BE có thể trả storeProfile mà thiếu ratingCount (store mới, partial response).
     const storeNoRating = {
       ...STORE,
       ratingCount: undefined,
@@ -105,16 +103,6 @@ describe("ProductStoreCard – defensive guards (BE nullable)", () => {
     } as unknown as StoreProfile;
     expect(() =>
       renderWithIntl(<ProductStoreCard store={storeNullRating} />),
-    ).not.toThrow();
-  });
-
-  it("does NOT crash when joinedAt is empty string (BE empty)", () => {
-    const storeEmptyJoined = {
-      ...STORE,
-      joinedAt: "",
-    };
-    expect(() =>
-      renderWithIntl(<ProductStoreCard store={storeEmptyJoined} />),
     ).not.toThrow();
   });
 
