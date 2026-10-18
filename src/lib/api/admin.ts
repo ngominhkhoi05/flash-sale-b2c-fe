@@ -339,12 +339,52 @@ export async function undoFlashSaleSku(id: number): Promise<void> {
   }
 }
 
+export interface EmergencyPauseResult {
+  slotId: number;
+  status: string;
+  isPaused: boolean;
+  stockRolledBack: boolean;
+  rolledBackItemsCount: number;
+  totalStockReturned: number;
+  message?: string;
+}
+
+interface BeTelemetryResponse {
+  slotId?: number;
+  status?: string;
+  isPaused?: boolean;
+  currentRps?: number;
+  rps?: number;
+  totalRequests?: number;
+  activeLocks?: number;
+  successfulOrders?: number;
+  completedOrders?: number;
+  totalRevenue?: number;
+  failedRequests?: number;
+  expiredReleases?: number;
+  oversoldIncidents?: number;
+  redisLatencyMs?: number;
+  p99LatencyMs?: number;
+  systemHealth?: string;
+  lastUpdated?: string;
+}
+
 /**
  * 12. Lấy dữ liệu Realtime Telemetry cho phiên Flash Sale
  */
 export async function getAdminRealtimeTelemetry(slotId: number): Promise<RealtimeTelemetry> {
   try {
-    return await apiFetch<RealtimeTelemetry>(`/admin/flash-sales/slots/${slotId}/telemetry`);
+    const res = await apiFetch<BeTelemetryResponse>(`/admin/flash-sales/slots/${slotId}/telemetry`);
+    return {
+      rps: res.currentRps ?? res.rps ?? 0,
+      activeLocks: res.activeLocks ?? 0,
+      completedOrders: res.successfulOrders ?? res.completedOrders ?? 0,
+      totalRevenue: res.totalRevenue ?? 0,
+      expiredReleases: res.expiredReleases ?? 0,
+      p99LatencyMs: res.redisLatencyMs ?? res.p99LatencyMs ?? 0,
+      isPaused: res.isPaused ?? false,
+      lastUpdated: res.lastUpdated ?? new Date().toLocaleTimeString("vi-VN"),
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockTelemetry();
@@ -382,27 +422,57 @@ export async function getAdminLiveLogs(slotId: number): Promise<LiveLogEvent[]> 
 }
 
 /**
- * 15. Tạm dừng / Tiếp tục phiên khẩn cấp (Emergency Pause)
+ * 15. Tạm dừng khẩn cấp phiên Flash Sale (Emergency Pause)
  */
-export async function toggleAdminEmergencyPause(
+export async function emergencyPauseFlashSaleSlot(
   slotId: number,
-  reason: string
-): Promise<boolean> {
+  reason: string,
+  rollbackStock: boolean = true
+): Promise<EmergencyPauseResult> {
   try {
-    const res = await apiFetch<{ isPaused: boolean }>(
+    const res = await apiFetch<EmergencyPauseResult>(
       `/admin/flash-sales/slots/${slotId}/emergency-pause`,
       {
         method: "POST",
-        json: { reason },
+        json: { reason, rollbackStock },
       }
     );
-    return res.isPaused;
+    return {
+      slotId: res.slotId ?? slotId,
+      status: res.status ?? "PAUSED",
+      isPaused: res.isPaused ?? true,
+      stockRolledBack: res.stockRolledBack ?? rollbackStock,
+      rolledBackItemsCount: res.rolledBackItemsCount ?? 0,
+      totalStockReturned: res.totalStockReturned ?? 0,
+      message: res.message,
+    };
   } catch (err) {
     if (isMockMode()) {
-      return toggleSessionPause(true).isPaused;
+      const mockRes = toggleSessionPause(true);
+      return {
+        slotId,
+        status: "PAUSED",
+        isPaused: mockRes.isPaused,
+        stockRolledBack: rollbackStock,
+        rolledBackItemsCount: 3,
+        totalStockReturned: 45,
+        message: "Đã dừng phiên khẩn cấp (Mock Mode)",
+      };
     }
     throw err;
   }
+}
+
+/**
+ * Wrapper tương thích ngược cho toggleAdminEmergencyPause
+ */
+export async function toggleAdminEmergencyPause(
+  slotId: number,
+  reason: string,
+  rollbackStock: boolean = true
+): Promise<boolean> {
+  const result = await emergencyPauseFlashSaleSlot(slotId, reason, rollbackStock);
+  return result.isPaused;
 }
 
 interface BeVoucherResponse {
