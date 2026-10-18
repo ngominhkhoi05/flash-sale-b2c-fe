@@ -22,83 +22,110 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [activeTab, setActiveTab] = useState<UserTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pageNumber, setPageNumber] = useState(0);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  const refreshUsers = useCallback(async (tab: UserTabKey) => {
-    try {
-      const params: { role?: string; status?: string } = {};
-      if (tab === "ADMIN" || tab === "SELLER" || tab === "BUYER") {
-        params.role = tab;
-      } else if (tab === "LOCKED") {
-        params.status = "LOCKED";
+  const loadUsers = useCallback(
+    async (tab: UserTabKey, page: number, search: string) => {
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const params: {
+          role?: string;
+          status?: string;
+          search?: string;
+          page: number;
+          size: number;
+        } = {
+          page,
+          size: pageSize,
+        };
+
+        if (tab === "ADMIN" || tab === "SELLER" || tab === "BUYER") {
+          params.role = tab;
+        } else if (tab === "LOCKED") {
+          params.status = "LOCKED";
+        }
+
+        if (search.trim()) {
+          params.search = search.trim();
+        }
+
+        const res = await getAdminUsers(params);
+        const items = res.content ?? res.items ?? [];
+        setUsers(items);
+        setPageNumber(res.pageNumber ?? page);
+        setTotalPages(res.totalPages ?? 1);
+        setTotalElements(res.totalElements ?? items.length);
+      } catch (err) {
+        console.error("Lỗi tải người dùng:", err);
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "Không thể tải danh sách người dùng từ máy chủ"
+        );
+        setUsers([]);
+      } finally {
+        setIsLoading(false);
       }
-      const data = await getAdminUsers(params);
-      setUsers(data);
-    } catch (err) {
-      console.error("Lỗi tải người dùng:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [pageSize]
+  );
 
   useEffect(() => {
-    let isMounted = true;
-    const params: { role?: string; status?: string } = {};
-    if (activeTab === "ADMIN" || activeTab === "SELLER" || activeTab === "BUYER") {
-      params.role = activeTab;
-    } else if (activeTab === "LOCKED") {
-      params.status = "LOCKED";
-    }
-    getAdminUsers(params)
-      .then((data) => {
-        if (isMounted) {
-          setUsers(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Lỗi tải người dùng:", err);
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
+    const handler = setTimeout(() => {
+      loadUsers(activeTab, pageNumber, searchQuery);
+    }, 250);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab]);
+    return () => clearTimeout(handler);
+  }, [activeTab, pageNumber, searchQuery, loadUsers]);
+
+  const handleTabChange = (tab: UserTabKey) => {
+    setActiveTab(tab);
+    setPageNumber(0);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPageNumber(0);
+  };
 
   async function handleToggleLock(user: AdminUser) {
     const newStatus = user.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
-    const actionText = newStatus === "LOCKED" ? "khóa tài khoản" : "mở khóa tài khoản";
+    const actionText =
+      newStatus === "LOCKED" ? "khóa tài khoản" : "mở khóa tài khoản";
 
-    if (!confirm(`Bạn có chắc muốn ${actionText} của "${user.fullName}" không?`)) {
+    if (
+      !confirm(`Bạn có chắc muốn ${actionText} của "${user.fullName}" không?`)
+    ) {
       return;
     }
 
     try {
       setActionLoadingId(user.id);
-      await updateAdminUserStatus(user.id, newStatus);
+      await updateAdminUserStatus(
+        user.id,
+        newStatus,
+        newStatus === "LOCKED"
+          ? "Admin tạm dừng hoạt động tài khoản"
+          : "Admin mở khóa tài khoản"
+      );
       alert(`Đã ${actionText} thành công!`);
-      await refreshUsers(activeTab);
+      await loadUsers(activeTab, pageNumber, searchQuery);
     } catch (err) {
-
-      alert("Lỗi cập nhật người dùng: " + (err instanceof Error ? err.message : String(err)));
+      alert(
+        "Lỗi cập nhật người dùng: " +
+          (err instanceof Error ? err.message : String(err))
+      );
     } finally {
       setActionLoadingId(null);
     }
   }
-
-  const filteredUsers = users.filter((u) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      u.fullName.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.phone && u.phone.includes(q))
-    );
-  });
 
   return (
     <div className="flex flex-col w-full gap-space-lg select-none">
@@ -114,10 +141,30 @@ export default function AdminUsersPage() {
             </span>
           </div>
           <p className="font-body-sm text-xs text-secondary mt-0.5">
-            Quản trị thông tin tài khoản, phân quyền vai trò và kiểm soát trạng thái truy cập
+            Quản trị thông tin tài khoản, phân quyền vai trò và kiểm soát trạng
+            thái truy cập
           </p>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]">
+              error
+            </span>
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => loadUsers(activeTab, pageNumber, searchQuery)}
+            className="px-3 py-1 rounded bg-rose-600 text-white font-medium hover:bg-rose-700 transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
 
       {/* Tabs & Search Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant/30">
@@ -125,18 +172,22 @@ export default function AdminUsersPage() {
           {USER_TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                 activeTab === tab.key
                   ? "bg-primary text-on-primary shadow-sm"
                   : "bg-surface-container-low text-secondary hover:text-on-surface hover:bg-surface-container"
               }`}
             >
-              {tab.label}
+              <span>{tab.label}</span>
+              {activeTab === tab.key && totalElements > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-surface-container-highest text-on-surface text-[10px] font-bold">
+                  {totalElements}
+                </span>
+              )}
             </button>
           ))}
         </div>
-
 
         <div className="relative w-full sm:w-72">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -145,7 +196,7 @@ export default function AdminUsersPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="Tìm theo tên, email, SĐT..."
             className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
           />
@@ -169,101 +220,163 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-outline-variant/20 text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-secondary text-sm">
+                  <td
+                    colSpan={6}
+                    className="py-12 text-center text-secondary text-sm"
+                  >
                     Đang tải danh sách người dùng...
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-secondary text-sm">
+                  <td
+                    colSpan={6}
+                    className="py-12 text-center text-secondary text-sm"
+                  >
                     Không tìm thấy người dùng nào phù hợp.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-surface transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <Image
-                          src={user.avatarUrl}
-                          alt={user.fullName}
-                          width={40}
-                          height={40}
-                          className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
-                        />
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-on-surface truncate">
-                            {user.fullName}
+                users.map((user) => {
+                  const avatarSrc =
+                    user.avatarUrl ||
+                    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=60";
+                  const oCount = user.ordersCount ?? 0;
+                  const roleStr = user.role || "BUYER";
+
+                  return (
+                    <tr
+                      key={user.id}
+                      className="hover:bg-surface transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={avatarSrc}
+                            alt={user.fullName}
+                            className="w-10 h-10 rounded-full object-cover shadow-xs shrink-0"
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-on-surface truncate">
+                              {user.fullName}
+                            </span>
+                            <span className="text-xs text-secondary truncate">
+                              ID: USR-{user.id}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-on-surface">
+                            {user.email}
                           </span>
-                          <span className="text-xs text-secondary truncate">
-                            ID: USR-{user.id}
+                          <span className="text-xs text-secondary">
+                            {user.phone || "Chưa cập nhật SĐT"}
                           </span>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-on-surface">{user.email}</span>
-                        <span className="text-xs text-secondary">{user.phone || "Chưa cập nhật SĐT"}</span>
-                      </div>
-                    </td>
+                      <td className="py-3 px-4 text-center">
+                        {roleStr === "ADMIN" && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">
+                            Super Admin
+                          </span>
+                        )}
+                        {roleStr === "SELLER" && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                            Người bán
+                          </span>
+                        )}
+                        {roleStr === "BUYER" && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-container text-secondary">
+                            Khách hàng
+                          </span>
+                        )}
+                      </td>
 
-                    <td className="py-3 px-4 text-center">
-                      {user.role === "ADMIN" && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">
-                          Super Admin
+                      <td className="py-3 px-4 text-center font-data-tabular">
+                        <span className="font-semibold text-on-surface">
+                          {oCount}
                         </span>
-                      )}
-                      {user.role === "SELLER" && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                          Người bán
-                        </span>
-                      )}
-                      {user.role === "BUYER" && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-surface-container text-secondary">
-                          Khách hàng
-                        </span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-4 text-center font-data-tabular">
-                      <span className="font-semibold text-on-surface">{user.ordersCount}</span>
-                    </td>
+                      <td className="py-3 px-4 text-center">
+                        {user.status === "ACTIVE" ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                            Hoạt động
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+                            Đã khóa
+                          </span>
+                        )}
+                      </td>
 
-                    <td className="py-3 px-4 text-center">
-                      {user.status === "ACTIVE" ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                          Hoạt động
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
-                          Đã khóa
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      {user.role !== "ADMIN" && (
-                        <button
-                          type="button"
-                          disabled={actionLoadingId === user.id}
-                          onClick={() => handleToggleLock(user)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
-                            user.status === "ACTIVE"
-                              ? "text-rose-600 hover:bg-rose-50"
-                              : "bg-primary text-white hover:bg-primary-container"
-                          }`}
-                        >
-                          {user.status === "ACTIVE" ? "Khóa tài khoản" : "Mở khóa"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      <td className="py-3 px-4 text-right">
+                        {roleStr !== "ADMIN" && (
+                          <button
+                            type="button"
+                            disabled={actionLoadingId === user.id}
+                            onClick={() => handleToggleLock(user)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                              user.status === "ACTIVE"
+                                ? "text-rose-600 hover:bg-rose-50"
+                                : "bg-primary text-white hover:bg-primary-container"
+                            }`}
+                          >
+                            {actionLoadingId === user.id
+                              ? "Đang xử lý..."
+                              : user.status === "ACTIVE"
+                              ? "Khóa tài khoản"
+                              : "Mở khóa"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="flex items-center justify-between px-4 py-3 bg-surface-container-low/50 border-t border-outline-variant/20 text-xs text-secondary">
+          <div>
+            Hiển thị{" "}
+            <span className="font-semibold text-on-surface">{users.length}</span>{" "}
+            trên tổng số{" "}
+            <span className="font-semibold text-on-surface">
+              {totalElements}
+            </span>{" "}
+            người dùng
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={pageNumber === 0 || isLoading}
+              onClick={() => setPageNumber((prev) => Math.max(0, prev - 1))}
+              className="px-3 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              Trang trước
+            </button>
+            <span className="px-2">
+              Trang {totalPages > 0 ? pageNumber + 1 : 1} / {totalPages || 1}
+            </span>
+            <button
+              type="button"
+              disabled={pageNumber >= totalPages - 1 || isLoading}
+              onClick={() =>
+                setPageNumber((prev) => Math.min(totalPages - 1, prev + 1))
+              }
+              className="px-3 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              Trang sau
+            </button>
+          </div>
         </div>
       </div>
     </div>
