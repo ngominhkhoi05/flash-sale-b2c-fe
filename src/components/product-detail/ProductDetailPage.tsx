@@ -21,8 +21,14 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ProductBreadcrumb } from "@/components/product-detail/ProductBreadcrumb";
 import { ProductGallery } from "@/components/product-detail/ProductGallery";
+import { useAddToCart } from "@/features/cart";
+import { useAuth } from "@/hooks/useAuth";
+import { ROUTES } from "@/lib/constants";
+import { ApiError } from "@/lib/api/client";
 import { ProductCommitments } from "@/components/product-detail/ProductCommitments";
 import { ProductShareBar } from "@/components/product-detail/ProductShareBar";
 import { ProductHeaderInfo } from "@/components/product-detail/ProductHeaderInfo";
@@ -167,6 +173,68 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   });
   const [quantity, setQuantity] = useState<number>(1);
 
+  // ── Subplan A (2026-10-18) — wire cart CTA ───────────────────────────
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const addToCartMut = useAddToCart({
+    onError: (err) => {
+      // Map ApiError code → user message. Fallback cho non-ApiError.
+      if (err instanceof ApiError) {
+        const code = err.code;
+        const translated = t(`toast.cartError.${code}`, {
+          defaultValue: t("toast.cartError.GENERIC"),
+        });
+        toast.error(translated);
+      } else {
+        toast.error(t("toast.cartError.GENERIC"));
+      }
+    },
+  });
+
+  // helper: require login trước khi call cart API. Trả true nếu OK.
+  function requireAuthOrRedirect(action: "addToCart" | "buyNow"): boolean {
+    if (isAuthenticated) return true;
+    const currentPath = `/products/${product.slug}`;
+    const target = action === "addToCart" ? ROUTES.CART : ROUTES.CHECKOUT;
+    router.push(`${ROUTES.LOGIN}?redirect=${encodeURIComponent(currentPath)}&next=${encodeURIComponent(target)}`);
+    return false;
+  }
+
+  async function handleAddToCart() {
+    if (!requireAuthOrRedirect("addToCart")) return;
+    if (!variantForCurrent || variantForCurrent.isDisabled) {
+      toast.error(t("toast.variantNotAvailable"));
+      return;
+    }
+    try {
+      await addToCartMut.mutateAsync({
+        variantId: variantForCurrent.id,
+        quantity: safeQuantity,
+      });
+      toast.success(t("toast.addedToCart"));
+    } catch {
+      // onError handler đã hiển thị toast.
+    }
+  }
+
+  async function handleBuyNow() {
+    if (!requireAuthOrRedirect("buyNow")) return;
+    if (!variantForCurrent || variantForCurrent.isDisabled) {
+      toast.error(t("toast.variantNotAvailable"));
+      return;
+    }
+    try {
+      await addToCartMut.mutateAsync({
+        variantId: variantForCurrent.id,
+        quantity: safeQuantity,
+      });
+      // Add thành công → navigate thẳng /checkout (quyết định user 2026-10-18).
+      router.push(ROUTES.CHECKOUT);
+    } catch {
+      // onError đã hiển thị toast.
+    }
+  }
+
   const stockCount = totalStockCount(product);
   // BE không trả `maxQtyPerUser` cho product detail → tạm default 2.
   const flashMaxQty = activeFlashSale ? 2 : 2;
@@ -301,20 +369,14 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             onChange={setQuantity}
           />
 
-          {/* Section 7: CTA buttons — disable Buy Now khi không có giá (hide-cta). */}
+          {/* Section 7: CTA buttons — disable Buy Now khi không có giá (hide-cta).
+              Wired Subplan A (2026-10-18): gọi useAddToCart + navigate. */}
           <ProductCtaButtons
             mode={variant}
             canPurchase={canPurchase}
-            onAddToCart={() => {
-              if (typeof window !== "undefined") {
-                window.alert(t("toast.addedToCart"));
-              }
-            }}
-            onBuyNow={() => {
-              if (typeof window !== "undefined") {
-                window.alert(t("toast.redirectingCheckout"));
-              }
-            }}
+            isLoading={addToCartMut.isPending}
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
           />
 
           {/* Section 8: Share bar */}

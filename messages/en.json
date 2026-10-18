@@ -953,7 +953,16 @@
       "addedToCart": "Added to cart",
       "redirectingCheckout": "Redirecting to instant checkout",
       "flashMaxQty": "During Flash Sale, each customer can order at most {max} items!",
-      "saveSuccess": "Saved"
+      "saveSuccess": "Saved",
+      "variantNotAvailable": "This variant is currently unavailable. Please choose another color or size.",
+      "cartError": {
+        "GENERIC": "Could not update your cart. Please try again.",
+        "CART_400_1": "Insufficient stock",
+        "CART_400_2": "Quantity must be greater than 0",
+        "CART_403": "You don't have permission to modify this item",
+        "CART_ITEM_404": "This item is no longer in your cart",
+        "UNAUTHORIZED": "Please sign in to continue"
+      }
     }
   },
   "orders": {

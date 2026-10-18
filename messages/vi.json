@@ -953,7 +953,16 @@
       "addedToCart": "Đã thêm vào giỏ hàng",
       "redirectingCheckout": "Chuyển đến màn hình thanh toán tức thì",
       "flashMaxQty": "Trong sự kiện Flash Sale, mỗi khách chỉ được đặt tối đa {max} áo!",
-      "saveSuccess": "Đã Lưu"
+      "saveSuccess": "Đã Lưu",
+      "variantNotAvailable": "Biến thể này hiện không khả dụng. Vui lòng chọn màu hoặc kích thước khác.",
+      "cartError": {
+        "GENERIC": "Không thể cập nhật giỏ hàng. Vui lòng thử lại.",
+        "CART_400_1": "Số lượng tồn kho không đủ",
+        "CART_400_2": "Số lượng phải lớn hơn 0",
+        "CART_403": "Bạn không có quyền thao tác với sản phẩm này",
+        "CART_ITEM_404": "Sản phẩm không còn trong giỏ hàng",
+        "UNAUTHORIZED": "Vui lòng đăng nhập để tiếp tục"
+      }
     }
   },
   "orders": {

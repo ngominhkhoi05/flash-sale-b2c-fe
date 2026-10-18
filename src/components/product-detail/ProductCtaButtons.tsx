@@ -14,6 +14,8 @@ export interface ProductCtaButtonsProps {
   /** Khi false → disable nút "Mua ngay" + Add to cart, hiển thị tooltip.
    *  Dùng khi BE trả giá null (quyết định user 2026-10-18 hide-cta). */
   canPurchase?: boolean;
+  /** Khi true → disable buttons + show spinner. Dùng khi mutation đang chạy. */
+  isLoading?: boolean;
   /** Add-to-Cart handler (standard mode only). */
   onAddToCart?: () => void;
   /** Buy-Now handler (both modes). */
@@ -24,13 +26,15 @@ export interface ProductCtaButtonsProps {
 export function ProductCtaButtons({
   mode,
   canPurchase = true,
+  isLoading = false,
   onAddToCart,
   onBuyNow,
   className,
 }: ProductCtaButtonsProps) {
   const t = useTranslations("productDetail.cta");
   const disabledReason = t("disabledReasonContact");
-  const isDisabled = !canPurchase;
+  // Disabled khi canPurchase=false HOẶC đang loading.
+  const isDisabled = !canPurchase || isLoading;
 
   if (mode === "flash") {
     return (
@@ -48,7 +52,11 @@ export function ProductCtaButtons({
               : "bg-tertiary hover:bg-tertiary-hover"
           )}
         >
-          <BoltIcon className="h-6 w-6" />
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            <BoltIcon className="h-6 w-6" />
+          )}
           <span>{t("buyNowFlash")}</span>
         </button>
       </div>
@@ -73,7 +81,11 @@ export function ProductCtaButtons({
             : "border-primary bg-surface-container-lowest text-primary hover:bg-surface-container"
         )}
       >
-        <CartIcon className="h-5 w-5" />
+        {isLoading ? (
+          <Spinner />
+        ) : (
+          <CartIcon className="h-5 w-5" />
+        )}
         <span>{t("addToCart")}</span>
       </button>
       <button
@@ -89,10 +101,24 @@ export function ProductCtaButtons({
             : "bg-primary hover:bg-primary-hover"
         )}
       >
-        <BagIcon className="h-5 w-5" />
+        {isLoading ? (
+          <Spinner />
+        ) : (
+          <BagIcon className="h-5 w-5" />
+        )}
         <span>{t("buyNow")}</span>
       </button>
     </div>
+  );
+}
+
+/** Inline spinner thay cho icon khi đang loading. */
+function Spinner() {
+  return (
+    <span
+      className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"
+      aria-hidden="true"
+    />
   );
 }
 
