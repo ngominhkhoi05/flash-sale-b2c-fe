@@ -103,3 +103,43 @@ export interface SellerProductDetailResponse {
     options: string[];
   }>;
 }
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  slug: string;
+  commissionRate?: number;
+  description?: string;
+}
+
+export interface TierVariationConfig {
+  name: string;
+  options: string[];
+}
+
+export interface CreateProductVariantDto {
+  sku: string;
+  variantName: string;
+  attributes?: Record<string, string>;
+  originalPrice: number;
+  stockQuantity: number;
+}
+
+export interface CreateProductPayload {
+  categoryId: number;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  tierVariationConfigs: TierVariationConfig[];
+  variants: CreateProductVariantDto[];
+}
+
+export interface UpdateProductPayload {
+  categoryId: number;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  status: string;
+  tierVariationConfigs: TierVariationConfig[];
+  variants: Array<CreateProductVariantDto & { id?: number }>;
+}
