@@ -103,3 +103,89 @@ describe("buildUrl – base URL handling", () => {
     expect(calledUrl).toContain("size=10");
   });
 });
+
+// Bug gốc 2026-10-18: khi fetch() throw (network fail, CORS, abort), apiFetch
+// re-throw plain Error thay vì ApiError. Hệ quả:
+//   1. ProductDetailPage.onError `instanceof ApiError` false → rơi vào fallback
+//      toast "Không thể cập nhật giỏ hàng" — user không biết chuyện gì.
+//   2. console.error({ error }) in ra '[object Error]' do Error.prototype.toString
+//      mặc định → mất luôn message gốc của fetch error.
+//   3. Vi phạm error-handling.mdc mục 2: "apiFetch throw ApiError khi response
+//      không OK" — bao gồm cả case không có response (network fail).
+describe("apiFetch – network error wrapping (2026-10-18)", () => {
+  it("fetch() throw TypeError (network fail) → reject với ApiError code='NETWORK_ERROR', status=0, message chứa nguyên nhân gốc", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    const fetchMock = vi.fn().mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const mod = await loadApi();
+
+    let caught: unknown;
+    try {
+      await mod.apiFetch("/api/v1/cart/items", {
+        method: "POST",
+        json: { variantId: 14, quantity: 1 },
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(mod.ApiError);
+    const apiErr = caught as InstanceType<typeof mod.ApiError>;
+    expect(apiErr.code).toBe("NETWORK_ERROR");
+    expect(apiErr.status).toBe(0);
+    // Message phải chứa lý do gốc để user debug được.
+    expect(apiErr.message).toContain("Failed to fetch");
+    // details giữ thông tin gốc cho logger/console.
+    expect(apiErr.details).toMatchObject({
+      originalName: "TypeError",
+      originalMessage: "Failed to fetch",
+    });
+  });
+
+  it("fetch() throw DOMException AbortError (component unmount) → reject với ApiError code='REQUEST_ABORTED'", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    const abortErr =
+      typeof DOMException !== "undefined"
+        ? new DOMException("Aborted", "AbortError")
+        : Object.assign(new Error("Aborted"), { name: "AbortError" });
+    const fetchMock = vi.fn().mockRejectedValue(abortErr);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const mod = await loadApi();
+
+    let caught: unknown;
+    try {
+      await mod.apiFetch("/api/v1/cart/items", {
+        method: "POST",
+        json: { variantId: 14, quantity: 1 },
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(mod.ApiError);
+    const apiErr = caught as InstanceType<typeof mod.ApiError>;
+    expect(apiErr.code).toBe("REQUEST_ABORTED");
+    expect(apiErr.status).toBe(0);
+    expect(apiErr.message).toBe("Yêu cầu đã bị huỷ");
+  });
+
+  it("ApiError.toString() trả format chứa code+status+message (không phải '[object Error]')", async () => {
+    const mod = await loadApi();
+    const err = new mod.ApiError({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Phiên đăng nhập đã hết hạn",
+    });
+    const str = err.toString();
+    // Phải chứa đủ 3 thành phần để DevTools console.error({ error }) in ra info hữu ích.
+    expect(str).toContain("UNAUTHORIZED");
+    expect(str).toContain("401");
+    expect(str).toContain("Phiên đăng nhập đã hết hạn");
+    // Đảm bảo KHÔNG phải default '[object Error]'.
+    expect(str).not.toBe("[object Error]");
+  });
+});

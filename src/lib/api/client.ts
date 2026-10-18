@@ -22,6 +22,19 @@ export class ApiError extends Error {
     this.code = params.code;
     this.details = params.details;
   }
+
+  /**
+   * Custom toString để console.error({ error }) in ra thông tin thay vì
+   * '[object Error]'. Format: '[ApiError <code> <status>]: <message>'.
+   *
+   * Lý do: khi code gọi `console.error("[ctx]", { error, vars })` mà error
+   * là Error instance, DevTools gọi .toString() để format. Mặc định của
+   * Error class chỉ trả '[object Error]' → mất hết context debug. Override
+   * để grep-able theo code+status.
+   */
+  toString(): string {
+    return `[ApiError ${this.code} ${this.status}]: ${this.message}`;
+  }
 }
 
 /** Đọc JWT từ localStorage (client-only). */
@@ -295,7 +308,41 @@ export async function apiFetch<T>(
     }
   }
 
-  if (lastError instanceof Error) throw lastError;
+  // Wrap plain Error thành ApiError ở exit point. Theo error-handling.mdc mục 2:
+  // "apiFetch throw ApiError khi response không OK" — bao gồm cả network fail
+  // (không phải response, là không có response). Phân biệt abort (component
+  // unmount, user navigate away) vs network error (BE down, CORS, DNS fail).
+  //
+  // Lưu ý: check name === "AbortError" TRƯỚC instanceof Error vì DOMException
+  // trong một số môi trường (jsdom) không instanceof Error — name check vẫn work.
+  if (lastError instanceof ApiError) throw lastError;
+  if (lastError) {
+    const errName = (lastError as { name?: string }).name;
+    if (errName === "AbortError") {
+      throw new ApiError({
+        status: 0,
+        code: "REQUEST_ABORTED",
+        message: "Yêu cầu đã bị huỷ",
+      });
+    }
+    if (lastError instanceof Error) {
+      throw new ApiError({
+        status: 0,
+        code: "NETWORK_ERROR",
+        message: `Mất kết nối mạng hoặc máy chủ không phản hồi: ${lastError.message}`,
+        details: {
+          originalName: lastError.name,
+          originalMessage: lastError.message,
+        },
+      });
+    }
+    // Fallback cho throw non-Error (vd DOMException không phải Error instance).
+    throw new ApiError({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "Mất kết nối mạng hoặc máy chủ không phản hồi",
+    });
+  }
   throw new ApiError({
     status: 0,
     code: "NETWORK_ERROR",
