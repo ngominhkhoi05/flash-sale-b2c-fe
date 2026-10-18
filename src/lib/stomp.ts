@@ -29,7 +29,23 @@ export interface FlashSaleStompClient {
 function getWsUrl(): string {
   // NEXT_PUBLIC_WS_URL có thể là host thuần (vd "http://localhost:8080")
   // hoặc đã có /ws. Luôn normalize về `<base>/ws` + ?token=<JWT>.
-  const raw = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:8080/ws";
+  //
+  // Lưu ý quan trọng (VPS bug 2026-10-18): KHÔNG fallback "http://localhost:8080/ws"
+  // — trên production, SockJS sẽ resolve URL tương đối về same-origin
+  // (window.location.host) và gọi /info lên Next.js, gây 404 liên tục vì
+  // Next.js không handle SockJS endpoint. Throw error sớm để dev/prod biết
+  // phải config env đúng. Xem:
+  // docs/superpowers/handoffs/2026-10-18-vps-ws-404-handoff.md
+  const raw = process.env.NEXT_PUBLIC_WS_URL?.trim();
+  if (!raw) {
+    throw new Error(
+      "[stomp] NEXT_PUBLIC_WS_URL is empty. Set it to your backend SockJS endpoint. " +
+        "Recommended: 'https://vibe-mart-utc2.canluaz.io.vn/ws' " +
+        "(Nginx reverse-proxies /ws to backend:8080/ws). " +
+        "Or direct: 'https://<backend-host>/ws'. " +
+        "See docs/superpowers/handoffs/2026-10-18-vps-ws-404-handoff.md.",
+    );
+  }
   return raw.replace(/\/$/, "");
 }
 
