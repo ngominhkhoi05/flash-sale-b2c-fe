@@ -26,6 +26,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useHomeBanners, useFeaturedProducts } from "@/features/homepage/hooks";
 import { useCarousel } from "./useCarousel";
 import { cn } from "@/lib/utils";
+import { imageUrlWithFallback } from "@/lib/images/with-fallback";
 
 const AUTO_ROTATE_MS = 5000;
 const FADE_DURATION_MS = 700;
@@ -208,7 +209,7 @@ export function HeroBannerSection() {
               {failedImageIds.has(slide.id) ? null : (
                 <Image
                   alt={slide.imageAlt}
-                  src={slide.imageUrl}
+                  src={imageUrlWithFallback(slide.imageUrl, "banner")}
                   onError={() => handleImageError(slide.id)}
                   fill
                   sizes="(max-width: 768px) 100vw, 66vw"

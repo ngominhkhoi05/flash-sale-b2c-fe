@@ -31,13 +31,25 @@ const nextConfig: NextConfig = {
   //    Khi backend /api/v1/banners/home trả 404, HeroBannerSection fallback
   //    sang useFeaturedProducts() → BE trả imageUrl: "https://picsum.photos/...".
   //    Khi BE đổi sang CDN thật (vd cdn.vibemart.vn), xóa entry này.
-  // 5. localhost — backend Spring Boot local dev chạy ở localhost:8080
-  //    (xem application-local.yaml + .env NEXT_PUBLIC_API_URL=http://localhost:8080).
-  //    Khi HeroBannerSection fallback sang useFeaturedProducts() và BE trả
+  // 5. localhost + 127.0.0.1 (port 8080) — backend Spring Boot local dev.
+  //    Backend mặc định chạy ở localhost:8080 (xem application-local.yaml
+  //    + .env NEXT_PUBLIC_API_URL=http://localhost:8080). Khi
+  //    HeroBannerSection fallback sang useFeaturedProducts() và BE trả
   //    imageUrl dạng absolute URL "http://localhost:8080/banners/..." (hoặc
   //    relative được FE ghép với NEXT_PUBLIC_API_URL), next/image cần
-  //    whitelist hostname này để tối ưu qua /_next/image.
-  //    Scope CHỈ là local dev (HTTP, không wildcard). Khi deploy production
+  //    whitelist hostname + port này để tối ưu qua /_next/image.
+  //    Scope CHỈ là local dev (HTTP + port cụ thể 8080, không wildcard).
+  //    Khi deploy production hoặc khi BE chuyển sang CDN thật, xóa entry
+  //    này. Next.js image API cho phép chỉ định port cụ thể để giảm
+  //    attack surface (chỉ allow port 8080 của localhost, không phải
+  //    mọi port của localhost).
+  // 6. 180.93.137.28 — production server IP (VPS deploy hiện tại).
+  //    Khi .env NEXT_PUBLIC_API_URL=http://180.93.137.28 (HTTP, không phải
+  //    canonical domain canluaz.io.vn), mọi ảnh banner/product từ server
+  //    thật có hostname IP này cần được Next.js optimize qua /_next/image.
+  //    Xem plan 2026-10-18-hero-banner-prod-ip-hostname-and-normalize.
+  //    Khi deploy chuyển sang dùng canonical domain
+  //    (https://vibe-mart-utc2.canluaz.io.vn — đã whitelist ở entry #3)
   //    hoặc khi BE chuyển sang CDN thật, xóa entry này.
   //
   // Khi thêm domain thật mới, cập nhật hostname tại đây.
@@ -71,6 +83,18 @@ const nextConfig: NextConfig = {
       {
         protocol: "http",
         hostname: "localhost",
+        port: "8080",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "8080",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "180.93.137.28",
         pathname: "/**",
       },
     ],
