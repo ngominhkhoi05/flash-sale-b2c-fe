@@ -6,6 +6,7 @@ import {
   getSellerWallet,
   getSellerWalletTransactions,
   requestSellerWithdrawal,
+  updateSellerBankAccount,
 } from "@/lib/api/seller";
 import type {
   SellerWalletResponse,
@@ -32,9 +33,82 @@ export default function SellerWalletPage() {
   const [withdrawLoading, setWithdrawLoading] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Bank Account modal
+  const [isBankModalOpen, setIsBankModalOpen] = useState<boolean>(false);
+  const [bankName, setBankName] = useState<string>("");
+  const [bankCode, setBankCode] = useState<string>("");
+  const [accountNumber, setAccountNumber] = useState<string>("");
+  const [accountHolder, setAccountHolder] = useState<string>("");
+  const [branch, setBranch] = useState<string>("");
+  const [bankLoading, setBankLoading] = useState<boolean>(false);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const openBankModal = () => {
+    if (wallet?.bankAccount) {
+      setBankName(wallet.bankAccount.bankName || "");
+      setBankCode((wallet.bankAccount as unknown as { bankCode?: string }).bankCode || "VCB");
+      setAccountNumber(wallet.bankAccount.accountNumber || "");
+      setAccountHolder(wallet.bankAccount.accountHolder || "");
+      setBranch(wallet.bankAccount.branch || "");
+    } else {
+      setBankName("");
+      setBankCode("VCB");
+      setAccountNumber("");
+      setAccountHolder("");
+      setBranch("");
+    }
+    setIsBankModalOpen(true);
+  };
+
+  const handleSaveBankAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bankName.trim() || !bankCode.trim() || !accountNumber.trim() || !accountHolder.trim()) {
+      alert("Vui lòng điền đầy đủ các thông tin ngân hàng bắt buộc");
+      return;
+    }
+    if (!/^[0-9]{6,30}$/.test(accountNumber.trim())) {
+      alert("Số tài khoản chỉ bao gồm từ 6 đến 30 chữ số");
+      return;
+    }
+    if (!/^[A-Z ]+$/.test(accountHolder.trim())) {
+      alert("Tên chủ tài khoản phải là chữ in hoa không dấu (Ví dụ: NGUYEN VAN AN)");
+      return;
+    }
+
+    setBankLoading(true);
+    try {
+      const updated = await updateSellerBankAccount({
+        bankName: bankName.trim(),
+        bankCode: bankCode.trim().toUpperCase(),
+        accountNumber: accountNumber.trim(),
+        accountHolder: accountHolder.trim().toUpperCase(),
+        branch: branch.trim() || undefined,
+      });
+      showToast("Cập nhật tài khoản ngân hàng thành công!");
+      setIsBankModalOpen(false);
+      if (wallet) {
+        setWallet({
+          ...wallet,
+          bankAccount: {
+            bankName: updated.bankName,
+            accountNumber: updated.accountNumber,
+            accountHolder: updated.accountHolder,
+            branch: updated.branch,
+            isVerified: updated.isVerified,
+          },
+        });
+      }
+      triggerReload();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Cập nhật ngân hàng thất bại";
+      alert(msg);
+    } finally {
+      setBankLoading(false);
+    }
   };
 
   const triggerReload = () => {
@@ -92,9 +166,16 @@ export default function SellerWalletPage() {
   // Handle withdraw
   const handleConfirmWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!wallet?.bankAccount || !wallet.bankAccount.accountNumber) {
+      alert("Vui lòng cấu hình tài khoản ngân hàng trước khi tạo yêu cầu rút tiền.");
+      setIsWithdrawModalOpen(false);
+      openBankModal();
+      return;
+    }
+
     const amountNum = parseInt(withdrawAmount.replace(/\D/g, ""), 10);
-    if (!amountNum || amountNum < 100000) {
-      alert("Số tiền rút tối thiểu là 100.000 ₫");
+    if (!amountNum || amountNum < 50000) {
+      alert("Số tiền rút tối thiểu là 50.000 ₫");
       return;
     }
     if (wallet && amountNum > wallet.balance) {
@@ -274,21 +355,29 @@ export default function SellerWalletPage() {
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                  VCB
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs uppercase">
+                  {(wallet?.bankAccount as unknown as { bankCode?: string })?.bankCode || "BANK"}
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                    {wallet?.bankAccount?.bankName || "Vietcombank"}
+                    {wallet?.bankAccount?.bankName || "Chưa cấu hình ngân hàng"}
                   </h3>
                   <p className="text-xs text-slate-400">
                     {wallet?.bankAccount?.branch || "Chi nhánh chính"}
                   </p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="material-symbols-outlined text-[14px]">verified</span>
-                Đã xác thực
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
+                  wallet?.bankAccount?.isVerified
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border border-amber-200"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {wallet?.bankAccount?.isVerified ? "verified" : "pending"}
+                </span>
+                {wallet?.bankAccount?.isVerified ? "Đã xác thực" : "Chưa liên kết"}
               </span>
             </div>
 
@@ -296,13 +385,13 @@ export default function SellerWalletPage() {
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500">Số tài khoản:</span>
                 <span className="font-mono font-bold text-slate-900 text-sm">
-                  {wallet?.bankAccount?.accountNumber || "1029 8839 ****"}
+                  {wallet?.bankAccount?.accountNumber || "---"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-500">Chủ tài khoản:</span>
                 <span className="font-bold text-slate-900 uppercase">
-                  {wallet?.bankAccount?.accountHolder || "NGUYEN VAN AN"}
+                  {wallet?.bankAccount?.accountHolder || "---"}
                 </span>
               </div>
             </div>
@@ -311,11 +400,11 @@ export default function SellerWalletPage() {
           <div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
             <span className="text-slate-400">Rút tiền miễn phí giao dịch sàn</span>
             <button
-              onClick={() => showToast("Chức năng thay đổi tài khoản ngân hàng đang được bảo mật.")}
+              onClick={openBankModal}
               className="inline-flex items-center gap-1 text-emerald-600 font-semibold hover:text-emerald-700 transition-colors"
             >
               <span className="material-symbols-outlined text-[16px]">edit_square</span>
-              Thay đổi tài khoản
+              {wallet?.bankAccount?.accountNumber ? "Thay đổi tài khoản" : "Thiết lập tài khoản"}
             </button>
           </div>
         </div>
@@ -567,13 +656,13 @@ export default function SellerWalletPage() {
                 <div className="relative">
                   <input
                     type="number"
-                    min="100000"
+                    min="50000"
                     max={wallet?.balance || 0}
                     step="10000"
                     required
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder="Tối thiểu 100.000 ₫"
+                    placeholder="Tối thiểu 50.000 ₫"
                     className="w-full p-2.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
@@ -581,7 +670,7 @@ export default function SellerWalletPage() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Hạn mức rút tối thiểu: 100.000 ₫/lần. Miễn phí giao dịch.
+                  Hạn mức rút tối thiểu: 50.000 ₫/lần. Miễn phí giao dịch.
                 </p>
               </div>
 
@@ -630,6 +719,134 @@ export default function SellerWalletPage() {
                         verified
                       </span>
                       <span>Xác nhận rút tiền</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cập nhật Tài khoản Ngân hàng */}
+      {isBankModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[20px]">
+                    account_balance
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    Tài khoản ngân hàng nhận tiền
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Cấu hình tài khoản chính để nhận tiền rút từ ví shop
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBankModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBankAccount} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tên ngân hàng <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="Ví dụ: Ngân hàng TMCP Ngoại thương Việt Nam"
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Mã ngân hàng (Code) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={bankCode}
+                    onChange={(e) => setBankCode(e.target.value.toUpperCase())}
+                    placeholder="VCB, MB, TCB..."
+                    className="w-full p-2.5 text-xs font-mono uppercase bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Số tài khoản <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Chỉ nhập số"
+                    className="w-full p-2.5 text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tên chủ tài khoản (In hoa không dấu) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={accountHolder}
+                  onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
+                  placeholder="Ví dụ: NGUYEN VAN AN"
+                  className="w-full p-2.5 text-xs font-bold uppercase bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Chi nhánh ngân hàng
+                </label>
+                <input
+                  type="text"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  placeholder="Ví dụ: Chi nhánh Thủ Đức, TP. Hồ Chí Minh"
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBankModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={bankLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors disabled:opacity-50"
+                >
+                  {bankLoading ? (
+                    <span>Đang lưu...</span>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[16px]">save</span>
+                      <span>Lưu thông tin</span>
                     </>
                   )}
                 </button>

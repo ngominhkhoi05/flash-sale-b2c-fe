@@ -15,6 +15,8 @@ import type {
   SellerWalletResponse,
   SellerWalletTransaction,
   SellerWithdrawalRequest,
+  SellerBankAccountPayload,
+  SellerBankAccountResponse,
   SellerVoucherItem,
   CreateSellerVoucherPayload,
   SellerReviewItem,
@@ -799,6 +801,41 @@ export async function getSellerWallet(): Promise<SellerWalletResponse> {
     throw err;
   }
 }
+
+/**
+ * Lấy thông tin tài khoản ngân hàng của shop (GET /api/v1/seller/wallet/bank-account)
+ */
+export async function getSellerBankAccount(): Promise<SellerBankAccountResponse | null> {
+  try {
+    return await apiFetch<SellerBankAccountResponse>("/seller/wallet/bank-account");
+  } catch (err) {
+    if (isMockMode()) {
+      return {
+        id: 1,
+        bankName: "Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)",
+        bankCode: "VCB",
+        accountNumber: "102988391204",
+        accountHolder: "NGUYEN VAN AN",
+        branch: "Chi nhánh Thủ Đức, TP. Hồ Chí Minh",
+        isVerified: true,
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Cập nhật thông tin tài khoản ngân hàng của shop (PUT /api/v1/seller/wallet/bank-account)
+ */
+export async function updateSellerBankAccount(
+  payload: SellerBankAccountPayload
+): Promise<SellerBankAccountResponse> {
+  return await apiFetch<SellerBankAccountResponse>("/seller/wallet/bank-account", {
+    method: "PUT",
+    json: payload,
+  });
+}
+
 
 /**
  * Lấy danh sách lịch sử giao dịch ví (GET /api/v1/seller/wallet/transactions)

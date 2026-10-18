@@ -8,6 +8,7 @@ export interface ApiResponse<T = unknown> {
 
 export interface PageResponse<T = unknown> {
   content: T[];
+  items?: T[];
   pageNumber: number;
   pageSize: number;
   totalElements: number;
