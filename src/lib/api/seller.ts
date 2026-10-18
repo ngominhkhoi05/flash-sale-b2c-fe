@@ -703,59 +703,57 @@ export async function getSellerProductDetail(
   productId: number
 ): Promise<SellerProductDetailResponse> {
   try {
-    return await apiFetch<SellerProductDetailResponse>(
+    const res = await apiFetch<SellerProductDetailResponse>(
       `/seller/products/${productId}`
     );
-  } catch {
-    const summary = mockSellerProductStore.find((p) => p.id === productId);
+    const configs = res.tierVariationConfigs || res.tierVariations || [];
     return {
-      id: productId,
-      storeId: summary?.storeId || 1,
-      storeName: summary?.storeName || "UTC Fashion",
-      categoryId: summary?.categoryId || 1,
-      categoryName: summary?.categoryName || "Thời trang nam",
-      name: summary?.name || "Áo thun nam Cotton Compact Vibe UTC cao cấp",
-      slug: summary?.slug || "ao-thun-nam",
-      description:
-        "✔ **Chất liệu**: 100% Cotton Compact chải kỹ định lượng 220gsm.\n✔ **Đường may 2 kim**: Gia cố chắc chắn.",
-      imageUrl:
-        summary?.imageUrl ||
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
-      status: summary?.status || "ACTIVE",
-      tierVariations: [
-        { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
-        { name: "Kích thước", options: ["S", "M", "L", "XL"] },
-      ],
-      variants: [
-        {
-          id: productId * 10 + 1,
-          skuCode: "AT-DEN-S",
-          originalPrice: summary?.minPrice || 149000,
-          salePrice: summary?.minPrice || 149000,
-          stockQuantity: 50,
-          status: "ACTIVE",
-          attributes: { "Màu sắc": "Đen", "Kích thước": "S" },
-        },
-        {
-          id: productId * 10 + 2,
-          skuCode: "AT-DEN-M",
-          originalPrice: summary?.minPrice || 149000,
-          salePrice: summary?.minPrice || 149000,
-          stockQuantity: 45,
-          status: "ACTIVE",
-          attributes: { "Màu sắc": "Đen", "Kích thước": "M" },
-        },
-        {
-          id: productId * 10 + 3,
-          skuCode: "AT-TRANG-L",
-          originalPrice: summary?.maxPrice || 189000,
-          salePrice: summary?.maxPrice || 189000,
-          stockQuantity: 30,
-          status: "ACTIVE",
-          attributes: { "Màu sắc": "Trắng", "Kích thước": "L" },
-        },
-      ],
+      ...res,
+      tierVariationConfigs: configs,
+      tierVariations: configs,
+      variants: Array.isArray(res.variants) ? res.variants : [],
     };
+  } catch (err) {
+    if (isMockMode()) {
+      const summary = mockSellerProductStore.find((p) => p.id === productId);
+      return {
+        id: productId,
+        storeId: summary?.storeId || 1,
+        storeName: summary?.storeName || "UTC Fashion",
+        categoryId: summary?.categoryId || 1,
+        categoryName: summary?.categoryName || "Thời trang nam",
+        name: summary?.name || "Áo thun nam Cotton Compact Vibe UTC cao cấp",
+        slug: summary?.slug || "ao-thun-nam",
+        description:
+          "✔ **Chất liệu**: 100% Cotton Compact chải kỹ định lượng 220gsm.\n✔ **Đường may 2 kim**: Gia cố chắc chắn.",
+        imageUrl:
+          summary?.imageUrl ||
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        status: summary?.status || "ACTIVE",
+        tierVariations: [
+          { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
+          { name: "Kích thước", options: ["S", "M", "L", "XL"] },
+        ],
+        tierVariationConfigs: [
+          { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
+          { name: "Kích thước", options: ["S", "M", "L", "XL"] },
+        ],
+        variants: [
+          {
+            id: productId * 10 + 1,
+            sku: "AT-DEN-S",
+            skuCode: "AT-DEN-S",
+            variantName: "Đen, Size S",
+            originalPrice: summary?.minPrice || 149000,
+            salePrice: summary?.minPrice || 149000,
+            stockQuantity: 50,
+            status: "ACTIVE",
+            attributes: { "Màu sắc": "Đen", "Kích thước": "S" },
+          },
+        ],
+      };
+    }
+    throw err;
   }
 }
 
@@ -771,11 +769,15 @@ export async function updateProductStatus(
       method: "PATCH",
       query: { status },
     });
-  } catch {
-    const target = mockSellerProductStore.find((p) => p.id === productId);
-    if (target) {
-      target.status = status;
+  } catch (err) {
+    if (isMockMode()) {
+      const target = mockSellerProductStore.find((p) => p.id === productId);
+      if (target) {
+        target.status = status;
+      }
+      return;
     }
+    throw err;
   }
 }
 
@@ -787,10 +789,14 @@ export async function deleteProduct(productId: number): Promise<void> {
     await apiFetch<void>(`/seller/products/${productId}`, {
       method: "DELETE",
     });
-  } catch {
-    mockSellerProductStore = mockSellerProductStore.filter(
-      (p) => p.id !== productId
-    );
+  } catch (err) {
+    if (isMockMode()) {
+      mockSellerProductStore = mockSellerProductStore.filter(
+        (p) => p.id !== productId
+      );
+      return;
+    }
+    throw err;
   }
 }
 
@@ -824,67 +830,71 @@ export async function createSellerProduct(
       method: "POST",
       json: payload,
     });
-  } catch {
-    // Dự phòng tạo sản phẩm mock khi BE chưa chạy hoặc kết nối lỗi
-    const newId = Date.now();
-    const prices = payload.variants
-      .map((v) => Number(v.originalPrice) || 0)
-      .filter((p) => p > 0);
-    const minPrice = prices.length > 0 ? Math.min(...prices) : 149000;
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 149000;
-    const totalStock = payload.variants.reduce(
-      (acc, v) => acc + (Number(v.stockQuantity) || 0),
-      0
-    );
+  } catch (err) {
+    if (isMockMode()) {
+      const newId = Date.now();
+      const prices = payload.variants
+        .map((v) => Number(v.originalPrice) || 0)
+        .filter((p) => p > 0);
+      const minPrice = prices.length > 0 ? Math.min(...prices) : 149000;
+      const maxPrice = prices.length > 0 ? Math.max(...prices) : 149000;
+      const totalStock = payload.variants.reduce(
+        (acc, v) => acc + (Number(v.stockQuantity) || 0),
+        0
+      );
 
-    const newSummary: SellerProductSummaryResponse = {
-      id: newId,
-      storeId: 1,
-      storeName: "UTC Fashion",
-      categoryId: payload.categoryId,
-      categoryName:
-        payload.categoryId === 1 ? "Thời trang nam" : "Ngành hàng chung",
-      name: payload.name,
-      slug: payload.name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-"),
-      imageUrl:
-        payload.imageUrl ||
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
-      minPrice,
-      maxPrice,
-      totalStock,
-      totalSold: 0,
-      status: "ACTIVE",
-      createdAt: new Date().toISOString(),
-    };
-
-    mockSellerProductStore.unshift(newSummary);
-
-    return {
-      id: newId,
-      storeId: 1,
-      storeName: "UTC Fashion",
-      categoryId: payload.categoryId,
-      categoryName: "Thời trang nam",
-      name: payload.name,
-      slug: newSummary.slug,
-      description: payload.description,
-      imageUrl: newSummary.imageUrl,
-      status: "ACTIVE",
-      tierVariations: payload.tierVariationConfigs,
-      variants: payload.variants.map((v, idx) => ({
-        id: newId * 10 + idx,
-        skuCode: v.sku,
-        originalPrice: v.originalPrice,
-        salePrice: v.originalPrice,
-        stockQuantity: v.stockQuantity,
+      const newSummary: SellerProductSummaryResponse = {
+        id: newId,
+        storeId: 1,
+        storeName: "UTC Fashion",
+        categoryId: payload.categoryId,
+        categoryName:
+          payload.categoryId === 1 ? "Thời trang nam" : "Ngành hàng chung",
+        name: payload.name,
+        slug: payload.name
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-"),
+        imageUrl:
+          payload.imageUrl ||
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        minPrice,
+        maxPrice,
+        totalStock,
+        totalSold: 0,
         status: "ACTIVE",
-        attributes: v.attributes,
-      })),
-    };
+        createdAt: new Date().toISOString(),
+      };
+
+      mockSellerProductStore.unshift(newSummary);
+
+      return {
+        id: newId,
+        storeId: 1,
+        storeName: "UTC Fashion",
+        categoryId: payload.categoryId,
+        categoryName: "Thời trang nam",
+        name: payload.name,
+        slug: newSummary.slug,
+        description: payload.description,
+        imageUrl: newSummary.imageUrl,
+        status: "ACTIVE",
+        tierVariations: payload.tierVariationConfigs,
+        tierVariationConfigs: payload.tierVariationConfigs,
+        variants: payload.variants.map((v, idx) => ({
+          id: newId * 10 + idx,
+          sku: v.sku,
+          skuCode: v.sku,
+          originalPrice: v.originalPrice,
+          salePrice: v.originalPrice,
+          stockQuantity: v.stockQuantity,
+          status: "ACTIVE",
+          attributes: v.attributes,
+        })),
+      };
+    }
+    throw err;
   }
 }
 
@@ -903,38 +913,65 @@ export async function updateSellerProduct(
         json: payload,
       }
     );
-  } catch {
-    const existing = mockSellerProductStore.find((p) => p.id === productId);
-    if (existing) {
-      existing.name = payload.name;
-      existing.status = payload.status || existing.status;
-      if (payload.imageUrl) existing.imageUrl = payload.imageUrl;
+  } catch (err) {
+    if (isMockMode()) {
+      const existing = mockSellerProductStore.find((p) => p.id === productId);
+      if (existing) {
+        existing.name = payload.name;
+        existing.status = payload.status || existing.status;
+        if (payload.imageUrl) existing.imageUrl = payload.imageUrl;
+      }
+      return {
+        id: productId,
+        storeId: 1,
+        storeName: "UTC Fashion",
+        categoryId: payload.categoryId,
+        categoryName: "Thời trang nam",
+        name: payload.name,
+        slug: "updated-product",
+        description: payload.description,
+        status: payload.status,
+        variants: payload.variants.map((v, idx) => ({
+          id: v.id || productId * 10 + idx,
+          sku: v.sku,
+          skuCode: v.sku,
+          originalPrice: v.originalPrice,
+          salePrice: v.originalPrice,
+          stockQuantity: v.stockQuantity,
+          status: v.status || "ACTIVE",
+          attributes: v.attributes,
+        })),
+      };
     }
-    return {
-      id: productId,
-      storeId: 1,
-      storeName: "UTC Fashion",
-      categoryId: payload.categoryId,
-      categoryName: "Thời trang nam",
-      name: payload.name,
-      slug: "updated-product",
-      description: payload.description,
-      status: payload.status || "ACTIVE",
-      variants: payload.variants.map((v, idx) => ({
-        id: productId * 10 + idx,
-        skuCode: v.sku,
-        originalPrice: v.originalPrice,
-        salePrice: v.originalPrice,
-        stockQuantity: v.stockQuantity,
-        status: "ACTIVE",
-        attributes: v.attributes,
-      })),
-    };
+    throw err;
   }
 }
 
 /**
- * 12. Lấy danh sách phiên Flash Sale mở đăng ký (KHỚP BE: GET /api/v1/flash-sales/slots)
+ * 12. Upload ảnh cho sản phẩm SPU (KHỚP BE: POST /api/v1/seller/products/{id}/images)
+ */
+export async function uploadSellerProductImage(
+  productId: number,
+  file: Blob | File,
+  isPrimary: boolean = false,
+  displayOrder: number = 0
+): Promise<unknown> {
+  try {
+    const formData = new FormData();
+    formData.append("file", file, (file as File).name || "product_image.jpg");
+    return await apiFetch(`/seller/products/${productId}/images`, {
+      method: "POST",
+      query: { isPrimary, displayOrder },
+      body: formData,
+    });
+  } catch (err) {
+    console.warn("Upload product image warning:", err);
+    return null;
+  }
+}
+
+/**
+ * 13. Lấy danh sách phiên Flash Sale mở đăng ký (KHỚP BE: GET /api/v1/flash-sales/slots)
  */
 export async function getFlashSaleSlots(): Promise<FlashSaleSlotItem[]> {
   try {

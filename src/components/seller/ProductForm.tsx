@@ -12,6 +12,7 @@ import {
   createSellerProduct,
   updateSellerProduct,
   getSellerProductDetail,
+  uploadSellerProductImage,
 } from "@/lib/api/seller";
 import type {
   CategoryItem,
@@ -27,6 +28,7 @@ interface ProductFormProps {
 
 interface SkuRowState {
   key: string;
+  id?: number;
   tier1Val: string;
   tier2Val: string;
   sku: string;
@@ -218,6 +220,23 @@ function renderMarkdownPreview(md: string) {
   if (currentList) flushList("final");
 
   return <div className="text-body-md leading-relaxed">{nodes}</div>;
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  try {
+    const arr = dataUrl.split(",");
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch {
+    return null;
+  }
 }
 
 export function ProductForm({ mode, productId }: ProductFormProps) {
@@ -449,6 +468,9 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   // SPU / SKU Variations
+  const [skuSeed] = useState(() =>
+    Math.random().toString(36).substring(2, 6).toUpperCase()
+  );
   const [hasVariations, setHasVariations] = useState(true);
   const [tier1Name, setTier1Name] = useState("Màu sắc");
   const [tier1Options, setTier1Options] = useState<string[]>([
@@ -467,6 +489,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     Record<
       string,
       {
+        id?: number;
         sku?: string;
         originalPrice?: number;
         stockQuantity?: number;
@@ -521,20 +544,63 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             setImages([detail.imageUrl]);
           }
 
-          if (detail.tierVariations && detail.tierVariations.length > 0) {
+          const configs =
+            detail.tierVariationConfigs || detail.tierVariations || [];
+          if (configs.length > 0) {
             setHasVariations(true);
-            const t1 = detail.tierVariations[0];
+            const t1 = configs[0];
             if (t1) {
               setTier1Name(t1.name);
-              setTier1Options(t1.options);
+              setTier1Options(t1.options || []);
             }
-            const t2 = detail.tierVariations[1];
+            const t2 = configs[1];
             if (t2) {
               setTier2Name(t2.name);
-              setTier2Options(t2.options);
+              setTier2Options(t2.options || []);
             } else {
               setTier2Options([]);
             }
+          } else {
+            setHasVariations(false);
+          }
+
+          // Nạp các variants vào skuOverrides kèm variant ID!
+          if (Array.isArray(detail.variants) && detail.variants.length > 0) {
+            const initialOverrides: Record<
+              string,
+              {
+                id?: number;
+                sku?: string;
+                originalPrice?: number;
+                stockQuantity?: number;
+                isActive?: boolean;
+              }
+            > = {};
+
+            detail.variants.forEach((v) => {
+              const attrs = v.attributes || {};
+              const t1Name = configs[0]?.name;
+              const t2Name = configs[1]?.name;
+              const t1Val = t1Name ? attrs[t1Name] : undefined;
+              const t2Val = t2Name ? attrs[t2Name] : undefined;
+
+              const rowKey =
+                t1Val && t2Val
+                  ? `${t1Val}-${t2Val}`
+                  : t1Val
+                  ? `${t1Val}-Mặc định`
+                  : "default";
+
+              initialOverrides[rowKey] = {
+                id: v.id,
+                sku: v.sku || v.skuCode,
+                originalPrice: Number(v.originalPrice) || 0,
+                stockQuantity: Number(v.stockQuantity) || 0,
+                isActive: v.status === "ACTIVE",
+              };
+            });
+
+            setSkuOverrides(initialOverrides);
           }
           setIsPageLoading(false);
         })
@@ -559,9 +625,10 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       return [
         {
           key: "default",
+          id: def?.id,
           tier1Val: "Mặc định",
           tier2Val: "-",
-          sku: def?.sku || "SKU-DEFAULT",
+          sku: def?.sku || (mode === "edit" ? "SKU-DEFAULT" : `SKU-${skuSeed}`),
           originalPrice: price,
           stockQuantity: def?.stockQuantity ?? (Number(batchStock) || 50),
           isActive: def?.isActive ?? true,
@@ -590,11 +657,17 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         const stock = ov?.stockQuantity ?? (Number(batchStock) || 50);
         const p1 = normalizeSkuPart(t1).slice(0, 3) || "SKU";
         const p2 = normalizeSkuPart(t2).slice(0, 3) || "DEF";
+        const defaultSku =
+          mode === "edit"
+            ? `AT-${p1}-${p2}`
+            : `AT-${skuSeed}-${p1}-${p2}`;
+
         rows.push({
           key: rowKey,
+          id: ov?.id,
           tier1Val: t1,
           tier2Val: t2 === "Mặc định" ? "-" : t2,
-          sku: ov?.sku || `AT-${p1}-${p2}`,
+          sku: ov?.sku || defaultSku,
           originalPrice: price,
           stockQuantity: stock,
           isActive: ov?.isActive ?? true,
@@ -603,7 +676,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       }
     }
     return rows;
-  }, [hasVariations, tier1Options, tier2Options, skuOverrides, batchPrice, batchStock]);
+  }, [hasVariations, tier1Options, tier2Options, skuOverrides, batchPrice, batchStock, mode, skuSeed]);
 
   // Batch apply handler
   const handleBatchApply = () => {
@@ -862,6 +935,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         : [];
 
       const variants: CreateProductVariantDto[] = skuMatrix.map((r) => ({
+        id: r.id,
         sku: r.sku,
         variantName:
           r.tier2Val && r.tier2Val !== "-"
@@ -869,44 +943,60 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             : r.tier1Val,
         originalPrice: r.originalPrice,
         stockQuantity: r.stockQuantity,
+        status: r.isActive ? "ACTIVE" : "INACTIVE",
         attributes: {
           [tier1Name]: r.tier1Val,
           ...(r.tier2Val && r.tier2Val !== "-" ? { [tier2Name]: r.tier2Val } : {}),
         },
       }));
 
+      let savedId = productId;
       if (mode === "create") {
         const payload: CreateProductPayload = {
           categoryId,
           name: name.trim(),
           description: description.trim(),
-          imageUrl: images[0] || undefined,
+          imageUrl: images[0]?.startsWith("http") ? images[0] : undefined,
           tierVariationConfigs,
           variants,
         };
-        await createSellerProduct(payload);
-        toast.success("Đăng bán sản phẩm thành công!");
-        setSuccessMessage("Đăng bán sản phẩm thành công!");
-        setTimeout(() => {
-          router.push("/seller/products");
-        }, 1000);
+        const created = await createSellerProduct(payload);
+        savedId = created?.id;
       } else if (mode === "edit" && productId) {
         const payload: UpdateProductPayload = {
           categoryId,
           name: name.trim(),
           description: description.trim(),
-          imageUrl: images[0] || undefined,
+          imageUrl: images[0]?.startsWith("http") ? images[0] : undefined,
           status: targetStatus,
           tierVariationConfigs,
           variants,
         };
         await updateSellerProduct(productId, payload);
-        toast.success("Cập nhật sản phẩm thành công!");
-        setSuccessMessage("Cập nhật sản phẩm thành công!");
-        setTimeout(() => {
-          router.push("/seller/products");
-        }, 1000);
       }
+
+      // Upload ảnh chọn từ laptop lên Backend
+      if (savedId && images.length > 0) {
+        for (let idx = 0; idx < images.length; idx++) {
+          const img = images[idx];
+          if (img && img.startsWith("data:image/")) {
+            const blob = dataUrlToBlob(img);
+            if (blob) {
+              await uploadSellerProductImage(savedId, blob, idx === 0, idx);
+            }
+          }
+        }
+      }
+
+      const successNotice =
+        mode === "create"
+          ? "Đăng bán sản phẩm thành công!"
+          : "Cập nhật sản phẩm thành công!";
+      toast.success(successNotice);
+      setSuccessMessage(successNotice);
+      setTimeout(() => {
+        router.push("/seller/products");
+      }, 1000);
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       const msg =
