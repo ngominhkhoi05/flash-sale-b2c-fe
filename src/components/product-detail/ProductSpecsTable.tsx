@@ -1,8 +1,13 @@
 /**
  * ProductSpecsTable – Section 16 (Stitch `31bc6af5`).
  *
- * Card showing 6-row key/value table:
- *   Danh mục | Chất liệu | Xuất xứ | Kiểu dáng | Mã SKU | Hướng dẫn giặt ủi
+ * Card showing 4-row key/value table (BE shape `specs` object):
+ *   Xuất xứ | Khối lượng | Chất liệu | Bảo hành
+ *
+ * Updated 2026-10-18 — align với BE `ProductDetailResponse.specs` shape:
+ *   - `specs` là object {origin, weight, material, warranty}
+ *   - Trước đây FE dùng 6 field: category/material/origin/style/sku/careInstructions.
+ *   - 4 field kia không có trong BE → bỏ.
  *
  * i18n namespace: `productDetail.specs.*`.
  */
@@ -10,29 +15,26 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import type { ProductSpecs } from "@/features/products";
+import type { ProductSpecsDto } from "@/features/products";
 
 export interface ProductSpecsTableProps {
-  specs: ProductSpecs;
+  specs: ProductSpecsDto;
   className?: string;
 }
 
 interface Row {
-  labelKey: "category" | "material" | "origin" | "style" | "sku" | "careInstructions";
+  labelKey: "origin" | "weight" | "material" | "warranty";
   value: string;
-  mono?: boolean;
 }
 
 export function ProductSpecsTable({ specs, className }: ProductSpecsTableProps) {
   const t = useTranslations("productDetail.specs");
 
   const rows: Row[] = [
-    { labelKey: "category", value: specs.category },
-    { labelKey: "material", value: specs.material },
     { labelKey: "origin", value: specs.origin },
-    { labelKey: "style", value: specs.style },
-    { labelKey: "sku", value: specs.sku, mono: true },
-    { labelKey: "careInstructions", value: specs.careInstructions },
+    { labelKey: "weight", value: specs.weight },
+    { labelKey: "material", value: specs.material },
+    { labelKey: "warranty", value: specs.warranty },
   ];
 
   return (
@@ -61,12 +63,7 @@ export function ProductSpecsTable({ specs, className }: ProductSpecsTableProps) 
             )}
           >
             <span className="font-semibold text-outline">{t(row.labelKey)}</span>
-            <span
-              className={cn(
-                "text-on-surface md:col-span-2",
-                row.mono && "font-mono font-semibold",
-              )}
-            >
+            <span className="text-on-surface md:col-span-2">
               {row.value}
             </span>
           </div>

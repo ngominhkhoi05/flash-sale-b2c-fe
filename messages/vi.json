@@ -892,22 +892,28 @@
       "products": "Sản Phẩm",
       "productsUnit": "mẫu",
       "responseRate": "Tỉ Lệ Phản Hồi",
-      "joined": "Tham Gia Sàn",
       "online": "Online {time} trước",
       "officialBadge": "Official Mall"
     },
     "specs": {
       "title": "Chi Tiết Sản Phẩm",
-      "category": "Danh mục",
-      "material": "Chất liệu",
       "origin": "Xuất xứ",
-      "style": "Kiểu dáng",
-      "sku": "Mã SKU",
-      "careInstructions": "Hướng dẫn giặt ủi"
+      "weight": "Khối lượng",
+      "material": "Chất liệu",
+      "warranty": "Bảo hành"
     },
     "description": {
       "title": "Mô Tả Sản Phẩm Chi Tiết",
-      "featureTitle": "Bảng Thông Số Chọn Size Chuẩn Người Việt (Tham khảo)"
+      "featureTitle": "Đặc điểm nổi bật",
+      "sizeChartTitle": "Bảng Kích Thước (Size Chart)",
+      "sizeChart": {
+        "size": "Size",
+        "widthCm": "Rộng (cm)",
+        "heightCm": "Dài (cm)",
+        "standard": "Standard",
+        "large": "Large"
+      },
+      "emptyHighlights": "Chưa có đặc điểm nổi bật."
     },
     "reviews": {
       "title": "Đánh Giá Sản Phẩm",
@@ -932,7 +938,9 @@
       "sameStore": "Cùng Shop UTC",
       "seeAll": "Xem hết",
       "bestSellers": "Bán Chạy Cùng Ngành",
-      "hot": "HOT"
+      "hot": "HOT",
+      "emptySameStore": "Chưa có sản phẩm cùng shop.",
+      "emptyBestSellers": "Chưa có sản phẩm bán chạy."
     },
     "commitments": {
       "natural": "100% Cotton Tự Nhiên",

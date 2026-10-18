@@ -1,6 +1,14 @@
 /**
  * Sanity test cho mock data — verify structure khớp ProductDetail.
  * Đảm bảo khi BE ready, mock có thể thay bằng API thật mà không phải đổi UI.
+ *
+ * Updated 2026-10-18 — align với BE `ProductDetailResponse` runtime shape:
+ *   - `descriptionRich` là object {intro, highlights[], paragraphs[]}
+ *   - `specs` là object {origin, weight, material, warranty}
+ *   - `features` là string[]
+ *   - `sizeChart` là object {large, standard}
+ *   - `flashSales` là array ActiveFlashSale[]
+ *   - `minPrice`/`maxPrice` có thể null
  */
 
 import { describe, it, expect } from "vitest";
@@ -43,11 +51,11 @@ describe("mockProductDetail", () => {
     expect(active.every((v) => v.stockQuantity > 0)).toBe(true);
   });
 
-  it("có flashSale với price < originalPrice", () => {
-    expect(mockProductDetail.flashSale).not.toBeNull();
-    expect(mockProductDetail.flashSale!.price).toBeLessThan(
-      mockProductDetail.flashSale!.originalPrice
-    );
+  it("có flashSales là array (BE shape), phần tử đầu là ACTIVE với flashSalePrice < originalPrice", () => {
+    expect(Array.isArray(mockProductDetail.flashSales)).toBe(true);
+    expect(mockProductDetail.flashSales.length).toBeGreaterThan(0);
+    const first = mockProductDetail.flashSales[0]!;
+    expect(first.flashSalePrice).toBeLessThan(first.originalPrice);
   });
 
   it("có 3 reviews mẫu", () => {
@@ -65,9 +73,13 @@ describe("mockProductDetail", () => {
     }
   });
 
-  it("có 4 sản phẩm cùng shop + 3 sản phẩm bán chạy", () => {
+  it("có 4 sản phẩm cùng shop + 3 sản phẩm bán chạy (RelatedProductSummary shape)", () => {
     expect(mockProductDetail.relatedSameStore).toHaveLength(4);
     expect(mockProductDetail.relatedBestSellers).toHaveLength(3);
+    // RelatedProductSummary: id number (BE int64), không có href
+    for (const p of mockProductDetail.relatedSameStore) {
+      expect(typeof p.id).toBe("number");
+    }
   });
 
   it("có commitments object với return_days > 0", () => {
@@ -79,20 +91,36 @@ describe("mockProductDetail", () => {
     expect(mockProductDetail.vouchers).toHaveLength(2);
   });
 
-  it("có 3 features", () => {
-    expect(mockProductDetail.features).toHaveLength(3);
+  it("có 5 features (string[] theo BE)", () => {
+    expect(mockProductDetail.features).toHaveLength(5);
+    for (const f of mockProductDetail.features) {
+      expect(typeof f).toBe("string");
+    }
   });
 
-  it("size chart có 4 hàng, M là current", () => {
-    expect(mockProductDetail.sizeChart).toHaveLength(4);
-    const current = mockProductDetail.sizeChart.filter((r) => r.isCurrent);
-    expect(current).toHaveLength(1);
-    expect(current[0].size).toBe("M");
+  it("sizeChart là object {large, standard} (BE shape)", () => {
+    expect(typeof mockProductDetail.sizeChart).toBe("object");
+    expect(mockProductDetail.sizeChart).not.toBeNull();
+    expect(mockProductDetail.sizeChart.large).toBeDefined();
+    expect(mockProductDetail.sizeChart.standard).toBeDefined();
+    expect(mockProductDetail.sizeChart.large.width_cm).toBeGreaterThan(0);
+    expect(mockProductDetail.sizeChart.standard.height_cm).toBeGreaterThan(0);
   });
 
-  it("XL trong size chart là outOfStock", () => {
-    const xl = mockProductDetail.sizeChart.find((r) => r.size === "XL");
-    expect(xl?.isOutOfStock).toBe(true);
+  it("specs là object BE shape {origin, weight, material, warranty}", () => {
+    expect(typeof mockProductDetail.specs).toBe("object");
+    expect(mockProductDetail.specs.origin).toBeDefined();
+    expect(mockProductDetail.specs.weight).toBeDefined();
+    expect(mockProductDetail.specs.material).toBeDefined();
+    expect(mockProductDetail.specs.warranty).toBeDefined();
+  });
+
+  it("descriptionRich là object {intro, highlights[], paragraphs[]}", () => {
+    expect(typeof mockProductDetail.descriptionRich).toBe("object");
+    expect(mockProductDetail.descriptionRich).not.toBeNull();
+    expect(typeof mockProductDetail.descriptionRich.intro).toBe("string");
+    expect(Array.isArray(mockProductDetail.descriptionRich.highlights)).toBe(true);
+    expect(Array.isArray(mockProductDetail.descriptionRich.paragraphs)).toBe(true);
   });
 
   it("ratingAvg trong [0, 5]", () => {
@@ -104,5 +132,12 @@ describe("mockProductDetail", () => {
     for (const img of mockProductDetail.images) {
       expect(img.url.startsWith("https://")).toBe(true);
     }
+  });
+
+  it("storeProfile không có joinedAt (BE không trả)", () => {
+    expect(
+      (mockProductDetail.storeProfile as unknown as Record<string, unknown>)
+        .joinedAt,
+    ).toBeUndefined();
   });
 });

@@ -2,47 +2,35 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProductDescriptionCard } from "./ProductDescriptionCard";
 import { TestWrapper } from "@/__tests__/test-wrapper";
-import type { ProductFeature, SizeChartRow } from "@/features/products";
+import type { DescriptionRichDto, SizeChartDto } from "@/features/products";
 
 function renderWithIntl(ui: React.ReactElement) {
   return render(<TestWrapper>{ui}</TestWrapper>);
 }
 
-const RICH = [
-  "Áo thun basic unisex <strong>UTC Basic Cotton Compact</strong> là sản phẩm chủ lực.",
-  "Thiết kế form dáng <em>Regular Fit</em> hiện đại chuẩn form cơ thể người trẻ Việt.",
+const RICH: DescriptionRichDto = {
+  intro: "Áo thun basic unisex UTC Basic Cotton Compact là sản phẩm chủ lực.",
+  highlights: [
+    "Thoáng Khí Tối Đa",
+    "Co Giãn 4 Chiều",
+    "Bo Cổ Dệt Gân 3 Lớp",
+  ],
+  paragraphs: [
+    "Thiết kế form dáng Regular Fit hiện đại chuẩn form cơ thể người trẻ Việt.",
+    "Chất liệu cotton compact 220gsm mềm mại, bền màu sau nhiều lần giặt.",
+  ],
+};
+
+const FEATURES: string[] = [
+  "Cấu trúc dệt mắt lưới siêu nhỏ giúp lưu thông khí.",
+  "Độ đàn hồi tự nhiên nhờ kỹ thuật xe sợi xoắn kép.",
+  "Cổ áo bổ sung sợi spandex tăng cường độ đàn hồi.",
 ];
 
-const FEATURES: ProductFeature[] = [
-  {
-    icon: "air",
-    iconBgClass: "bg-primary-fixed",
-    iconTextClass: "text-primary",
-    title: "Thoáng Khí Tối Đa",
-    description: "Cấu trúc dệt mắt lưới siêu nhỏ giúp lưu thông khí.",
-  },
-  {
-    icon: "all_inclusive",
-    iconBgClass: "bg-secondary-container",
-    iconTextClass: "text-on-secondary-container",
-    title: "Co Giãn 4 Chiều",
-    description: "Độ đàn hồi tự nhiên nhờ kỹ thuật xe sợi xoắn kép.",
-  },
-  {
-    icon: "layers",
-    iconBgClass: "bg-surface-container-highest",
-    iconTextClass: "text-on-surface",
-    title: "Bo Cổ Dệt Gân 3 Lớp",
-    description: "Cổ áo bổ sung sợi spandex tăng cường độ đàn hồi.",
-  },
-];
-
-const SIZE_CHART: SizeChartRow[] = [
-  { size: "S", height: "1m50-1m62", weight: "45-55", width: "48", length: "66", isCurrent: false, isOutOfStock: false },
-  { size: "M", height: "1m60-1m70", weight: "55-65", width: "50", length: "69", isCurrent: true, isOutOfStock: false },
-  { size: "L", height: "1m68-1m78", weight: "65-75", width: "53", length: "72", isCurrent: false, isOutOfStock: false },
-  { size: "XL", height: "1m75-1m85", weight: "75-88", width: "56", length: "75", isCurrent: false, isOutOfStock: true },
-];
+const SIZE_CHART: SizeChartDto = {
+  large: { width_cm: 56, height_cm: 75 },
+  standard: { width_cm: 50, height_cm: 69 },
+};
 
 describe("ProductDescriptionCard", () => {
   it("renders card title", () => {
@@ -51,151 +39,161 @@ describe("ProductDescriptionCard", () => {
         descriptionRich={RICH}
         features={FEATURES}
         sizeChart={SIZE_CHART}
-      />
+      />,
     );
     expect(
-      screen.getByRole("heading", { name: /Mô Tả Sản Phẩm Chi Tiết/ })
+      screen.getByRole("heading", { name: /Mô Tả Sản Phẩm Chi Tiết/ }),
     ).toBeInTheDocument();
   });
 
-  it("renders 2 description paragraphs with HTML", () => {
+  it("renders intro paragraph text", () => {
     renderWithIntl(
       <ProductDescriptionCard
         descriptionRich={RICH}
-        features={FEATURES}
-        sizeChart={SIZE_CHART}
-      />
-    );
-    // First <p> contains <strong>UTC Basic Cotton Compact</strong>
-    const strongEl = screen.getByText(/UTC Basic Cotton Compact/);
-    expect(strongEl.tagName).toBe("STRONG");
-    // Second <p> contains <em>Regular Fit</em>
-    const emEl = screen.getByText(/Regular Fit/);
-    expect(emEl.tagName).toBe("EM");
-  });
-
-  it("renders 3 feature cards", () => {
-    renderWithIntl(
-      <ProductDescriptionCard
-        descriptionRich={RICH}
-        features={FEATURES}
-        sizeChart={SIZE_CHART}
-      />
-    );
-    expect(screen.getByText(/Thoáng Khí Tối Đa/)).toBeInTheDocument();
-    expect(screen.getByText(/Co Giãn 4 Chiều/)).toBeInTheDocument();
-    expect(screen.getByText(/Bo Cổ Dệt Gân 3 Lớp/)).toBeInTheDocument();
-  });
-
-  it("renders size chart with 4 rows", () => {
-    renderWithIntl(
-      <ProductDescriptionCard
-        descriptionRich={RICH}
-        features={FEATURES}
-        sizeChart={SIZE_CHART}
-      />
-    );
-    const rows = screen.getAllByTestId("size-chart-row");
-    expect(rows).toHaveLength(4);
-  });
-
-  it("applies highlight class to the current size row", () => {
-    renderWithIntl(
-      <ProductDescriptionCard
-        descriptionRich={RICH}
-        features={FEATURES}
-        sizeChart={SIZE_CHART}
-      />
-    );
-    const rows = screen.getAllByTestId("size-chart-row");
-    expect(rows[1]).toHaveClass("bg-primary-fixed");
-  });
-
-  it("marks OOS row with grayed style", () => {
-    renderWithIntl(
-      <ProductDescriptionCard
-        descriptionRich={RICH}
-        features={FEATURES}
-        sizeChart={SIZE_CHART}
-      />
-    );
-    const rows = screen.getAllByTestId("size-chart-row");
-    // Last row is OOS XL
-    expect(rows[3]).toHaveClass("text-outline");
-    expect(rows[3]).toHaveClass("opacity-60");
-  });
-});
-
-describe("ProductDescriptionCard – defensive guards (BE nullable)", () => {
-  it("does NOT crash when descriptionRich is undefined (BE missing field)", () => {
-    expect(() =>
-      renderWithIntl(
-        <ProductDescriptionCard
-          descriptionRich={undefined as unknown as string[]}
-          features={FEATURES}
-          sizeChart={SIZE_CHART}
-        />,
-      ),
-    ).not.toThrow();
-  });
-
-  it("does NOT crash when descriptionRich is null (BE explicit null)", () => {
-    expect(() =>
-      renderWithIntl(
-        <ProductDescriptionCard
-          descriptionRich={null as unknown as string[]}
-          features={FEATURES}
-          sizeChart={SIZE_CHART}
-        />,
-      ),
-    ).not.toThrow();
-  });
-
-  it("does NOT crash when descriptionRich is a single string (BE joined)", () => {
-    expect(() =>
-      renderWithIntl(
-        <ProductDescriptionCard
-          descriptionRich={"Một chuỗi HTML duy nhất" as unknown as string[]}
-          features={FEATURES}
-          sizeChart={SIZE_CHART}
-        />,
-      ),
-    ).not.toThrow();
-    // Normalize: string → wrap thành array, render 1 paragraph.
-    expect(screen.getByText(/Một chuỗi HTML duy nhất/)).toBeInTheDocument();
-  });
-
-  it("renders 2 paragraphs when descriptionRich is an array of 2 strings", () => {
-    renderWithIntl(
-      <ProductDescriptionCard
-        descriptionRich={["Đoạn 1", "Đoạn 2"]}
         features={FEATURES}
         sizeChart={SIZE_CHART}
       />,
     );
-    expect(screen.getByText(/Đoạn 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Đoạn 2/)).toBeInTheDocument();
+    const intro = screen.getByTestId("description-intro");
+    expect(intro).toHaveTextContent(/UTC Basic Cotton Compact/);
   });
 
-  it("does NOT crash when features is undefined (BE missing)", () => {
+  it("renders 3 highlight bullets", () => {
+    renderWithIntl(
+      <ProductDescriptionCard
+        descriptionRich={RICH}
+        features={FEATURES}
+        sizeChart={SIZE_CHART}
+      />,
+    );
+    const list = screen.getByTestId("description-highlights");
+    expect(list.querySelectorAll("li")).toHaveLength(3);
+  });
+
+  it("renders 2 description paragraphs", () => {
+    renderWithIntl(
+      <ProductDescriptionCard
+        descriptionRich={RICH}
+        features={FEATURES}
+        sizeChart={SIZE_CHART}
+      />,
+    );
+    const paraContainer = screen.getByTestId("description-paragraphs");
+    expect(paraContainer.querySelectorAll("p")).toHaveLength(2);
+    expect(paraContainer).toHaveTextContent(/Regular Fit/);
+  });
+
+  it("renders 3 feature items as string list", () => {
+    renderWithIntl(
+      <ProductDescriptionCard
+        descriptionRich={RICH}
+        features={FEATURES}
+        sizeChart={SIZE_CHART}
+      />,
+    );
+    const featureList = screen.getByTestId("feature-list");
+    expect(featureList.querySelectorAll('[data-testid="feature-item"]')).toHaveLength(3);
+  });
+
+  it("renders size chart with 2 rows (standard + large)", () => {
+    renderWithIntl(
+      <ProductDescriptionCard
+        descriptionRich={RICH}
+        features={FEATURES}
+        sizeChart={SIZE_CHART}
+      />,
+    );
+    const rows = screen.getAllByTestId("size-chart-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAttribute("data-row", "standard");
+    expect(rows[1]).toHaveAttribute("data-row", "large");
+  });
+
+  it("renders size chart values (BE shape)", () => {
+    renderWithIntl(
+      <ProductDescriptionCard
+        descriptionRich={RICH}
+        features={FEATURES}
+        sizeChart={SIZE_CHART}
+      />,
+    );
+    // standard: 50 cm width, 69 cm height
+    expect(screen.getByText("50 cm")).toBeInTheDocument();
+    expect(screen.getByText("69 cm")).toBeInTheDocument();
+    // large: 56 cm width, 75 cm height
+    expect(screen.getByText("56 cm")).toBeInTheDocument();
+    expect(screen.getByText("75 cm")).toBeInTheDocument();
+  });
+});
+
+describe("ProductDescriptionCard – defensive guards (BE nullable)", () => {
+  it("does NOT crash when descriptionRich is undefined", () => {
     expect(() =>
       renderWithIntl(
         <ProductDescriptionCard
-          descriptionRich={RICH}
-          features={undefined as unknown as ProductFeature[]}
+          descriptionRich={undefined as unknown as DescriptionRichDto}
+          features={FEATURES}
           sizeChart={SIZE_CHART}
         />,
       ),
     ).not.toThrow();
   });
 
-  it("does NOT crash when sizeChart is undefined (BE missing)", () => {
+  it("does NOT crash when descriptionRich is null", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={null as unknown as DescriptionRichDto}
+          features={FEATURES}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when features is undefined", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={undefined as unknown as string[]}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when features is null", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={null as unknown as string[]}
+          sizeChart={SIZE_CHART}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when sizeChart is undefined", () => {
     expect(() =>
       renderWithIntl(
         <ProductDescriptionCard
           descriptionRich={RICH}
           features={FEATURES}
-          sizeChart={undefined as unknown as SizeChartRow[]}
+          sizeChart={undefined as unknown as SizeChartDto}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("does NOT crash when sizeChart is null", () => {
+    expect(() =>
+      renderWithIntl(
+        <ProductDescriptionCard
+          descriptionRich={RICH}
+          features={FEATURES}
+          sizeChart={null as unknown as SizeChartDto}
         />,
       ),
     ).not.toThrow();

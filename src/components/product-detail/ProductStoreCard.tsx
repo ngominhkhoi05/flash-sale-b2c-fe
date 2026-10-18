@@ -4,7 +4,14 @@
  * Card with:
  *   - Store identity: avatar (initials), "Mall" badge overlay, store name,
  *     "Official Mall" chip, online status, "Xem Shop" + "Chat ngay" buttons.
- *   - 4 stat columns: Shop Rating, Products, Response Rate, Joined.
+ *   - 3 stat columns: Shop Rating, Products, Response Rate.
+ *     (Removed "Joined" — BE `storeProfile.joinedAt` not exposed.)
+ *
+ * Updated 2026-10-18 — align với BE `ProductDetailResponse.storeProfile` shape:
+ *   - Bỏ cột "Joined" (BE không trả `joinedAt`).
+ *   - Giữ nguyên các field: name, initials, isOfficial, ratingAvg, ratingCount,
+ *     productCount, productCountUnit, responseRate, responseTimeLabel,
+ *     lastActiveLabel, initialsBgClass.
  *
  * i18n namespace: `productDetail.store.*`.
  */
@@ -21,8 +28,6 @@ export interface ProductStoreCardProps {
 
 export function ProductStoreCard({ store, className }: ProductStoreCardProps) {
   const t = useTranslations("productDetail.store");
-
-  const joinedLabel = formatJoinedDuration(store.joinedAt);
 
   return (
     <div
@@ -83,8 +88,11 @@ export function ProductStoreCard({ store, className }: ProductStoreCardProps) {
         </div>
       </div>
 
-      {/* 4 stat columns */}
-      <div className="grid w-full grid-cols-2 gap-4 text-left sm:grid-cols-4 sm:gap-8 lg:w-auto lg:border-l lg:border-outline-variant/30 lg:pl-8">
+      {/* 3 stat columns (BE shape — no joinedAt) */}
+      <div
+        className="grid w-full grid-cols-1 gap-4 text-left sm:grid-cols-3 sm:gap-8 lg:w-auto lg:border-l lg:border-outline-variant/30 lg:pl-8"
+        data-testid="store-stats"
+      >
         <div className="flex flex-col">
           <span className="font-label-sm text-outline">{t("rating")}</span>
           <span className="flex items-center gap-1 font-headline-sm font-bold text-primary">
@@ -113,15 +121,6 @@ export function ProductStoreCard({ store, className }: ProductStoreCardProps) {
             </span>
           </span>
         </div>
-        <div className="flex flex-col">
-          <span className="font-label-sm text-outline">{t("joined")}</span>
-          <span className="font-headline-sm font-bold text-on-surface">
-            {joinedLabel}{" "}
-            <span className="font-body-sm font-normal text-outline">
-              trước
-            </span>
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -138,32 +137,6 @@ function formatCount(n: number | null | undefined): string {
     return `${k.toFixed(1).replace(".", ",").replace(",0", "")}k`;
   }
   return n.toString();
-}
-
-/**
- * Format joinedAt ISO → short Vietnamese duration like "2 năm".
- * Uses whole years / months / days to match the Stitch sample "2 năm".
- * Defensive: empty/invalid ISO → trả rỗng thay vì NaN.
- */
-function formatJoinedDuration(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const joined = new Date(iso);
-  if (Number.isNaN(joined.getTime())) return "";
-  const now = new Date();
-  const diffMs = now.getTime() - joined.getTime();
-  if (Number.isNaN(diffMs)) return "";
-  const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return "vừa xong";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} phút`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} giờ`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} ngày`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} tháng`;
-  const years = Math.floor(days / 365);
-  return `${years} năm`;
 }
 
 // ── Inline SVG icons (Material Symbols outline-style) ────────────────────
