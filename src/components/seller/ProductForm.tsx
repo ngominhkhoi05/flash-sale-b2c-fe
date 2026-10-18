@@ -555,6 +555,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                       fill
                       sizes="80px"
                       className="object-cover"
+                      unoptimized
                     />
                     {idx === 0 && (
                       <div className="absolute bottom-0 inset-x-0 bg-emerald-600 text-white font-label-sm text-[10px] text-center py-0.5 font-bold">
@@ -1450,6 +1451,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                   fill
                   sizes="(max-width: 640px) 100vw, 400px"
                   className="object-cover transition-transform hover:scale-105 duration-300"
+                  unoptimized
                 />
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                   <span className="px-2 py-0.5 rounded bg-tertiary text-white font-label-sm text-[10px] font-bold tracking-wider uppercase shadow-xs">
