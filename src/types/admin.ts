@@ -74,3 +74,13 @@ export interface AdminRealtimeMonitorData {
   items: AdminRealtimeProductMonitor[];
   lastUpdated: string;
 }
+
+export interface BatchApproveFailedItem {
+  itemId: number;
+  reason: string;
+}
+
+export interface BatchApproveFlashSaleItemsResult {
+  approvedItemIds: number[];
+  failedReasons: BatchApproveFailedItem[];
+}

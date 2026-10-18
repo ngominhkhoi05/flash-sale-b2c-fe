@@ -62,6 +62,7 @@ import {
   type MockUserItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
+import type { BatchApproveFlashSaleItemsResult } from "@/types/admin";
 
 
 /** BE Response DTO */
@@ -283,16 +284,24 @@ export async function getAdminApprovalCounts(slotId?: number): Promise<SkuApprov
 /**
  * 9. Batch duyệt SKU
  */
-export async function batchApproveFlashSaleSkus(ids: number[]): Promise<void> {
+export async function batchApproveFlashSaleSkus(
+  ids: number[]
+): Promise<BatchApproveFlashSaleItemsResult> {
   try {
-    await apiFetch<void>("/admin/flash-sales/items/batch-approve", {
-      method: "POST",
-      json: { ids },
-    });
+    return await apiFetch<BatchApproveFlashSaleItemsResult>(
+      "/admin/flash-sales/items/batch-approve",
+      {
+        method: "POST",
+        json: { itemIds: ids, ids },
+      }
+    );
   } catch (err) {
     if (isMockMode()) {
       batchApproveSkus(ids);
-      return;
+      return {
+        approvedItemIds: ids,
+        failedReasons: [],
+      };
     }
     throw err;
   }
