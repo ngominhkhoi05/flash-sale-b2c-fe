@@ -116,6 +116,17 @@
   --color-admin-sidebar: #1e293b;
   --color-admin-border: #e2e8f0;
 
+  /* === Seller Center (Mint / Emerald from Stitch) === */
+  --color-seller: #10b981;
+  --color-seller-hover: #059669;
+  --color-seller-active: #047857;
+  --color-seller-soft: #ecfdf5;
+  --color-seller-container: #d1fae5;
+  --color-seller-border: #a7f3d0;
+  --color-seller-dark: #065f46;
+  --color-on-seller: #ffffff;
+  --color-on-seller-soft: #065f46;
+
   /* === Spacing Tokens === */
   --spacing-space-xs: 0.25rem;
   --spacing-space-sm: 0.5rem;

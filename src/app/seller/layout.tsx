@@ -1,23 +1,29 @@
 import type { ReactNode } from "react";
 import { SellerSidebar } from "@/components/seller/SellerSidebar";
-import { PortalTopbar } from "@/components/common/PortalTopbar";
+import { SellerTopbar } from "@/components/seller/SellerTopbar";
 import { MinWidthGuard } from "@/components/common/MinWidthGuard";
 
 /**
- * Layout Seller Center – chỉ desktop (≥1280px, rule §10).
+ * SellerLayout – Layout Seller Center chuẩn Stitch (chỉ desktop ≥ 1280px).
+ * Sidebar cố định 240px bên trái, Topbar cố định 64px phía trên.
  */
 export default function SellerLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-page">
-      <PortalTopbar title="Seller Center" />
-      <div className="mx-auto flex w-full max-w-[1440px]">
+    <MinWidthGuard
+      minWidth={1280}
+      fallbackMessage="Vui lòng sử dụng màn hình máy tính (≥ 1280px) để truy cập Kênh Người Bán (Seller Center)."
+    >
+      <div className="min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased">
         <SellerSidebar />
-        <main className="min-h-[calc(100vh-3.5rem)] flex-1 p-4 lg:p-6">
-          <MinWidthGuard minWidth={1280} fallbackMessage="Vui lòng dùng máy tính để truy cập Seller Center.">
-            {children}
-          </MinWidthGuard>
-        </main>
+        <div className="pl-60 min-h-screen flex flex-col">
+          <SellerTopbar />
+          <main className="relative pt-16 bg-surface min-h-screen flex-1">
+            <div className="w-full px-space-lg lg:px-margin py-space-lg max-w-[1440px] mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </MinWidthGuard>
   );
 }
