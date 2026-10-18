@@ -75,18 +75,19 @@ export default function AdminStoresPage() {
     }
   }
 
-  const filteredStores = stores.filter((s) => {
+  const storeList = Array.isArray(stores) ? stores : [];
+  const filteredStores = storeList.filter((s) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      s.name.toLowerCase().includes(q) ||
-      s.ownerName.toLowerCase().includes(q) ||
-      s.phone.includes(q) ||
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
+      (s.phone && s.phone.includes(q)) ||
       (s.legalName && s.legalName.toLowerCase().includes(q))
     );
   });
 
-  const pendingCount = stores.filter((s) => s.status === "PENDING").length;
+  const pendingCount = storeList.filter((s) => s.status === "PENDING").length;
 
   return (
     <div className="flex flex-col w-full gap-space-lg select-none">
@@ -148,7 +149,7 @@ export default function AdminStoresPage() {
       {/* Table of Stores */}
       <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full min-w-[900px] text-left">
             <thead>
               <tr className="bg-surface-container-low text-secondary font-label-sm text-xs uppercase border-b border-outline-variant/20">
                 <th className="py-3 px-4">Gian hàng</th>

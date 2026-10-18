@@ -1,6 +1,4 @@
 import { apiFetch, isMockMode } from "./client";
-import type { PageResponse } from "@/types/api";
-import type { AdminProduct } from "@/types/admin";
 import type {
   AdminFlashSaleSession,
   CreateFlashSaleSessionInput,
@@ -61,12 +59,14 @@ import {
   getMockAdminUsers,
   getMockAdminProducts,
   type MockStoreItem,
+  type MockProductItem,
 } from "@/lib/mocks/admin.mock";
+import type { BatchApproveFlashSaleItemsResult } from "@/types/admin";
+import type { PageResponse } from "@/types/api";
 import type {
   AdminWithdrawalResponse,
   ApproveWithdrawalPayload,
   RejectWithdrawalPayload,
-  BatchApproveFlashSaleItemsResult,
 } from "@/types/admin";
 
 
@@ -895,7 +895,14 @@ export type AdminStore = MockStoreItem;
 export async function getAdminStores(status?: string): Promise<AdminStore[]> {
   try {
     const query = status && status !== "ALL" ? `?status=${status}` : "";
-    return await apiFetch<AdminStore[]>(`/admin/stores${query}`);
+    const res = await apiFetch<AdminStore[] | PageResponse<AdminStore>>(`/admin/stores${query}`);
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminStore>).content)) {
+      return (res as PageResponse<AdminStore>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
       return getMockAdminStores(status);
@@ -991,58 +998,28 @@ export async function updateAdminUserStatus(
 // 33. Quản lý Sản phẩm toàn sàn (Stitch Screen 33)
 // ============================================================================
 
-export type { AdminProduct };
+export type AdminProduct = MockProductItem;
 
 export async function getAdminProducts(params?: {
   categoryId?: number;
   status?: string;
   search?: string;
-  page?: number;
-  size?: number;
-}): Promise<PageResponse<AdminProduct>> {
+}): Promise<AdminProduct[]> {
   try {
-    const query: Record<string, string | number> = {};
-    if (params?.status && params.status !== "ALL") query.status = params.status;
-    if (params?.categoryId) query.categoryId = params.categoryId;
-    if (params?.search) query.search = params.search;
-    if (params?.page !== undefined) query.page = params.page;
-    if (params?.size !== undefined) query.size = params.size;
-
-    const res = await apiFetch<PageResponse<AdminProduct>>("/admin/products", { query });
-    return {
-      ...res,
-      content: res.content ?? res.items ?? [],
-      items: res.content ?? res.items ?? [],
-    };
+    const res = await apiFetch<AdminProduct[] | PageResponse<AdminProduct>>("/products");
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminProduct>).content)) {
+      return (res as PageResponse<AdminProduct>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
-      const mockItems = getMockAdminProducts(params) as unknown as AdminProduct[];
-      return {
-        content: mockItems,
-        items: mockItems,
-        pageNumber: 0,
-        pageSize: mockItems.length,
-        totalElements: mockItems.length,
-        totalPages: 1,
-        isFirst: true,
-        isLast: true,
-        hasNext: false,
-        hasPrevious: false,
-      };
+      return getMockAdminProducts(params);
     }
     throw err;
   }
-}
-
-export async function updateAdminProductStatus(
-  id: number,
-  status: "ACTIVE" | "INACTIVE" | "BANNED",
-  reason?: string
-): Promise<AdminProduct> {
-  return await apiFetch<AdminProduct>(`/admin/products/${id}/status`, {
-    method: "PATCH",
-    json: { status, reason },
-  });
 }
 
 // ============================================================================

@@ -654,10 +654,10 @@ export default function AdminSkuApprovalsPage() {
       {/* Main SKU Approval Data Table */}
       <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col border border-outline-variant/20">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[1250px] text-left border-collapse">
             <thead>
               <tr className="h-11 bg-surface-container-low font-label-sm text-label-sm uppercase tracking-wider text-secondary border-b border-surface-container">
-                <th className="w-12 px-4 text-center">
+                <th className="w-12 px-4 text-center shrink-0">
                   <input
                     type="checkbox"
                     checked={isAllPageSelected}
@@ -668,14 +668,14 @@ export default function AdminSkuApprovalsPage() {
                     className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer accent-primary"
                   />
                 </th>
-                <th className="px-4 min-w-[280px]">Sản phẩm &amp; Phân loại SKU</th>
-                <th className="px-4 min-w-[170px]">Gian hàng</th>
-                <th className="px-4 min-w-[110px] text-right">Giá gốc</th>
-                <th className="px-4 min-w-[180px] text-right">Giá Flash Sale</th>
-                <th className="px-4 min-w-[130px] text-center">Mở bán / Kho</th>
-                <th className="px-4 min-w-[110px] text-center">Giới hạn</th>
-                <th className="px-4 min-w-[110px]">Thời gian gửi</th>
-                <th className="px-4 min-w-[150px] text-right">Thao tác</th>
+                <th className="px-4 min-w-[260px] whitespace-nowrap">Sản phẩm &amp; Phân loại SKU</th>
+                <th className="px-4 min-w-[160px] whitespace-nowrap">Gian hàng</th>
+                <th className="px-4 min-w-[100px] text-right whitespace-nowrap">Giá gốc</th>
+                <th className="px-4 min-w-[170px] text-right whitespace-nowrap">Giá Flash Sale</th>
+                <th className="px-4 min-w-[120px] text-center whitespace-nowrap">Mở bán / Kho</th>
+                <th className="px-4 min-w-[100px] text-center whitespace-nowrap">Giới hạn</th>
+                <th className="px-4 min-w-[110px] whitespace-nowrap">Thời gian gửi</th>
+                <th className="px-4 w-[160px] min-w-[160px] text-right whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-container">
@@ -709,7 +709,7 @@ export default function AdminSkuApprovalsPage() {
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="w-12 px-4 py-3 text-center align-middle">
+                      <td className="w-12 px-4 py-3 text-center align-middle shrink-0">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -719,7 +719,7 @@ export default function AdminSkuApprovalsPage() {
                       </td>
 
                       {/* Product & Variant */}
-                      <td className="px-4 py-3 align-middle">
+                      <td className="px-4 py-3 align-middle min-w-[260px] max-w-[320px]">
                         <div className="flex items-center gap-3">
                           <div className="relative w-12 h-12 rounded-lg bg-surface-container overflow-hidden shrink-0 shadow-sm border border-outline-variant/20">
                             <Image
@@ -732,7 +732,7 @@ export default function AdminSkuApprovalsPage() {
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span
-                              className="font-headline-md text-headline-md font-semibold text-on-surface truncate max-w-xs hover:text-primary cursor-pointer transition-colors"
+                              className="font-headline-md text-headline-md font-semibold text-on-surface truncate hover:text-primary cursor-pointer transition-colors"
                               title={item.productName}
                             >
                               {item.productName}
@@ -748,7 +748,7 @@ export default function AdminSkuApprovalsPage() {
                       </td>
 
                       {/* Store */}
-                      <td className="px-4 py-3 align-middle">
+                      <td className="px-4 py-3 align-middle min-w-[160px]">
                         <div className="flex flex-col">
                           <span className="font-body-md text-body-md font-medium text-on-surface truncate">
                             {item.storeName}
@@ -772,12 +772,12 @@ export default function AdminSkuApprovalsPage() {
                       </td>
 
                       {/* Original Price */}
-                      <td className="px-4 py-3 text-right align-middle font-data-tabular text-body-md text-secondary line-through tabular-nums">
+                      <td className="px-4 py-3 text-right align-middle font-data-tabular text-body-md text-secondary line-through tabular-nums whitespace-nowrap">
                         {formatVnd(item.originalPrice)}
                       </td>
 
                       {/* Flash Sale Price */}
-                      <td className="px-4 py-3 text-right align-middle">
+                      <td className="px-4 py-3 text-right align-middle min-w-[170px]">
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-1.5">
                             <span className="font-data-tabular text-headline-md font-bold text-tertiary-container tabular-nums">
@@ -822,7 +822,7 @@ export default function AdminSkuApprovalsPage() {
                       </td>
 
                       {/* Stock Allocated / Original */}
-                      <td className="px-4 py-3 text-center align-middle">
+                      <td className="px-4 py-3 text-center align-middle whitespace-nowrap min-w-[120px]">
                         <div className="flex flex-col items-center">
                           <span className="font-data-tabular text-body-md font-bold text-on-surface tabular-nums">
                             <span className="text-primary font-extrabold">
@@ -840,30 +840,30 @@ export default function AdminSkuApprovalsPage() {
                       </td>
 
                       {/* Limit Per Customer */}
-                      <td className="px-4 py-3 text-center align-middle font-data-tabular text-body-md text-secondary">
+                      <td className="px-4 py-3 text-center align-middle font-data-tabular text-body-md text-secondary whitespace-nowrap">
                         {item.customerLimit} sản phẩm
                       </td>
 
                       {/* Submitted Time */}
-                      <td className="px-4 py-3 align-middle font-data-tabular text-body-sm text-secondary">
+                      <td className="px-4 py-3 align-middle font-data-tabular text-body-sm text-secondary whitespace-nowrap">
                         {item.submittedAt}
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-3 text-right align-middle">
+                      <td className="px-4 py-3 text-right align-middle whitespace-nowrap w-[160px] min-w-[160px]">
                         {item.status === "PENDING" && (
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-2 shrink-0">
                             <button
                               type="button"
                               onClick={() => handleOpenRejectSingle(item)}
-                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-rose-50 text-rose-700 font-headline-md text-body-sm font-semibold transition-colors"
+                              className="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-rose-50 text-rose-700 font-headline-md text-body-sm font-semibold transition-colors shrink-0 whitespace-nowrap cursor-pointer"
                             >
                               Từ chối
                             </button>
                             <button
                               type="button"
                               onClick={() => handleOpenApproveSingle(item)}
-                              className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-white font-headline-md text-body-sm font-semibold transition-colors shadow-sm"
+                              className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-white font-headline-md text-body-sm font-semibold transition-colors shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
                             >
                               Duyệt
                             </button>
@@ -871,16 +871,16 @@ export default function AdminSkuApprovalsPage() {
                         )}
 
                         {item.status === "APPROVED" && (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2 shrink-0">
                             {item.commissionOverride !== undefined && (
-                              <span className="font-label-sm text-[11px] text-primary font-semibold">
+                              <span className="font-label-sm text-[11px] text-primary font-semibold whitespace-nowrap">
                                 {item.commissionOverride}%
                               </span>
                             )}
                             <button
                               type="button"
                               onClick={() => handleUndo(item)}
-                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors"
+                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors shrink-0 whitespace-nowrap cursor-pointer"
                             >
                               Hoàn tác
                             </button>
@@ -888,9 +888,9 @@ export default function AdminSkuApprovalsPage() {
                         )}
 
                         {item.status === "REJECTED" && (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2 shrink-0">
                             <span
-                              className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 truncate max-w-[100px] cursor-help"
+                              className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 truncate max-w-[100px] cursor-help whitespace-nowrap"
                               title={item.rejectionNote || item.rejectionReason}
                             >
                               {item.rejectionReason}
@@ -898,7 +898,7 @@ export default function AdminSkuApprovalsPage() {
                             <button
                               type="button"
                               onClick={() => handleUndo(item)}
-                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors"
+                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors shrink-0 whitespace-nowrap cursor-pointer"
                             >
                               Hoàn tác
                             </button>
