@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { formatVND } from "@/lib/utils";
 import {
@@ -26,6 +27,7 @@ export function FlashSaleRegisterClient() {
   const [history, setHistory] = useState<RegisteredFlashSaleHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancelTargetItem, setCancelTargetItem] = useState<RegisteredFlashSaleHistoryItem | null>(null);
 
   // Drawer states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -274,20 +276,23 @@ export function FlashSaleRegisterClient() {
     }
   };
 
-  // Hủy đăng ký sản phẩm Flash Sale khi đang PENDING
-  const handleCancelRegistration = async (itemId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn đăng ký Flash Sale này không?")) {
-      return;
-    }
-    setCancellingId(itemId);
+  // Mở modal xác nhận hủy đăng ký Flash Sale
+  const handleRequestCancel = (item: RegisteredFlashSaleHistoryItem) => {
+    setCancelTargetItem(item);
+  };
+
+  // Xác nhận hủy đăng ký sản phẩm Flash Sale
+  const handleConfirmCancel = async () => {
+    if (!cancelTargetItem) return;
+    setCancellingId(cancelTargetItem.id);
     try {
-      await cancelFlashSaleRegistration(itemId);
-      setHistory((prev) => prev.filter((item) => item.id !== itemId));
-      setToastMessage("Đã hủy đơn đăng ký Flash Sale thành công.");
-      setTimeout(() => setToastMessage(null), 4000);
+      await cancelFlashSaleRegistration(cancelTargetItem.id);
+      setHistory((prev) => prev.filter((item) => item.id !== cancelTargetItem.id));
+      toast.success("Đã hủy đơn đăng ký Flash Sale thành công.");
+      setCancelTargetItem(null);
     } catch (err: unknown) {
       const errObj = err as { message?: string };
-      alert(errObj?.message || "Không thể hủy đăng ký lúc này. Vui lòng thử lại sau.");
+      toast.error(errObj?.message || "Không thể hủy đăng ký lúc này. Vui lòng thử lại sau.");
     } finally {
       setCancellingId(null);
     }
@@ -747,16 +752,12 @@ export function FlashSaleRegisterClient() {
                           <button
                             type="button"
                             disabled={cancellingId === item.id}
-                            onClick={() => handleCancelRegistration(item.id)}
+                            onClick={() => handleRequestCancel(item)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors disabled:opacity-50"
                             title="Hủy đơn đăng ký đang chờ duyệt"
                           >
-                            {cancellingId === item.id ? (
-                              <div className="w-3.5 h-3.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <MaterialSymbol name="close" size="[14px]" />
-                            )}
-                            <span>{cancellingId === item.id ? "Đang hủy..." : "Hủy"}</span>
+                            <MaterialSymbol name="close" size="[14px]" />
+                            <span>Hủy</span>
                           </button>
                         ) : (
                           <span className="text-secondary text-xs">--</span>
@@ -1167,6 +1168,69 @@ export function FlashSaleRegisterClient() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN HỦY ĐĂNG KÝ FLASH SALE (Đồng nhất UI không dùng alert/confirm) */}
+      {cancelTargetItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => {
+              if (!cancellingId) setCancelTargetItem(null);
+            }}
+          />
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-10 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mb-4">
+              <MaterialSymbol name="warning" size="[28px]" />
+            </div>
+
+            <h3 className="font-title-lg font-bold text-slate-900 mb-2">
+              Hủy đơn đăng ký Flash Sale?
+            </h3>
+
+            <p className="font-body-md text-slate-600 mb-4">
+              Bạn có chắc chắn muốn hủy đơn đăng ký cho sản phẩm{" "}
+              <strong className="text-slate-900">{cancelTargetItem.productName}</strong> ({cancelTargetItem.sku}) thuộc phiên{" "}
+              <strong className="text-slate-900">{cancelTargetItem.slotTitle}</strong> không?
+            </p>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs mb-6 flex items-start gap-2">
+              <MaterialSymbol name="info" size="[18px]" className="shrink-0 mt-0.5" />
+              <span>
+                Thao tác này sẽ hủy yêu cầu đăng ký tham gia Flash Sale của bạn. Bạn vẫn có thể đăng ký lại nếu khung giờ này còn mở.
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={Boolean(cancellingId)}
+                onClick={() => setCancelTargetItem(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-colors disabled:opacity-50"
+              >
+                Giữ lại
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(cancellingId)}
+                onClick={handleConfirmCancel}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-red-600/20 transition-all disabled:opacity-50"
+              >
+                {cancellingId ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Đang hủy...</span>
+                  </>
+                ) : (
+                  <>
+                    <MaterialSymbol name="delete" size="[16px]" />
+                    <span>Xác nhận hủy</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
