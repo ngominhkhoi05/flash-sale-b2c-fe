@@ -1143,11 +1143,48 @@ export async function getRegisteredFlashSaleHistory(): Promise<
   RegisteredFlashSaleHistoryItem[]
 > {
   try {
-    return await apiFetch<RegisteredFlashSaleHistoryItem[]>(
-      "/seller/flash-sales/items"
-    );
+    const raw = await apiFetch<unknown>("/seller/flash-sales/items");
+    const rawObj = raw as { content?: unknown[] } | unknown[];
+    const items = (Array.isArray(rawObj) ? rawObj : (rawObj?.content || [])) as Array<Record<string, unknown>>;
+    if (Array.isArray(items) && items.length > 0) {
+      return items.map((item) => ({
+        id: Number(item.id),
+        productName: String(item.productName || `Sản phẩm #${item.productId || item.variantId}`),
+        sku: item.skuCode || item.sku || `SKU-${item.variantId}`,
+        imageUrl:
+          item.imageUrl ||
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        slotTitle: item.slotTitle || `Phiên #${item.slotId}`,
+        slotDate: item.slotStartTime
+          ? new Date(item.slotStartTime).toLocaleDateString("vi-VN")
+          : "Hôm nay",
+        slotTime: item.slotStartTime
+          ? `${new Date(item.slotStartTime).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })} - ${
+              item.slotEndTime
+                ? new Date(item.slotEndTime).toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : ""
+            }`
+          : "12:00 – 14:00",
+        flashSalePrice: item.flashSalePrice ?? 0,
+        allocatedStock: item.allocatedStock ?? 0,
+        soldStock:
+          (item.allocatedStock ?? 0) - (item.availableStock ?? item.allocatedStock ?? 0),
+        status:
+          item.status === "PENDING_APPROVAL"
+            ? "PENDING"
+            : item.status || "PENDING",
+        rejectReason: item.rejectReason,
+      }));
+    }
   } catch {
     // Trả về mock data lịch sử cho Stitch Screen 23 nếu mock mode bật
+  }
     return [
       {
         id: 101,
@@ -1207,7 +1244,15 @@ export async function getRegisteredFlashSaleHistory(): Promise<
         status: "ENDED",
       },
     ];
-  }
+}
+
+/**
+ * 16. Hủy đăng ký biến thể Flash Sale (KHỚP BE: DELETE /api/v1/seller/flash-sales/items/{id})
+ */
+export async function cancelFlashSaleRegistration(id: number): Promise<void> {
+  await apiFetch<void>(`/seller/flash-sales/items/${id}`, {
+    method: "DELETE",
+  });
 }
 
 /**
@@ -1432,13 +1477,16 @@ export async function getSellerVouchers(
   status?: string
 ): Promise<PageResponse<SellerVoucherItem>> {
   try {
-    const raw = await apiFetch<any>("/seller/vouchers");
-    const arr: any[] = Array.isArray(raw)
-      ? raw
-      : raw?.content || raw?.items || raw?.data || [];
+    const raw = await apiFetch<unknown>("/seller/vouchers");
+    const rawObj = raw as { content?: unknown[]; items?: unknown[]; data?: unknown[] } | unknown[];
+    const arr = (
+      Array.isArray(rawObj)
+        ? rawObj
+        : rawObj?.content || rawObj?.items || rawObj?.data || []
+    ) as Array<Record<string, unknown>>;
 
-    const mapped: SellerVoucherItem[] = arr.map((v: any) => ({
-      id: v.id,
+    const mapped: SellerVoucherItem[] = arr.map((v) => ({
+      id: Number(v.id),
       code: v.code,
       name: v.name || v.code,
       discountType:
@@ -1517,15 +1565,15 @@ export async function createSellerVoucher(
       endTime,
     };
 
-    const res = await apiFetch<any>("/seller/vouchers", {
+    const res = await apiFetch<Record<string, unknown>>("/seller/vouchers", {
       method: "POST",
       json: body,
     });
 
     return {
-      id: res.id || Math.floor(Math.random() * 10000),
-      code: res.code || payload.code.toUpperCase(),
-      name: payload.name || res.code || payload.code.toUpperCase(),
+      id: Number(res?.id) || Math.floor(Math.random() * 10000),
+      code: String(res?.code || payload.code.toUpperCase()),
+      name: payload.name || String(res?.code || payload.code.toUpperCase()),
       discountType: payload.discountType,
       discountValue: payload.discountValue,
       maxDiscountAmount: payload.maxDiscountAmount,

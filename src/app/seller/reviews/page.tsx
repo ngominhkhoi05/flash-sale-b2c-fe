@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   getSellerReviews,
@@ -39,7 +39,6 @@ export default function SellerReviewsPage() {
   const [replyTab, setReplyTab] = useState<ReplyFilterKey>("ALL");
   const [selectedRating, setSelectedRating] = useState<number>(0); // 0 = all
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [reloadTrigger, setReloadTrigger] = useState<number>(0);
 
   // Active reply inputs per review ID
   const [replyInputs, setReplyInputs] = useState<Record<number, string>>({});
@@ -55,7 +54,7 @@ export default function SellerReviewsPage() {
     fetchReviews(false);
   };
 
-  const fetchReviews = async (silent = false) => {
+  const fetchReviews = useCallback(async (silent = false) => {
     if (!silent && reviews.length === 0) setLoading(true);
     try {
       const [summaryData, reviewsData] = await Promise.all([
@@ -63,7 +62,10 @@ export default function SellerReviewsPage() {
         getSellerReviews(0, 100),
       ]);
       setSummary(summaryData);
-      const list = reviewsData.content || (reviewsData as any).items || (Array.isArray(reviewsData) ? reviewsData : []);
+      const list =
+        reviewsData.content ||
+        (reviewsData as unknown as { items?: SellerReviewItem[] }).items ||
+        (Array.isArray(reviewsData) ? reviewsData : []);
       setReviews(list);
       setError(null);
     } catch (err: unknown) {
@@ -74,11 +76,11 @@ export default function SellerReviewsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [reviews.length]);
 
   useEffect(() => {
-    fetchReviews(false);
-  }, []);
+    void fetchReviews(false);
+  }, [fetchReviews]);
 
   // Filtered reviews
   const filteredReviews = useMemo(() => {

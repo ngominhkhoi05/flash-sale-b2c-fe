@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   getSellerVouchers,
@@ -42,7 +42,6 @@ export default function SellerVouchersPage() {
   const [currentTab, setCurrentTab] = useState<VoucherTabKey>("ALL");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<"ALL" | "PERCENTAGE" | "FIXED_AMOUNT">("ALL");
-  const [reloadTrigger, setReloadTrigger] = useState<number>(0);
 
   // Drawer Create Form State
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
@@ -60,7 +59,7 @@ export default function SellerVouchersPage() {
     fetchVouchers(false);
   };
 
-  const fetchVouchers = async (silent = false) => {
+  const fetchVouchers = useCallback(async (silent = false) => {
     if (!silent && vouchers.length === 0) setLoading(true);
     try {
       const res = await getSellerVouchers(0, 100);
@@ -75,11 +74,11 @@ export default function SellerVouchersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [vouchers.length]);
 
   useEffect(() => {
-    fetchVouchers(false);
-  }, []);
+    void fetchVouchers(false);
+  }, [fetchVouchers]);
 
   // Tab counts
   const tabCounts = useMemo(() => {
