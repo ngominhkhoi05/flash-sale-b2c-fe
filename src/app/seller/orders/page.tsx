@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   getSellerOrders,
@@ -11,6 +11,7 @@ import type {
   SellerOrderItemResponse,
 } from "@/types/seller";
 import { SellerStatusBadge } from "@/components/seller/SellerStatusBadge";
+import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
 
 type TabKey =
   | "ALL"
@@ -40,7 +41,11 @@ export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<SellerOrderResponse[]>([]);
   const [allOrders, setAllOrders] = useState<SellerOrderResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isRealtimeUpdating, setIsRealtimeUpdating] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
+
+  const { markAllAsSeen } = useSellerOrderNotifications();
 
   // Filters
   const [currentTab, setCurrentTab] = useState<TabKey>("ALL");
@@ -72,32 +77,59 @@ export default function SellerOrdersPage() {
     setReloadTrigger((prev) => prev + 1);
   };
 
+  // Reset notification badges khi người bán trực tiếp truy cập vào trang quản lý đơn hàng
   useEffect(() => {
-    let active = true;
-    getSellerOrders(0, 50, currentTab === "ALL" ? undefined : currentTab)
-      .then((res) => {
-        if (active) {
-          const list = res.items || res.content || [];
-          setOrders(list);
-          if (currentTab === "ALL") {
-            setAllOrders(list);
-          }
-          setError(null);
-          setLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
+    markAllAsSeen();
+  }, [markAllAsSeen]);
+
+  // Fetch dữ liệu đơn hàng (hỗ trợ chế độ nền silent không làm giật màn hình)
+  const fetchOrders = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      else setIsRealtimeUpdating(true);
+
+      try {
+        const [tabRes, allRes] = await Promise.all([
+          getSellerOrders(0, 50, currentTab === "ALL" ? undefined : currentTab),
+          getSellerOrders(0, 50),
+        ]);
+
+        const list = tabRes.items || tabRes.content || [];
+        const allList = allRes.items || allRes.content || [];
+
+        setOrders(list);
+        setAllOrders(allList);
+        setError(null);
+        setLastSyncTime(new Date());
+
+        // Đảm bảo badge đã xem khi đang ở trang này
+        markAllAsSeen();
+      } catch (err: unknown) {
+        if (!silent) {
           const msg = err instanceof Error ? err.message : "Không thể tải danh sách đơn hàng";
           setError(msg);
-          setLoading(false);
         }
-      });
+      } finally {
+        if (!silent) setLoading(false);
+        else setIsRealtimeUpdating(false);
+      }
+    },
+    [currentTab, markAllAsSeen]
+  );
 
-    return () => {
-      active = false;
-    };
-  }, [currentTab, reloadTrigger]);
+  // Load khi chuyển tab hoặc trigger reload
+  useEffect(() => {
+    fetchOrders(false);
+  }, [fetchOrders, reloadTrigger]);
+
+  // Polling thời gian thực ngầm mỗi 4 giây
+  useEffect(() => {
+    const timer = setInterval(() => {
+      fetchOrders(true);
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [fetchOrders]);
 
   // Tab counts
   const tabCounts = useMemo(() => {
@@ -288,9 +320,16 @@ export default function SellerOrdersPage() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Quản lý đơn hàng
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold ring-1 ring-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Thời gian thực
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold ring-1 ring-emerald-200"
+              title={`Tự động đồng bộ mỗi 4 giây. Lần đồng bộ gần nhất: ${lastSyncTime.toLocaleTimeString("vi-VN")}`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full bg-emerald-500 ${
+                  isRealtimeUpdating ? "animate-ping" : "animate-pulse"
+                }`}
+              ></span>
+              <span>{isRealtimeUpdating ? "Đang đồng bộ..." : "Thời gian thực"}</span>
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -300,8 +339,23 @@ export default function SellerOrdersPage() {
 
         <div className="flex items-center gap-3">
           <button
+            type="button"
+            onClick={() => fetchOrders(false)}
+            title="Tải lại danh sách đơn hàng ngay lập tức"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
+          >
+            <span
+              className={`material-symbols-outlined text-[18px] text-slate-500 ${
+                loading || isRealtimeUpdating ? "animate-spin" : ""
+              }`}
+            >
+              sync
+            </span>
+            <span>Làm mới</span>
+          </button>
+          <button
             onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px] text-slate-500">
               file_download
