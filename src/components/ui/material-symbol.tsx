@@ -133,6 +133,13 @@ export type MaterialSymbolName =
   | "publish"
   | "print"
   | "filter_list"
+  | "event_available"
+  | "history"
+  | "nights_stay"
+  | "weekend"
+  | "send"
+  | "more_vert"
+  | "cancel"
   // Security / auth (added for Forbidden 403 page)
   | "shield_lock"
   | "home"

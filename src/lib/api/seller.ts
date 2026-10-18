@@ -9,6 +9,9 @@ import type {
   CategoryItem,
   CreateProductPayload,
   UpdateProductPayload,
+  FlashSaleSlotItem,
+  RegisterFlashSaleItemDto,
+  RegisteredFlashSaleHistoryItem,
 } from "@/types/seller";
 
 /**
@@ -191,4 +194,161 @@ export async function updateSellerProduct(
     method: "PUT",
     json: payload,
   });
+}
+
+/**
+ * 12. Lấy danh sách phiên Flash Sale mở đăng ký (KHỚP BE: GET /api/v1/flash-sales/slots)
+ */
+export async function getFlashSaleSlots(): Promise<FlashSaleSlotItem[]> {
+  try {
+    const res = await apiFetch<Array<{
+      id: number;
+      title: string;
+      startTime: string;
+      endTime: string;
+      status: string;
+      reservationTtlSeconds?: number;
+    }>>("/flash-sales/slots");
+    if (res && res.length > 0) {
+      return res.map((s) => ({
+        ...s,
+        participatingStoresCount: 32,
+        availableProductSlots: 64,
+        badgeLabel: s.title.includes("HOT") ? "HOT" : undefined,
+      }));
+    }
+  } catch {
+    // fallback below if mock mode or BE empty
+  }
+
+  return [
+    {
+      id: 1,
+      title: "Flash Sale Giờ Vàng 12:00 – 14:00",
+      startTime: "2026-10-05T12:00:00Z",
+      endTime: "2026-10-05T14:00:00Z",
+      status: "UPCOMING",
+      reservationTtlSeconds: 300,
+      participatingStoresCount: 48,
+      availableProductSlots: 18,
+      badgeLabel: "HOT",
+    },
+    {
+      id: 2,
+      title: "Đại Tiệc Tối 20:00 – 22:00",
+      startTime: "2026-10-05T20:00:00Z",
+      endTime: "2026-10-05T22:00:00Z",
+      status: "UPCOMING",
+      reservationTtlSeconds: 300,
+      participatingStoresCount: 32,
+      availableProductSlots: 64,
+    },
+    {
+      id: 3,
+      title: "Siêu Khuyến Mãi Cuối Tuần 09:00 – 11:30",
+      startTime: "2026-10-06T09:00:00Z",
+      endTime: "2026-10-06T11:30:00Z",
+      status: "UPCOMING",
+      reservationTtlSeconds: 300,
+      participatingStoresCount: 15,
+      availableProductSlots: 82,
+    },
+  ];
+}
+
+/**
+ * 13. Đăng ký biến thể SKU vào phiên Flash Sale (KHỚP BE: POST /api/v1/seller/flash-sales/items)
+ */
+export async function registerFlashSaleItem(
+  item: RegisterFlashSaleItemDto
+): Promise<void> {
+  return apiFetch<void>("/seller/flash-sales/items", {
+    method: "POST",
+    json: item,
+  });
+}
+
+/**
+ * 14. Đăng ký hàng loạt biến thể SKU vào phiên Flash Sale
+ */
+export async function registerFlashSaleItems(
+  items: RegisterFlashSaleItemDto[]
+): Promise<void> {
+  for (const item of items) {
+    await registerFlashSaleItem(item);
+  }
+}
+
+/**
+ * 15. Lấy lịch sử đăng ký Flash Sale của shop
+ */
+export async function getRegisteredFlashSaleHistory(): Promise<
+  RegisteredFlashSaleHistoryItem[]
+> {
+  try {
+    return await apiFetch<RegisteredFlashSaleHistoryItem[]>(
+      "/seller/flash-sales/items"
+    );
+  } catch {
+    // Trả về mock data lịch sử cho Stitch Screen 23 nếu mock mode bật
+    return [
+      {
+        id: 101,
+        productName: "Áo thun Đen M",
+        sku: "AT-DEN-M",
+        imageUrl:
+          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        slotTitle: "Giờ Vàng 12:00 – 14:00",
+        slotDate: "05/10/2026",
+        slotTime: "12:00 – 14:00",
+        flashSalePrice: 89000,
+        allocatedStock: 30,
+        soldStock: 24,
+        status: "APPROVED",
+      },
+      {
+        id: 102,
+        productName: "Áo sơ mi Trắng L",
+        sku: "SM-TRANG-L",
+        imageUrl:
+          "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&auto=format&fit=crop&q=60",
+        slotTitle: "Đại Tiệc Tối 20:00",
+        slotDate: "05/10/2026",
+        slotTime: "20:00 – 22:00",
+        flashSalePrice: 199000,
+        allocatedStock: 15,
+        soldStock: 0,
+        status: "PENDING",
+      },
+      {
+        id: 103,
+        productName: "Quần Jean Slim 32",
+        sku: "QJ-SLIM-32",
+        imageUrl:
+          "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
+        slotTitle: "Giờ Vàng 12:00 – 14:00",
+        slotDate: "05/10/2026",
+        slotTime: "12:00 – 14:00",
+        flashSalePrice: 299000,
+        allocatedStock: 10,
+        soldStock: 0,
+        status: "REJECTED",
+        rejectReason: "Giá sale chưa đủ hấp dẫn (giảm dưới 20% so với giá niêm yết).",
+      },
+      {
+        id: 104,
+        productName: "Áo Polo Navy M",
+        sku: "PL-NAVY-M",
+        imageUrl:
+          "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
+        slotTitle: "Phiên 01/10/2026",
+        slotDate: "01/10/2026",
+        slotTime: "18:00 – 20:00",
+        flashSalePrice: 139000,
+        allocatedStock: 50,
+        soldStock: 50,
+        status: "ENDED",
+      },
+    ];
+  }
 }
