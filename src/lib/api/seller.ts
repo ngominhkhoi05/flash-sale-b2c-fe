@@ -1032,10 +1032,46 @@ export async function createSellerVoucher(
   payload: CreateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
   try {
-    return await apiFetch<SellerVoucherItem>("/seller/vouchers", {
+    const toIsoString = (val?: string) => {
+      if (!val) return new Date().toISOString();
+      if (val.endsWith("Z") || val.includes("+")) return val;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+    };
+
+    const bePayload = {
+      code: payload.code.toUpperCase(),
+      discountType: payload.discountType === "PERCENTAGE" ? "PERCENT" : (payload.discountType || "FIXED_AMOUNT"),
+      discountValue: payload.discountValue,
+      minOrderAmount: payload.minOrderAmount,
+      maxDiscountAmount: payload.maxDiscountAmount || payload.discountValue,
+      totalQuantity: payload.totalUsageLimit,
+      userUsageLimit: payload.userUsageLimit || 1,
+      startTime: toIsoString(payload.startDate),
+      endTime: toIsoString(payload.endDate),
+    };
+
+    const res = await apiFetch<Record<string, unknown>>("/seller/vouchers", {
       method: "POST",
-      json: payload,
+      json: bePayload,
     });
+
+    return {
+      id: Number(res.id),
+      code: String(res.code),
+      name: payload.name || String(res.code),
+      discountType: (res.discountType === "PERCENT" ? "PERCENTAGE" : "FIXED_AMOUNT") as "PERCENTAGE" | "FIXED_AMOUNT",
+      discountValue: Number(res.discountValue),
+      maxDiscountAmount: res.maxDiscountAmount ? Number(res.maxDiscountAmount) : undefined,
+      minOrderAmount: Number(res.minOrderAmount),
+      totalUsageLimit: Number(res.totalQuantity || payload.totalUsageLimit),
+      currentUsageCount: Number(res.usedQuantity || 0),
+      userUsageLimit: Number(res.userUsageLimit || 1),
+      startDate: String(res.startTime || payload.startDate),
+      endDate: String(res.endTime || payload.endDate),
+      status: String(res.status || "ACTIVE"),
+      createdAt: String(res.createdAt || new Date().toISOString()),
+    };
   } catch (err) {
     if (isMockMode()) {
       return {

@@ -652,6 +652,13 @@ export async function createAdminPlatformVoucher(
   data: Omit<AdminVoucher, "id" | "usedCount" | "status" | "isActive" | "createdAt">
 ): Promise<AdminVoucher> {
   try {
+    const toIsoString = (val?: string) => {
+      if (!val) return new Date().toISOString();
+      if (val.endsWith("Z") || val.includes("+")) return val;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+    };
+
     const payload = {
       code: data.code.toUpperCase(),
       storeId: null,
@@ -661,8 +668,8 @@ export async function createAdminPlatformVoucher(
       maxDiscountAmount: data.maxDiscountAmount || data.discountValue,
       totalQuantity: data.totalCount,
       userUsageLimit: data.limitPerCustomer,
-      startTime: data.startDate,
-      endTime: data.endDate,
+      startTime: toIsoString(data.startDate),
+      endTime: toIsoString(data.endDate),
     };
 
     const res = await apiFetch<BeVoucherResponse>("/admin/vouchers", {
