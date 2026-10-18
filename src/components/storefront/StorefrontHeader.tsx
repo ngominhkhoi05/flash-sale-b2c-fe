@@ -278,13 +278,12 @@ export function StorefrontHeader({
                 width={120}
                 height={40}
                 priority
+                // className "h-9 w-auto object-contain" set height=36px,
+                // width=intrinsic (theo tỉ lệ 120:40). KHÔNG set inline
+                // style.width/height=auto — nếu set, inline style sẽ thắng
+                // className và logo render theo intrinsic size (~1200x400px)
+                // → phóng to chiếm gần hết header (bug db8b4c8, fix 2026-10-18).
                 className="h-9 w-auto object-contain"
-                // Style: cho next/image biết CSS sẽ override 1 trong 2
-                // chiều (className "h-9" set height=36px, w-auto giữ width
-                // intrinsic). Không set inline thì React cảnh báo
-                // "Image with src has either width or height modified, but
-                // not the other".
-                style={{ width: "auto", height: "auto" }}
               />
             </Link>
 
