@@ -6,6 +6,9 @@ import type {
   SellerProductSummaryResponse,
   SellerProductDetailResponse,
   SellerRevenueDayPoint,
+  CategoryItem,
+  CreateProductPayload,
+  UpdateProductPayload,
 } from "@/types/seller";
 
 /**
@@ -143,5 +146,49 @@ export async function updateProductStatus(
 export async function deleteProduct(productId: number): Promise<void> {
   return apiFetch<void>(`/seller/products/${productId}`, {
     method: "DELETE",
+  });
+}
+
+/**
+ * 9. Lấy danh sách ngành hàng (KHỚP BE: GET /api/v1/categories)
+ */
+export async function getCategories(): Promise<CategoryItem[]> {
+  try {
+    return await apiFetch<CategoryItem[]>("/categories");
+  } catch {
+    // Dự phòng fallback danh mục mặc định khi offline / demo
+    return [
+      { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam" },
+      { id: 2, name: "Thời trang nữ", slug: "thoi-trang-nu" },
+      { id: 3, name: "Điện thoại & Phụ kiện", slug: "dien-thoai-phu-kien" },
+      { id: 4, name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu" },
+      { id: 5, name: "Nhà cửa & Đời sống", slug: "nha-cua-doi-song" },
+      { id: 6, name: "Sắc đẹp & Sức khỏe", slug: "sac-dep-suc-khoe" },
+    ];
+  }
+}
+
+/**
+ * 10. Đăng bán sản phẩm mới SPU-SKU (KHỚP BE: POST /api/v1/seller/products)
+ */
+export async function createSellerProduct(
+  payload: CreateProductPayload
+): Promise<SellerProductDetailResponse> {
+  return apiFetch<SellerProductDetailResponse>("/seller/products", {
+    method: "POST",
+    json: payload,
+  });
+}
+
+/**
+ * 11. Cập nhật thông tin sản phẩm và SKU (KHỚP BE: PUT /api/v1/seller/products/{id})
+ */
+export async function updateSellerProduct(
+  productId: number,
+  payload: UpdateProductPayload
+): Promise<SellerProductDetailResponse> {
+  return apiFetch<SellerProductDetailResponse>(`/seller/products/${productId}`, {
+    method: "PUT",
+    json: payload,
   });
 }
