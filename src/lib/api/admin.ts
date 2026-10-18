@@ -58,6 +58,7 @@ import {
   getMockAdminStores,
   getMockAdminUsers,
   getMockAdminProducts,
+  type MockStoreItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
 import type { BatchApproveFlashSaleItemsResult } from "@/types/admin";
@@ -889,63 +890,22 @@ export async function deleteAdminCategory(id: number): Promise<void> {
 // 31. Quản lý Gian hàng (Stitch Screen 32)
 // ============================================================================
 
-export type AdminStore = import("@/types/admin").AdminStore;
+export type AdminStore = MockStoreItem;
 
-export interface GetAdminStoresParams {
-  status?: string;
-  search?: string;
-  page?: number;
-  size?: number;
-}
-
-export async function getAdminStores(
-  params?: string | GetAdminStoresParams
-): Promise<import("@/types/api").PageResponse<AdminStore>> {
-  const queryParams: Record<string, string | number> = {};
-
-  if (typeof params === "string") {
-    if (params && params !== "ALL") {
-      queryParams.status = params;
-    }
-  } else if (params) {
-    if (params.status && params.status !== "ALL") {
-      queryParams.status = params.status;
-    }
-    if (params.search?.trim()) {
-      queryParams.search = params.search.trim();
-    }
-    if (params.page !== undefined) {
-      queryParams.page = params.page;
-    }
-    if (params.size !== undefined) {
-      queryParams.size = params.size;
-    }
-  }
-
+export async function getAdminStores(status?: string): Promise<AdminStore[]> {
   try {
-    const res = await apiFetch<import("@/types/api").PageResponse<AdminStore>>("/admin/stores", {
-      query: queryParams,
-    });
-    return {
-      ...res,
-      content: res.content ?? res.items ?? [],
-    };
+    const query = status && status !== "ALL" ? `?status=${status}` : "";
+    const res = await apiFetch<AdminStore[] | PageResponse<AdminStore>>(`/admin/stores${query}`);
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminStore>).content)) {
+      return (res as PageResponse<AdminStore>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
-      const statusFilter = typeof params === "string" ? params : params?.status;
-      const mockItems = getMockAdminStores(statusFilter);
-      return {
-        content: mockItems,
-        items: mockItems,
-        pageNumber: 0,
-        pageSize: mockItems.length,
-        totalElements: mockItems.length,
-        totalPages: 1,
-        isFirst: true,
-        isLast: true,
-        hasNext: false,
-        hasPrevious: false,
-      };
+      return getMockAdminStores(status);
     }
     throw err;
   }
@@ -1046,7 +1006,14 @@ export async function getAdminProducts(params?: {
   search?: string;
 }): Promise<AdminProduct[]> {
   try {
-    return await apiFetch<AdminProduct[]>("/products");
+    const res = await apiFetch<AdminProduct[] | PageResponse<AdminProduct>>("/products");
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminProduct>).content)) {
+      return (res as PageResponse<AdminProduct>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
       return getMockAdminProducts(params);
