@@ -526,17 +526,24 @@ describe("StorefrontHeader – placeholder links (no href='#')", () => {
   });
 });
 
-// ── Logo: next/image style fix (chống "width or height modified" warning) ──
-describe("StorefrontHeader – logo next/image style", () => {
+// ── Logo: chống overflow khi CSS className override ──────────────────────
+//
+// Bug trước: <Image className="h-9 w-auto object-contain"> + 
+// style={{ width: "auto", height: "auto" }} (set inline) → inline style thắng
+// className → logo render theo intrinsic size (~1200×400 px) → phóng to chiếm
+// gần hết header.
+//
+// Fix: bỏ inline style. next/image width/height props đã đủ cho intrinsic 120×40.
+// className "h-9 w-auto object-contain" set height=36px, width=intrinsic (theo tỉ lệ).
+describe("StorefrontHeader – logo overflow guard", () => {
   beforeEach(() => {
     mockUsePathname.mockReturnValue("/");
   });
 
-  it("logo <Image> có style={{ width: 'auto', height: 'auto' }} để giữ aspect ratio khi CSS override", () => {
-    // next/image cảnh báo khi CSS thay đổi 1 trong 2 chiều (width hoặc height)
-    // mà KHÔNG set style={{ width: 'auto', height: 'auto' }}. Logo dùng
-    // className="h-9 w-auto" → CSS set height=36px, width=intrinsic.
-    // Để React không cảnh báo, phải explicit set style width/height auto.
+  it("logo <Image> KHÔNG có inline style override (style.width='auto' + style.height='auto' gây phóng to logo)", () => {
+    // Test FAIL trên code cũ (commit db8b4c8 thêm style={{ width: 'auto', height: 'auto' }})
+    // để enforce rằng inline style bị bỏ. next/image đã có width/height props 120/40
+    // → chỉ cần className để override height bằng 36px.
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isHydrated: true,
@@ -546,10 +553,24 @@ describe("StorefrontHeader – logo next/image style", () => {
     const imgs = Array.from(document.querySelectorAll("img"));
     const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
     expect(logoImg).toBeDefined();
-    // next/image set inline style.width / style.height
-    expect((logoImg as HTMLImageElement | undefined)?.style.width).toBe("auto");
-    expect((logoImg as HTMLImageElement | undefined)?.style.height).toBe(
-      "auto",
-    );
+    // Logo KHÔNG được có inline style.width='auto' + style.height='auto' (cấu hình cũ gây overflow)
+    expect((logoImg as HTMLImageElement | undefined)?.style.width).not.toBe("auto");
+    expect((logoImg as HTMLImageElement | undefined)?.style.height).not.toBe("auto");
+  });
+
+  it("logo <Image> có className 'h-9' (height=36px) để constrain chiều cao", () => {
+    // Class "h-9" set height: 2.25rem (36px). Đây là constraint thực sự giữ logo
+    // không phóng to. Nếu ai đó vô tình bỏ "h-9", test sẽ RED cảnh báo.
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: true,
+      user: null,
+    });
+    withProviders(<StorefrontHeader />);
+    const imgs = Array.from(document.querySelectorAll("img"));
+    const logoImg = imgs.find((img) => img.getAttribute("alt") === "Vibe Mart");
+    expect(logoImg).toBeDefined();
+    // next/image render <img className="...">; class phải chứa "h-9"
+    expect((logoImg as HTMLImageElement | undefined)?.className).toMatch(/h-9/);
   });
 });
