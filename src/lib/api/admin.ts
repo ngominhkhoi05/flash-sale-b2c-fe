@@ -59,9 +59,9 @@ import {
   getMockAdminUsers,
   getMockAdminProducts,
   type MockStoreItem,
-  type MockUserItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
+import type { BatchApproveFlashSaleItemsResult } from "@/types/admin";
 import type { PageResponse } from "@/types/api";
 import type {
   AdminWithdrawalResponse,
@@ -290,16 +290,24 @@ export async function getAdminApprovalCounts(slotId?: number): Promise<SkuApprov
 /**
  * 9. Batch duyệt SKU
  */
-export async function batchApproveFlashSaleSkus(ids: number[]): Promise<void> {
+export async function batchApproveFlashSaleSkus(
+  ids: number[]
+): Promise<BatchApproveFlashSaleItemsResult> {
   try {
-    await apiFetch<void>("/admin/flash-sales/items/batch-approve", {
-      method: "POST",
-      json: { ids },
-    });
+    return await apiFetch<BatchApproveFlashSaleItemsResult>(
+      "/admin/flash-sales/items/batch-approve",
+      {
+        method: "POST",
+        json: { itemIds: ids, ids },
+      }
+    );
   } catch (err) {
     if (isMockMode()) {
       batchApproveSkus(ids);
-      return;
+      return {
+        approvedItemIds: ids,
+        failedReasons: [],
+      };
     }
     throw err;
   }
@@ -340,12 +348,52 @@ export async function undoFlashSaleSku(id: number): Promise<void> {
   }
 }
 
+export interface EmergencyPauseResult {
+  slotId: number;
+  status: string;
+  isPaused: boolean;
+  stockRolledBack: boolean;
+  rolledBackItemsCount: number;
+  totalStockReturned: number;
+  message?: string;
+}
+
+interface BeTelemetryResponse {
+  slotId?: number;
+  status?: string;
+  isPaused?: boolean;
+  currentRps?: number;
+  rps?: number;
+  totalRequests?: number;
+  activeLocks?: number;
+  successfulOrders?: number;
+  completedOrders?: number;
+  totalRevenue?: number;
+  failedRequests?: number;
+  expiredReleases?: number;
+  oversoldIncidents?: number;
+  redisLatencyMs?: number;
+  p99LatencyMs?: number;
+  systemHealth?: string;
+  lastUpdated?: string;
+}
+
 /**
  * 12. Lấy dữ liệu Realtime Telemetry cho phiên Flash Sale
  */
 export async function getAdminRealtimeTelemetry(slotId: number): Promise<RealtimeTelemetry> {
   try {
-    return await apiFetch<RealtimeTelemetry>(`/admin/flash-sales/slots/${slotId}/telemetry`);
+    const res = await apiFetch<BeTelemetryResponse>(`/admin/flash-sales/slots/${slotId}/telemetry`);
+    return {
+      rps: res.currentRps ?? res.rps ?? 0,
+      activeLocks: res.activeLocks ?? 0,
+      completedOrders: res.successfulOrders ?? res.completedOrders ?? 0,
+      totalRevenue: res.totalRevenue ?? 0,
+      expiredReleases: res.expiredReleases ?? 0,
+      p99LatencyMs: res.redisLatencyMs ?? res.p99LatencyMs ?? 0,
+      isPaused: res.isPaused ?? false,
+      lastUpdated: res.lastUpdated ?? new Date().toLocaleTimeString("vi-VN"),
+    };
   } catch (err) {
     if (isMockMode()) {
       return getMockTelemetry();
@@ -383,27 +431,57 @@ export async function getAdminLiveLogs(slotId: number): Promise<LiveLogEvent[]> 
 }
 
 /**
- * 15. Tạm dừng / Tiếp tục phiên khẩn cấp (Emergency Pause)
+ * 15. Tạm dừng khẩn cấp phiên Flash Sale (Emergency Pause)
  */
-export async function toggleAdminEmergencyPause(
+export async function emergencyPauseFlashSaleSlot(
   slotId: number,
-  reason: string
-): Promise<boolean> {
+  reason: string,
+  rollbackStock: boolean = true
+): Promise<EmergencyPauseResult> {
   try {
-    const res = await apiFetch<{ isPaused: boolean }>(
+    const res = await apiFetch<EmergencyPauseResult>(
       `/admin/flash-sales/slots/${slotId}/emergency-pause`,
       {
         method: "POST",
-        json: { reason },
+        json: { reason, rollbackStock },
       }
     );
-    return res.isPaused;
+    return {
+      slotId: res.slotId ?? slotId,
+      status: res.status ?? "PAUSED",
+      isPaused: res.isPaused ?? true,
+      stockRolledBack: res.stockRolledBack ?? rollbackStock,
+      rolledBackItemsCount: res.rolledBackItemsCount ?? 0,
+      totalStockReturned: res.totalStockReturned ?? 0,
+      message: res.message,
+    };
   } catch (err) {
     if (isMockMode()) {
-      return toggleSessionPause(true).isPaused;
+      const mockRes = toggleSessionPause(true);
+      return {
+        slotId,
+        status: "PAUSED",
+        isPaused: mockRes.isPaused,
+        stockRolledBack: rollbackStock,
+        rolledBackItemsCount: 3,
+        totalStockReturned: 45,
+        message: "Đã dừng phiên khẩn cấp (Mock Mode)",
+      };
     }
     throw err;
   }
+}
+
+/**
+ * Wrapper tương thích ngược cho toggleAdminEmergencyPause
+ */
+export async function toggleAdminEmergencyPause(
+  slotId: number,
+  reason: string,
+  rollbackStock: boolean = true
+): Promise<boolean> {
+  const result = await emergencyPauseFlashSaleSlot(slotId, reason, rollbackStock);
+  return result.isPaused;
 }
 
 interface BeVoucherResponse {
@@ -425,26 +503,31 @@ interface BeVoucherResponse {
 
 function mapBeVoucherToAdmin(v: BeVoucherResponse): AdminVoucher {
   const isPercent = v.discountType === "PERCENT";
+  const discountVal = Number(v.discountValue || 0);
+  const minOrder = Number(v.minOrderAmount || 0);
+  const maxDiscount = v.maxDiscountAmount != null ? Number(v.maxDiscountAmount) : undefined;
+  const usedQty = Number(v.usedQuantity || 0);
+  const totalQty = Number(v.totalQuantity || 0);
   return {
-    id: String(v.id),
-    code: v.code,
+    id: String(v.id || ""),
+    code: v.code || "",
     name: isPercent
-      ? `Giảm ${v.discountValue}% toàn sàn`
-      : `Giảm ${Number(v.discountValue).toLocaleString()}đ toàn sàn`,
+      ? `Giảm ${discountVal}% toàn sàn`
+      : `Giảm ${discountVal.toLocaleString("vi-VN")}₫ toàn sàn`,
     discountType: isPercent ? "PERCENT" : "FIXED",
-    discountValue: Number(v.discountValue),
-    maxDiscountAmount: v.maxDiscountAmount ? Number(v.maxDiscountAmount) : undefined,
-    minOrderAmount: Number(v.minOrderAmount || 0),
-    usedCount: v.usedQuantity || 0,
-    totalCount: v.totalQuantity,
-    limitPerCustomer: v.userUsageLimit || 1,
-    startDate: v.startTime,
-    endDate: v.endTime,
+    discountValue: discountVal,
+    maxDiscountAmount: maxDiscount,
+    minOrderAmount: minOrder,
+    usedCount: usedQty,
+    totalCount: totalQty,
+    limitPerCustomer: Number(v.userUsageLimit || 1),
+    startDate: v.startTime || new Date().toISOString(),
+    endDate: v.endTime || new Date().toISOString(),
     status: (v.status as VoucherStatus) || "ACTIVE",
     isActive: v.status === "ACTIVE",
     scope: "ALL",
     isPublic: true,
-    createdAt: v.createdAt || v.startTime,
+    createdAt: v.createdAt || v.startTime || new Date().toISOString(),
   };
 }
 
@@ -455,7 +538,13 @@ export async function getAdminPlatformVouchers(
   params?: VoucherFilterParams & { page?: number; pageSize?: number }
 ): Promise<ReturnType<typeof voucherMockService.getAll>> {
   try {
-    const list = await apiFetch<BeVoucherResponse[]>("/vouchers/platform");
+    const raw = await apiFetch<BeVoucherResponse[] | PageResponse<BeVoucherResponse>>("/vouchers/platform");
+    const list: BeVoucherResponse[] = Array.isArray(raw)
+      ? raw
+      : (raw && typeof raw === "object" && "content" in raw && Array.isArray((raw as PageResponse<BeVoucherResponse>).content))
+      ? (raw as PageResponse<BeVoucherResponse>).content
+      : [];
+
     if (!list || list.length === 0) {
       if (isMockMode()) {
         return voucherMockService.getAll(params);
@@ -545,7 +634,11 @@ export async function createAdminPlatformVoucher(
  */
 export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
   try {
-    return await apiFetch<VoucherKpis>("/admin/vouchers/kpis");
+    const res = await apiFetch<VoucherKpis>("/admin/vouchers/kpis");
+    if (res && typeof res === "object" && typeof res.usedCountThisMonth === "number") {
+      return res;
+    }
+    return voucherMockService.getKpis();
   } catch {
     return voucherMockService.getKpis();
   }
@@ -817,7 +910,14 @@ export type AdminStore = MockStoreItem;
 export async function getAdminStores(status?: string): Promise<AdminStore[]> {
   try {
     const query = status && status !== "ALL" ? `?status=${status}` : "";
-    return await apiFetch<AdminStore[]>(`/admin/stores${query}`);
+    const res = await apiFetch<AdminStore[] | PageResponse<AdminStore>>(`/admin/stores${query}`);
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminStore>).content)) {
+      return (res as PageResponse<AdminStore>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
       return getMockAdminStores(status);
@@ -840,18 +940,59 @@ export async function updateAdminStoreStatus(
 // 32. Quản lý Người dùng (Stitch Screen 31)
 // ============================================================================
 
-export type AdminUser = MockUserItem;
+export type AdminUser = import("@/types/admin").AdminUser;
 
-export async function getAdminUsers(params?: {
+export interface GetAdminUsersParams {
   role?: string;
   status?: string;
   search?: string;
-}): Promise<AdminUser[]> {
+  page?: number;
+  size?: number;
+}
+
+export async function getAdminUsers(
+  params?: GetAdminUsersParams
+): Promise<import("@/types/api").PageResponse<AdminUser>> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.role && params.role !== "ALL") {
+    queryParams.role = params.role;
+  }
+  if (params?.status && params.status !== "ALL") {
+    queryParams.status = params.status;
+  }
+  if (params?.search?.trim()) {
+    queryParams.search = params.search.trim();
+  }
+  if (params?.page !== undefined) {
+    queryParams.page = params.page;
+  }
+  if (params?.size !== undefined) {
+    queryParams.size = params.size;
+  }
+
   try {
-    return await apiFetch<AdminUser[]>("/admin/users");
+    const res = await apiFetch<import("@/types/api").PageResponse<AdminUser>>("/admin/users", {
+      query: queryParams,
+    });
+    return {
+      ...res,
+      content: res.content ?? res.items ?? [],
+    };
   } catch (err) {
     if (isMockMode()) {
-      return getMockAdminUsers(params);
+      const mockItems = getMockAdminUsers(params);
+      return {
+        content: mockItems,
+        items: mockItems,
+        pageNumber: 0,
+        pageSize: mockItems.length,
+        totalElements: mockItems.length,
+        totalPages: 1,
+        isFirst: true,
+        isLast: true,
+        hasNext: false,
+        hasPrevious: false,
+      };
     }
     throw err;
   }
@@ -859,16 +1000,13 @@ export async function getAdminUsers(params?: {
 
 export async function updateAdminUserStatus(
   id: number,
-  status: "ACTIVE" | "LOCKED"
+  status: "ACTIVE" | "LOCKED",
+  reason?: string
 ): Promise<void> {
-  try {
-    await apiFetch<void>(`/admin/users/${id}/status`, {
-      method: "PATCH",
-      json: { status },
-    });
-  } catch (err) {
-    if (!isMockMode()) throw err;
-  }
+  await apiFetch<void>(`/admin/users/${id}/status`, {
+    method: "PATCH",
+    json: { status, reason },
+  });
 }
 
 // ============================================================================
@@ -883,7 +1021,14 @@ export async function getAdminProducts(params?: {
   search?: string;
 }): Promise<AdminProduct[]> {
   try {
-    return await apiFetch<AdminProduct[]>("/products");
+    const res = await apiFetch<AdminProduct[] | PageResponse<AdminProduct>>("/products");
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminProduct>).content)) {
+      return (res as PageResponse<AdminProduct>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
       return getMockAdminProducts(params);

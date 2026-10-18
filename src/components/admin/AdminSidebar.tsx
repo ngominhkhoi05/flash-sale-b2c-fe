@@ -103,6 +103,18 @@ export function AdminSidebar() {
     }
   });
 
+  // Tìm href dài nhất khớp với pathname hiện tại (longest prefix match) để tránh
+  // /admin/flash-sale luôn active khi đang ở /admin/flash-sale/approvals hoặc /admin/flash-sale/monitor
+  const activeHref = React.useMemo(() => {
+    if (!pathname) return "/admin";
+    const allHrefs = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href).filter(Boolean)) as string[];
+    const matches = allHrefs.filter((href) =>
+      pathname === href || pathname.startsWith(href + "/")
+    );
+    if (matches.length === 0) return null;
+    return matches.sort((a, b) => b.length - a.length)[0];
+  }, [pathname]);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<number>;
@@ -146,11 +158,7 @@ export function AdminSidebar() {
               )}
               <div className="px-space-md flex flex-col gap-0.5">
                 {group.items.map((item) => {
-                  const isActive = !item.disabled && item.href && (
-                    item.href === "/admin"
-                      ? pathname === "/admin"
-                      : pathname?.startsWith(item.href)
-                  );
+                  const isActive = !item.disabled && Boolean(item.href && item.href === activeHref);
 
                   const itemBadge =
                     item.key === "fs-approvals"

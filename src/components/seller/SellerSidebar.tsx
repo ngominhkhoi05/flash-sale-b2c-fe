@@ -86,6 +86,16 @@ export function SellerSidebar({
   const logoUrl = store?.logoUrl;
   const isApproved = store?.status === "APPROVED" || store?.status === "ACTIVE";
 
+  const activeHref = React.useMemo(() => {
+    if (!pathname) return "/seller";
+    const allHrefs = SELLER_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href).filter(Boolean)) as string[];
+    const matches = allHrefs.filter((href) =>
+      pathname === href || pathname.startsWith(href + "/")
+    );
+    if (matches.length === 0) return null;
+    return matches.sort((a, b) => b.length - a.length)[0];
+  }, [pathname]);
+
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-surface-container-lowest z-50 flex flex-col border-r border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.02)] select-none">
       {/* Brand Header */}
@@ -157,11 +167,7 @@ export function SellerSidebar({
             )}
             <div className="space-y-0.5 mt-0.5">
               {group.items.map((item) => {
-                const isActive = Boolean(
-                  item.href === "/seller"
-                    ? pathname === "/seller"
-                    : pathname?.startsWith(item.href)
-                );
+                const isActive = Boolean(item.href && item.href === activeHref);
 
                 const isOrdersItem = item.key === "orders";
                 const displayBadge = isOrdersItem

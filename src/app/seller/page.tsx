@@ -722,7 +722,7 @@ export default function SellerDashboardPage() {
                           {prod.name}
                         </Link>
                         <span className="font-body-sm text-label-sm text-secondary">
-                          Đã bán {prod.totalSold.toLocaleString("vi-VN")} cái • Tồn: {prod.totalStock}
+                          Đã bán {(prod.totalSold || 0).toLocaleString("vi-VN")} cái • Tồn: {prod.totalStock ?? 0}
                         </span>
                       </div>
                     </div>

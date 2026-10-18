@@ -37,7 +37,7 @@ export function VoucherCardPreview({
   const minOrderStr = `Đơn tối thiểu ${(minOrderAmount || 0).toLocaleString("vi-VN")}₫`;
   const maxDiscountStr =
     discountType === "PERCENT" && maxDiscountAmount && maxDiscountAmount > 0
-      ? ` · Giảm tối đa ${maxDiscountAmount.toLocaleString("vi-VN")}₫`
+      ? ` · Giảm tối đa ${(maxDiscountAmount || 0).toLocaleString("vi-VN")}₫`
       : "";
   const conditionStr = `${minOrderStr}${maxDiscountStr}`;
 

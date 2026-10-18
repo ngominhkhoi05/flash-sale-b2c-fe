@@ -527,6 +527,7 @@ export function FlashSaleRegisterClient() {
                               src={item.imageUrl || "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60"}
                               alt={item.productName}
                               fill
+                              unoptimized
                               sizes="40px"
                               className="object-cover"
                             />
@@ -729,6 +730,7 @@ export function FlashSaleRegisterClient() {
                           }
                           alt={selectedProduct.name}
                           fill
+                          unoptimized
                           sizes="64px"
                           className="object-cover"
                         />

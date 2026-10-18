@@ -555,6 +555,7 @@ export default function SellerProductsPage() {
                         {/* Đã bán */}
                         <td className="px-space-md font-data-tabular text-body-md text-secondary">
                           {(product.totalSold ?? 0).toLocaleString("vi-VN")}
+                          {(product.totalSold || 0).toLocaleString("vi-VN")}
                         </td>
 
                         {/* Trạng thái */}

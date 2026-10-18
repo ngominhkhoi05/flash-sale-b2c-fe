@@ -211,7 +211,7 @@ export default function SellerReviewsPage() {
             ))}
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Dựa trên {summary?.totalReviews.toLocaleString("vi-VN") || "1.326"} đánh giá đã xác thực
+            Dựa trên {summary?.totalReviews != null ? summary.totalReviews.toLocaleString("vi-VN") : "1.326"} đánh giá đã xác thực
           </p>
         </div>
 

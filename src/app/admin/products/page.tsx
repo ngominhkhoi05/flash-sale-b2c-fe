@@ -46,13 +46,14 @@ export default function AdminProductsPage() {
   }, [activeTab]);
 
 
-  const filteredProducts = products.filter((p) => {
+  const productList = Array.isArray(products) ? products : [];
+  const filteredProducts = productList.filter((p) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
-      p.name.toLowerCase().includes(q) ||
-      p.storeName.toLowerCase().includes(q) ||
-      p.categoryName.toLowerCase().includes(q)
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.storeName && p.storeName.toLowerCase().includes(q)) ||
+      (p.categoryName && p.categoryName.toLowerCase().includes(q))
     );
   });
 
@@ -111,7 +112,7 @@ export default function AdminProductsPage() {
       {/* Table of Products */}
       <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full min-w-[900px] text-left">
             <thead>
               <tr className="bg-surface-container-low text-secondary font-label-sm text-xs uppercase border-b border-outline-variant/20">
                 <th className="py-3 px-4">Sản phẩm</th>
@@ -142,10 +143,14 @@ export default function AdminProductsPage() {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <Image
-                          src={prod.primaryImageUrl}
-                          alt={prod.name}
+                          src={
+                            prod.primaryImageUrl ||
+                            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&auto=format&fit=crop&q=80"
+                          }
+                          alt={prod.name || "Product"}
                           width={48}
                           height={48}
+                          unoptimized
                           className="w-12 h-12 rounded-lg object-cover shadow-xs shrink-0 bg-surface-container"
                         />
                         <div className="flex flex-col min-w-0 max-w-xs sm:max-w-sm">
