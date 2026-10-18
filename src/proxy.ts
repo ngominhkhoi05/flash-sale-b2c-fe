@@ -18,6 +18,7 @@ interface JwtPayload {
   sub?: string;
   email?: string;
   role?: Role | string;
+  authorities?: string[];
   storeStatus?: "PENDING" | "APPROVED" | "BANNED";
   exp?: number; // seconds
   [k: string]: unknown;
@@ -32,6 +33,29 @@ function decodeJwt(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+function extractRoleFromPayload(payload: JwtPayload | null): Role | null {
+  if (!payload) return null;
+
+  // 1. Kiểm tra trực tiếp property role (mock token hoặc custom claim)
+  if (payload.role) {
+    const r = String(payload.role).toUpperCase();
+    if (r === "ROLE_ADMIN" || r === "ADMIN") return ROLES.ADMIN;
+    if (r === "ROLE_SELLER" || r === "SELLER") return ROLES.SELLER;
+    if (r === "ROLE_BUYER" || r === "BUYER") return ROLES.BUYER;
+  }
+
+  // 2. Kiểm tra authorities claim từ Spring Boot JWT (["ROLE_ADMIN", "ROLE_BUYER", ...])
+  // Độ ưu tiên: ADMIN > SELLER > BUYER
+  const auths = payload.authorities;
+  if (Array.isArray(auths)) {
+    if (auths.some((a) => a === "ROLE_ADMIN" || a === "ADMIN")) return ROLES.ADMIN;
+    if (auths.some((a) => a === "ROLE_SELLER" || a === "SELLER")) return ROLES.SELLER;
+    if (auths.some((a) => a === "ROLE_BUYER" || a === "BUYER")) return ROLES.BUYER;
+  }
+
+  return null;
 }
 
 function isExpired(payload: JwtPayload): boolean {
@@ -183,9 +207,11 @@ export function proxy(req: NextRequest): NextResponse {
   const payload = token ? decodeJwt(token) : null;
   const valid = payload && !isExpired(payload) ? payload : null;
 
+  const role = extractRoleFromPayload(valid);
+
   const ctx: GuardContext = {
     req,
-    role: (valid?.role as Role | undefined) ?? null,
+    role,
     storeStatus: valid?.storeStatus,
     pathname: req.nextUrl.pathname,
   };

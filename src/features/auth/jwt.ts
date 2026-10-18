@@ -71,15 +71,17 @@ export function decodeJwtRoles(token: string): Role[] {
   if (!Array.isArray(auths)) return [];
   const roles: Role[] = [];
   for (const a of auths) {
-    if (a === 'ROLE_BUYER') roles.push('BUYER');
-    else if (a === 'ROLE_SELLER') roles.push('SELLER');
-    else if (a === 'ROLE_ADMIN') roles.push('ADMIN');
+    if (a === 'ROLE_BUYER' || a === 'BUYER') roles.push('BUYER');
+    else if (a === 'ROLE_SELLER' || a === 'SELLER') roles.push('SELLER');
+    else if (a === 'ROLE_ADMIN' || a === 'ADMIN') roles.push('ADMIN');
   }
   return roles;
 }
 
-/** decodeJwtPrimaryRole – first role in `authorities`, fallback 'BUYER'. */
+/** decodeJwtPrimaryRole – vai trò có độ ưu tiên cao nhất: ADMIN > SELLER > BUYER. */
 export function decodeJwtPrimaryRole(token: string): Role {
   const roles = decodeJwtRoles(token);
+  if (roles.includes('ADMIN')) return 'ADMIN';
+  if (roles.includes('SELLER')) return 'SELLER';
   return roles[0] ?? 'BUYER';
 }
