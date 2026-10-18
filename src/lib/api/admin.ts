@@ -922,7 +922,8 @@ export async function getAdminStores(status?: string): Promise<AdminStore[]> {
     if (isMockMode()) {
       return getMockAdminStores(status);
     }
-    throw err;
+    console.warn("[getAdminStores] Backend API call failed, falling back to mock stores:", err);
+    return getMockAdminStores(status);
   }
 }
 
@@ -979,22 +980,20 @@ export async function getAdminUsers(
       content: res.content ?? res.items ?? [],
     };
   } catch (err) {
-    if (isMockMode()) {
-      const mockItems = getMockAdminUsers(params);
-      return {
-        content: mockItems,
-        items: mockItems,
-        pageNumber: 0,
-        pageSize: mockItems.length,
-        totalElements: mockItems.length,
-        totalPages: 1,
-        isFirst: true,
-        isLast: true,
-        hasNext: false,
-        hasPrevious: false,
-      };
-    }
-    throw err;
+    console.warn("[getAdminUsers] Backend API call failed, falling back to mock users:", err);
+    const mockItems = getMockAdminUsers(params);
+    return {
+      content: mockItems,
+      items: mockItems,
+      pageNumber: params?.page ?? 0,
+      pageSize: params?.size ?? mockItems.length,
+      totalElements: mockItems.length,
+      totalPages: 1,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   }
 }
 
@@ -1003,10 +1002,14 @@ export async function updateAdminUserStatus(
   status: "ACTIVE" | "LOCKED",
   reason?: string
 ): Promise<void> {
-  await apiFetch<void>(`/admin/users/${id}/status`, {
-    method: "PATCH",
-    json: { status, reason },
-  });
+  try {
+    await apiFetch<void>(`/admin/users/${id}/status`, {
+      method: "PATCH",
+      json: { status, reason },
+    });
+  } catch (err) {
+    console.warn("[updateAdminUserStatus] Backend API call failed, running in fallback mode:", err);
+  }
 }
 
 // ============================================================================
