@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
-import { AdminVoucher } from "@/types/voucher";
+import React, { useState, useTransition, useMemo, useEffect } from "react";
+import { AdminVoucher, VoucherKpis } from "@/types/voucher";
 import { voucherMockService } from "@/lib/mocks/vouchers.mock";
+import {
+  getAdminPlatformVouchers,
+  createAdminPlatformVoucher,
+  getAdminVoucherKpis,
+} from "@/lib/api/admin";
 import {
   VoucherFormDrawer,
   VoucherDetailDrawer,
@@ -48,23 +53,53 @@ export default function AdminVouchersPage() {
     }, 3000);
   };
 
-  // Fetch data from mock service
-  const data = useMemo(() => {
-    void refreshKey;
-    return voucherMockService.getAll({
-      status: activeTab,
-      search: searchQuery,
-      discountType: discountTypeFilter || undefined,
-      scope: scopeFilter || undefined,
-      page,
-      pageSize,
-    });
-  }, [activeTab, searchQuery, discountTypeFilter, scopeFilter, page, pageSize, refreshKey]);
+  // State for vouchers & KPIs
+  const [data, setData] = useState<ReturnType<typeof voucherMockService.getAll>>(() =>
+    voucherMockService.getAll({ page: 0, pageSize: 10 })
+  );
+  const [kpis, setKpis] = useState<VoucherKpis>(() => voucherMockService.getKpis());
 
-  const kpis = useMemo(() => {
-    void refreshKey;
-    return voucherMockService.getKpis();
-  }, [refreshKey]);
+  // Load vouchers from BE API with fallback
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      getAdminPlatformVouchers({
+        status: activeTab,
+        search: searchQuery,
+        discountType: discountTypeFilter || undefined,
+        scope: scopeFilter || undefined,
+        page,
+        pageSize,
+      }),
+      getAdminVoucherKpis(),
+    ])
+      .then(([vouchersRes, kpisRes]) => {
+        if (!cancelled) {
+          setData(vouchersRes);
+          setKpis(kpisRes);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setData(
+            voucherMockService.getAll({
+              status: activeTab,
+              search: searchQuery,
+              discountType: discountTypeFilter || undefined,
+              scope: scopeFilter || undefined,
+              page,
+              pageSize,
+            })
+          );
+          setKpis(voucherMockService.getKpis());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, searchQuery, discountTypeFilter, scopeFilter, page, pageSize, refreshKey]);
 
   const recentHistory = useMemo(() => {
     void refreshKey;
@@ -97,9 +132,9 @@ export default function AdminVouchersPage() {
     }
   };
 
-  const handleCreateVoucher = (formValues: Parameters<typeof voucherMockService.create>[0]) => {
+  const handleCreateVoucher = async (formValues: Parameters<typeof voucherMockService.create>[0]) => {
     try {
-      const created = voucherMockService.create(formValues);
+      const created = await createAdminPlatformVoucher(formValues);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });

@@ -33,6 +33,13 @@ import {
   getMockLiveLogs,
   toggleSessionPause,
 } from "@/lib/mocks/flash-monitor.mock";
+import type {
+  AdminVoucher,
+  VoucherKpis,
+  VoucherStatus,
+  VoucherFilterParams,
+} from "@/types/voucher";
+import { voucherMockService } from "@/lib/mocks/vouchers.mock";
 
 /** BE Response DTO */
 interface FlashSaleSlotResponse {
@@ -368,3 +375,149 @@ export async function toggleAdminEmergencyPause(
     throw err;
   }
 }
+
+interface BeVoucherResponse {
+  id: number;
+  code: string;
+  storeId?: number | null;
+  discountType: string;
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  totalQuantity: number;
+  usedQuantity?: number;
+  userUsageLimit?: number;
+  startTime: string;
+  endTime: string;
+  status: string;
+  createdAt?: string;
+}
+
+function mapBeVoucherToAdmin(v: BeVoucherResponse): AdminVoucher {
+  const isPercent = v.discountType === "PERCENT";
+  return {
+    id: String(v.id),
+    code: v.code,
+    name: isPercent
+      ? `Giảm ${v.discountValue}% toàn sàn`
+      : `Giảm ${Number(v.discountValue).toLocaleString()}đ toàn sàn`,
+    discountType: isPercent ? "PERCENT" : "FIXED",
+    discountValue: Number(v.discountValue),
+    maxDiscountAmount: v.maxDiscountAmount ? Number(v.maxDiscountAmount) : undefined,
+    minOrderAmount: Number(v.minOrderAmount || 0),
+    usedCount: v.usedQuantity || 0,
+    totalCount: v.totalQuantity,
+    limitPerCustomer: v.userUsageLimit || 1,
+    startDate: v.startTime,
+    endDate: v.endTime,
+    status: (v.status as VoucherStatus) || "ACTIVE",
+    isActive: v.status === "ACTIVE",
+    scope: "ALL",
+    isPublic: true,
+    createdAt: v.createdAt || v.startTime,
+  };
+}
+
+/**
+ * 16. Lấy danh sách mã giảm giá toàn sàn (KHỚP BE: GET /api/v1/vouchers/platform)
+ */
+export async function getAdminPlatformVouchers(
+  params?: VoucherFilterParams & { page?: number; pageSize?: number }
+): Promise<ReturnType<typeof voucherMockService.getAll>> {
+  try {
+    const list = await apiFetch<BeVoucherResponse[]>("/vouchers/platform");
+    if (!list || list.length === 0) {
+      if (isMockMode()) {
+        return voucherMockService.getAll(params);
+      }
+      return {
+        items: [],
+        total: 0,
+        page: params?.page ?? 0,
+        pageSize: params?.pageSize ?? 10,
+        counts: { ALL: 0, ACTIVE: 0, UPCOMING: 0, OUT_OF_STOCK: 0, EXPIRED: 0, DISABLED: 0 },
+      };
+    }
+    const allMapped = list.map(mapBeVoucherToAdmin);
+    let filtered = allMapped;
+    if (params?.status && params.status !== "ALL") {
+      filtered = filtered.filter((v) => v.status === params.status);
+    }
+    if (params?.search) {
+      const q = params.search.toLowerCase().trim();
+      filtered = filtered.filter(
+        (v) => v.code.toLowerCase().includes(q) || v.name.toLowerCase().includes(q)
+      );
+    }
+    const page = params?.page ?? 0;
+    const pageSize = params?.pageSize ?? 10;
+    const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+    const counts = {
+      ALL: allMapped.length,
+      ACTIVE: allMapped.filter((v) => v.status === "ACTIVE").length,
+      UPCOMING: allMapped.filter((v) => v.status === "UPCOMING").length,
+      OUT_OF_STOCK: allMapped.filter((v) => v.status === "OUT_OF_STOCK").length,
+      EXPIRED: allMapped.filter((v) => v.status === "EXPIRED").length,
+      DISABLED: allMapped.filter((v) => v.status === "DISABLED").length,
+    };
+
+    return {
+      items: paginated,
+      total: filtered.length,
+      page,
+      pageSize,
+      counts,
+    };
+  } catch (err) {
+    if (isMockMode()) {
+      return voucherMockService.getAll(params);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 17. Tạo mã giảm giá sàn mới (KHỚP BE: POST /api/v1/admin/vouchers)
+ */
+export async function createAdminPlatformVoucher(
+  data: Omit<AdminVoucher, "id" | "usedCount" | "status" | "isActive" | "createdAt">
+): Promise<AdminVoucher> {
+  try {
+    const payload = {
+      code: data.code.toUpperCase(),
+      storeId: null,
+      discountType: data.discountType === "PERCENT" ? "PERCENT" : "FIXED_AMOUNT",
+      discountValue: data.discountValue,
+      minOrderAmount: data.minOrderAmount,
+      maxDiscountAmount: data.maxDiscountAmount || data.discountValue,
+      totalQuantity: data.totalCount,
+      userUsageLimit: data.limitPerCustomer,
+      startTime: data.startDate,
+      endTime: data.endDate,
+    };
+
+    const res = await apiFetch<BeVoucherResponse>("/admin/vouchers", {
+      method: "POST",
+      json: payload,
+    });
+    return mapBeVoucherToAdmin(res);
+  } catch (err) {
+    if (isMockMode()) {
+      return voucherMockService.create(data);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 18. Lấy KPIs thống kê voucher sàn
+ */
+export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
+  try {
+    return await apiFetch<VoucherKpis>("/admin/vouchers/kpis");
+  } catch {
+    return voucherMockService.getKpis();
+  }
+}
+
