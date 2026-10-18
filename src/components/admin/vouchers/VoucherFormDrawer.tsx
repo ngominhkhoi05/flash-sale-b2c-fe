@@ -1,11 +1,24 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { AdminVoucher, VoucherDiscountType, VoucherScope } from "@/types/voucher";
 import { VoucherCardPreview } from "./VoucherCardPreview";
+
+export function toLocalDatetimeInputString(date?: Date | string | number | null): string {
+  if (!date) return "";
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 const voucherFormSchema = z
   .object({
@@ -63,7 +76,7 @@ const voucherFormSchema = z
     (data) => {
       const start = new Date(data.startDate).getTime();
       const end = new Date(data.endDate).getTime();
-      return end > start;
+      return !isNaN(start) && !isNaN(end) && end > start;
     },
     {
       message: "Thời gian kết thúc phải sau thời gian bắt đầu",
@@ -88,10 +101,11 @@ export function VoucherFormDrawer({
   initialData,
   mode = "create",
 }: VoucherFormDrawerProps) {
-  const defaultStartDate = new Date().toISOString().slice(0, 16);
-  const defaultEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 16);
+  const defaultStartDate = useMemo(() => toLocalDatetimeInputString(new Date()), []);
+  const defaultEndDate = useMemo(
+    () => toLocalDatetimeInputString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+    []
+  );
 
   const {
     register,
@@ -101,6 +115,7 @@ export function VoucherFormDrawer({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<VoucherFormValues>({
+    mode: "onChange",
     resolver: zodResolver(voucherFormSchema),
     defaultValues: {
       code: "VIBE-AUTUMN",
@@ -132,8 +147,8 @@ export function VoucherFormDrawer({
         minOrderAmount: initialData.minOrderAmount,
         totalCount: initialData.totalCount,
         limitPerCustomer: initialData.limitPerCustomer,
-        startDate: initialData.startDate.slice(0, 16),
-        endDate: initialData.endDate.slice(0, 16),
+        startDate: toLocalDatetimeInputString(initialData.startDate) || defaultStartDate,
+        endDate: toLocalDatetimeInputString(initialData.endDate) || defaultEndDate,
         scope: initialData.scope,
         isPublic: initialData.isPublic,
       });
@@ -166,13 +181,21 @@ export function VoucherFormDrawer({
   const watchedStartDate = watch("startDate");
   const watchedEndDate = watch("endDate");
 
-  const diffDays = Math.max(
-    0,
-    Math.round(
-      (new Date(watchedEndDate).getTime() - new Date(watchedStartDate).getTime()) /
-        (1000 * 60 * 60 * 24)
-    )
+  const isDateInvalid = Boolean(
+    watchedStartDate &&
+    watchedEndDate &&
+    new Date(watchedEndDate).getTime() <= new Date(watchedStartDate).getTime()
   );
+
+  const diffDays = isDateInvalid
+    ? -1
+    : Math.max(
+        0,
+        Math.round(
+          (new Date(watchedEndDate).getTime() - new Date(watchedStartDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      );
 
   if (!isOpen) return null;
 
@@ -235,6 +258,11 @@ export function VoucherFormDrawer({
             className="flex flex-col gap-space-md"
             id="voucher-drawer-form"
             onSubmit={handleSubmit((data) => {
+              const start = new Date(data.startDate).getTime();
+              const end = new Date(data.endDate).getTime();
+              if (isNaN(start) || isNaN(end) || end <= start) {
+                return;
+              }
               onSubmit(data);
               onClose();
             })}
@@ -475,42 +503,70 @@ export function VoucherFormDrawer({
             </div>
 
             {/* Thời gian áp dụng: Từ ngày - Đến ngày */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-md text-xs font-semibold text-on-surface">
-                  Thời gian bắt đầu <span className="text-tertiary">*</span>
-                </label>
-                <input
-                  {...register("startDate")}
-                  className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    errors.startDate ? "border border-error" : ""
-                  }`}
-                  type="datetime-local"
-                />
-                {errors.startDate && (
-                  <span className="text-xs text-error font-medium">
-                    {errors.startDate.message}
-                  </span>
-                )}
+            <div className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-xs font-semibold text-on-surface">
+                    Thời gian bắt đầu <span className="text-tertiary">*</span>
+                  </label>
+                  <input
+                    {...register("startDate")}
+                    min={mode === "create" ? defaultStartDate : undefined}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setValue("startDate", newStart, { shouldValidate: true });
+                      if (newStart) {
+                        const startTime = new Date(newStart).getTime();
+                        const endTime = watchedEndDate ? new Date(watchedEndDate).getTime() : 0;
+                        if (!endTime || startTime >= endTime) {
+                          // Tự động đẩy endDate ra sau startDate 30 ngày
+                          const nextEnd = new Date(startTime + 30 * 24 * 60 * 60 * 1000);
+                          setValue("endDate", toLocalDatetimeInputString(nextEnd), { shouldValidate: true });
+                        }
+                      }
+                    }}
+                    className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                      errors.startDate ? "border border-error" : ""
+                    }`}
+                    type="datetime-local"
+                  />
+                  {errors.startDate && (
+                    <span className="text-xs text-error font-medium">
+                      {errors.startDate.message}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-xs font-semibold text-on-surface">
+                    Thời gian kết thúc <span className="text-tertiary">*</span>
+                  </label>
+                  <input
+                    {...register("endDate")}
+                    min={watchedStartDate || defaultStartDate}
+                    onChange={(e) => {
+                      const newEnd = e.target.value;
+                      setValue("endDate", newEnd, { shouldValidate: true });
+                    }}
+                    className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                      errors.endDate || isDateInvalid ? "border border-error ring-1 ring-error" : ""
+                    }`}
+                    type="datetime-local"
+                  />
+                  {errors.endDate && (
+                    <span className="text-xs text-error font-medium">
+                      {errors.endDate.message}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-md text-xs font-semibold text-on-surface">
-                  Thời gian kết thúc <span className="text-tertiary">*</span>
-                </label>
-                <input
-                  {...register("endDate")}
-                  className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    errors.endDate ? "border border-error" : ""
-                  }`}
-                  type="datetime-local"
-                />
-                {errors.endDate && (
-                  <span className="text-xs text-error font-medium">
-                    {errors.endDate.message}
-                  </span>
-                )}
-              </div>
+              {isDateInvalid && (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-error/10 text-error text-xs font-medium">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <span>Thời gian kết thúc phải sau thời gian bắt đầu</span>
+                </div>
+              )}
             </div>
 
             {/* Checkbox Public Visibility */}
@@ -546,8 +602,8 @@ export function VoucherFormDrawer({
             Hủy bỏ
           </button>
           <button
-            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-primary-container transition-all shadow-sm active:scale-95 disabled:opacity-50"
-            disabled={isSubmitting}
+            className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-primary-container transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isSubmitting || isDateInvalid}
             form="voucher-drawer-form"
             type="submit"
           >

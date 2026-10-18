@@ -64,8 +64,12 @@ export function VoucherCardPreview({
               Sàn tài trợ
             </span>
           </div>
-          <span className="font-label-sm text-xs text-white/80">
-            HSD: {daysRemaining > 0 ? `${daysRemaining} ngày` : "Vô thời hạn"}
+          <span className={`font-label-sm text-xs ${daysRemaining < 0 ? "text-error font-semibold bg-white px-1.5 py-0.5 rounded shadow-sm" : "text-white/80"}`}>
+            {daysRemaining < 0
+              ? "HSD không hợp lệ"
+              : daysRemaining > 0
+              ? `HSD: ${daysRemaining} ngày`
+              : "HSD: Trong ngày"}
           </span>
         </div>
 

@@ -7,6 +7,9 @@ import { voucherMockService } from "@/lib/mocks/vouchers.mock";
 import {
   getAdminPlatformVouchers,
   createAdminPlatformVoucher,
+  updateAdminPlatformVoucher,
+  deleteAdminPlatformVoucher,
+  toggleAdminPlatformVoucherStatus,
   getAdminVoucherKpis,
 } from "@/lib/api/admin";
 import {
@@ -42,7 +45,6 @@ export default function AdminVouchersPage() {
   const [voucherToDelete, setVoucherToDelete] = useState<AdminVoucher | null>(
     null
   );
-  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
 
   // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -164,10 +166,11 @@ export default function AdminVouchersPage() {
     }
   };
 
-  const handleToggleStatus = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleToggleStatus = async (id: string, e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
     try {
-      const updated = voucherMockService.toggleStatus(id);
+      const target = data.items.find((item) => String(item.id) === String(id));
+      const updated = await toggleAdminPlatformVoucherStatus(id, target?.status);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -178,7 +181,7 @@ export default function AdminVouchersPage() {
       );
     } catch (err: unknown) {
       const error = err as Error;
-      showToast(error.message || "Có lỗi xảy ra");
+      showToast(error.message || "Có lỗi xảy ra khi đổi trạng thái voucher");
     }
   };
 
@@ -195,24 +198,26 @@ export default function AdminVouchersPage() {
     }
   };
 
-  const handleEditVoucher = (formValues: Parameters<typeof voucherMockService.update>[1]) => {
+  const handleEditVoucher = async (formValues: Parameters<typeof voucherMockService.update>[1]) => {
     if (!selectedVoucherForEdit) return;
     try {
-      const updated = voucherMockService.update(selectedVoucherForEdit.id, formValues);
+      const updated = await updateAdminPlatformVoucher(selectedVoucherForEdit.id, formValues);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
       showToast(`Đã cập nhật voucher: ${updated.code}`);
+      setSelectedVoucherForEdit(null);
+      setIsFormOpen(false);
     } catch (err: unknown) {
       const error = err as Error;
       showToast(error.message || "Không thể cập nhật voucher");
     }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!voucherToDelete) return;
     try {
-      voucherMockService.delete(voucherToDelete.id);
+      await deleteAdminPlatformVoucher(voucherToDelete.id);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -232,7 +237,6 @@ export default function AdminVouchersPage() {
       code: `${v.code}_COPY`,
     });
     setIsFormOpen(true);
-    setOpenActionMenuId(null);
   };
 
   const totalPages = Math.ceil(data.total / pageSize) || 1;
@@ -809,91 +813,68 @@ export default function AdminVouchersPage() {
                           </label>
                         </td>
 
-                        {/* Thao tác Menu "⋯" */}
-                        <td className="px-space-md text-right relative">
-                          <div className="relative inline-block text-left">
+                        {/* Thao tác */}
+                        <td className="px-space-md text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
                             <button
-                              className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-secondary hover:text-on-surface hover:bg-surface-container transition-colors"
+                              className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-container transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenActionMenuId(
-                                  openActionMenuId === voucher.id ? null : voucher.id
-                                );
+                                setSelectedVoucherForDetail(voucher);
+                                setIsDetailOpen(true);
                               }}
+                              title="Xem chi tiết"
                               type="button"
                             >
                               <span className="material-symbols-outlined text-[18px]">
-                                more_vert
+                                visibility
                               </span>
                             </button>
 
-                            {openActionMenuId === voucher.id && (
-                              <div
-                                className="origin-top-right absolute right-0 mt-1 w-40 rounded-xl shadow-lg bg-surface-container-lowest ring-1 ring-outline-variant/30 z-30 py-1 divide-y divide-outline-variant/20 focus:outline-none"
-                                onClick={(e) => e.stopPropagation()}
+                            <button
+                              className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-container transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFormMode("edit");
+                                setSelectedVoucherForEdit(voucher);
+                                setIsFormOpen(true);
+                              }}
+                              title="Chỉnh sửa"
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                edit
+                              </span>
+                            </button>
+
+                            <button
+                              className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-container transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDuplicate(voucher);
+                              }}
+                              title="Nhân bản"
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                content_copy
+                              </span>
+                            </button>
+
+                            {voucher.usedCount === 0 && (
+                              <button
+                                className="p-1.5 rounded-lg text-secondary hover:text-error hover:bg-error-container/40 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setVoucherToDelete(voucher);
+                                }}
+                                title="Xóa voucher"
+                                type="button"
                               >
-                                <div className="py-1">
-                                  <button
-                                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
-                                    onClick={() => {
-                                      setSelectedVoucherForDetail(voucher);
-                                      setIsDetailOpen(true);
-                                      setOpenActionMenuId(null);
-                                    }}
-                                    type="button"
-                                  >
-                                    <span className="material-symbols-outlined text-[16px] text-secondary">
-                                      visibility
-                                    </span>
-                                    <span>Xem chi tiết</span>
-                                  </button>
-
-                                  <button
-                                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
-                                    onClick={() => {
-                                      setFormMode("edit");
-                                      setSelectedVoucherForEdit(voucher);
-                                      setIsFormOpen(true);
-                                      setOpenActionMenuId(null);
-                                    }}
-                                    type="button"
-                                  >
-                                    <span className="material-symbols-outlined text-[16px] text-secondary">
-                                      edit
-                                    </span>
-                                    <span>Chỉnh sửa</span>
-                                  </button>
-
-                                  <button
-                                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface hover:bg-surface-container flex items-center gap-2"
-                                    onClick={() => handleDuplicate(voucher)}
-                                    type="button"
-                                  >
-                                    <span className="material-symbols-outlined text-[16px] text-secondary">
-                                      content_copy
-                                    </span>
-                                    <span>Nhân bản</span>
-                                  </button>
-                                </div>
-
-                                {voucher.usedCount === 0 && (
-                                  <div className="py-1">
-                                    <button
-                                      className="w-full text-left px-3 py-1.5 text-xs text-error hover:bg-error-container/40 flex items-center gap-2 font-medium"
-                                      onClick={() => {
-                                        setVoucherToDelete(voucher);
-                                        setOpenActionMenuId(null);
-                                      }}
-                                      type="button"
-                                    >
-                                      <span className="material-symbols-outlined text-[16px]">
-                                        delete
-                                      </span>
-                                      <span>Xóa voucher</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                                <span className="material-symbols-outlined text-[18px]">
+                                  delete
+                                </span>
+                              </button>
                             )}
                           </div>
                         </td>

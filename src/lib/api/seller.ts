@@ -1830,21 +1830,24 @@ export async function createSellerVoucher(
   payload: CreateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
   try {
-    const startTime = payload.startDate.includes("T")
-      ? payload.startDate
-      : `${payload.startDate}T00:00:00Z`;
-    const endTime = payload.endDate.includes("T")
-      ? payload.endDate
-      : `${payload.endDate}T23:59:59Z`;
+    const toIsoString = (val?: string) => {
+      if (!val) return new Date().toISOString();
+      if (val.endsWith("Z") || val.includes("+")) return val;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+    };
+
+    const startTime = toIsoString(payload.startDate);
+    const endTime = toIsoString(payload.endDate);
 
     const body = {
       code: payload.code.trim().toUpperCase(),
-      discountType: payload.discountType === "PERCENTAGE" ? "PERCENT" : payload.discountType,
+      discountType: payload.discountType === "PERCENTAGE" ? "PERCENT" : (payload.discountType || "FIXED_AMOUNT"),
       discountValue: payload.discountValue,
       minOrderAmount: payload.minOrderAmount,
       maxDiscountAmount:
         payload.maxDiscountAmount ||
-        (payload.discountType === "PERCENTAGE" ? payload.discountValue * 1000 : null),
+        (payload.discountType === "PERCENTAGE" ? payload.discountValue * 1000 : payload.discountValue),
       totalQuantity: payload.totalUsageLimit,
       userUsageLimit: payload.userUsageLimit || 1,
       startTime,
@@ -1861,16 +1864,16 @@ export async function createSellerVoucher(
       code: String(res?.code || payload.code.toUpperCase()),
       name: payload.name || String(res?.code || payload.code.toUpperCase()),
       discountType: payload.discountType,
-      discountValue: payload.discountValue,
-      maxDiscountAmount: payload.maxDiscountAmount,
-      minOrderAmount: payload.minOrderAmount,
-      totalUsageLimit: payload.totalUsageLimit,
-      currentUsageCount: 0,
-      userUsageLimit: payload.userUsageLimit || 1,
-      startDate: payload.startDate,
-      endDate: payload.endDate,
-      status: "ACTIVE",
-      createdAt: new Date().toISOString(),
+      discountValue: Number(res?.discountValue || payload.discountValue),
+      maxDiscountAmount: res?.maxDiscountAmount ? Number(res.maxDiscountAmount) : payload.maxDiscountAmount,
+      minOrderAmount: Number(res?.minOrderAmount || payload.minOrderAmount),
+      totalUsageLimit: Number(res?.totalQuantity || payload.totalUsageLimit),
+      currentUsageCount: Number(res?.usedQuantity || 0),
+      userUsageLimit: Number(res?.userUsageLimit || payload.userUsageLimit || 1),
+      startDate: String(res?.startTime || payload.startDate),
+      endDate: String(res?.endTime || payload.endDate),
+      status: String(res?.status || "ACTIVE"),
+      createdAt: String(res?.createdAt || new Date().toISOString()),
     };
   } catch (err) {
     if (isMockMode()) {
