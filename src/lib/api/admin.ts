@@ -895,7 +895,14 @@ export type AdminStore = MockStoreItem;
 export async function getAdminStores(status?: string): Promise<AdminStore[]> {
   try {
     const query = status && status !== "ALL" ? `?status=${status}` : "";
-    return await apiFetch<AdminStore[]>(`/admin/stores${query}`);
+    const res = await apiFetch<AdminStore[] | PageResponse<AdminStore>>(`/admin/stores${query}`);
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminStore>).content)) {
+      return (res as PageResponse<AdminStore>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
       return getMockAdminStores(status);
@@ -999,7 +1006,14 @@ export async function getAdminProducts(params?: {
   search?: string;
 }): Promise<AdminProduct[]> {
   try {
-    return await apiFetch<AdminProduct[]>("/products");
+    const res = await apiFetch<AdminProduct[] | PageResponse<AdminProduct>>("/products");
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object" && "content" in res && Array.isArray((res as PageResponse<AdminProduct>).content)) {
+      return (res as PageResponse<AdminProduct>).content;
+    }
+    return [];
   } catch (err) {
     if (isMockMode()) {
       return getMockAdminProducts(params);
