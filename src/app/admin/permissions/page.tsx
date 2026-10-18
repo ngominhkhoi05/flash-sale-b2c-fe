@@ -1,12 +1,25 @@
 "use client";
 
-import React, { useState, useTransition, useMemo, Suspense } from "react";
+import React, { useState, useTransition, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
+  SystemRole,
+  InternalRoleGroup,
+  AclPermission,
   FeatureFlag,
   ReportedReview,
 } from "@/types/permissions";
 import { permissionsMockService } from "@/lib/mocks/permissions.mock";
+import {
+  getAdminSystemRoles,
+  getAdminRoleGroups,
+  getAdminAclPermissions,
+  getAdminFeatureFlags,
+  toggleAdminFeatureFlag,
+  getAdminReportedReviews,
+  moderateAdminReview,
+} from "@/lib/api/admin";
+import { isMockMode } from "@/lib/api/client";
 import {
   SystemRolesTab,
   RoleMatrixTab,
@@ -48,30 +61,68 @@ function PermissionsPageContent() {
     router.replace(`/admin/permissions?${params.toString()}`);
   };
 
-  // Fetch data from mock service
-  const systemRoles = useMemo(() => {
-    void refreshKey;
-    return permissionsMockService.getSystemRoles();
-  }, [refreshKey]);
+  // State for data
+  const [systemRoles, setSystemRoles] = useState<SystemRole[]>(() =>
+    permissionsMockService.getSystemRoles()
+  );
+  const [roleGroups, setRoleGroups] = useState<InternalRoleGroup[]>(() =>
+    permissionsMockService.getRoleGroups()
+  );
+  const [aclPermissions, setAclPermissions] = useState<AclPermission[]>(() =>
+    permissionsMockService.getAclPermissions()
+  );
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlag[]>(() =>
+    permissionsMockService.getFeatureFlags()
+  );
+  const [reportedReviews, setReportedReviews] = useState<ReportedReview[]>(() =>
+    permissionsMockService.getReportedReviews()
+  );
 
-  const roleGroups = useMemo(() => {
-    void refreshKey;
-    return permissionsMockService.getRoleGroups();
-  }, [refreshKey]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const aclPermissions = useMemo(() => {
-    void refreshKey;
-    return permissionsMockService.getAclPermissions();
-  }, [refreshKey]);
+  // Fetch permissions & features data from BE with fallback
+  useEffect(() => {
+    let cancelled = false;
 
-  const featureFlags = useMemo(() => {
-    void refreshKey;
-    return permissionsMockService.getFeatureFlags();
-  }, [refreshKey]);
+    Promise.all([
+      getAdminSystemRoles(),
+      getAdminRoleGroups(),
+      getAdminAclPermissions(),
+      getAdminFeatureFlags(),
+      getAdminReportedReviews(),
+    ])
+      .then(([rolesRes, groupsRes, permsRes, flagsRes, reviewsRes]) => {
+        if (!cancelled) {
+          setSystemRoles(rolesRes);
+          setRoleGroups(groupsRes);
+          setAclPermissions(permsRes);
+          setFeatureFlags(flagsRes);
+          setReportedReviews(reviewsRes);
+          setLoadError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          if (isMockMode()) {
+            setSystemRoles(permissionsMockService.getSystemRoles());
+            setRoleGroups(permissionsMockService.getRoleGroups());
+            setAclPermissions(permissionsMockService.getAclPermissions());
+            setFeatureFlags(permissionsMockService.getFeatureFlags());
+            setReportedReviews(permissionsMockService.getReportedReviews());
+            setLoadError(null);
+          } else {
+            setLoadError(
+              err instanceof Error
+                ? err.message
+                : "Chức năng phân quyền & cờ tính năng chưa sẵn sàng trên máy chủ."
+            );
+          }
+        }
+      });
 
-  const reportedReviews = useMemo(() => {
-    void refreshKey;
-    return permissionsMockService.getReportedReviews();
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   // Modals state for Feature Toggle confirmation
@@ -83,7 +134,7 @@ function PermissionsPageContent() {
   );
 
   // Handle Feature Flag Toggle
-  const handleToggleFlag = (flag: FeatureFlag, nextState: boolean) => {
+  const handleToggleFlag = async (flag: FeatureFlag, nextState: boolean) => {
     if (!nextState) {
       // Opening disable confirm modal
       setPendingFlagToDisable(flag);
@@ -91,7 +142,7 @@ function PermissionsPageContent() {
     } else {
       // Direct enable
       try {
-        permissionsMockService.toggleFeatureFlag(flag.code, true);
+        await toggleAdminFeatureFlag(flag.code, true);
         startTransition(() => {
           setRefreshKey((k) => k + 1);
         });
@@ -103,10 +154,10 @@ function PermissionsPageContent() {
     }
   };
 
-  const handleConfirmDisable = () => {
+  const handleConfirmDisable = async () => {
     if (!pendingFlagToDisable) return;
     try {
-      permissionsMockService.toggleFeatureFlag(
+      await toggleAdminFeatureFlag(
         pendingFlagToDisable.code,
         false,
         maintenanceReason
@@ -141,12 +192,12 @@ function PermissionsPageContent() {
   };
 
   // Handle Review Moderation
-  const handleModerateReview = (
+  const handleModerateReview = async (
     review: ReportedReview,
     action: "keep" | "hide" | "restore"
   ) => {
     try {
-      const updated = permissionsMockService.moderateReview(review.id, action);
+      const updated = await moderateAdminReview(review.id, action);
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -155,11 +206,11 @@ function PermissionsPageContent() {
           ? `Đã giữ lại đánh giá của ${updated.reviewerName} (hợp lệ)`
           : action === "hide"
           ? `Đã ẩn hiển thị đánh giá của ${updated.reviewerName}`
-          : `Đã khôi phục trạng thái chờ duyệt`
+          : `Đã khôi phục trạng thái đánh giá của ${updated.reviewerName}`
       );
     } catch (err: unknown) {
       const error = err as Error;
-      showToast(error.message || "Có lỗi khi kiểm duyệt");
+      showToast(error.message || "Có lỗi khi xử lý đánh giá");
     }
   };
 
@@ -179,6 +230,26 @@ function PermissionsPageContent() {
           <span className="font-body-md text-sm font-medium">
             {toastMessage}
           </span>
+        </div>
+      )}
+
+      {/* Error Banner when BE is down and Mock is disabled */}
+      {loadError && (
+        <div className="p-4 rounded-xl bg-error-container/20 border border-error/30 text-error flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-2xl">error</span>
+            <div>
+              <p className="font-semibold text-sm">Chức năng chưa sẵn sàng</p>
+              <p className="text-xs opacity-80">{loadError}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="px-3 py-1.5 rounded-lg bg-error text-on-error text-xs font-medium hover:opacity-90 transition-opacity"
+            type="button"
+          >
+            Thử lại
+          </button>
         </div>
       )}
 

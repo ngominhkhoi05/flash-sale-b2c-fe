@@ -40,6 +40,20 @@ import type {
   VoucherFilterParams,
 } from "@/types/voucher";
 import { voucherMockService } from "@/lib/mocks/vouchers.mock";
+import type {
+  ReconciliationKpis,
+  ReconciliationRefund,
+  ReconciliationFilterParams,
+} from "@/types/reconciliation";
+import { reconciliationMockService } from "@/lib/mocks/reconciliation.mock";
+import type {
+  SystemRole,
+  InternalRoleGroup,
+  AclPermission,
+  FeatureFlag,
+  ReportedReview,
+} from "@/types/permissions";
+import { permissionsMockService } from "@/lib/mocks/permissions.mock";
 
 /** BE Response DTO */
 interface FlashSaleSlotResponse {
@@ -520,4 +534,196 @@ export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
     return voucherMockService.getKpis();
   }
 }
+
+/**
+ * 19. Lấy thống kê chu kỳ đối soát (BE THIẾU: docs/api-requests/admin-reconciliation.md)
+ */
+export async function getAdminReconciliationKpis(period?: string): Promise<ReconciliationKpis> {
+  try {
+    return await apiFetch<ReconciliationKpis>("/admin/reconciliation/summary", {
+      query: period ? { period } : undefined,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return reconciliationMockService.getKpis();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 20. Lấy danh sách đơn hàng đối soát (BE THIẾU: docs/api-requests/admin-reconciliation.md)
+ */
+export async function getAdminReconciliationOrders(
+  params: ReconciliationFilterParams
+): Promise<ReturnType<typeof reconciliationMockService.getOrders>> {
+  try {
+    return await apiFetch<ReturnType<typeof reconciliationMockService.getOrders>>(
+      "/admin/reconciliation/orders",
+      {
+        query: {
+          search: params.search,
+          storeId: params.storeId,
+          paymentMethod: params.paymentMethod,
+          status: params.status,
+          page: params.page,
+          pageSize: params.pageSize,
+          period: params.period,
+        },
+      }
+    );
+  } catch (err) {
+    if (isMockMode()) {
+      return reconciliationMockService.getOrders(params);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 21. Lấy danh sách hoàn tiền đối soát (BE THIẾU: docs/api-requests/admin-reconciliation.md)
+ */
+export async function getAdminReconciliationRefunds(
+  params?: { search?: string; period?: string }
+): Promise<ReconciliationRefund[]> {
+  try {
+    return await apiFetch<ReconciliationRefund[]>("/admin/reconciliation/refunds", {
+      query: params,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return reconciliationMockService.getRefunds(params);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 22. Khóa sổ kỳ đối soát (BE THIẾU: docs/api-requests/admin-reconciliation.md)
+ */
+export async function lockAdminReconciliationPeriod(period: string): Promise<void> {
+  try {
+    await apiFetch("/admin/reconciliation/lock", {
+      method: "POST",
+      json: { period },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 23. Lấy danh sách vai trò hệ thống (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function getAdminSystemRoles(): Promise<SystemRole[]> {
+  try {
+    return await apiFetch<SystemRole[]>("/admin/roles");
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.getSystemRoles();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 24. Lấy danh sách nhóm quyền nội bộ (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function getAdminRoleGroups(): Promise<InternalRoleGroup[]> {
+  try {
+    return await apiFetch<InternalRoleGroup[]>("/admin/role-groups");
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.getRoleGroups();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 25. Lấy danh sách ACL permissions (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function getAdminAclPermissions(): Promise<AclPermission[]> {
+  try {
+    return await apiFetch<AclPermission[]>("/admin/permissions");
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.getAclPermissions();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 26. Lấy danh sách cờ tính năng (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function getAdminFeatureFlags(): Promise<FeatureFlag[]> {
+  try {
+    return await apiFetch<FeatureFlag[]>("/admin/feature-flags");
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.getFeatureFlags();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 27. Bật/tắt cờ tính năng (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function toggleAdminFeatureFlag(
+  code: string,
+  isEnabled: boolean,
+  maintenanceReason?: string
+): Promise<FeatureFlag> {
+  try {
+    return await apiFetch<FeatureFlag>(`/admin/feature-flags/${code}`, {
+      method: "PATCH",
+      json: { isEnabled, maintenanceReason },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.toggleFeatureFlag(code, isEnabled, maintenanceReason);
+    }
+    throw err;
+  }
+}
+
+/**
+ * 28. Lấy danh sách đánh giá bị báo cáo (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function getAdminReportedReviews(): Promise<ReportedReview[]> {
+  try {
+    return await apiFetch<ReportedReview[]>("/admin/reviews/moderation");
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.getReportedReviews();
+    }
+    throw err;
+  }
+}
+
+/**
+ * 29. Kiểm duyệt / ẩn / hiển thị đánh giá (BE THIẾU: docs/api-requests/admin-permissions.md)
+ */
+export async function moderateAdminReview(
+  reviewId: string,
+  action: "keep" | "hide" | "restore"
+): Promise<ReportedReview> {
+  try {
+    return await apiFetch<ReportedReview>(`/admin/reviews/${reviewId}/moderation`, {
+      method: "POST",
+      json: { action },
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return permissionsMockService.moderateReview(reviewId, action);
+    }
+    throw err;
+  }
+}
+
 
