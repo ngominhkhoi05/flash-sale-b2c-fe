@@ -20,4 +20,8 @@ export {
   getSellerRecentOrders,
   getSellerTopProducts,
   getSellerRevenueChart,
+  getSellerProducts,
+  getSellerProductDetail,
+  updateProductStatus,
+  deleteProduct,
 } from "./seller";

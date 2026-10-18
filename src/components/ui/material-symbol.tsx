@@ -109,6 +109,13 @@ export type MaterialSymbolName =
   | "pending_actions"
   | "drag_handle"
   | "arrow_upward"
+  | "file_download"
+  | "expand_circle_down"
+  | "subdirectory_arrow_right"
+  | "more_horiz"
+  | "delete"
+  | "edit"
+  | "visibility_off"
   // Security / auth (added for Forbidden 403 page)
   | "shield_lock"
   | "home"

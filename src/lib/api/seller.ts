@@ -4,6 +4,7 @@ import type {
   SidebarSummaryResponse,
   SellerOrderResponse,
   SellerProductSummaryResponse,
+  SellerProductDetailResponse,
   SellerRevenueDayPoint,
 } from "@/types/seller";
 
@@ -95,4 +96,52 @@ export async function getSellerRevenueChart(
     // Khi tắt mock: trả về dữ liệu rỗng để UI render empty state / warning banner
     return [];
   }
+}
+
+/**
+ * 5. Lấy danh sách sản phẩm của shop có lọc và phân trang (KHỚP BE: GET /api/v1/seller/products)
+ */
+export async function getSellerProducts(
+  page: number = 0,
+  size: number = 10,
+  status?: string
+): Promise<PageResponse<SellerProductSummaryResponse>> {
+  const query: Record<string, string | number> = { page, size };
+  if (status && status !== "ALL") {
+    query.status = status;
+  }
+  return apiFetch<PageResponse<SellerProductSummaryResponse>>("/seller/products", {
+    query,
+  });
+}
+
+/**
+ * 6. Lấy chi tiết sản phẩm kèm danh sách biến thể SKU (KHỚP BE: GET /api/v1/seller/products/{id})
+ */
+export async function getSellerProductDetail(
+  productId: number
+): Promise<SellerProductDetailResponse> {
+  return apiFetch<SellerProductDetailResponse>(`/seller/products/${productId}`);
+}
+
+/**
+ * 7. Bật/tắt trạng thái sản phẩm SPU (KHỚP BE: PATCH /api/v1/seller/products/{id}/status?status=...)
+ */
+export async function updateProductStatus(
+  productId: number,
+  status: "ACTIVE" | "INACTIVE"
+): Promise<void> {
+  return apiFetch<void>(`/seller/products/${productId}/status`, {
+    method: "PATCH",
+    query: { status },
+  });
+}
+
+/**
+ * 8. Xóa sản phẩm SPU (KHỚP BE: DELETE /api/v1/seller/products/{id})
+ */
+export async function deleteProduct(productId: number): Promise<void> {
+  return apiFetch<void>(`/seller/products/${productId}`, {
+    method: "DELETE",
+  });
 }

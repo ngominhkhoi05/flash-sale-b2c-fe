@@ -75,3 +75,31 @@ export interface SellerRevenueDayPoint {
   previousWeekRevenue: number;
   ordersCount: number;
 }
+
+export interface SellerProductVariantResponse {
+  id: number;
+  skuCode: string;
+  originalPrice: number;
+  salePrice: number;
+  stockQuantity: number;
+  status: string;
+  attributes?: Record<string, string>;
+}
+
+export interface SellerProductDetailResponse {
+  id: number;
+  storeId: number;
+  storeName: string;
+  categoryId: number;
+  categoryName: string;
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  status: string;
+  variants: SellerProductVariantResponse[];
+  tierVariations?: Array<{
+    name: string;
+    options: string[];
+  }>;
+}
