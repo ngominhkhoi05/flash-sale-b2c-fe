@@ -605,7 +605,7 @@ export default function SellerVouchersPage() {
                   <th className="py-3 px-4 min-w-[150px]">Đã dùng / Phát hành</th>
                   <th className="py-3 px-4 min-w-[150px]">Thời gian hiệu lực</th>
                   <th className="py-3 px-4 text-center min-w-[100px]">Trạng thái</th>
-                  <th className="py-3 px-4 text-right min-w-[170px]">Thao tác</th>
+                  <th className="py-3 px-4 text-right min-w-[120px]">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -743,35 +743,6 @@ export default function SellerVouchersPage() {
                               delete
                             </span>
                           </button>
-
-                          {/* Nút Khóa / Mở khóa voucher (icon ổ khóa theo yêu cầu) */}
-                          {v.status !== "EXPIRED" ? (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(v)}
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                v.status === "DISABLED"
-                                  ? "text-amber-600 hover:text-emerald-600 hover:bg-emerald-50 bg-amber-50"
-                                  : "text-slate-500 hover:text-amber-600 hover:bg-amber-50"
-                              }`}
-                              title={
-                                v.status === "DISABLED"
-                                  ? "Voucher đang khóa (Tạm dừng) - Bấm để mở khóa & kích hoạt"
-                                  : "Voucher đang mở - Bấm để khóa & tạm dừng"
-                              }
-                            >
-                              <span className="material-symbols-outlined text-[17px]">
-                                {v.status === "DISABLED" ? "lock" : "lock_open"}
-                              </span>
-                            </button>
-                          ) : (
-                            <span
-                              className="p-1.5 text-slate-300 cursor-not-allowed inline-flex items-center"
-                              title="Voucher đã hết hạn"
-                            >
-                              <span className="material-symbols-outlined text-[17px]">lock</span>
-                            </span>
-                          )}
                         </div>
                       </td>
                     </tr>

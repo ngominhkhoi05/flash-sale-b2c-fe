@@ -82,6 +82,11 @@ export function FlashSaleRegisterClient() {
     };
   }, []);
 
+  // Batch setup states
+  const [batchDiscountPercent, setBatchDiscountPercent] = useState<number>(10);
+  const [batchAllocatedStock, setBatchAllocatedStock] = useState<number>(10);
+  const [batchPurchaseLimit, setBatchPurchaseLimit] = useState<number>(1);
+
   // When selectedProduct changes, fetch its full details (including SKU variants)
   useEffect(() => {
     if (!selectedProduct) return;
@@ -92,15 +97,22 @@ export function FlashSaleRegisterClient() {
         if (!isMounted) return;
         setProductDetail(detail);
 
-        // Populate initial SKU configuration with 30% discount recommendation
+        // Populate initial SKU configuration with 10% default discount (tiêu chuẩn sàn)
         const initialMap: typeof skuConfigs = {};
         detail.variants.forEach((v) => {
-          const discountPrice = Math.round((v.originalPrice * 0.7) / 1000) * 1000;
-          const maxStock = Math.min(v.stockQuantity, 30);
+          // Tính giá giảm 10% theo quy chuẩn phiên, làm tròn đến nghìn đồng
+          const discountPrice = Math.round((v.originalPrice * 0.9) / 1000) * 1000;
+          const safeFlashPrice =
+            discountPrice > 0 && discountPrice < v.originalPrice
+              ? discountPrice
+              : Math.max(1, v.originalPrice - 1000);
+
+          const hasStock = v.stockQuantity > 0;
+          const maxStock = Math.min(v.stockQuantity, 10);
           initialMap[v.id] = {
-            selected: v.stockQuantity > 0,
-            flashSalePrice: discountPrice > 0 ? discountPrice : v.originalPrice,
-            allocatedStock: maxStock > 0 ? maxStock : 0,
+            selected: hasStock,
+            flashSalePrice: safeFlashPrice,
+            allocatedStock: hasStock ? (maxStock > 0 ? maxStock : 1) : 0,
             userPurchaseLimit: 1,
           };
         });
@@ -127,6 +139,7 @@ export function FlashSaleRegisterClient() {
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setIsChangingProduct(false);
+    setErrorMessage(null);
   };
 
   // Checkbox toggle
@@ -140,13 +153,35 @@ export function FlashSaleRegisterClient() {
     }));
   };
 
-  // Field change handlers
+  // Select all or deselect all SKUs
+  const handleSelectAllSkus = (select: boolean) => {
+    if (!productDetail) return;
+    setSkuConfigs((prev) => {
+      const next = { ...prev };
+      productDetail.variants.forEach((v) => {
+        if (v.stockQuantity > 0) {
+          next[v.id] = {
+            ...next[v.id],
+            selected: select,
+            allocatedStock:
+              select && (!next[v.id]?.allocatedStock || next[v.id]?.allocatedStock <= 0)
+                ? Math.min(v.stockQuantity, 10)
+                : next[v.id]?.allocatedStock || 0,
+          };
+        }
+      });
+      return next;
+    });
+  };
+
+  // Field change handlers - Tự động tick chọn khi sửa giá hoặc số lượng
   const handleSkuPriceChange = (variantId: number, val: number) => {
     setSkuConfigs((prev) => ({
       ...prev,
       [variantId]: {
         ...prev[variantId],
         flashSalePrice: val,
+        selected: true,
       },
     }));
   };
@@ -157,6 +192,7 @@ export function FlashSaleRegisterClient() {
       [variantId]: {
         ...prev[variantId],
         allocatedStock: val,
+        selected: val > 0,
       },
     }));
   };
@@ -169,6 +205,46 @@ export function FlashSaleRegisterClient() {
         userPurchaseLimit: val,
       },
     }));
+  };
+
+  // Áp dụng hàng loạt cho tất cả SKU đã chọn
+  const handleApplyBatchSetup = () => {
+    if (!productDetail) return;
+    const discount = Math.max(1, Math.min(99, Number(batchDiscountPercent) || 10));
+    const targetStock = Math.max(1, Number(batchAllocatedStock) || 10);
+    const targetLimit = Math.max(1, Math.min(10, Number(batchPurchaseLimit) || 1));
+
+    let updatedCount = 0;
+    setSkuConfigs((prev) => {
+      const next = { ...prev };
+      productDetail.variants.forEach((v) => {
+        if (next[v.id]?.selected && v.stockQuantity > 0) {
+          updatedCount++;
+          const discountRate = (100 - discount) / 100;
+          const calculatedPrice = Math.round((v.originalPrice * discountRate) / 1000) * 1000;
+          const safePrice =
+            calculatedPrice > 0 && calculatedPrice < v.originalPrice
+              ? calculatedPrice
+              : Math.max(1, v.originalPrice - 1000);
+
+          const safeStock = Math.min(v.stockQuantity, targetStock);
+
+          next[v.id] = {
+            ...next[v.id],
+            flashSalePrice: safePrice,
+            allocatedStock: safeStock,
+            userPurchaseLimit: targetLimit,
+          };
+        }
+      });
+      return next;
+    });
+
+    if (updatedCount > 0) {
+      toast.success(`Đã áp dụng giảm ${discount}% và SL ${targetStock} cho ${updatedCount} SKU đã chọn!`);
+    } else {
+      toast.error("Vui lòng tích chọn ít nhất 1 SKU còn hàng để áp dụng!");
+    }
   };
 
   // Computed summary for drawer
@@ -190,21 +266,25 @@ export function FlashSaleRegisterClient() {
     const itemsToRegister: RegisterFlashSaleItemDto[] = [];
     for (const v of productDetail.variants) {
       const cfg = skuConfigs[v.id];
+      const skuLabel = v.sku || v.skuCode || `SKU-${v.id}`;
+
       if (cfg && cfg.selected && cfg.allocatedStock > 0) {
         if (cfg.flashSalePrice <= 0) {
-          setErrorMessage(`Giá bán Flash Sale của SKU [${v.skuCode}] phải lớn hơn 0.`);
+          const msg = `Giá bán Flash Sale của SKU [${skuLabel}] phải lớn hơn 0.`;
+          setErrorMessage(msg);
+          toast.error(msg);
           return;
         }
         if (cfg.flashSalePrice >= v.originalPrice) {
-          setErrorMessage(
-            `Giá bán Flash Sale của SKU [${v.skuCode}] phải thấp hơn giá gốc (${formatVND(v.originalPrice)}₫).`
-          );
+          const msg = `Giá bán Flash Sale của SKU [${skuLabel}] (${formatVND(cfg.flashSalePrice)}₫) phải thấp hơn giá gốc (${formatVND(v.originalPrice)}₫).`;
+          setErrorMessage(msg);
+          toast.error(msg);
           return;
         }
         if (cfg.allocatedStock > v.stockQuantity) {
-          setErrorMessage(
-            `Số lượng mở bán của SKU [${v.skuCode}] (${cfg.allocatedStock}) vượt quá tồn kho thực tế (${v.stockQuantity}).`
-          );
+          const msg = `Số lượng mở bán của SKU [${skuLabel}] (${cfg.allocatedStock}) vượt quá tồn kho thực tế (${v.stockQuantity}).`;
+          setErrorMessage(msg);
+          toast.error(msg);
           return;
         }
 
@@ -219,7 +299,9 @@ export function FlashSaleRegisterClient() {
     }
 
     if (itemsToRegister.length === 0) {
-      setErrorMessage("Vui lòng chọn ít nhất 1 biến thể SKU có số lượng mở bán > 0.");
+      const msg = "Vui lòng chọn ít nhất 1 biến thể SKU còn tồn kho và có số lượng mở bán > 0.";
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
@@ -233,7 +315,7 @@ export function FlashSaleRegisterClient() {
         return {
           id: Date.now() + idx,
           productName: productDetail.name,
-          sku: v?.skuCode || `SKU-${it.variantId}`,
+          sku: v?.sku || v?.skuCode || `SKU-${it.variantId}`,
           imageUrl:
             (typeof productDetail.images?.[0] === "string"
               ? productDetail.images[0]
@@ -256,21 +338,51 @@ export function FlashSaleRegisterClient() {
         };
       });
 
-      setHistory((prev) => [...newItems, ...prev]);
+      // Lưu các đơn vừa đăng ký vào sessionStorage để luôn tồn tại trên UI
+      try {
+        if (typeof window !== "undefined") {
+          const currentSaved: RegisteredFlashSaleHistoryItem[] = JSON.parse(
+            window.sessionStorage.getItem("fs_local_registered_items") || "[]"
+          );
+          window.sessionStorage.setItem(
+            "fs_local_registered_items",
+            JSON.stringify([...newItems, ...currentSaved])
+          );
+        }
+      } catch {
+        // ignore
+      }
+
+      setHistory((prev) => {
+        const existingIds = new Set(prev.map((it) => it.id));
+        const uniqueNew = newItems.filter((it) => !existingIds.has(it.id));
+        return [...uniqueNew, ...prev];
+      });
+
       setIsDrawerOpen(false);
       setActiveTab("my-regs");
-      setToastMessage(
-        `Đã gửi thành công ${itemsToRegister.length} SKU tham gia "${selectedSlot.title}"!`
-      );
+      const successNotice = `Đã gửi thành công ${itemsToRegister.length} SKU tham gia "${selectedSlot.title}"!`;
+      setToastMessage(successNotice);
+      toast.success(successNotice);
       setTimeout(() => setToastMessage(null), 5000);
 
-      // Đồng bộ ngầm từ server
+      // Đồng bộ ngầm từ server và gộp an toàn
       getRegisteredFlashSaleHistory().then((data) => {
-        if (data && data.length > 0) setHistory(data);
+        if (data && data.length > 0) {
+          setHistory((prev) => {
+            const serverIds = new Set(data.map((d) => d.id));
+            const pendingOptimistic = prev.filter(
+              (p) => !serverIds.has(p.id) && typeof p.id === "number" && p.id > 1000000000
+            );
+            return [...pendingOptimistic, ...data];
+          });
+        }
       });
     } catch (err: unknown) {
       const errObj = err as { message?: string };
-      setErrorMessage(errObj?.message || "Có lỗi xảy ra khi nộp đăng ký Flash Sale.");
+      const msg = errObj?.message || "Có lỗi xảy ra khi nộp đăng ký Flash Sale.";
+      setErrorMessage(msg);
+      toast.error(msg, { duration: 6000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -288,6 +400,22 @@ export function FlashSaleRegisterClient() {
     try {
       await cancelFlashSaleRegistration(cancelTargetItem.id);
       setHistory((prev) => prev.filter((item) => item.id !== cancelTargetItem.id));
+
+      // Xóa khỏi sessionStorage nếu có
+      try {
+        if (typeof window !== "undefined") {
+          const currentSaved: RegisteredFlashSaleHistoryItem[] = JSON.parse(
+            window.sessionStorage.getItem("fs_local_registered_items") || "[]"
+          );
+          window.sessionStorage.setItem(
+            "fs_local_registered_items",
+            JSON.stringify(currentSaved.filter((item) => item.id !== cancelTargetItem.id))
+          );
+        }
+      } catch {
+        // ignore
+      }
+
       toast.success("Đã hủy đơn đăng ký Flash Sale thành công.");
       setCancelTargetItem(null);
     } catch (err: unknown) {
@@ -690,7 +818,7 @@ export function FlashSaleRegisterClient() {
                       </td>
 
                       <td className="px-space-md py-3.5 text-right font-headline-md font-bold text-tertiary">
-                        {formatVND(item.flashSalePrice)}₫
+                        {formatVND(item.flashSalePrice)}
                       </td>
 
                       <td className="px-space-md py-3.5 text-center font-semibold text-on-surface">
@@ -864,7 +992,7 @@ export function FlashSaleRegisterClient() {
                         >
                           <span className="truncate pr-2">{p.name}</span>
                           <span className="text-slate-500 font-semibold flex-shrink-0">
-                            {formatVND(p.minPrice)}₫
+                            {formatVND(p.minPrice)}
                           </span>
                         </button>
                       ))}
@@ -900,7 +1028,7 @@ export function FlashSaleRegisterClient() {
                           <span>
                             Giá gốc:{" "}
                             <strong className="text-slate-800">
-                              {formatVND(selectedProduct.minPrice)}₫ – {formatVND(selectedProduct.maxPrice)}₫
+                              {formatVND(selectedProduct.minPrice)} – {formatVND(selectedProduct.maxPrice)}
                             </strong>
                           </span>
                           <span>
@@ -932,11 +1060,28 @@ export function FlashSaleRegisterClient() {
                       Cấu hình giá &amp; số lượng từng biến thể SKU
                     </h4>
                   </div>
-                  <span className="text-xs text-slate-500 font-medium">
-                    Đã chọn:{" "}
-                    <strong className="text-emerald-700 font-bold">{selectedSkuCount}</strong>/
-                    {productDetail?.variants?.length || 0} SKU
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAllSkus(true)}
+                      className="text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      Chọn tất cả
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAllSkus(false)}
+                      className="text-xs font-medium text-slate-500 hover:underline"
+                    >
+                      Bỏ chọn
+                    </button>
+                    <span className="text-xs text-slate-500 font-medium ml-2">
+                      Đã chọn:{" "}
+                      <strong className="text-emerald-700 font-bold">{selectedSkuCount}</strong>/
+                      {productDetail?.variants?.length || 0} SKU
+                    </span>
+                  </div>
                 </div>
 
                 <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/60 flex items-center gap-2.5 text-amber-900 text-xs">
@@ -945,6 +1090,73 @@ export function FlashSaleRegisterClient() {
                     Quy chuẩn phiên: <strong className="font-bold">Giảm tối thiểu 10%</strong>{" "}
                     so với giá niêm yết · Số lượng mở bán tối đa không vượt tồn kho thực tế.
                   </span>
+                </div>
+
+                {/* Batch Setup Bar (Áp dụng hàng loạt cho SKU) */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-50 to-emerald-50/40 border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold flex-shrink-0">
+                      <MaterialSymbol name="tune" size="[18px]" />
+                    </span>
+                    <div>
+                      <div className="font-bold text-slate-800">Thiết lập hàng loạt</div>
+                      <div className="text-[11px] text-slate-500">Áp dụng cùng lúc cho các SKU đang chọn</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-xs">
+                      <span className="text-slate-500 font-medium">Giảm:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={90}
+                        value={batchDiscountPercent}
+                        onChange={(e) => setBatchDiscountPercent(Number(e.target.value) || 0)}
+                        className="w-10 text-center font-bold text-orange-600 focus:outline-none"
+                      />
+                      <span className="font-bold text-orange-600">%</span>
+                    </div>
+
+                    {/* Quick discount pills */}
+                    <div className="hidden sm:flex items-center gap-1">
+                      {[10, 15, 20, 30, 50].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => setBatchDiscountPercent(pct)}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                            batchDiscountPercent === pct
+                              ? "bg-orange-500 text-white shadow-xs"
+                              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          -{pct}%
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-xs">
+                      <span className="text-slate-500 font-medium">SL:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={batchAllocatedStock}
+                        onChange={(e) => setBatchAllocatedStock(Number(e.target.value) || 0)}
+                        className="w-12 text-center font-bold text-slate-800 focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleApplyBatchSetup}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-xs"
+                      title="Áp dụng mức giảm và số lượng cho toàn bộ SKU đã tích chọn"
+                    >
+                      <MaterialSymbol name="done_all" size="[16px]" />
+                      <span>Áp dụng tất cả</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* SKU Configuration Table */}
@@ -1014,13 +1226,13 @@ export function FlashSaleRegisterClient() {
 
                               <td className="px-3 py-3 font-medium text-slate-900">
                                 <div className="font-bold text-slate-800">
-                                  {Object.values(v.attributes || {}).join(" / ") || v.skuCode}
+                                  {Object.values(v.attributes || {}).join(" / ") || v.sku || v.skuCode || `SKU #${v.id}`}
                                 </div>
-                                <div className="text-[10px] text-slate-400 font-mono">{v.skuCode}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{v.sku || v.skuCode || `SKU #${v.id}`}</div>
                               </td>
 
                               <td className="px-2 py-3 text-right text-slate-500 font-medium">
-                                {formatVND(v.originalPrice)}₫
+                                {formatVND(v.originalPrice)}
                               </td>
 
                               <td
@@ -1128,45 +1340,54 @@ export function FlashSaleRegisterClient() {
             </div>
 
             {/* Footer Action Bar */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
-              <div className="flex flex-col">
-                <div className="text-xs text-slate-500 font-medium">
-                  Tổng sản phẩm đề xuất
+            <div className="bg-slate-50 border-t border-slate-100 flex flex-col flex-shrink-0">
+              {errorMessage && (
+                <div className="px-6 py-2.5 bg-rose-50 border-b border-rose-200/80 text-rose-700 flex items-center gap-2 text-xs font-semibold animate-in fade-in">
+                  <MaterialSymbol name="error" size="[18px]" className="text-rose-600 flex-shrink-0" />
+                  <span>{errorMessage}</span>
                 </div>
-                <div className="text-base font-bold text-slate-900">
-                  {selectedSkuCount} SKU ·{" "}
-                  <span className="text-emerald-700 font-extrabold">
-                    {totalAllocatedStock} chiếc
-                  </span>
+              )}
+              <div className="px-6 py-4 flex items-center justify-between">
+                <div className="flex flex-col">
+                  <div className="text-xs text-slate-500 font-medium">
+                    Tổng sản phẩm đề xuất
+                  </div>
+                  <div className="text-base font-bold text-slate-900">
+                    {selectedSkuCount} SKU ·{" "}
+                    <span className="text-emerald-700 font-extrabold">
+                      {totalAllocatedStock} chiếc
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleCloseDrawer}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-colors"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmitting || selectedSkuCount === 0}
-                  onClick={handleSubmitRegistration}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Đang nộp...</span>
-                    </>
-                  ) : (
-                    <>
-                      <MaterialSymbol name="send" size="[16px]" />
-                      <span>Gửi {selectedSkuCount} SKU phê duyệt</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseDrawer}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-colors"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting || selectedSkuCount === 0}
+                    onClick={handleSubmitRegistration}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={selectedSkuCount === 0 ? "Vui lòng chọn ít nhất 1 SKU có số lượng mở bán > 0" : undefined}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Đang nộp...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MaterialSymbol name="send" size="[16px]" />
+                        <span>Gửi {selectedSkuCount} SKU phê duyệt</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
