@@ -1369,10 +1369,17 @@ export async function getFlashSaleSlots(): Promise<FlashSaleSlotItem[]> {
 export async function registerFlashSaleItem(
   item: RegisterFlashSaleItemDto
 ): Promise<void> {
-  return apiFetch<void>("/seller/flash-sales/items", {
-    method: "POST",
-    json: item,
-  });
+  try {
+    await apiFetch<void>("/seller/flash-sales/items", {
+      method: "POST",
+      json: item,
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -1381,8 +1388,24 @@ export async function registerFlashSaleItem(
 export async function registerFlashSaleItems(
   items: RegisterFlashSaleItemDto[]
 ): Promise<void> {
+  const errors: string[] = [];
+  let successCount = 0;
+
   for (const item of items) {
-    await registerFlashSaleItem(item);
+    try {
+      await registerFlashSaleItem(item);
+      successCount++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Đăng ký biến thể thất bại";
+      errors.push(msg);
+    }
+  }
+
+  // Nếu toàn bộ biến thể đều lỗi thì ném ngoại lệ thông báo
+  if (successCount === 0 && errors.length > 0) {
+    // Lấy thông điệp lỗi duy nhất đầu tiên
+    const firstMsg = errors[0];
+    throw new Error(firstMsg);
   }
 }
 
@@ -1392,10 +1415,23 @@ export async function registerFlashSaleItems(
 export async function getRegisteredFlashSaleHistory(): Promise<
   RegisteredFlashSaleHistoryItem[]
 > {
+  let serverItems: RegisteredFlashSaleHistoryItem[] = [];
+  let isApiSuccess = false;
+
   try {
     const raw = await apiFetch<unknown>("/seller/flash-sales/items");
-    const rawObj = raw as { content?: unknown[] } | unknown[];
-    const items = (Array.isArray(rawObj) ? rawObj : (rawObj?.content || [])) as Array<{
+    const rawObj = raw as
+      | { items?: unknown[]; content?: unknown[] }
+      | unknown[];
+    const items = (
+      Array.isArray(rawObj)
+        ? rawObj
+        : rawObj && typeof rawObj === "object"
+        ? (rawObj as { items?: unknown[]; content?: unknown[] }).items ||
+          (rawObj as { items?: unknown[]; content?: unknown[] }).content ||
+          []
+        : []
+    ) as Array<{
       id: number;
       productId?: number;
       variantId?: number;
@@ -1413,8 +1449,10 @@ export async function getRegisteredFlashSaleHistory(): Promise<
       status?: string;
       rejectReason?: string;
     }>;
-    if (Array.isArray(items) && items.length > 0) {
-      return items.map((item) => ({
+
+    if (Array.isArray(items)) {
+      isApiSuccess = true;
+      serverItems = items.map((item) => ({
         id: item.id,
         productName: item.productName || `Sản phẩm #${item.productId || item.variantId}`,
         sku: item.skuCode || item.sku || `SKU-${item.variantId}`,
@@ -1449,10 +1487,34 @@ export async function getRegisteredFlashSaleHistory(): Promise<
         rejectReason: item.rejectReason,
       }));
     }
-  } catch {
-    // Trả về mock data lịch sử cho Stitch Screen 23 nếu mock mode bật
+  } catch (err) {
+    console.warn("Failed to fetch registered flash sale items from API:", err);
   }
-    return [
+
+  // Đọc thêm các đơn đăng ký mới tạo gần đây từ sessionStorage để đảm bảo không bị mất
+  let localItems: RegisteredFlashSaleHistoryItem[] = [];
+  try {
+    if (typeof window !== "undefined") {
+      const saved = window.sessionStorage.getItem("fs_local_registered_items");
+      if (saved) {
+        localItems = JSON.parse(saved);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  if (isApiSuccess) {
+    // Gộp đơn vừa đăng ký (nếu chưa có trong serverItems theo variant/id) lên đầu danh sách
+    const existingIds = new Set(serverItems.map((s) => s.id));
+    const pendingLocal = localItems.filter((l) => !existingIds.has(l.id));
+    return [...pendingLocal, ...serverItems];
+  }
+
+  // Nếu API lỗi và ở chế độ mock thì trả về mock data + local items
+  if (isMockMode()) {
+    const existingIds = new Set(localItems.map((l) => l.id));
+    const fallbackMocks: RegisteredFlashSaleHistoryItem[] = [
       {
         id: 101,
         productName: "Áo thun Đen M",
@@ -1510,7 +1572,12 @@ export async function getRegisteredFlashSaleHistory(): Promise<
         soldStock: 50,
         status: "ENDED",
       },
-    ];
+    ].filter((m) => !existingIds.has(m.id));
+
+    return [...localItems, ...fallbackMocks];
+  }
+
+  return localItems;
 }
 
 /**
