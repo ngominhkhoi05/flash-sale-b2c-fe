@@ -443,7 +443,7 @@ export async function submitOrder(
     storeOrders,
   };
 
-  const res = await apiFetch<{ data: BackendOrder[] }>(
+  const res = await apiFetch<BackendOrder[]>(
     "/api/v1/orders/checkout",
     {
       method: "POST",
@@ -454,7 +454,10 @@ export async function submitOrder(
     },
   );
 
-  return adaptOrderResponse(res.data, payload.paymentMethod);
+  // 2026-10-19 fix: apiFetch (client.ts:295-304) auto-unwrap `payload.data`,
+  // nên `res` đã là BackendOrder[] chứ không phải `{ data: BackendOrder[] }`.
+  // Bug trước: `res.data` = undefined → adaptOrderResponse crash.
+  return adaptOrderResponse(res, payload.paymentMethod);
 }
 
 /**
