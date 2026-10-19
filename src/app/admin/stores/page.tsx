@@ -26,10 +26,12 @@ export default function AdminStoresPage() {
 
   const refreshStores = useCallback(async (tab: StoreTabKey) => {
     try {
+      setIsLoading(true);
       const data = await getAdminStores(tab === "ALL" ? undefined : tab);
       setStores(data);
     } catch (err) {
       console.error("Lỗi tải gian hàng:", err);
+      setStores([]);
     } finally {
       setIsLoading(false);
     }
@@ -37,6 +39,7 @@ export default function AdminStoresPage() {
 
   useEffect(() => {
     let isMounted = true;
+    setIsLoading(true);
     getAdminStores(activeTab === "ALL" ? undefined : activeTab)
       .then((data) => {
         if (isMounted) {
@@ -47,6 +50,7 @@ export default function AdminStoresPage() {
       .catch((err) => {
         console.error("Lỗi tải gian hàng:", err);
         if (isMounted) {
+          setStores([]);
           setIsLoading(false);
         }
       });

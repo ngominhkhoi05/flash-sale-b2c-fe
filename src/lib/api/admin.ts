@@ -1124,13 +1124,14 @@ export async function deleteAdminCategory(id: number): Promise<void> {
 export type AdminStore = MockStoreItem;
 
 export async function getAdminStores(status?: string): Promise<AdminStore[]> {
+  if (isMockMode()) {
+    return getMockAdminStores(status);
+  }
+
   try {
     const query = status && status !== "ALL" ? `?status=${status}` : "";
     const res = await apiFetch<unknown>(`/admin/stores${query}`);
     const items = extractItems<any>(res);
-    if (items.length === 0) {
-      return getMockAdminStores(status);
-    }
     return items.map((s: any) => ({
       id: s.id,
       name: s.storeName || s.name || `Gian hàng #${s.id}`,
@@ -1147,8 +1148,8 @@ export async function getAdminStores(status?: string): Promise<AdminStore[]> {
       businessAddress: s.description || "Việt Nam",
     }));
   } catch (err) {
-    console.warn("[getAdminStores] Backend API call failed, falling back to mock stores:", err);
-    return getMockAdminStores(status);
+    console.error("[getAdminStores] Backend API call failed:", err);
+    throw err;
   }
 }
 
