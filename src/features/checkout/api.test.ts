@@ -322,8 +322,6 @@ describe("getCheckout — cart shape (M.3 + M.4)", () => {
 
 // ── Bug #2 (2026-10-18): submitOrder body phải chứa items[] ────────────
 
-import { submitOrder } from "./api";
-
 describe("submitOrder — items[] in CheckoutStoreOrderRequest (Bug #2)", () => {
   beforeEach(() => {
     mockApiFetch.mockReset();
