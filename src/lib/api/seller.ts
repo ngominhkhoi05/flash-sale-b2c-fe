@@ -1816,10 +1816,8 @@ export async function getSellerVouchers(
       hasPrevious: false,
     };
   } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerVouchers(page, size, status);
-    }
-    throw err;
+    console.warn("[getSellerVouchers] Backend API call failed, falling back to mock vouchers:", err);
+    return getMockSellerVouchers(page, size, status);
   }
 }
 

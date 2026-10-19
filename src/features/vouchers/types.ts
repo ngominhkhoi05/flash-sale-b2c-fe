@@ -27,4 +27,6 @@ export interface UserVoucher {
   userUsageCount: number;
   /** Giới hạn mỗi user. */
   userUsageLimit: number;
+  /** ID cửa hàng sở hữu voucher (null nếu là voucher toàn sàn). */
+  storeId?: number | null;
 }

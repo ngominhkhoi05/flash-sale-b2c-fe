@@ -45,7 +45,7 @@ export function VoucherWalletClient() {
     }
 
     return myVouchers.map((v: UserVoucher) => {
-      const isPlatform = v.scope === "SHIPPING" || v.type === "FREESHIP";
+      const isPlatform = v.scope === "SHIPPING" || v.type === "FREESHIP" || !v.storeId;
       const usedPct = v.userUsageLimit
         ? Math.min(Math.round((v.userUsageCount / v.userUsageLimit) * 100), 100)
         : 0;

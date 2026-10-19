@@ -644,8 +644,18 @@ export const voucherMockService = {
       list = list.filter((v) => v.discountType === filter.discountType);
     }
 
-    if (filter?.scope) {
-      list = list.filter((v) => v.scope === filter.scope);
+    if (filter?.scope && filter.scope !== "ALL") {
+      if (filter.scope === "PLATFORM") {
+        list = list.filter(
+          (v) =>
+            (v.scope as string) === "PLATFORM" ||
+            v.scope === "ALL" ||
+            v.scope === "MALL" ||
+            v.scope === "NEW_USER"
+        );
+      } else {
+        list = list.filter((v) => v.scope === filter.scope);
+      }
     }
 
     const total = list.length;

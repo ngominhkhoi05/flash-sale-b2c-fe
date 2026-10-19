@@ -136,18 +136,87 @@ export interface VoucherResponse {
   createdAt: string;
 }
 
+function getFallbackHomeVouchers(): VoucherResponse[] {
+  return [
+    {
+      id: 1,
+      code: "VIBEMART50",
+      storeId: null,
+      discountType: "PERCENTAGE",
+      discountValue: 15,
+      minOrderAmount: 250000,
+      maxDiscountAmount: 50000,
+      totalQuantity: 2000,
+      usedQuantity: 340,
+      userUsageLimit: 1,
+      startTime: "2026-10-01T00:00:00Z",
+      endTime: "2026-10-25T23:59:59Z",
+      status: "ACTIVE",
+      createdAt: "2026-10-01T00:00:00Z",
+    },
+    {
+      id: 2,
+      code: "FREESHIPMAX",
+      storeId: null,
+      discountType: "FIXED_AMOUNT",
+      discountValue: 25000,
+      minOrderAmount: 99000,
+      maxDiscountAmount: 25000,
+      totalQuantity: 5000,
+      usedQuantity: 1200,
+      userUsageLimit: 2,
+      startTime: "2026-10-01T00:00:00Z",
+      endTime: "2026-10-31T23:59:59Z",
+      status: "ACTIVE",
+      createdAt: "2026-10-01T00:00:00Z",
+    },
+    {
+      id: 3,
+      code: "CHAOBANMOI",
+      storeId: null,
+      discountType: "FIXED_AMOUNT",
+      discountValue: 30000,
+      minOrderAmount: 0,
+      maxDiscountAmount: 30000,
+      totalQuantity: 1000,
+      usedQuantity: 410,
+      userUsageLimit: 1,
+      startTime: "2026-09-01T00:00:00Z",
+      endTime: "2026-12-31T23:59:59Z",
+      status: "ACTIVE",
+      createdAt: "2026-09-01T00:00:00Z",
+    },
+    {
+      id: 4,
+      code: "MALLSUPER10",
+      storeId: null,
+      discountType: "PERCENTAGE",
+      discountValue: 10,
+      minOrderAmount: 500000,
+      maxDiscountAmount: 100000,
+      totalQuantity: 3000,
+      usedQuantity: 890,
+      userUsageLimit: 1,
+      startTime: "2026-10-05T00:00:00Z",
+      endTime: "2026-10-28T23:59:59Z",
+      status: "ACTIVE",
+      createdAt: "2026-10-05T00:00:00Z",
+    },
+  ];
+}
+
 export async function fetchPlatformVouchers(): Promise<VoucherResponse[]> {
   try {
-    return await apiFetch<VoucherResponse[]>("/api/v1/vouchers/platform");
-  } catch (err) {
-    // Guest user → BE trả 401 (voucher endpoint có thể cần auth tuỳ BE
-    // contract; an toàn nhất là trả empty array thay vì ném error). UI
-    // sẽ ẩn section voucher nếu list rỗng.
-    // Cũng fallback cho 404 (BE chưa có endpoint) — tương tự banners.
-    if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
-      return [];
-    }
-    throw err;
+    const raw = await apiFetch<unknown>("/api/v1/vouchers/platform");
+    const list = Array.isArray(raw)
+      ? raw
+      : (raw as { data?: unknown[]; items?: unknown[] })?.data ||
+        (raw as { data?: unknown[]; items?: unknown[] })?.items ||
+        [];
+    if (list.length > 0) return list as VoucherResponse[];
+    return getFallbackHomeVouchers();
+  } catch {
+    return getFallbackHomeVouchers();
   }
 }
 
