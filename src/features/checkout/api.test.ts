@@ -11,7 +11,7 @@
  * - M.4: BackendCartItem có stockQuantity
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { applyVoucher } from "./api";
+import { applyVoucher, submitOrder } from "./api";
 import { apiFetch } from "@/lib/api";
 
 // Mock apiFetch module-level
@@ -336,23 +336,21 @@ describe("submitOrder — items[] in CheckoutStoreOrderRequest (Bug #2)", () => 
   it("sends items[{ variantId, quantity }] for each storeOrder (Bug #2 RED)", async () => {
     // BE Swagger 2026-10-18: CheckoutStoreOrderRequest REQUIRED items[]
     // Trước fix: FE chỉ gửi { storeId, voucherCode } → BE trả 400.
-    mockApiFetch.mockResolvedValue({
-      data: [
-        {
-          id: 1,
-          orderCode: "FS-261018-ABCD",
-          storeId: 2,
-          storeName: "Shop ABC",
-          status: "PENDING_PAYMENT",
-          paymentStatus: "PENDING",
-          items: [],
-          subtotal: 198_000,
-          shippingFee: 30_000,
-          discountAmount: 0,
-          totalAmount: 228_000,
-        },
-      ],
-    });
+    mockApiFetch.mockResolvedValue([
+      {
+        id: 1,
+        orderCode: "FS-261018-ABCD",
+        storeId: 2,
+        storeName: "Shop ABC",
+        status: "PENDING_PAYMENT",
+        paymentStatus: "PENDING",
+        items: [],
+        subtotal: 198_000,
+        shippingFee: 30_000,
+        discountAmount: 0,
+        totalAmount: 228_000,
+      },
+    ]);
 
     await submitOrder(
       {
@@ -401,23 +399,21 @@ describe("submitOrder — items[] in CheckoutStoreOrderRequest (Bug #2)", () => 
     // FE đang gửi thêm platformVoucherCode ở top → có thể gây 400 hoặc
     // bị Jackson bỏ qua. Test này chỉ verify field name bị loại bỏ
     // khỏi top-level body (move vào storeOrders hoặc bỏ hẳn tuỳ BE quyết).
-    mockApiFetch.mockResolvedValue({
-      data: [
-        {
-          id: 1,
-          orderCode: "FS-261018-ABCD",
-          storeId: 2,
-          storeName: "Shop ABC",
-          status: "PENDING_PAYMENT",
-          paymentStatus: "PENDING",
-          items: [],
-          subtotal: 100_000,
-          shippingFee: 0,
-          discountAmount: 0,
-          totalAmount: 100_000,
-        },
-      ],
-    });
+    mockApiFetch.mockResolvedValue([
+      {
+        id: 1,
+        orderCode: "FS-261018-ABCD",
+        storeId: 2,
+        storeName: "Shop ABC",
+        status: "PENDING_PAYMENT",
+        paymentStatus: "PENDING",
+        items: [],
+        subtotal: 100_000,
+        shippingFee: 0,
+        discountAmount: 0,
+        totalAmount: 100_000,
+      },
+    ]);
 
     await submitOrder(
       {
@@ -443,5 +439,74 @@ describe("submitOrder — items[] in CheckoutStoreOrderRequest (Bug #2)", () => 
     // (Có thể FE sẽ move xuống từng storeOrder hoặc bỏ hẳn — verify
     // ở top là không có.)
     expect(body).not.toHaveProperty("platformVoucherCode");
+  });
+});
+
+// ── submitOrder: apiFetch auto-unwrap payload.data (Bug 2026-10-19) ───
+// Rule client.ts:295-304: apiFetch trả về T (auto-unwrap `payload.data`).
+// submitOrder gọi apiFetch nhưng lại đọc `res.data` → undefined → crash
+// "Cannot read properties of undefined (reading '0')" ở adaptOrderResponse.
+//
+// Contract thật (BE runtime, xác nhận 2026-10-19):
+// apiFetch(/api/v1/orders/checkout) trả BackendOrder[] trực tiếp (đã unwrap).
+describe("submitOrder — adaptOrderResponse contract (2026-10-19)", () => {
+  it("trả về OrderSubmitResponse khi apiFetch trả BackendOrder[] (auto-unwrap)", async () => {
+    // Mock đúng contract thật: apiFetch trả array thẳng (đã unwrap payload.data).
+    mockApiFetch.mockResolvedValue([
+      {
+        id: 18,
+        orderCode: "ORD-1792377022857-73894A54",
+        storeId: 5,
+        storeName: "Beauty Hub",
+        status: "PENDING_PAYMENT",
+        paymentStatus: null,
+        paymentUrl: null,
+        qrCodeUrl: null,
+        paymentExpiry: null,
+        items: [],
+        subtotal: 7_222_000,
+        shippingFee: 0,
+        discountAmount: 0,
+        totalAmount: 7_222_000,
+      },
+      {
+        id: 19,
+        orderCode: "ORD-1792377023178-734252C8",
+        storeId: 3,
+        storeName: "Mom and Baby Shop",
+        status: "PENDING_PAYMENT",
+        paymentStatus: null,
+        paymentUrl: null,
+        qrCodeUrl: null,
+        paymentExpiry: null,
+        items: [],
+        subtotal: 32_304_000,
+        shippingFee: 0,
+        discountAmount: 0,
+        totalAmount: 32_304_000,
+      },
+    ]);
+
+    const result = await submitOrder(
+      {
+        addressId: 1,
+        paymentMethod: "ZALOPAY",
+        shopSelections: [
+          {
+            storeId: 5,
+            items: [{ variantId: 6, quantity: 1 }],
+          },
+          {
+            storeId: 3,
+            items: [{ variantId: 18, quantity: 2 }],
+          },
+        ],
+      },
+      "idem-test-001",
+    );
+
+    expect(result.orderIds).toEqual([18, 19]);
+    expect(result.orderCode).toContain("ORD-1792377022857-73894A54");
+    expect(result.orderCode).toContain("ORD-1792377023178-734252C8");
   });
 });
