@@ -214,7 +214,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const [quantity, setQuantity] = useState<number>(1);
 
   // ── Subplan A (2026-10-18) — wire cart CTA ───────────────────────────
-  const { isAuthenticated } = useAuth();
+  // 2026-10-19: cần đọc cả `isHydrated` để tránh race condition khi auth store
+  // chưa rehydrate từ localStorage. Trước hydrate, `user = null` → `isAuthenticated = false`
+  // dù user thật sự đã login. Click sớm lúc đó sẽ bị redirect /login oan.
+  // Khi `isHydrated = true` thì `isAuthenticated` mới phản ánh đúng state.
+  const { isAuthenticated, isHydrated } = useAuth();
   const router = useRouter();
   const addToCartMut = useAddToCart({
     onError: (err) => {
@@ -236,7 +240,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   });
 
   // helper: require login trước khi call cart API. Trả true nếu OK.
+  // 2026-10-19 fix: phải đợi `isHydrated` trước khi quyết định auth state.
+  // Nếu `!isHydrated` (store chưa load từ localStorage) → return false nhưng
+  // KHÔNG redirect, để tránh redirect /login oan khi user thật ra đã login.
   function requireAuthOrRedirect(action: "addToCart" | "buyNow"): boolean {
+    if (!isHydrated) return false; // chờ store hydrate, không side-effect
     if (isAuthenticated) return true;
     const currentPath = `/products/${product.slug}`;
     const target = action === "addToCart" ? ROUTES.CART : ROUTES.CHECKOUT;

@@ -168,6 +168,35 @@ describe("ProductDetailPage - wire cart CTA (2026-10-18)", () => {
     expect(pushedUrl).toMatch(/^\/login\?redirect=/);
   });
 
+  // 2026-10-19 regression guard: trước khi auth store hydrate từ localStorage,
+  // isAuthenticated = false nhưng isHydrated = false. Click sớm sẽ bị
+  // redirect /login oan. Fix: requireAuthOrRedirect phải đợi isHydrated = true.
+  test("click 'Thêm vào giỏ' KHÔNG redirect khi isHydrated=false (đợi store hydrate)", async () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isHydrated: false, // store chưa hydrate từ localStorage
+    });
+    mockAddMutateAsync.mockResolvedValue({});
+
+    const user = userEvent.setup();
+    const standardProduct = {
+      ...mockProductDetail,
+      flashSales: [],
+    };
+    render(<ProductDetailPage product={standardProduct} />, {
+      wrapper: TestWrapper,
+    });
+
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    await user.click(addBtn);
+
+    // Khi chưa hydrate, KHÔNG được redirect và KHÔNG gọi mutate (vì user chưa xác thực).
+    // Đây là defensive guard: button nên disabled ở hydration phase,
+    // nhưng nếu click xuyên qua thì KHÔNG được redirect /login oan.
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockAddMutateAsync).not.toHaveBeenCalled();
+  });
+
   test("click 'Mua ngay' gọi useAddToCart + navigate /checkout khi user đã login", async () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: true,
