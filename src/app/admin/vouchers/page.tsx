@@ -171,6 +171,10 @@ export default function AdminVouchersPage() {
     try {
       const target = data.items.find((item) => String(item.id) === String(id));
       const updated = await toggleAdminPlatformVoucherStatus(id, target?.status);
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => (String(item.id) === String(id) ? updated : item)),
+      }));
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -188,6 +192,16 @@ export default function AdminVouchersPage() {
   const handleCreateVoucher = async (formValues: Parameters<typeof voucherMockService.create>[0]) => {
     try {
       const created = await createAdminPlatformVoucher(formValues);
+      setData((prev) => ({
+        ...prev,
+        items: [created, ...prev.items],
+        total: prev.total + 1,
+        counts: {
+          ...prev.counts,
+          ALL: prev.counts.ALL + 1,
+          ACTIVE: prev.counts.ACTIVE + 1,
+        },
+      }));
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -202,6 +216,12 @@ export default function AdminVouchersPage() {
     if (!selectedVoucherForEdit) return;
     try {
       const updated = await updateAdminPlatformVoucher(selectedVoucherForEdit.id, formValues);
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((it) =>
+          String(it.id) === String(selectedVoucherForEdit.id) ? updated : it
+        ),
+      }));
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });
@@ -218,6 +238,15 @@ export default function AdminVouchersPage() {
     if (!voucherToDelete) return;
     try {
       await deleteAdminPlatformVoucher(voucherToDelete.id);
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.filter((it) => String(it.id) !== String(voucherToDelete.id)),
+        total: Math.max(0, prev.total - 1),
+        counts: {
+          ...prev.counts,
+          ALL: Math.max(0, prev.counts.ALL - 1),
+        },
+      }));
       startTransition(() => {
         setRefreshKey((k) => k + 1);
       });

@@ -1829,6 +1829,12 @@ export async function getSellerVouchers(
 export async function createSellerVoucher(
   payload: CreateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
+  const startTimeMs = new Date(payload.startDate).getTime();
+  const endTimeMs = new Date(payload.endDate).getTime();
+  if (isNaN(startTimeMs) || isNaN(endTimeMs) || endTimeMs <= startTimeMs) {
+    throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+  }
+
   try {
     const toIsoString = (val?: string) => {
       if (!val) return new Date().toISOString();
@@ -1939,6 +1945,14 @@ export async function updateSellerVoucher(
   id: number,
   payload: UpdateSellerVoucherPayload
 ): Promise<SellerVoucherItem> {
+  if (payload.startDate && payload.endDate) {
+    const startTimeMs = new Date(payload.startDate).getTime();
+    const endTimeMs = new Date(payload.endDate).getTime();
+    if (isNaN(startTimeMs) || isNaN(endTimeMs) || endTimeMs <= startTimeMs) {
+      throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+    }
+  }
+
   try {
     const startTime = payload.startDate
       ? payload.startDate.includes("T")

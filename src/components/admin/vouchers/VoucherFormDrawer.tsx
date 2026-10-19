@@ -112,6 +112,8 @@ export function VoucherFormDrawer({
     handleSubmit,
     watch,
     setValue,
+    setError,
+    clearErrors,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<VoucherFormValues>({
@@ -261,6 +263,10 @@ export function VoucherFormDrawer({
               const start = new Date(data.startDate).getTime();
               const end = new Date(data.endDate).getTime();
               if (isNaN(start) || isNaN(end) || end <= start) {
+                setError("endDate", {
+                  type: "manual",
+                  message: "Thời gian kết thúc phải sau thời gian bắt đầu",
+                });
                 return;
               }
               onSubmit(data);
@@ -522,6 +528,9 @@ export function VoucherFormDrawer({
                           // Tự động đẩy endDate ra sau startDate 30 ngày
                           const nextEnd = new Date(startTime + 30 * 24 * 60 * 60 * 1000);
                           setValue("endDate", toLocalDatetimeInputString(nextEnd), { shouldValidate: true });
+                          clearErrors("endDate");
+                        } else {
+                          clearErrors("endDate");
                         }
                       }
                     }}
@@ -547,15 +556,27 @@ export function VoucherFormDrawer({
                     onChange={(e) => {
                       const newEnd = e.target.value;
                       setValue("endDate", newEnd, { shouldValidate: true });
+                      if (newEnd && watchedStartDate) {
+                        const startTime = new Date(watchedStartDate).getTime();
+                        const endTime = new Date(newEnd).getTime();
+                        if (isNaN(startTime) || isNaN(endTime) || endTime <= startTime) {
+                          setError("endDate", {
+                            type: "manual",
+                            message: "Thời gian kết thúc phải sau thời gian bắt đầu",
+                          });
+                        } else {
+                          clearErrors("endDate");
+                        }
+                      }
                     }}
                     className={`w-full h-10 px-3 rounded-lg bg-surface-container-low font-data-tabular text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 ${
                       errors.endDate || isDateInvalid ? "border border-error ring-1 ring-error" : ""
                     }`}
                     type="datetime-local"
                   />
-                  {errors.endDate && (
+                  {(errors.endDate || isDateInvalid) && (
                     <span className="text-xs text-error font-medium">
-                      {errors.endDate.message}
+                      {errors.endDate?.message || "Thời gian kết thúc phải sau thời gian bắt đầu"}
                     </span>
                   )}
                 </div>
@@ -603,7 +624,7 @@ export function VoucherFormDrawer({
           </button>
           <button
             className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-on-primary font-label-md text-sm font-semibold hover:bg-primary-container transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSubmitting || isDateInvalid}
+            disabled={isSubmitting || isDateInvalid || Boolean(errors.endDate)}
             form="voucher-drawer-form"
             type="submit"
           >

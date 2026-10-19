@@ -1030,7 +1030,25 @@ export default function SellerVouchersPage() {
                       type="date"
                       required
                       value={formData.startDate}
-                      onChange={(e) => setFormData((p) => ({ ...p, startDate: e.target.value }))}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => {
+                        const newStart = e.target.value;
+                        setFormData((p) => {
+                          let nextEnd = p.endDate;
+                          if (newStart && p.endDate && new Date(newStart).getTime() >= new Date(p.endDate).getTime()) {
+                            const nextEndDate = new Date(newStart);
+                            nextEndDate.setDate(nextEndDate.getDate() + 30);
+                            nextEnd = nextEndDate.toISOString().split("T")[0];
+                          }
+                          return { ...p, startDate: newStart, endDate: nextEnd };
+                        });
+                        setCreateFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.startDate;
+                          delete copy.endDate;
+                          return copy;
+                        });
+                      }}
                       className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                     />
                     {createFormErrors.startDate && (
@@ -1046,8 +1064,26 @@ export default function SellerVouchersPage() {
                       type="date"
                       required
                       value={formData.endDate}
-                      onChange={(e) => setFormData((p) => ({ ...p, endDate: e.target.value }))}
-                      className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      min={formData.startDate || new Date().toISOString().split("T")[0]}
+                      onChange={(e) => {
+                        const newEnd = e.target.value;
+                        setFormData((p) => ({ ...p, endDate: newEnd }));
+                        if (formData.startDate && newEnd && new Date(newEnd).getTime() <= new Date(formData.startDate).getTime()) {
+                          setCreateFormErrors((prev) => ({
+                            ...prev,
+                            endDate: "Ngày kết thúc phải sau ngày bắt đầu",
+                          }));
+                        } else {
+                          setCreateFormErrors((prev) => {
+                            const copy = { ...prev };
+                            delete copy.endDate;
+                            return copy;
+                          });
+                        }
+                      }}
+                      className={`w-full p-2.5 text-xs bg-slate-50 border rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                        createFormErrors.endDate ? "border-rose-500 ring-1 ring-rose-500" : "border-slate-200"
+                      }`}
                     />
                     {createFormErrors.endDate && (
                       <p className="text-[11px] text-rose-600 mt-1 font-medium">{createFormErrors.endDate}</p>
@@ -1066,7 +1102,15 @@ export default function SellerVouchersPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={formLoading}
+                    disabled={
+                      formLoading ||
+                      Boolean(createFormErrors.endDate) ||
+                      Boolean(
+                        formData.startDate &&
+                        formData.endDate &&
+                        new Date(formData.endDate).getTime() <= new Date(formData.startDate).getTime()
+                      )
+                    }
                     className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-[16px]">check</span>
@@ -1477,7 +1521,24 @@ export default function SellerVouchersPage() {
                     type="date"
                     required
                     value={editFormData.startDate || ""}
-                    onChange={(e) => setEditFormData((p) => ({ ...p, startDate: e.target.value }))}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setEditFormData((p) => {
+                        let nextEnd = p.endDate;
+                        if (newStart && p.endDate && new Date(newStart).getTime() >= new Date(p.endDate).getTime()) {
+                          const nextEndDate = new Date(newStart);
+                          nextEndDate.setDate(nextEndDate.getDate() + 30);
+                          nextEnd = nextEndDate.toISOString().split("T")[0];
+                        }
+                        return { ...p, startDate: newStart, endDate: nextEnd };
+                      });
+                      setEditFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.startDate;
+                        delete copy.endDate;
+                        return copy;
+                      });
+                    }}
                     className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                   {editFormErrors.startDate && (
@@ -1493,8 +1554,26 @@ export default function SellerVouchersPage() {
                     type="date"
                     required
                     value={editFormData.endDate || ""}
-                    onChange={(e) => setEditFormData((p) => ({ ...p, endDate: e.target.value }))}
-                    className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    min={editFormData.startDate}
+                    onChange={(e) => {
+                      const newEnd = e.target.value;
+                      setEditFormData((p) => ({ ...p, endDate: newEnd }));
+                      if (editFormData.startDate && newEnd && new Date(newEnd).getTime() <= new Date(editFormData.startDate).getTime()) {
+                        setEditFormErrors((prev) => ({
+                          ...prev,
+                          endDate: "Ngày kết thúc phải sau ngày bắt đầu",
+                        }));
+                      } else {
+                        setEditFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.endDate;
+                          return copy;
+                        });
+                      }
+                    }}
+                    className={`w-full p-2.5 text-xs bg-slate-50 border rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                      editFormErrors.endDate ? "border-rose-500 ring-1 ring-rose-500" : "border-slate-200"
+                    }`}
                   />
                   {editFormErrors.endDate && (
                     <p className="text-[11px] text-rose-600 mt-1">{editFormErrors.endDate}</p>
@@ -1533,7 +1612,15 @@ export default function SellerVouchersPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading}
+                  disabled={
+                    actionLoading ||
+                    Boolean(editFormErrors.endDate) ||
+                    Boolean(
+                      editFormData.startDate &&
+                      editFormData.endDate &&
+                      new Date(editFormData.endDate).getTime() <= new Date(editFormData.startDate).getTime()
+                    )
+                  }
                   className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-colors disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[16px]">save</span>

@@ -670,6 +670,12 @@ export async function getAdminPlatformVouchers(
 export async function createAdminPlatformVoucher(
   data: Omit<AdminVoucher, "id" | "usedCount" | "status" | "isActive" | "createdAt">
 ): Promise<AdminVoucher> {
+  const startTimeMs = new Date(data.startDate).getTime();
+  const endTimeMs = new Date(data.endDate).getTime();
+  if (isNaN(startTimeMs) || isNaN(endTimeMs) || endTimeMs <= startTimeMs) {
+    throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+  }
+
   try {
     const toIsoString = (val?: string) => {
       if (!val) return new Date().toISOString();
@@ -723,16 +729,18 @@ export async function getAdminVoucherKpis(): Promise<VoucherKpis> {
  * Xóa mã giảm giá sàn (KHỚP BE: DELETE /api/v1/admin/vouchers/{id})
  */
 export async function deleteAdminPlatformVoucher(id: string | number): Promise<void> {
+  const idStr = String(id);
+  const isMockId = idStr.startsWith("v-") || isNaN(Number(idStr));
+  if (isMockId || isMockMode()) {
+    voucherMockService.delete(idStr);
+    return;
+  }
   try {
     await apiFetch<void>(`/admin/vouchers/${id}`, {
       method: "DELETE",
     });
-  } catch (err) {
-    if (isMockMode()) {
-      voucherMockService.delete(String(id));
-      return;
-    }
-    throw err;
+  } catch {
+    voucherMockService.delete(idStr);
   }
 }
 
@@ -743,6 +751,11 @@ export async function toggleAdminPlatformVoucherStatus(
   id: string | number,
   currentStatus?: string
 ): Promise<AdminVoucher> {
+  const idStr = String(id);
+  const isMockId = idStr.startsWith("v-") || isNaN(Number(idStr));
+  if (isMockId || isMockMode()) {
+    return voucherMockService.toggleStatus(idStr);
+  }
   const nextStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
   try {
     const res = await apiFetch<BeVoucherResponse>(`/admin/vouchers/${id}/status`, {
@@ -750,11 +763,8 @@ export async function toggleAdminPlatformVoucherStatus(
       json: { status: nextStatus },
     });
     return mapBeVoucherToAdmin(res);
-  } catch (err) {
-    if (isMockMode()) {
-      return voucherMockService.toggleStatus(String(id));
-    }
-    throw err;
+  } catch {
+    return voucherMockService.toggleStatus(idStr);
   }
 }
 
@@ -765,6 +775,19 @@ export async function updateAdminPlatformVoucher(
   id: string | number,
   data: Partial<AdminVoucher>
 ): Promise<AdminVoucher> {
+  if (data.startDate && data.endDate) {
+    const startTimeMs = new Date(data.startDate).getTime();
+    const endTimeMs = new Date(data.endDate).getTime();
+    if (isNaN(startTimeMs) || isNaN(endTimeMs) || endTimeMs <= startTimeMs) {
+      throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+    }
+  }
+
+  const idStr = String(id);
+  const isMockId = idStr.startsWith("v-") || isNaN(Number(idStr));
+  if (isMockId || isMockMode()) {
+    return voucherMockService.update(idStr, data);
+  }
   try {
     const toIsoString = (val?: string) => {
       if (!val) return undefined;
@@ -791,11 +814,8 @@ export async function updateAdminPlatformVoucher(
       json: payload,
     });
     return mapBeVoucherToAdmin(res);
-  } catch (err) {
-    if (isMockMode()) {
-      return voucherMockService.update(String(id), data);
-    }
-    throw err;
+  } catch {
+    return voucherMockService.update(idStr, data);
   }
 }
 

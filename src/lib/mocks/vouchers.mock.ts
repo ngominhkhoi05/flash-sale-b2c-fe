@@ -739,6 +739,10 @@ export const voucherMockService = {
     const start = new Date(data.startDate);
     const end = new Date(data.endDate);
 
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() <= start.getTime()) {
+      throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+    }
+
     let status: AdminVoucher["status"] = "ACTIVE";
     if (now < start) status = "UPCOMING";
     else if (now > end) status = "EXPIRED";
@@ -758,6 +762,13 @@ export const voucherMockService = {
   },
 
   update: (id: string, data: Partial<AdminVoucher>): AdminVoucher => {
+    if (data.startDate && data.endDate) {
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || end.getTime() <= start.getTime()) {
+        throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+      }
+    }
     const idx = MOCK_VOUCHERS.findIndex((v) => String(v.id) === String(id));
     if (idx === -1) {
       const fallbackItem: AdminVoucher = {
