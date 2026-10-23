@@ -12,6 +12,8 @@ import type {
   SellerWalletResponse,
   SellerWalletTransaction,
 } from "@/types/seller";
+import { VIETNAM_BANKS } from "@/lib/constants/vietnam-banks";
+import * as XLSX from "xlsx";
 
 type TxTabKey = "ALL" | "ORDER_SETTLEMENT" | "WITHDRAWAL";
 
@@ -26,12 +28,64 @@ export default function SellerWalletPage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [reloadTrigger, setReloadTrigger] = useState<number>(0);
 
+  // Bank Link Status & Code Display
+  const isBankLinked = Boolean(
+    wallet?.bankAccount?.accountNumber && wallet.bankAccount.accountNumber.trim().length > 0
+  );
+
+  const bankCodeDisplay = useMemo(() => {
+    if (!wallet?.bankAccount) return "BANK";
+    if (wallet.bankAccount.bankCode) return wallet.bankAccount.bankCode;
+    const name = (wallet.bankAccount.bankName || "").toLowerCase();
+    const found = VIETNAM_BANKS.find(
+      (b) =>
+        b.name.toLowerCase() === name ||
+        b.shortName.toLowerCase() === name ||
+        name.includes(b.shortName.toLowerCase()) ||
+        name.includes(b.code.toLowerCase())
+    );
+    return found?.code || "BANK";
+  }, [wallet?.bankAccount]);
+
   // Withdrawal modal
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState<boolean>(false);
   const [withdrawAmount, setWithdrawAmount] = useState<string>("");
   const [withdrawNote, setWithdrawNote] = useState<string>("");
   const [withdrawLoading, setWithdrawLoading] = useState<boolean>(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const openWithdrawModal = () => {
+    setWithdrawError(null);
+    setWithdrawAmount("");
+    setWithdrawNote("");
+    setIsWithdrawModalOpen(true);
+  };
+
+  const validateWithdrawAmount = (val: string): string | null => {
+    if (!wallet?.bankAccount || !wallet.bankAccount.accountNumber) {
+      return "Vui lòng cấu hình tài khoản ngân hàng trước khi tạo yêu cầu rút tiền.";
+    }
+    const clean = val.replace(/\D/g, "");
+    if (!clean) {
+      return "Vui lòng nhập số tiền muốn rút.";
+    }
+    const amountNum = parseInt(clean, 10);
+    if (!amountNum || amountNum <= 0) {
+      return "Số tiền rút không hợp lệ.";
+    }
+    if (amountNum < 50000) {
+      return "Số tiền rút tối thiểu là 50.000 ₫ mỗi lần.";
+    }
+    const currentBalance = wallet?.balance || 0;
+    if (currentBalance <= 0) {
+      return "Số dư khả dụng hiện tại là 0 ₫, không đủ điều kiện rút tiền.";
+    }
+    if (amountNum > currentBalance) {
+      return `Số tiền rút vượt quá số dư khả dụng (${currentBalance.toLocaleString("vi-VN")} ₫).`;
+    }
+    return null;
+  };
 
   // Bank Account modal
   const [isBankModalOpen, setIsBankModalOpen] = useState<boolean>(false);
@@ -49,14 +103,23 @@ export default function SellerWalletPage() {
 
   const openBankModal = () => {
     if (wallet?.bankAccount) {
-      setBankName(wallet.bankAccount.bankName || "");
-      setBankCode((wallet.bankAccount as unknown as { bankCode?: string }).bankCode || "VCB");
+      const currentName = wallet.bankAccount.bankName || "";
+      const currentCode = (wallet.bankAccount as unknown as { bankCode?: string }).bankCode || "";
+      setBankName(currentName || VIETNAM_BANKS[0].name);
+      if (currentCode) {
+        setBankCode(currentCode);
+      } else {
+        const found = VIETNAM_BANKS.find(
+          (b) => b.name === currentName || b.shortName === currentName
+        );
+        setBankCode(found?.code || VIETNAM_BANKS[0].code);
+      }
       setAccountNumber(wallet.bankAccount.accountNumber || "");
       setAccountHolder(wallet.bankAccount.accountHolder || "");
       setBranch(wallet.bankAccount.branch || "");
     } else {
-      setBankName("");
-      setBankCode("VCB");
+      setBankName(VIETNAM_BANKS[0].name);
+      setBankCode(VIETNAM_BANKS[0].code);
       setAccountNumber("");
       setAccountHolder("");
       setBranch("");
@@ -95,10 +158,11 @@ export default function SellerWalletPage() {
           ...wallet,
           bankAccount: {
             bankName: updated.bankName,
+            bankCode: updated.bankCode,
             accountNumber: updated.accountNumber,
             accountHolder: updated.accountHolder,
             branch: updated.branch,
-            isVerified: updated.isVerified,
+            isVerified: true,
           },
         });
       }
@@ -166,24 +230,15 @@ export default function SellerWalletPage() {
   // Handle withdraw
   const handleConfirmWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!wallet?.bankAccount || !wallet.bankAccount.accountNumber) {
-      alert("Vui lòng cấu hình tài khoản ngân hàng trước khi tạo yêu cầu rút tiền.");
-      setIsWithdrawModalOpen(false);
-      openBankModal();
+    const err = validateWithdrawAmount(withdrawAmount);
+    if (err) {
+      setWithdrawError(err);
       return;
     }
 
     const amountNum = parseInt(withdrawAmount.replace(/\D/g, ""), 10);
-    if (!amountNum || amountNum < 50000) {
-      alert("Số tiền rút tối thiểu là 50.000 ₫");
-      return;
-    }
-    if (wallet && amountNum > wallet.balance) {
-      alert("Số tiền rút không được vượt quá số dư khả dụng");
-      return;
-    }
-
     setWithdrawLoading(true);
+    setWithdrawError(null);
     try {
       await requestSellerWithdrawal({
         amount: amountNum,
@@ -197,44 +252,65 @@ export default function SellerWalletPage() {
       triggerReload();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Thao tác rút tiền thất bại";
-      alert(msg);
+      setWithdrawError(msg);
     } finally {
       setWithdrawLoading(false);
     }
   };
 
   const handleExportStatement = () => {
-    const headers = [
-      "Thời gian",
-      "Loại giao dịch",
-      "Mã giao dịch",
-      "Mã đơn hàng",
-      "Mô tả",
-      "Biến động",
-      "Số dư cuối",
-      "Trạng thái",
+    if (filteredTxs.length === 0) {
+      showToast("Không có giao dịch nào để xuất sao kê.");
+      return;
+    }
+
+    const exportRows = filteredTxs.map((t, index) => {
+      let typeLabel = "Khác";
+      if (t.type === "ORDER_SETTLEMENT") typeLabel = "Doanh thu bán hàng";
+      else if (t.type === "WITHDRAWAL") typeLabel = "Rút tiền về ngân hàng";
+      else if (t.type === "REFUND") typeLabel = "Hoàn tiền";
+
+      let statusLabel = "Hoàn tất";
+      if (t.status === "PENDING") statusLabel = "Đang xử lý";
+      else if (t.status === "FAILED" || t.status === "REJECTED") statusLabel = "Thất bại";
+      else if (t.status === "SUCCESS" || t.status === "COMPLETED") statusLabel = "Thành công";
+
+      const isPositive = t.amount > 0;
+      const amountStr = (isPositive ? "+" : "") + t.amount.toLocaleString("vi-VN") + " ₫";
+      const balanceStr = (t.balanceAfter ?? 0).toLocaleString("vi-VN") + " ₫";
+
+      return {
+        "STT": index + 1,
+        "Thời gian giao dịch": formatDateTime(t.createdAt),
+        "Loại giao dịch": typeLabel,
+        "Mã giao dịch": t.transactionCode || "-",
+        "Nội dung diễn giải": t.description || (t.orderCode ? `Quyết toán đơn hàng #${t.orderCode}` : "-"),
+        "Biến động (VNĐ)": amountStr,
+        "Số dư sau GD (VNĐ)": balanceStr,
+        "Trạng thái": statusLabel,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    // Cấu hình độ rộng các cột tự động theo chuẩn Excel
+    worksheet["!cols"] = [
+      { wch: 6 },  // STT
+      { wch: 22 }, // Thời gian giao dịch
+      { wch: 22 }, // Loại giao dịch
+      { wch: 24 }, // Mã giao dịch
+      { wch: 45 }, // Nội dung diễn giải
+      { wch: 20 }, // Biến động (VNĐ)
+      { wch: 20 }, // Số dư sau GD (VNĐ)
+      { wch: 16 }, // Trạng thái
     ];
-    const rows = filteredTxs.map((t) => [
-      t.createdAt,
-      t.type,
-      t.transactionCode,
-      t.orderCode || "",
-      `"${t.description}"`,
-      t.amount,
-      t.balanceAfter,
-      t.status,
-    ]);
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `seller_wallet_statement_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("Đã xuất sao kê ví thành công!");
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sao kê ví doanh thu");
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `sao_ke_vi_doanh_thu_${dateStr}.xlsx`);
+    showToast("Đã xuất sao kê ví sang file Excel thành công!");
   };
 
   const formatVnd = (amount?: number) => {
@@ -301,7 +377,7 @@ export default function SellerWalletPage() {
             Làm mới
           </button>
           <button
-            onClick={() => setIsWithdrawModalOpen(true)}
+            onClick={openWithdrawModal}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">
@@ -356,7 +432,7 @@ export default function SellerWalletPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs uppercase">
-                  {(wallet?.bankAccount as unknown as { bankCode?: string })?.bankCode || "BANK"}
+                  {bankCodeDisplay}
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
@@ -368,16 +444,16 @@ export default function SellerWalletPage() {
                 </div>
               </div>
               <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
-                  wallet?.bankAccount?.isVerified
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                  isBankLinked
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                     : "bg-amber-50 text-amber-700 border border-amber-200"
                 }`}
               >
                 <span className="material-symbols-outlined text-[14px]">
-                  {wallet?.bankAccount?.isVerified ? "verified" : "pending"}
+                  {isBankLinked ? "verified" : "pending"}
                 </span>
-                {wallet?.bankAccount?.isVerified ? "Đã xác thực" : "Chưa liên kết"}
+                {isBankLinked ? "Đã liên kết" : "Chưa liên kết"}
               </span>
             </div>
 
@@ -444,12 +520,12 @@ export default function SellerWalletPage() {
 
             <button
               onClick={handleExportStatement}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 shadow-xs transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-slate-500 text-[16px]">
+              <span className="material-symbols-outlined text-emerald-700 text-[16px]">
                 download
               </span>
-              Xuất sao kê
+              Xuất sao kê Excel
             </button>
           </div>
         </div>
@@ -616,7 +692,7 @@ export default function SellerWalletPage() {
               </button>
             </div>
 
-            <form onSubmit={handleConfirmWithdraw} className="p-5 space-y-4 text-xs">
+            <form onSubmit={handleConfirmWithdraw} noValidate className="p-5 space-y-4 text-xs">
               {/* Destination Bank Box */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <div className="flex items-center justify-between">
@@ -647,7 +723,17 @@ export default function SellerWalletPage() {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setWithdrawAmount((wallet?.balance || 0).toString())}
+                    onClick={() => {
+                      const bal = wallet?.balance || 0;
+                      setWithdrawAmount(bal.toString());
+                      if (bal <= 0) {
+                        setWithdrawError("Số dư khả dụng hiện tại là 0 ₫, không đủ điều kiện rút tiền.");
+                      } else if (bal < 50000) {
+                        setWithdrawError(`Số dư khả dụng (${bal.toLocaleString("vi-VN")} ₫) chưa đạt hạn mức tối thiểu 50.000 ₫.`);
+                      } else {
+                        setWithdrawError(null);
+                      }
+                    }}
                     className="text-emerald-600 font-bold hover:underline"
                   >
                     Rút tất cả ({formatVnd(wallet?.balance)})
@@ -656,22 +742,41 @@ export default function SellerWalletPage() {
                 <div className="relative">
                   <input
                     type="number"
-                    min="50000"
-                    max={wallet?.balance || 0}
-                    step="10000"
-                    required
                     value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    onChange={(e) => {
+                      setWithdrawAmount(e.target.value);
+                      if (withdrawError) setWithdrawError(null);
+                    }}
+                    onBlur={() => {
+                      if (withdrawAmount) {
+                        const err = validateWithdrawAmount(withdrawAmount);
+                        if (err) setWithdrawError(err);
+                      }
+                    }}
                     placeholder="Tối thiểu 50.000 ₫"
-                    className="w-full p-2.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className={`w-full p-2.5 text-sm font-bold rounded-xl transition-all ${
+                      withdrawError
+                        ? "bg-rose-50/40 border border-rose-400 text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                        : "bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    }`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 font-bold ${
+                    withdrawError ? "text-rose-400" : "text-slate-400"
+                  }`}>
                     ₫
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Hạn mức rút tối thiểu: 50.000 ₫/lần. Miễn phí giao dịch.
-                </p>
+
+                {withdrawError ? (
+                  <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-semibold text-rose-600 animate-in fade-in duration-200">
+                    <span className="material-symbols-outlined text-[15px]">error</span>
+                    <span>{withdrawError}</span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Hạn mức rút tối thiểu: 50.000 ₫/lần. Miễn phí giao dịch.
+                  </p>
+                )}
               </div>
 
               {/* Note */}
@@ -762,14 +867,30 @@ export default function SellerWalletPage() {
                 <label className="block font-semibold text-slate-700 mb-1">
                   Tên ngân hàng <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   required
                   value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                  placeholder="Ví dụ: Ngân hàng TMCP Ngoại thương Việt Nam"
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
+                  onChange={(e) => {
+                    const selectedName = e.target.value;
+                    setBankName(selectedName);
+                    const matched = VIETNAM_BANKS.find(
+                      (b) => b.name === selectedName || b.shortName === selectedName
+                    );
+                    if (matched) {
+                      setBankCode(matched.code);
+                    }
+                  }}
+                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-800 font-medium cursor-pointer"
+                >
+                  <option value="" disabled>
+                    -- Chọn ngân hàng trong danh sách --
+                  </option>
+                  {VIETNAM_BANKS.map((b) => (
+                    <option key={b.code} value={b.name}>
+                      {b.shortName} - {b.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -783,8 +904,10 @@ export default function SellerWalletPage() {
                     value={bankCode}
                     onChange={(e) => setBankCode(e.target.value.toUpperCase())}
                     placeholder="VCB, MB, TCB..."
-                    className="w-full p-2.5 text-xs font-mono uppercase bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full p-2.5 text-xs font-mono uppercase font-bold bg-slate-100 border border-slate-200 rounded-xl text-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    title="Mã ngân hàng tự động điền theo ngân hàng bạn chọn"
                   />
+                  <p className="text-[10px] text-slate-400 mt-0.5">Tự động chọn theo ngân hàng</p>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">

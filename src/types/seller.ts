@@ -222,10 +222,11 @@ export interface RegisteredFlashSaleHistoryItem {
 
 export interface SellerBankAccount {
   bankName: string;
+  bankCode?: string;
   accountNumber: string;
   accountHolder: string;
   branch?: string;
-  isVerified: boolean;
+  isVerified?: boolean;
 }
 
 export interface SellerBankAccountPayload {
