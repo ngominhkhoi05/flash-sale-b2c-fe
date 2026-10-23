@@ -13,6 +13,7 @@ import {
   deleteProduct,
 } from "@/lib/api/seller";
 import { useMyStore } from "@/hooks/useMyStore";
+import * as XLSX from "xlsx";
 import type { PageResponse } from "@/types/api";
 import type {
   SellerProductSummaryResponse,
@@ -262,37 +263,80 @@ export default function SellerProductsPage() {
     }
   };
 
-  // Xuất file CSV danh sách sản phẩm
+  // Xuất file Excel danh sách sản phẩm
   const handleExportCSV = () => {
-    const contentList = Array.isArray(pageData?.content) ? pageData.content : [];
-    if (contentList.length === 0) {
-      toast.error("Không có sản phẩm để xuất file.");
+    const listToExport =
+      filteredProducts.length > 0
+        ? filteredProducts
+        : Array.isArray(pageData?.content)
+        ? pageData.content
+        : Array.isArray(pageData?.items)
+        ? pageData.items
+        : [];
+
+    if (listToExport.length === 0) {
+      toast.error("Không có sản phẩm để xuất file Excel.");
       return;
     }
 
-    const headers = ["ID", "Tên sản phẩm", "Mã Slug", "Giá thấp nhất", "Giá cao nhất", "Tồn kho", "Đã bán", "Trạng thái"];
-    const rows = contentList.map((p: SellerProductSummaryResponse) => [
-      p.id,
-      `"${p.name.replace(/"/g, '""')}"`,
-      p.slug,
-      p.minPrice,
-      p.maxPrice,
-      p.totalStock,
-      p.totalSold,
-      p.status,
-    ]);
+    const exportRows = listToExport.map((p, index) => {
+      let statusLabel = p.status;
+      if (p.status === "ACTIVE") statusLabel = "Đang bán";
+      else if (p.status === "INACTIVE") statusLabel = "Tạm ẩn";
+      else if (p.status === "OUT_OF_STOCK") statusLabel = "Hết hàng";
+      else if (p.status === "BANNED") statusLabel = "Vi phạm";
+      else if (p.status === "DELETED") statusLabel = "Đã xóa";
 
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      [headers.join(","), ...rows.map((r: (string | number)[]) => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `seller_products_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Đã xuất danh sách sản phẩm ra tệp CSV.");
+      const priceFormatted =
+        p.minPrice === p.maxPrice
+          ? `${(p.minPrice || 0).toLocaleString("vi-VN")} ₫`
+          : `${(p.minPrice || 0).toLocaleString("vi-VN")} ₫ - ${(p.maxPrice || 0).toLocaleString("vi-VN")} ₫`;
+
+      let createdDate = "-";
+      if (p.createdAt) {
+        try {
+          const d = new Date(p.createdAt);
+          createdDate = `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+            .toString()
+            .padStart(2, "0")}/${d.getFullYear()}`;
+        } catch {
+          createdDate = p.createdAt;
+        }
+      }
+
+      return {
+        "STT": index + 1,
+        "Mã sản phẩm": `#SP-${p.id}`,
+        "Tên sản phẩm": p.name || "-",
+        "Danh mục": p.categoryName || "-",
+        "Giá bán (VNĐ)": priceFormatted,
+        "Tồn kho": p.totalStock ?? 0,
+        "Đã bán": p.totalSold ?? 0,
+        "Trạng thái": statusLabel,
+        "Ngày tạo": createdDate,
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    worksheet["!cols"] = [
+      { wch: 6 },  // STT
+      { wch: 14 }, // Mã sản phẩm
+      { wch: 42 }, // Tên sản phẩm
+      { wch: 22 }, // Danh mục
+      { wch: 26 }, // Giá bán (VNĐ)
+      { wch: 12 }, // Tồn kho
+      { wch: 12 }, // Đã bán
+      { wch: 16 }, // Trạng thái
+      { wch: 16 }, // Ngày tạo
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách sản phẩm");
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `danh_sach_san_pham_${dateStr}.xlsx`);
+    toast.success("Đã xuất danh sách sản phẩm sang file Excel thành công");
   };
 
   // Lọc sản phẩm theo tìm kiếm và sort tồn kho phía client
@@ -389,9 +433,9 @@ export default function SellerProductsPage() {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-container-lowest text-secondary hover:text-on-surface hover:bg-surface-container-low transition-all font-body-md text-body-md shadow-sm border border-outline-variant/30 font-medium"
+            className="inline-flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 transition-all font-body-md text-body-md shadow-xs border border-emerald-200 font-semibold cursor-pointer"
           >
-            <MaterialSymbol name="file_download" size="[18px]" />
+            <MaterialSymbol name="file_download" size="[18px]" className="text-emerald-700" />
             <span>Xuất Excel</span>
           </button>
           {isBanned ? (

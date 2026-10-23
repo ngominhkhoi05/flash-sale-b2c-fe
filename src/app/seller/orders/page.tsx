@@ -17,6 +17,7 @@ import { SellerStatusBadge } from "@/components/seller/SellerStatusBadge";
 import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
 import { useMyStore } from "@/hooks/useMyStore";
 import { createFlashSaleStompClient } from "@/lib/stomp";
+import * as XLSX from "xlsx";
 
 type TabKey =
   | "ALL"
@@ -329,39 +330,76 @@ function SellerOrdersContent() {
     }
   };
 
-  // Export CSV
+  // Export Excel
   const handleExportCsv = () => {
-    const headers = [
-      "Mã đơn",
-      "Khách hàng",
-      "Số điện thoại",
-      "Địa chỉ",
-      "Tổng thanh toán",
-      "Phương thức",
-      "Trạng thái",
-      "Thời gian tạo",
+    if (filteredOrders.length === 0) {
+      toast.error("Không có đơn hàng nào để xuất file Excel.");
+      return;
+    }
+
+    const exportRows = filteredOrders.map((o, index) => {
+      let statusLabel = o.status;
+      if (o.status === "PENDING") statusLabel = "Chờ xác nhận";
+      else if (o.status === "PROCESSING") statusLabel = "Đang chuẩn bị hàng";
+      else if (o.status === "SHIPPING") statusLabel = "Đang giao hàng";
+      else if (o.status === "COMPLETED") statusLabel = "Giao thành công";
+      else if (o.status === "CANCELLED") statusLabel = "Đã hủy";
+      else if (o.status === "PENDING_PAYMENT") statusLabel = "Chờ thanh toán";
+      else if (o.status === "CONFIRMED") statusLabel = "Đã xác nhận";
+
+      const paymentStatusLabel =
+        o.paymentStatus === "PAID"
+          ? "Đã thanh toán"
+          : o.paymentStatus === "REFUNDED"
+          ? "Đã hoàn tiền"
+          : "Chưa thanh toán";
+
+      const productsSummary =
+        o.items && o.items.length > 0
+          ? o.items
+              .map((i) => `${i.productName} (${i.variantName || "Mặc định"}) x${i.quantity}`)
+              .join("; ")
+          : "-";
+
+      const totalFormatted = `${(o.totalAmount || o.finalAmount || 0).toLocaleString("vi-VN")} ₫`;
+
+      return {
+        "STT": index + 1,
+        "Mã đơn hàng": o.orderCode || `#ORD-${o.id}`,
+        "Người nhận": o.recipientName || "-",
+        "Số điện thoại": o.recipientPhone || "-",
+        "Địa chỉ giao hàng": o.recipientAddress || o.shippingAddressText || "-",
+        "Sản phẩm đặt mua": productsSummary,
+        "Tổng thanh toán (VNĐ)": totalFormatted,
+        "Phương thức TT": o.paymentMethod || "COD",
+        "Trạng thái TT": paymentStatusLabel,
+        "Trạng thái đơn": statusLabel,
+        "Thời gian đặt": formatDateTime(o.createdAt),
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+
+    worksheet["!cols"] = [
+      { wch: 6 },  // STT
+      { wch: 20 }, // Mã đơn hàng
+      { wch: 22 }, // Người nhận
+      { wch: 15 }, // Số điện thoại
+      { wch: 38 }, // Địa chỉ giao hàng
+      { wch: 45 }, // Sản phẩm đặt mua
+      { wch: 22 }, // Tổng thanh toán (VNĐ)
+      { wch: 16 }, // Phương thức TT
+      { wch: 18 }, // Trạng thái TT
+      { wch: 20 }, // Trạng thái đơn
+      { wch: 20 }, // Thời gian đặt
     ];
-    const rows = filteredOrders.map((o) => [
-      o.orderCode,
-      `"${o.recipientName}"`,
-      `"${o.recipientPhone}"`,
-      `"${o.recipientAddress || o.shippingAddressText || ""}"`,
-      o.totalAmount || o.finalAmount || 0,
-      o.paymentMethod,
-      o.status,
-      o.createdAt,
-    ]);
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `seller_orders_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Đã xuất danh sách đơn hàng sang file CSV thành công");
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách đơn hàng");
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `danh_sach_don_hang_${dateStr}.xlsx`);
+    toast.success("Đã xuất danh sách đơn hàng sang file Excel thành công");
   };
 
   const formatVnd = (amount?: number) => {
@@ -441,19 +479,10 @@ function SellerOrdersContent() {
           <button
             type="button"
             onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors cursor-pointer"
           >
-            <MaterialSymbol name="file_download" size="[18px]" className="text-secondary" />
-            <span>Xuất Excel (CSV)</span>
-          </button>
-          <button
-            type="button"
-            disabled={selectedIds.length === 0}
-            onClick={handlePrintOrders}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed shadow-xs transition-colors"
-          >
-            <MaterialSymbol name="print" size="[18px]" />
-            <span>In phiếu loạt {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}</span>
+            <MaterialSymbol name="file_download" size="[18px]" className="text-white" />
+            <span>Xuất Excel</span>
           </button>
         </div>
       </div>
