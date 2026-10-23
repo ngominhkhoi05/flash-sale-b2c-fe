@@ -12,8 +12,6 @@ import {
   getSellerRevenueChart,
   getSellerWallet,
   getRegisteredFlashSaleHistory,
-  getMockSellerOrders,
-  getMockSellerProducts,
   aggregateRevenuePoints,
 } from "@/lib/api/seller";
 import {
@@ -64,26 +62,21 @@ export default function SellerDashboardPage() {
         if (ordersRes.status === "fulfilled") {
           const val = ordersRes.value as { content?: SellerOrderResponse[]; items?: SellerOrderResponse[] };
           const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
-          setRecentOrders(list.length > 0 ? list : getMockSellerOrders(0, 5).content);
+          setRecentOrders(list);
         } else {
-          setRecentOrders(getMockSellerOrders(0, 5).content);
+          setRecentOrders([]);
         }
         if (productsRes.status === "fulfilled") {
           const val = productsRes.value as { content?: SellerProductSummaryResponse[]; items?: SellerProductSummaryResponse[] };
           const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
-          setTopProducts(list.length > 0 ? list : getMockSellerProducts(0, 4).content);
+          setTopProducts(list);
         } else {
-          setTopProducts(getMockSellerProducts(0, 4).content);
+          setTopProducts([]);
         }
         if (chartRes.status === "fulfilled" && Array.isArray(chartRes.value) && chartRes.value.length > 0) {
-          const totalRev = chartRes.value.reduce((sum, p) => sum + (p.revenue || 0), 0);
-          if (totalRev > 0) {
-            setRevenuePoints(chartRes.value);
-          } else {
-            setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
-          }
+          setRevenuePoints(chartRes.value);
         } else {
-          setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
+          setRevenuePoints(aggregateRevenuePoints([], period));
         }
         if (walletRes.status === "fulfilled") setWallet(walletRes.value);
         if (fsRes.status === "fulfilled") setFlashSaleItems(fsRes.value || []);
@@ -112,26 +105,21 @@ export default function SellerDashboardPage() {
         if (ordersRes.status === "fulfilled") {
           const val = ordersRes.value as { content?: SellerOrderResponse[]; items?: SellerOrderResponse[] };
           const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
-          setRecentOrders(list.length > 0 ? list : getMockSellerOrders(0, 5).content);
+          setRecentOrders(list);
         } else {
-          setRecentOrders(getMockSellerOrders(0, 5).content);
+          setRecentOrders([]);
         }
         if (productsRes.status === "fulfilled") {
           const val = productsRes.value as { content?: SellerProductSummaryResponse[]; items?: SellerProductSummaryResponse[] };
           const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
-          setTopProducts(list.length > 0 ? list : getMockSellerProducts(0, 4).content);
+          setTopProducts(list);
         } else {
-          setTopProducts(getMockSellerProducts(0, 4).content);
+          setTopProducts([]);
         }
         if (chartRes.status === "fulfilled" && Array.isArray(chartRes.value) && chartRes.value.length > 0) {
-          const totalRev = chartRes.value.reduce((sum, p) => sum + (p.revenue || 0), 0);
-          if (totalRev > 0) {
-            setRevenuePoints(chartRes.value);
-          } else {
-            setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
-          }
+          setRevenuePoints(chartRes.value);
         } else {
-          setRevenuePoints(aggregateRevenuePoints(getMockSellerOrders(0, 100).content, period));
+          setRevenuePoints(aggregateRevenuePoints([], period));
         }
         if (walletRes.status === "fulfilled") setWallet(walletRes.value);
         if (fsRes.status === "fulfilled") setFlashSaleItems(fsRes.value || []);

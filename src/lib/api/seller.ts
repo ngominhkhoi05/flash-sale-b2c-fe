@@ -87,12 +87,12 @@ export async function getSellerRecentOrders(
   size: number = 5
 ): Promise<PageResponse<SellerOrderResponse>> {
   try {
-    const res = await getSellerOrders(page, size);
-    const list = res.content || res.items || [];
-    if (list.length > 0) return res;
-    return getMockSellerOrders(page, size);
-  } catch {
-    return getMockSellerOrders(page, size);
+    return await getSellerOrders(page, size);
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerOrders(page, size);
+    }
+    throw err;
   }
 }
 
@@ -804,17 +804,17 @@ export async function getSellerTopProducts(
   try {
     const res = await getSellerProducts(page, size);
     const list = res.content || res.items || [];
-    if (list.length > 0) {
-      const sorted = [...list].sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0));
-      return {
-        ...res,
-        content: sorted.slice(0, size),
-        items: sorted.slice(0, size),
-      };
+    const sorted = [...list].sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0));
+    return {
+      ...res,
+      content: sorted.slice(0, size),
+      items: sorted.slice(0, size),
+    };
+  } catch (err) {
+    if (isMockMode()) {
+      return getMockSellerProducts(page, size);
     }
-    return getMockSellerProducts(page, size);
-  } catch {
-    return getMockSellerProducts(page, size);
+    throw err;
   }
 }
 
@@ -844,18 +844,13 @@ export async function getSellerRevenueChart(
   } catch {
     try {
       const ordersRes = await getSellerOrders(0, 100);
-      let orders = ordersRes.content || ordersRes.items || [];
-      if (orders.length === 0) {
-        orders = getMockSellerOrders(0, 100).content;
-      }
-      const points = aggregateRevenuePoints(orders, period);
-      const totalRev = points.reduce((sum, p) => sum + (p.revenue || 0), 0);
-      if (totalRev === 0) {
+      const orders = ordersRes.content || ordersRes.items || [];
+      return aggregateRevenuePoints(orders, period);
+    } catch {
+      if (isMockMode()) {
         return getMockRevenuePoints();
       }
-      return points;
-    } catch {
-      return getMockRevenuePoints();
+      return aggregateRevenuePoints([], period);
     }
   }
 }
@@ -907,24 +902,28 @@ export function aggregateRevenuePoints(
   const points: SellerRevenueDayPoint[] = [];
 
   for (let i = numDays - 1; i >= 0; i -= step) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const targetY = d.getFullYear();
-    const targetM = d.getMonth();
-    const targetD = d.getDate();
+    const blockEndIndex = Math.max(0, i - step + 1);
+
+    const startD = new Date(now);
+    startD.setDate(startD.getDate() - i);
+    startD.setHours(0, 0, 0, 0);
+
+    const endD = new Date(now);
+    endD.setDate(endD.getDate() - blockEndIndex);
+    endD.setHours(23, 59, 59, 999);
+
+    const targetY = endD.getFullYear();
+    const targetM = endD.getMonth();
+    const targetD = endD.getDate();
     const dateStr = `${targetY}-${String(targetM + 1).padStart(2, "0")}-${String(targetD).padStart(2, "0")}`;
-    const dayLabel = period === "30days" ? `${targetD}/${targetM + 1}` : dayNames[d.getDay()];
+    const dayLabel = period === "30days" ? `${targetD}/${targetM + 1}` : dayNames[endD.getDay()];
 
     let rev = 0;
     let count = 0;
     orders.forEach((o) => {
       if (!o.createdAt || !isSellerOrderPaid(o)) return;
       const od = new Date(o.createdAt);
-      if (
-        od.getFullYear() === targetY &&
-        od.getMonth() === targetM &&
-        od.getDate() === targetD
-      ) {
+      if (od >= startD && od <= endD) {
         rev += Number(o.finalAmount || o.totalAmount) || 0;
         count++;
       }
@@ -941,6 +940,7 @@ export function aggregateRevenuePoints(
 
   return points;
 }
+
 
 
 /**
