@@ -14,6 +14,7 @@ import {
   getSellerProductDetail,
   uploadSellerProductImage,
 } from "@/lib/api/seller";
+import { useMyStore } from "@/hooks/useMyStore";
 import type {
   CategoryItem,
   CreateProductPayload,
@@ -241,6 +242,7 @@ function dataUrlToBlob(dataUrl: string): Blob | null {
 
 export function ProductForm({ mode, productId }: ProductFormProps) {
   const router = useRouter();
+  const { isBanned } = useMyStore();
 
   // Basic Information (SPU)
   const [name, setName] = useState(
@@ -881,13 +883,20 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       .filter((p) => p > 0);
     if (validPrices.length === 0) return "149.000₫";
     const min = Math.min(...validPrices);
-    return `${formatVND(min)}₫`;
+    return formatVND(min);
   }, [skuMatrix]);
 
   // Form submission
   const handleSubmit = async (targetStatus: "ACTIVE" | "INACTIVE") => {
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    if (isBanned) {
+      const msg = "Gian hàng đang bị khóa, không thể lưu hoặc chỉnh sửa sản phẩm!";
+      setErrorMessage(msg);
+      toast.error(msg);
+      return;
+    }
 
     if (!name.trim()) {
       const msg = "Vui lòng nhập tên sản phẩm.";
@@ -2287,12 +2296,13 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           </Link>
           <button
             type="button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isBanned}
             onClick={() => handleSubmit("INACTIVE")}
-            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low font-body-md text-body-md font-semibold border border-outline-variant/40 shadow-xs transition-all disabled:opacity-50"
+            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low font-body-md text-body-md font-semibold border border-outline-variant/40 shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isBanned ? "Gian hàng đang bị khóa - Không thể lưu" : "Lưu tạm"}
           >
             <MaterialSymbol
-              name="visibility_off"
+              name={isBanned ? "lock" : "visibility_off"}
               size="[18px]"
               className="text-secondary"
             />
@@ -2300,14 +2310,20 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           </button>
           <button
             type="button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isBanned}
             onClick={() => handleSubmit("ACTIVE")}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-headline-md text-body-md font-semibold shadow-md transition-all shadow-emerald-600/20 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-headline-md text-body-md font-semibold shadow-md transition-all shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={isBanned ? "Gian hàng đang bị khóa - Không thể lưu" : "Lưu và đăng bán"}
           >
             {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 <span>Đang lưu...</span>
+              </>
+            ) : isBanned ? (
+              <>
+                <MaterialSymbol name="lock" size="[18px]" />
+                <span>Gian hàng đang bị khóa</span>
               </>
             ) : (
               <>
