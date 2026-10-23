@@ -25,6 +25,8 @@ export function formatStoreStatus(status?: string): string {
       return "Chờ duyệt";
     case "REJECTED":
       return "Bị từ chối";
+    case "BANNED":
+      return "Đã khóa / Cấm";
     case "SUSPENDED":
     case "LOCKED":
       return "Tạm dừng";
@@ -75,6 +77,11 @@ export function useMyStore() {
   const storeStatusText = formatStoreStatus(store?.status);
   const initials = getStoreInitials(storeName);
 
+  const statusUpper = (store?.status || "").toUpperCase();
+  const isBanned = statusUpper === "BANNED" || statusUpper === "SUSPENDED" || statusUpper === "LOCKED";
+  const isApproved = statusUpper === "APPROVED" || statusUpper === "ACTIVE";
+  const isPending = statusUpper === "PENDING" || statusUpper === "PENDING_APPROVAL";
+
   return {
     ...query,
     store,
@@ -82,5 +89,8 @@ export function useMyStore() {
     storeCode,
     storeStatusText,
     initials,
+    isBanned,
+    isApproved,
+    isPending,
   };
 }

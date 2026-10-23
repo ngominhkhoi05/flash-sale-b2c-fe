@@ -76,7 +76,7 @@ export function SellerSidebar({
   storeStatus: propStoreStatus,
 }: SellerSidebarProps) {
   const pathname = usePathname();
-  const { store, storeName: realStoreName, storeCode: realStoreCode, storeStatusText, initials } = useMyStore();
+  const { store, storeName: realStoreName, storeCode: realStoreCode, storeStatusText, initials, isBanned } = useMyStore();
   const { unreadCount, markAllAsSeen } = useSellerOrderNotifications();
 
   const finalStoreName = propStoreName || realStoreName || "Gian hàng";
@@ -142,6 +142,8 @@ export function SellerSidebar({
                   className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 border ${
                     isApproved
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : isBanned
+                      ? "bg-rose-50 text-rose-700 border-rose-200 font-bold"
                       : "bg-amber-50 text-amber-700 border-amber-200"
                   }`}
                 >
