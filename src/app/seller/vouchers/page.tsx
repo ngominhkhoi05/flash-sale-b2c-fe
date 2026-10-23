@@ -10,6 +10,7 @@ import {
   deleteSellerVoucher,
   toggleSellerVoucherStatus,
 } from "@/lib/api/seller";
+import { useMyStore } from "@/hooks/useMyStore";
 import type {
   SellerVoucherItem,
   CreateSellerVoucherPayload,
@@ -144,6 +145,7 @@ function validateVoucherInput(data: {
 }
 
 export default function SellerVouchersPage() {
+  const { isBanned } = useMyStore();
   const [vouchers, setVouchers] = useState<SellerVoucherItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,6 +244,10 @@ export default function SellerVouchersPage() {
   // Submit create voucher
   const handleCreateVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBanned) {
+      toast.error("Gian hàng đang bị khóa, không thể tạo voucher mới!");
+      return;
+    }
     const errors = validateVoucherInput({
       code: formData.code,
       name: formData.name,
@@ -281,6 +287,10 @@ export default function SellerVouchersPage() {
 
   // Open Edit Modal
   const handleOpenEdit = (voucher: SellerVoucherItem) => {
+    if (isBanned) {
+      toast.error("Gian hàng đang bị khóa, không thể chỉnh sửa voucher!");
+      return;
+    }
     setSelectedVoucherForEdit(voucher);
     setEditFormData({
       name: voucher.name,
@@ -466,13 +476,25 @@ export default function SellerVouchersPage() {
             </span>
             Quy định voucher
           </button>
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            Tạo voucher mới
-          </button>
+          {isBanned ? (
+            <button
+              type="button"
+              onClick={() => toast.error("Gian hàng đang bị khóa, không thể tạo voucher mới!")}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-500 bg-slate-200 rounded-xl cursor-not-allowed opacity-80"
+              title="Gian hàng đang bị khóa, không thể tạo voucher mới"
+            >
+              <span className="material-symbols-outlined text-[18px]">lock</span>
+              Tạo voucher mới
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsCreateOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              Tạo voucher mới
+            </button>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { SellerSidebar } from "@/components/seller/SellerSidebar";
 import { SellerTopbar } from "@/components/seller/SellerTopbar";
 import { MinWidthGuard } from "@/components/common/MinWidthGuard";
+import { SellerBannedBanner } from "@/components/seller/SellerBannedBanner";
 
 /**
  * SellerLayout – Layout Seller Center chuẩn Stitch (chỉ desktop ≥ 1280px).
@@ -19,6 +20,7 @@ export default function SellerLayout({ children }: { children: ReactNode }) {
           <SellerTopbar />
           <main className="relative pt-16 bg-surface min-h-screen flex-1">
             <div className="w-full px-space-lg lg:px-margin py-space-lg max-w-[1440px] mx-auto">
+              <SellerBannedBanner />
               {children}
             </div>
           </main>

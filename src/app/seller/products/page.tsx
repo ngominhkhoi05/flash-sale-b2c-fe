@@ -12,6 +12,7 @@ import {
   updateProductStatus,
   deleteProduct,
 } from "@/lib/api/seller";
+import { useMyStore } from "@/hooks/useMyStore";
 import type { PageResponse } from "@/types/api";
 import type {
   SellerProductSummaryResponse,
@@ -29,6 +30,7 @@ type ProductTab = "ALL" | "ACTIVE" | "OUT_OF_STOCK" | "INACTIVE" | "BANNED";
  *  - DELETE /api/v1/seller/products/{id} (Xóa sản phẩm)
  */
 export default function SellerProductsPage() {
+  const { isBanned } = useMyStore();
   const [activeTab, setActiveTab] = useState<ProductTab>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [stockSort, setStockSort] = useState<string>("");
@@ -182,6 +184,10 @@ export default function SellerProductsPage() {
 
   // Toggle bật/tắt trạng thái SPU (Ẩn / Mở bán) - Tự động reload cập nhật ngay lập tức
   const handleToggleStatus = async (product: SellerProductSummaryResponse) => {
+    if (isBanned) {
+      toast.error("Gian hàng đang bị khóa, không thể thay đổi trạng thái sản phẩm!");
+      return;
+    }
     const newStatus = product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     try {
       // Cập nhật trạng thái lạc quan trên UI ngay lập tức
@@ -218,6 +224,10 @@ export default function SellerProductsPage() {
 
   // Xác nhận xóa sản phẩm - Tự động reload cập nhật ngay lập tức
   const handleConfirmDelete = async () => {
+    if (isBanned) {
+      toast.error("Gian hàng đang bị khóa, không thể xóa sản phẩm!");
+      return;
+    }
     if (!deleteModalProduct) return;
     const deletedId = deleteModalProduct.id;
     setIsDeleting(true);
@@ -384,13 +394,25 @@ export default function SellerProductsPage() {
             <MaterialSymbol name="file_download" size="[18px]" />
             <span>Xuất Excel</span>
           </button>
-          <Link
-            href="/seller/products/new"
-            className="inline-flex items-center gap-1.5 px-space-md py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline-md text-body-md font-medium shadow-sm transition-all transform active:scale-[0.99]"
-          >
-            <MaterialSymbol name="add" size="[20px]" />
-            <span>Thêm sản phẩm mới</span>
-          </Link>
+          {isBanned ? (
+            <button
+              type="button"
+              onClick={() => toast.error("Gian hàng đang bị khóa, không thể thêm sản phẩm mới!")}
+              className="inline-flex items-center gap-1.5 px-space-md py-2.5 rounded-lg bg-slate-200 text-slate-500 font-headline-md text-body-md font-medium cursor-not-allowed opacity-80"
+              title="Gian hàng đang bị khóa, không thể thêm sản phẩm mới"
+            >
+              <MaterialSymbol name="lock" size="[20px]" />
+              <span>Thêm sản phẩm mới</span>
+            </button>
+          ) : (
+            <Link
+              href="/seller/products/new"
+              className="inline-flex items-center gap-1.5 px-space-md py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-headline-md text-body-md font-medium shadow-sm transition-all transform active:scale-[0.99]"
+            >
+              <MaterialSymbol name="add" size="[20px]" />
+              <span>Thêm sản phẩm mới</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -683,20 +705,42 @@ export default function SellerProductsPage() {
                         <td className="px-space-md text-center">
                           <div className="flex items-center justify-center gap-1">
                             {/* Nút sửa */}
-                            <Link
-                              href={`/seller/products/${product.id}/edit`}
-                              className="w-8 h-8 rounded-lg hover:bg-surface-container text-secondary hover:text-emerald-700 flex items-center justify-center transition-colors"
-                              title="Chỉnh sửa sản phẩm"
-                            >
-                              <MaterialSymbol name="edit" size="[18px]" />
-                            </Link>
+                            {isBanned ? (
+                              <button
+                                type="button"
+                                onClick={() => toast.error("Gian hàng đang bị khóa, không thể chỉnh sửa sản phẩm!")}
+                                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-500 cursor-not-allowed flex items-center justify-center transition-colors"
+                                title="Gian hàng bị khóa - Không thể sửa"
+                              >
+                                <MaterialSymbol name="lock" size="[18px]" />
+                              </button>
+                            ) : (
+                              <Link
+                                href={`/seller/products/${product.id}/edit`}
+                                className="w-8 h-8 rounded-lg hover:bg-surface-container text-secondary hover:text-emerald-700 flex items-center justify-center transition-colors"
+                                title="Chỉnh sửa sản phẩm"
+                              >
+                                <MaterialSymbol name="edit" size="[18px]" />
+                              </Link>
+                            )}
 
                             {/* Nút bật/tắt active */}
                             <button
                               type="button"
                               onClick={() => handleToggleStatus(product)}
-                              className="w-8 h-8 rounded-lg hover:bg-surface-container text-secondary hover:text-on-surface flex items-center justify-center transition-colors"
-                              title={product.status === "ACTIVE" ? "Tạm ẩn sản phẩm" : "Mở bán lại"}
+                              disabled={isBanned}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                isBanned
+                                  ? "text-slate-300 cursor-not-allowed"
+                                  : "hover:bg-surface-container text-secondary hover:text-on-surface"
+                              }`}
+                              title={
+                                isBanned
+                                  ? "Gian hàng bị khóa - Không thể đổi trạng thái"
+                                  : product.status === "ACTIVE"
+                                  ? "Tạm ẩn sản phẩm"
+                                  : "Mở bán lại"
+                              }
                             >
                               <MaterialSymbol
                                 name={product.status === "ACTIVE" ? "visibility_off" : "visibility"}
@@ -707,9 +751,20 @@ export default function SellerProductsPage() {
                             {/* Nút xóa */}
                             <button
                               type="button"
-                              onClick={() => setDeleteModalProduct(product)}
-                              className="w-8 h-8 rounded-lg hover:bg-rose-50 text-secondary hover:text-rose-600 flex items-center justify-center transition-colors"
-                              title="Xóa sản phẩm"
+                              onClick={() => {
+                                if (isBanned) {
+                                  toast.error("Gian hàng đang bị khóa, không thể xóa sản phẩm!");
+                                  return;
+                                }
+                                setDeleteModalProduct(product);
+                              }}
+                              disabled={isBanned}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                isBanned
+                                  ? "text-slate-300 cursor-not-allowed"
+                                  : "hover:bg-rose-50 text-secondary hover:text-rose-600"
+                              }`}
+                              title={isBanned ? "Gian hàng bị khóa - Không thể xóa" : "Xóa sản phẩm"}
                             >
                               <MaterialSymbol name="delete" size="[18px]" />
                             </button>

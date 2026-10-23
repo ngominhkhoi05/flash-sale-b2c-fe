@@ -146,10 +146,15 @@ function handleSeller(ctx: GuardContext): NextResponse | null {
     return redirect(url, req);
   }
   if (storeStatus === "BANNED") {
-    const url = req.nextUrl.clone();
-    url.pathname = "/forbidden";
-    url.search = "";
-    return redirect(url, req);
+    // Shop bị khóa vẫn được phép đăng nhập và xem Kênh Người Bán (orders, products cũ, profile...)
+    // Nhưng nếu cố tình truy cập trang tạo sản phẩm mới, redirect về /seller/products
+    if (pathname.startsWith("/seller/products/new")) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/seller/products";
+      url.search = "";
+      return redirect(url, req);
+    }
+    return null;
   }
   return null;
 }

@@ -36,7 +36,7 @@ export function SellerTopbar({
   avatarInitials: propInitials,
 }: SellerTopbarProps) {
   const router = useRouter();
-  const { store, storeName: realStoreName, storeCode, storeStatusText, initials } = useMyStore();
+  const { store, storeName: realStoreName, storeCode, storeStatusText, initials, isBanned } = useMyStore();
   const { data: userData } = useMeQuery();
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
 
@@ -302,6 +302,8 @@ export function SellerTopbar({
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 border ${
                       isApproved
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : isBanned
+                        ? "bg-rose-50 text-rose-700 border-rose-200 font-bold"
                         : "bg-amber-50 text-amber-700 border-amber-200"
                     }`}
                   >

@@ -13,6 +13,7 @@ import {
   registerFlashSaleItems,
   cancelFlashSaleRegistration,
 } from "@/lib/api/seller";
+import { useMyStore } from "@/hooks/useMyStore";
 import type {
   FlashSaleSlotItem,
   RegisteredFlashSaleHistoryItem,
@@ -22,6 +23,7 @@ import type {
 } from "@/types/seller";
 
 export function FlashSaleRegisterClient() {
+  const { isBanned } = useMyStore();
   const [activeTab, setActiveTab] = useState<"open-slots" | "my-regs">("open-slots");
   const [slots, setSlots] = useState<FlashSaleSlotItem[]>([]);
   const [history, setHistory] = useState<RegisteredFlashSaleHistoryItem[]>([]);
@@ -131,6 +133,10 @@ export function FlashSaleRegisterClient() {
 
   // Open drawer for a slot
   const handleOpenDrawer = (slot: FlashSaleSlotItem) => {
+    if (isBanned) {
+      toast.error("Gian hàng đang bị khóa, không đủ điều kiện tham gia Flash Sale!");
+      return;
+    }
     setSelectedSlot(slot);
     setIsDrawerOpen(true);
     setErrorMessage(null);
@@ -711,18 +717,30 @@ export function FlashSaleRegisterClient() {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDrawer(slot)}
-                        className={`px-space-lg py-2.5 rounded-lg font-label-md text-body-md font-semibold flex items-center gap-2 shadow-sm transition-all transform active:scale-95 ${
-                          isHot
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                            : "bg-surface-container-low hover:bg-surface-container text-on-surface"
-                        }`}
-                      >
-                        <span>Đăng ký sản phẩm ngay</span>
-                        <MaterialSymbol name="arrow_forward" size="[18px]" />
-                      </button>
+                      {isBanned ? (
+                        <button
+                          type="button"
+                          onClick={() => toast.error("Gian hàng đang bị khóa, không đủ điều kiện đăng ký Flash Sale!")}
+                          className="px-space-lg py-2.5 rounded-lg font-label-md text-body-md font-semibold flex items-center gap-2 bg-slate-200 text-slate-500 cursor-not-allowed opacity-80"
+                          title="Gian hàng đang bị khóa"
+                        >
+                          <MaterialSymbol name="lock" size="[18px]" />
+                          <span>Gian hàng bị khóa</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDrawer(slot)}
+                          className={`px-space-lg py-2.5 rounded-lg font-label-md text-body-md font-semibold flex items-center gap-2 shadow-sm transition-all transform active:scale-95 ${
+                            isHot
+                              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                              : "bg-surface-container-low hover:bg-surface-container text-on-surface"
+                          }`}
+                        >
+                          <span>Đăng ký sản phẩm ngay</span>
+                          <MaterialSymbol name="arrow_forward" size="[18px]" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1370,15 +1388,26 @@ export function FlashSaleRegisterClient() {
                   </button>
                   <button
                     type="button"
-                    disabled={isSubmitting || selectedSkuCount === 0}
+                    disabled={isSubmitting || selectedSkuCount === 0 || isBanned}
                     onClick={handleSubmitRegistration}
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={selectedSkuCount === 0 ? "Vui lòng chọn ít nhất 1 SKU có số lượng mở bán > 0" : undefined}
+                    title={
+                      isBanned
+                        ? "Gian hàng đang bị khóa, không thể nộp đăng ký Flash Sale"
+                        : selectedSkuCount === 0
+                        ? "Vui lòng chọn ít nhất 1 SKU có số lượng mở bán > 0"
+                        : undefined
+                    }
                   >
                     {isSubmitting ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                         <span>Đang nộp...</span>
+                      </>
+                    ) : isBanned ? (
+                      <>
+                        <MaterialSymbol name="lock" size="[16px]" />
+                        <span>Gian hàng bị khóa</span>
                       </>
                     ) : (
                       <>
