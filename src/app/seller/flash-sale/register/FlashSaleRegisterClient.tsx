@@ -87,7 +87,7 @@ export function FlashSaleRegisterClient() {
   // Batch setup states
   const [batchDiscountPercent, setBatchDiscountPercent] = useState<number>(10);
   const [batchAllocatedStock, setBatchAllocatedStock] = useState<number>(10);
-  const [batchPurchaseLimit, setBatchPurchaseLimit] = useState<number>(1);
+  const [batchPurchaseLimit] = useState<number>(1);
 
   // When selectedProduct changes, fetch its full details (including SKU variants)
   useEffect(() => {

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { storeKeys } from "@/hooks/useMyStore";
@@ -112,7 +111,6 @@ function cleanupBloatedStorage() {
 
 export default function SellerProfilePage() {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const [profile, setProfile] = useState<SellerStoreProfileResponse | null>(null);
   const [addresses, setAddresses] = useState<SellerWarehouseAddressItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -125,7 +123,6 @@ export default function SellerProfilePage() {
   const [description, setDescription] = useState<string>("");
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [bannerUrl, setBannerUrl] = useState<string>("");
-  const [reloadTrigger, setReloadTrigger] = useState<number>(0);
 
   // Hidden File Inputs
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -211,8 +208,11 @@ export default function SellerProfilePage() {
 
   useEffect(() => {
     cleanupBloatedStorage();
-    loadData(true);
-  }, [loadData, reloadTrigger]);
+    const timer = setTimeout(() => {
+      void loadData(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadData]);
 
   // Upload Logo file
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

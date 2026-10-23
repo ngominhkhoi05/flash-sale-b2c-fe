@@ -85,8 +85,10 @@ export default function SellerProductsPage() {
   // Nạp lần đầu hoặc khi đổi tab/trang/phân trang
   useEffect(() => {
     let ignore = false;
-    setIsLoading(true);
-    setError(null);
+    const timer = setTimeout(() => {
+      setIsLoading(true);
+      setError(null);
+    }, 0);
 
     getSellerProducts(page, pageSize, activeTab === "ALL" ? undefined : activeTab)
       .then((res) => {
@@ -104,16 +106,20 @@ export default function SellerProductsPage() {
 
     return () => {
       ignore = true;
+      clearTimeout(timer);
     };
   }, [page, pageSize, activeTab]);
 
   // Tự động load lại khi thêm/sửa sản phẩm quay về, chuyển tab, hoặc focus lại trang
   useEffect(() => {
     // 1. Kiểm tra cờ cần reload trong sessionStorage
+    let timer: NodeJS.Timeout | null = null;
     try {
       if (typeof window !== "undefined" && window.sessionStorage.getItem("seller_products_need_reload")) {
         window.sessionStorage.removeItem("seller_products_need_reload");
-        loadProducts(false);
+        timer = setTimeout(() => {
+          void loadProducts(false);
+        }, 0);
       }
     } catch {
       // ignore
@@ -148,6 +154,7 @@ export default function SellerProductsPage() {
     window.addEventListener("storage", handleStorageChange);
 
     return () => {
+      if (timer) clearTimeout(timer);
       window.removeEventListener("seller_products_updated", handleProductsUpdated);
       window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("storage", handleStorageChange);

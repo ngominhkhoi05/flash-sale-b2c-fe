@@ -84,8 +84,10 @@ export function useSellerOrderNotifications() {
   }, []);
 
   useEffect(() => {
-    // Nạp lần đầu
-    checkOrders(true);
+    // Nạp lần đầu (defer qua setTimeout để không trigger setState đồng bộ trong effect)
+    const initialTimer = setTimeout(() => {
+      void checkOrders(true);
+    }, 0);
 
     // Lắng nghe event đồng bộ giữa các component
     const handleSync = (e: Event) => {
@@ -98,10 +100,11 @@ export function useSellerOrderNotifications() {
 
     // Polling ngầm kiểm tra đơn hàng mới mỗi 8 giây
     const timer = setInterval(() => {
-      checkOrders(false);
+      void checkOrders(false);
     }, 8000);
 
     return () => {
+      clearTimeout(initialTimer);
       window.removeEventListener(EVENT_NAME, handleSync);
       clearInterval(timer);
     };

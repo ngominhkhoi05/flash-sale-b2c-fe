@@ -39,7 +39,9 @@ export default function AdminStoresPage() {
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(true);
+    }, 0);
     getAdminStores(activeTab === "ALL" ? undefined : activeTab)
       .then((data) => {
         if (isMounted) {
@@ -57,6 +59,7 @@ export default function AdminStoresPage() {
 
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
   }, [activeTab]);
 
