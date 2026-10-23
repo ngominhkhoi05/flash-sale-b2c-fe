@@ -72,7 +72,7 @@ describe("GoogleCallbackClient", () => {
     // Test mong đợi callback page gọi BE với redirectUri =
     // window.location.origin + pathname. Mock env để giữ giá trị
     // khớp với test assertion.
-    process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI =
+    process.env.OAUTH2_REDIRECT_URI =
       "https://example.com/auth/google/callback";
   });
 

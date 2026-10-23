@@ -74,7 +74,7 @@ describe("useGoogleRedirect", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv(
-      "NEXT_PUBLIC_GOOGLE_REDIRECT_URI",
+      "OAUTH2_REDIRECT_URI",
       "https://example.com/auth/google/callback"
     );
 

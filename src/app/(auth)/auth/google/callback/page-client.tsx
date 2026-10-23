@@ -91,7 +91,7 @@ export function GoogleCallbackClient() {
     window.sessionStorage.setItem(SESSION_STORAGE_PROCESSED_KEY, "true");
 
     // 6. Đổi code lấy JWT
-    const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI ?? "";
+    const redirectUri = process.env.OAUTH2_REDIRECT_URI ?? "";
 
     (async () => {
       try {
