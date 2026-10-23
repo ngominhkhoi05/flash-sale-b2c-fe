@@ -51,7 +51,6 @@ const SELLER_NAV_GROUPS: SellerNavGroup[] = [
     title: "CÀI ĐẶT",
     items: [
       { key: "profile", label: "Hồ sơ gian hàng", href: "/seller/profile", icon: "storefront" },
-      { key: "staff", label: "Nhân viên & phân quyền", href: "/seller/staff", icon: "group" },
     ],
   },
 ];
@@ -76,14 +75,14 @@ export function SellerSidebar({
   storeStatus: propStoreStatus,
 }: SellerSidebarProps) {
   const pathname = usePathname();
-  const { store, storeName: realStoreName, storeCode: realStoreCode, storeStatusText, initials, isBanned } = useMyStore();
+  const { store, storeName: realStoreName, storeCode: realStoreCode, storeStatusText, initials, storeLogoUrl, isBanned } = useMyStore();
   const { unreadCount, markAllAsSeen } = useSellerOrderNotifications();
 
   const finalStoreName = propStoreName || realStoreName || "Gian hàng";
   const finalStoreCode = propStoreCode || realStoreCode || (store?.id ? `#VM-${store.id}` : "#VM-CHUA-CO");
   const finalStoreStatus = propStoreStatus || storeStatusText;
   const avatarInitials = initials || "VM";
-  const logoUrl = store?.logoUrl;
+  const logoUrl = storeLogoUrl || store?.logoUrl;
   const isApproved = store?.status === "APPROVED" || store?.status === "ACTIVE";
 
   const activeHref = React.useMemo(() => {

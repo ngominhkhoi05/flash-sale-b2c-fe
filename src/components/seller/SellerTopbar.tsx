@@ -36,7 +36,7 @@ export function SellerTopbar({
   avatarInitials: propInitials,
 }: SellerTopbarProps) {
   const router = useRouter();
-  const { store, storeName: realStoreName, storeCode, storeStatusText, initials, isBanned } = useMyStore();
+  const { store, storeName: realStoreName, storeCode, storeStatusText, initials, storeLogoUrl, isBanned } = useMyStore();
   const { data: userData } = useMeQuery();
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
 
@@ -49,7 +49,7 @@ export function SellerTopbar({
   const finalStoreName = propStoreName || realStoreName || "Gian hàng";
   const finalInitials = propInitials || initials || "VM";
   const finalStoreCode = storeCode || (store?.id ? `#VM-${store.id}` : "");
-  const avatarImage = userData?.avatarUrl || store?.logoUrl;
+  const avatarImage = storeLogoUrl || store?.logoUrl || userData?.avatarUrl;
 
   const isApproved = store?.status === "APPROVED" || store?.status === "ACTIVE";
 

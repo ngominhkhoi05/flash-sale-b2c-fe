@@ -61,7 +61,17 @@ export function useMyStore() {
     queryKey: storeKeys.me(),
     queryFn: async () => {
       try {
-        return await getMyStoreProfile();
+        const data = await getMyStoreProfile();
+        if (data && typeof window !== "undefined") {
+          const rawLogo =
+            localStorage.getItem(`seller_logo_${data.id}`) ||
+            localStorage.getItem("seller_logo_default");
+          const savedLogo = rawLogo && rawLogo.length < 500 * 1024 ? rawLogo : "";
+          if (savedLogo) {
+            data.logoUrl = savedLogo;
+          }
+        }
+        return data;
       } catch (err) {
         console.warn("[useMyStore] Chưa có gian hàng hoặc lỗi nạp:", err);
         return null;
@@ -77,6 +87,14 @@ export function useMyStore() {
   const storeStatusText = formatStoreStatus(store?.status);
   const initials = getStoreInitials(storeName);
 
+  const rawLocalLogo =
+    typeof window !== "undefined"
+      ? (store?.id ? localStorage.getItem(`seller_logo_${store.id}`) : null) ||
+        localStorage.getItem("seller_logo_default")
+      : null;
+  const localLogo = rawLocalLogo && rawLocalLogo.length < 500 * 1024 ? rawLocalLogo : null;
+  const storeLogoUrl = localLogo || store?.logoUrl || "";
+
   const statusUpper = (store?.status || "").toUpperCase();
   const isBanned = statusUpper === "BANNED" || statusUpper === "SUSPENDED" || statusUpper === "LOCKED";
   const isApproved = statusUpper === "APPROVED" || statusUpper === "ACTIVE";
@@ -89,6 +107,7 @@ export function useMyStore() {
     storeCode,
     storeStatusText,
     initials,
+    storeLogoUrl,
     isBanned,
     isApproved,
     isPending,

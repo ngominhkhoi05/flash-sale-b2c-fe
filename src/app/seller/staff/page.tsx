@@ -17,6 +17,11 @@ import type {
 import { toast } from "sonner";
 
 export default function SellerStaffPage() {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.location.replace("/seller/profile");
+    }
+  }, []);
   const [staffList, setStaffList] = useState<SellerStaffMember[]>([]);
   const [roleSummaries, setRoleSummaries] = useState<SellerRoleSummary[]>([]);
   const [loading, setLoading] = useState(true);
