@@ -75,7 +75,6 @@ function SellerOrdersContent() {
   const [cancelModalOrder, setCancelModalOrder] = useState<SellerOrderResponse | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("out_of_stock");
   const [cancelNote, setCancelNote] = useState<string>("");
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
   const [reloadTrigger, setReloadTrigger] = useState<number>(0);
@@ -142,7 +141,10 @@ function SellerOrdersContent() {
 
   // Load ban đầu 1 lần duy nhất khi mount hoặc khi bấm reload
   useEffect(() => {
-    void fetchOrders(false);
+    const timer = setTimeout(() => {
+      void fetchOrders(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [reloadTrigger, fetchOrders]);
 
   const { store } = useMyStore();
@@ -423,14 +425,6 @@ function SellerOrdersContent() {
     }
   };
 
-  // In phiếu đóng hàng
-  const handlePrintOrders = () => {
-    setIsPrintModalOpen(true);
-  };
-
-  const selectedOrdersForPrint = useMemo(() => {
-    return orders.filter((o) => selectedIds.includes(o.id));
-  }, [orders, selectedIds]);
 
   return (
     <div className="space-y-6">
@@ -1183,96 +1177,7 @@ function SellerOrdersContent() {
         </div>
       )}
 
-      {/* Print Packing Slips Modal */}
-      {isPrintModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[85vh]">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MaterialSymbol name="print" size="[22px]" className="text-emerald-600" />
-                <h3 className="font-bold text-slate-900 text-base">
-                  In phiếu đóng gói ({selectedOrdersForPrint.length} đơn hàng)
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPrintModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
-              >
-                <MaterialSymbol name="close" size="[20px]" />
-              </button>
-            </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {selectedOrdersForPrint.map((ord) => (
-                <div
-                  key={ord.id}
-                  className="p-5 border-2 border-dashed border-slate-200 rounded-xl bg-white space-y-4"
-                >
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-                    <div>
-                      <p className="font-bold text-sm text-slate-900">VIBE MART - PHIẾU ĐÓNG GÓI</p>
-                      <p className="text-xs text-slate-500 font-mono mt-0.5">Mã đơn: #{ord.orderCode}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono text-xs font-bold px-2 py-1 bg-slate-100 rounded border border-slate-200">
-                        {ord.carrierName || "SPX EXPRESS"}
-                      </span>
-                      <p className="text-[10px] text-slate-500 mt-1">MVD: {ord.trackingNumber || "Chưa cấp"}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <span className="font-bold text-slate-500">Người nhận:</span>
-                      <p className="font-semibold text-slate-900 mt-0.5">{ord.recipientName} - {ord.recipientPhone}</p>
-                      <p className="text-slate-600 mt-0.5 leading-relaxed">{ord.recipientAddress || ord.shippingAddressText}</p>
-                    </div>
-                    <div>
-                      <span className="font-bold text-slate-500">Thanh toán:</span>
-                      <p className="font-semibold text-slate-900 mt-0.5">{ord.paymentMethod} ({ord.paymentStatus})</p>
-                      <p className="font-bold text-emerald-700 text-sm mt-1">{formatVnd(ord.finalAmount || ord.totalAmount)}</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-slate-100 pt-3">
-                    <span className="font-bold text-slate-500 text-xs">Danh sách sản phẩm:</span>
-                    <ul className="mt-1 space-y-1 text-xs">
-                      {ord.items?.map((it) => (
-                        <li key={it.id} className="flex justify-between text-slate-800">
-                          <span>{it.productName} ({it.variantSku || "SKU"})</span>
-                          <span className="font-bold">x{it.quantity}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setIsPrintModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  window.print();
-                  setIsPrintModalOpen(false);
-                }}
-                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs flex items-center gap-1.5"
-              >
-                <MaterialSymbol name="print" size="[18px]" />
-                <span>Xác nhận In</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

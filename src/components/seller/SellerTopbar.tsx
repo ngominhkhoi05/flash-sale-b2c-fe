@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useMyStore } from "@/hooks/useMyStore";
 import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
@@ -35,7 +33,6 @@ export function SellerTopbar({
   storeRole = "Chủ gian hàng",
   avatarInitials: propInitials,
 }: SellerTopbarProps) {
-  const router = useRouter();
   const { store, storeName: realStoreName, storeCode, storeStatusText, initials, storeLogoUrl, isBanned } = useMyStore();
   const { data: userData } = useMeQuery();
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
