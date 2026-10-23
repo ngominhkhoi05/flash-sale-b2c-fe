@@ -173,6 +173,10 @@ export default function SellerProfilePage() {
   // Save profile changes
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (profile?.status === "BANNED") {
+      toast.error("Gian hàng đang bị khóa, không thể cập nhật thông tin!");
+      return;
+    }
     if (!storeName.trim()) {
       toast.error("Tên gian hàng không được để trống!");
       return;
@@ -355,13 +359,14 @@ export default function SellerProfilePage() {
           <button
             type="button"
             onClick={handleSaveProfile}
-            disabled={saveLoading}
-            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors disabled:opacity-50"
+            disabled={saveLoading || profile?.status === "BANNED"}
+            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={profile?.status === "BANNED" ? "Gian hàng đang bị khóa - Không thể lưu thay đổi" : "Lưu thay đổi"}
           >
             <span className="material-symbols-outlined text-[18px]">
-              {saveLoading ? "progress_activity" : "save"}
+              {profile?.status === "BANNED" ? "lock" : saveLoading ? "progress_activity" : "save"}
             </span>
-            {saveLoading ? "Đang lưu..." : "Lưu thay đổi"}
+            {saveLoading ? "Đang lưu..." : profile?.status === "BANNED" ? "Gian hàng đang bị khóa" : "Lưu thay đổi"}
           </button>
         </div>
       </div>
