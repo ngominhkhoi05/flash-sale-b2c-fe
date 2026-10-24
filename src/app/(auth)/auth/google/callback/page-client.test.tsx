@@ -69,11 +69,18 @@ describe("GoogleCallbackClient", () => {
     if (typeof window !== "undefined") {
       window.sessionStorage.clear();
     }
-    // Test mong đợi callback page gọi BE với redirectUri =
-    // window.location.origin + pathname. Mock env để giữ giá trị
-    // khớp với test assertion.
-    process.env.OAUTH2_REDIRECT_URI =
-      "https://example.com/auth/google/callback";
+    // Callback page resolves `redirectUri` theo thu tu uu tien:
+    // 1. sessionStorage (gia tri lay tu consent URL that)
+    // 2. NEXT_PUBLIC_GOOGLE_REDIRECT_URI (env public)
+    // 3. window.location.origin + pathname
+    vi.stubEnv(
+      "NEXT_PUBLIC_GOOGLE_REDIRECT_URI",
+      "https://example.com/auth/google/callback"
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe("success path", () => {
@@ -178,6 +185,132 @@ describe("GoogleCallbackClient", () => {
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith("/cart");
       });
+    });
+  });
+
+  describe("redirectUri resolution", () => {
+    it("dùng redirect_uri lưu trong sessionStorage (khớp 100% consent URL)", async () => {
+      window.sessionStorage.setItem(
+        "google_oauth_consent_redirect_uri",
+        "http://localhost:3000/auth/google/callback"
+      );
+      setupSearchParams({ code: "AUTH_CODE", state: "ANY" });
+
+      vi.mocked(loginWithGoogle).mockResolvedValue({
+        accessToken: "a",
+        refreshToken: "r",
+        tokenType: "Bearer",
+        expiresIn: 3600,
+        user: {
+          id: 1,
+          email: "u@e.c",
+          fullName: "U",
+          phone: "",
+          avatarUrl: null,
+          status: "ACTIVE",
+          createdAt: "2026-10-17T00:00:00Z",
+        },
+      });
+      vi.mocked(applyAuthResponse).mockResolvedValue({
+        id: "1",
+        email: "u@e.c",
+        fullName: "U",
+        role: "BUYER",
+      });
+
+      render(
+        <TestWrapper>
+          <GoogleCallbackClient />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(loginWithGoogle).toHaveBeenCalledWith({
+          code: "AUTH_CODE",
+          redirectUri: "http://localhost:3000/auth/google/callback",
+        });
+      });
+    });
+
+    it("fallback sang NEXT_PUBLIC_GOOGLE_REDIRECT_URI khi sessionStorage trống", async () => {
+      setupSearchParams({ code: "AUTH_CODE", state: "ANY" });
+
+      vi.mocked(loginWithGoogle).mockResolvedValue({
+        accessToken: "a",
+        refreshToken: "r",
+        tokenType: "Bearer",
+        expiresIn: 3600,
+        user: {
+          id: 1,
+          email: "u@e.c",
+          fullName: "U",
+          phone: "",
+          avatarUrl: null,
+          status: "ACTIVE",
+          createdAt: "2026-10-17T00:00:00Z",
+        },
+      });
+      vi.mocked(applyAuthResponse).mockResolvedValue({
+        id: "1",
+        email: "u@e.c",
+        fullName: "U",
+        role: "BUYER",
+      });
+
+      render(
+        <TestWrapper>
+          <GoogleCallbackClient />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(loginWithGoogle).toHaveBeenCalledWith({
+          code: "AUTH_CODE",
+          redirectUri: "https://example.com/auth/google/callback",
+        });
+      });
+    });
+
+    it("KHÔNG gửi redirectUri rỗng lên BE (tránh Zod url() reject)", async () => {
+      // Không có sessionStorage, không có env -> phải fallback origin+pathname
+      vi.stubEnv("NEXT_PUBLIC_GOOGLE_REDIRECT_URI", "");
+      setupSearchParams({ code: "AUTH_CODE", state: "ANY" });
+
+      vi.mocked(loginWithGoogle).mockResolvedValue({
+        accessToken: "a",
+        refreshToken: "r",
+        tokenType: "Bearer",
+        expiresIn: 3600,
+        user: {
+          id: 1,
+          email: "u@e.c",
+          fullName: "U",
+          phone: "",
+          avatarUrl: null,
+          status: "ACTIVE",
+          createdAt: "2026-10-17T00:00:00Z",
+        },
+      });
+      vi.mocked(applyAuthResponse).mockResolvedValue({
+        id: "1",
+        email: "u@e.c",
+        fullName: "U",
+        role: "BUYER",
+      });
+
+      render(
+        <TestWrapper>
+          <GoogleCallbackClient />
+        </TestWrapper>
+      );
+
+      await waitFor(() => {
+        expect(loginWithGoogle).toHaveBeenCalled();
+      });
+
+      const call = vi.mocked(loginWithGoogle).mock.calls[0][0];
+      expect(call.redirectUri).toBeTruthy();
+      expect(call.redirectUri).not.toBe("");
     });
   });
 

@@ -47,3 +47,10 @@ export type {
   GoogleOAuth2LoginRequest,
 } from './google-api';
 export { applyAuthResponse, POST_LOGIN_INVALIDATE_KEYS, toAuthUser } from './apply-auth-response';
+export {
+  GOOGLE_CALLBACK_PATH,
+  GOOGLE_CONSENT_REDIRECT_URI_KEY,
+  extractRedirectUriFromConsentUrl,
+  resolveGoogleRedirectUri,
+} from './google-redirect-uri';
+export type { ResolveGoogleRedirectUriInput } from './google-redirect-uri';

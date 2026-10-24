@@ -251,6 +251,48 @@ describe("useGoogleRedirect", () => {
     });
   });
 
+  describe("redirect_uri persistence (khớp 100% consent URL)", () => {
+    it("lưu redirect_uri lấy từ consent URL vào sessionStorage", async () => {
+      vi.mocked(getGoogleConsentUrl).mockResolvedValue({
+        authorizationUrl: MOCK_AUTH_URL,
+        state: MOCK_STATE,
+      });
+
+      const setItemSpy = vi.spyOn(window.sessionStorage, "setItem");
+
+      const { result } = renderHook(() => useGoogleRedirect());
+
+      await act(async () => {
+        await result.current.redirect();
+      });
+
+      expect(setItemSpy).toHaveBeenCalledWith(
+        "google_oauth_consent_redirect_uri",
+        "https://example.com/auth/google/callback"
+      );
+    });
+
+    it("không lưu gì khi consent URL không có redirect_uri", async () => {
+      vi.mocked(getGoogleConsentUrl).mockResolvedValue({
+        authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth?client_id=test",
+        state: MOCK_STATE,
+      });
+
+      const setItemSpy = vi.spyOn(window.sessionStorage, "setItem");
+
+      const { result } = renderHook(() => useGoogleRedirect());
+
+      await act(async () => {
+        await result.current.redirect();
+      });
+
+      expect(setItemSpy).not.toHaveBeenCalledWith(
+        "google_oauth_consent_redirect_uri",
+        expect.anything()
+      );
+    });
+  });
+
   describe("reset()", () => {
     it("reset status = 'idle' và error = null", async () => {
       vi.mocked(getGoogleConsentUrl).mockRejectedValue(

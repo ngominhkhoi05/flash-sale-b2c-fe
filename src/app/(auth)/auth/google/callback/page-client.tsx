@@ -9,6 +9,10 @@ import { applyAuthResponse } from "@/features/auth/apply-auth-response";
 import { useAuthStore } from "@/stores/auth.store";
 import { useTranslations } from "next-intl";
 import { sanitizeRedirectPath } from "@/lib/auth/require-auth";
+import {
+  GOOGLE_CONSENT_REDIRECT_URI_KEY,
+  resolveGoogleRedirectUri,
+} from "@/features/auth/google-redirect-uri";
 
 const SESSION_STORAGE_STATE_KEY = "google_oauth_state";
 const SESSION_STORAGE_PROCESSED_KEY = "google_oauth_callback_processed";
@@ -91,7 +95,27 @@ export function GoogleCallbackClient() {
     window.sessionStorage.setItem(SESSION_STORAGE_PROCESSED_KEY, "true");
 
     // 6. Đổi code lấy JWT
-    const redirectUri = process.env.OAUTH2_REDIRECT_URI ?? "";
+    //
+    // `redirectUri` PHẢI khớp 100% với `redirect_uri` đã dùng trong consent
+    // URL, nếu không Google trả `invalid_grant`.
+    //
+    // Không dùng `process.env.OAUTH2_REDIRECT_URI` ở đây: đó là env phía
+    // SERVER (BE đọc `${OAUTH2_REDIRECT_URI:}`), không có prefix
+    // `NEXT_PUBLIC_` nên Next.js KHÔNG inline vào browser bundle → giá trị
+    // luôn là `undefined` trong client component → Zod reject `url("")` →
+    // throw ZodError → redirect `/login?error=google_unknown` mà không hề
+    // gọi lên BE.
+    //
+    // Thứ tự ưu tiên: sessionStorage (giá trị lấy từ consent URL thật) →
+    // `NEXT_PUBLIC_GOOGLE_REDIRECT_URI` (env public) → origin + pathname.
+    const redirectUri = resolveGoogleRedirectUri({
+      storedValue: window.sessionStorage.getItem(
+        GOOGLE_CONSENT_REDIRECT_URI_KEY
+      ),
+      envValue: process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI,
+      origin: window.location.origin,
+      pathname: window.location.pathname,
+    });
 
     (async () => {
       try {
