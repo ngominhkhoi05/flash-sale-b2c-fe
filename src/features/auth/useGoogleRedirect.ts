@@ -16,6 +16,10 @@
 import { useCallback, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { getGoogleConsentUrl } from "./google-api";
+import {
+  GOOGLE_CONSENT_REDIRECT_URI_KEY,
+  extractRedirectUriFromConsentUrl,
+} from "./google-redirect-uri";
 
 /** Key lưu state BE trả về (CSRF verification ở callback page). */
 const SESSION_STORAGE_STATE_KEY = "google_oauth_state";
@@ -71,6 +75,20 @@ export function useGoogleRedirect(
       // Save state for CSRF verification at callback page
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(SESSION_STORAGE_STATE_KEY, state ?? "");
+
+        // Luu `redirect_uri` lay tu consent URL that. Callback page dung
+        // chung gia tri nay de doi code -> luon khop 100%, tranh
+        // `invalid_grant` khi env client khong expose duoc.
+        const usedRedirectUri = extractRedirectUriFromConsentUrl(
+          authorizationUrl
+        );
+        if (usedRedirectUri) {
+          window.sessionStorage.setItem(
+            GOOGLE_CONSENT_REDIRECT_URI_KEY,
+            usedRedirectUri
+          );
+        }
+
         window.location.href = authorizationUrl;
       }
 
