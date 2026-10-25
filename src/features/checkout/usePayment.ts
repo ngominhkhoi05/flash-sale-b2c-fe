@@ -25,6 +25,7 @@ import {
   createZaloPayPayment,
   getOrderPayment,
   queryZaloPayPayment,
+  queryZaloPayPaymentByCode,
 } from "./payment.api";
 import { useFlashSaleWs } from "@/hooks/useFlashSaleWs";
 import type { PaymentResponse, PaymentStatus } from "./payment.types";
@@ -149,6 +150,21 @@ export function useQueryZaloPayPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (orderId: number) => queryZaloPayPayment(orderId),
+    onSuccess: (data) => {
+      qc.setQueryData(paymentKeys.detail(data.orderId), data);
+      qc.setQueryData(paymentKeys.byCode(data.orderCode), data);
+    },
+  });
+}
+
+/**
+ * Mutation: manual sync với ZaloPay gateway theo orderCode.
+ * Dùng trên trang /checkout/qr khi user click "Tôi đã thanh toán" hoặc "Đã hoàn tất".
+ */
+export function useQueryZaloPayPaymentByCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderCode: string) => queryZaloPayPaymentByCode(orderCode),
     onSuccess: (data) => {
       qc.setQueryData(paymentKeys.detail(data.orderId), data);
       qc.setQueryData(paymentKeys.byCode(data.orderCode), data);

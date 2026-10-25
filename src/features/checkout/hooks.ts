@@ -118,11 +118,15 @@ export type { ApplyVoucherResponse };
  * payment page (`/checkout/qr`). Pass an empty `orderCode` to skip
  * the fetch (e.g. before the URL param is parsed).
  */
-export function useOrderForQr(orderCode: string) {
+export function useOrderForQr(
+  orderCode: string,
+  options?: { refetchInterval?: number | false },
+) {
   return useQuery<QrOrderDetail>({
     queryKey: checkoutKeys.qrOrder(orderCode),
     queryFn: () => getOrderForQrApi(orderCode),
     enabled: orderCode.length > 0,
-    staleTime: 30_000,
+    staleTime: 3_000,
+    refetchInterval: options?.refetchInterval ?? false,
   });
 }

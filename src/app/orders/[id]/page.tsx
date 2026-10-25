@@ -12,6 +12,7 @@
 import { redirect } from "next/navigation";
 import { OrderDetailClient } from "./OrderDetailClient";
 import { maybeSession } from "@/lib/auth-guard";
+import { getOrderForQr } from "@/features/checkout";
 
 type Params = Promise<{ id: string }>;
 
@@ -28,9 +29,20 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
     redirect("/login?redirect=/orders");
   }
 
-  // Parse orderId từ URL
+  // Parse orderId từ URL (hỗ trợ cả numeric ID và chuỗi orderCode)
   const { id } = await params;
-  const orderId = Number.parseInt(id, 10);
+  let orderId = Number.parseInt(id, 10);
+
+  if (!Number.isFinite(orderId) || orderId <= 0) {
+    try {
+      const qrData = await getOrderForQr(id);
+      if (qrData?.orderId && qrData.orderId > 0) {
+        orderId = qrData.orderId;
+      }
+    } catch {
+      // Fallback
+    }
+  }
 
   if (!Number.isFinite(orderId) || orderId <= 0) {
     return (

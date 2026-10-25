@@ -32,6 +32,7 @@ export {
   createZaloPayPayment,
   getOrderPayment as getOrderPaymentApi,
   queryZaloPayPayment as queryZaloPayPaymentApi,
+  queryZaloPayPaymentByCode as queryZaloPayPaymentByCodeApi,
 } from "./payment.api";
 export {
   checkoutKeys,
@@ -47,6 +48,7 @@ export {
   useCreateZaloPayPayment,
   useOrderPayment,
   useQueryZaloPayPayment,
+  useQueryZaloPayPaymentByCode,
   useOrderPaymentByCode,
 } from "./usePayment";
 export {

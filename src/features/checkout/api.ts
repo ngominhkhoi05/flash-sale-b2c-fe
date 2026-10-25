@@ -441,6 +441,7 @@ export async function submitOrder(
   const body = {
     shippingAddressId: payload.addressId,
     storeOrders,
+    paymentMethod: payload.paymentMethod,
   };
 
   const res = await apiFetch<BackendOrder[]>(

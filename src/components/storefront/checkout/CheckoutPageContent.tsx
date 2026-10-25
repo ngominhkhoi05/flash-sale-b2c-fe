@@ -251,10 +251,10 @@ export function CheckoutPageContent({
         },
         idempotencyKey: uuidv4(),
       });
-      if (res.status === "PENDING_PAYMENT" && res.paymentUrl) {
-        window.location.href = res.paymentUrl;
+      if (paymentMethod === "ZALOPAY") {
+        router.push(`/checkout/qr?orderCode=${encodeURIComponent(res.orderCode)}`);
       } else {
-        router.push(`${ROUTES.ORDERS}/${res.orderCode}`);
+        router.push(`/checkout/success?orderCode=${encodeURIComponent(res.orderCode)}`);
       }
     } catch (err) {
       console.error("[checkout] submitOrder", err);

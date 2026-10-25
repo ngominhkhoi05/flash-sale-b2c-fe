@@ -185,6 +185,7 @@ export interface OrderSubmitResponse {
  * Mirrors `QrOrderDetail.shopOrders` in api.ts.
  */
 export interface QrShopOrder {
+  orderId?: number;
   storeId: number;
   storeName: string;
   storeBadge?: "Mall" | "OfficialMall" | "";
@@ -198,7 +199,10 @@ export interface QrShopOrder {
  * Re-exported from api.ts so feature consumers don't import from api directly.
  */
 export interface QrOrderDetail {
+  orderId?: number;
   orderCode: string;
+  paymentStatus?: string;
+  paymentUrl?: string;
   qrCodeUrl: string;
   expiresAt: string;
   amount: number;

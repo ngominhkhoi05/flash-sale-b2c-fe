@@ -144,12 +144,14 @@ function CircularCountdown({
           strokeDashoffset={offset}
           strokeLinecap="round"
           className="text-tertiary transition-all duration-1000"
+          suppressHydrationWarning
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <span
           className="font-bold text-tertiary text-headline-sm tabular-nums"
           data-testid="countdown-timer"
+          suppressHydrationWarning
         >
           {display}
         </span>
@@ -171,15 +173,18 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
     () => new Date(order.expiresAt).getTime(),
     [order.expiresAt],
   );
+  const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const msLeft = targetMs - now;
-  const expired = msLeft <= 0;
+  // Tránh hydration mismatch: chỉ render expired overlay sau khi đã mounted trên client
+  const expired = mounted && msLeft <= 0;
 
   useEffect(() => {
-    if (expired) return;
+    setMounted(true);
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [expired]);
+  }, []);
 
   const handleCopyOrderCode = async () => {
     try {
@@ -217,11 +222,9 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
             {/* Header info */}
             <div className="flex items-center justify-between w-full mb-4">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary-container font-semibold text-label-sm uppercase tracking-wider">
-                  {t("zaloPayBadge")}
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-variant text-on-surface-variant font-semibold text-label-sm">
-                  {t("vietQrBadge")}
+                <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-semibold text-label-sm uppercase tracking-wider flex items-center gap-1">
+                  <MaterialSymbol name="qr_code_2" size="[14px]" />
+                  {t("zaloPayBadge")} QR
                 </span>
               </div>
               <div className="flex items-center gap-1 text-on-surface-variant">
@@ -238,7 +241,10 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
 
             <CircularCountdown msLeft={msLeft} t={t} />
 
-            <p className="text-on-surface-variant text-center mb-5 text-body-sm">
+            <p
+              className="text-on-surface-variant text-center mb-5 text-body-sm"
+              suppressHydrationWarning
+            >
               {t("heldFor", { time: formatCountdown(msLeft) })}
             </p>
 
@@ -410,6 +416,17 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
 
           {/* CTA buttons */}
           <div className="space-y-2">
+            {order.paymentUrl && (
+              <a
+                href={order.paymentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 px-4 rounded-lg font-semibold text-label-lg transition-all shadow-sm flex items-center justify-center gap-2 bg-[#0284C7] text-white hover:bg-sky-700 active:scale-[0.98]"
+              >
+                <MaterialSymbol name="open_in_new" size="[20px]" />
+                <span>Mở ứng dụng ZaloPay</span>
+              </a>
+            )}
             <button
               type="button"
               onClick={onComplete}

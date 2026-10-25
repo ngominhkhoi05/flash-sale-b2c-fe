@@ -182,13 +182,14 @@ export const mockCheckoutData: CheckoutData = {
  * The held order expires 5 minutes from "now" — the page will tick the
  * countdown down and clamp at 00:00 (rule §8 mục 1 — server time).
  */
-const HELD_EXPIRY = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 export const mockQrOrderDetail: QrOrderDetail = {
   orderCode: "261001_000245",
   // Inline SVG (1×1 transparent placeholder) – production sẽ là PNG/SVG data URL
   qrCodeUrl:
     "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ffffff'/%3E%3C/svg%3E",
-  expiresAt: HELD_EXPIRY,
+  get expiresAt() {
+    return new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  },
   amount: 1_292_000,
   shopOrders: [
     {

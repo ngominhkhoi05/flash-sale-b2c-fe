@@ -13,7 +13,7 @@
  *   4. Có data → render panel + order code
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { PaymentResponse } from "@/features/checkout/payment.types";
 
 const ORDER_ID = 42;
@@ -32,6 +32,63 @@ const PENDING_PAYMENT: PaymentResponse = {
   paidAt: null,
   createdAt: "2026-10-16T10:30:00.000Z",
 };
+
+// Mock next/navigation
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
+const mockOrder = {
+  id: ORDER_ID,
+  orderCode: ORDER_CODE,
+  status: "PENDING_PAYMENT",
+  paymentStatus: "PENDING",
+  paymentMethod: "ZALOPAY",
+  totalAmount: 150000,
+  subtotalAmount: 150000,
+  shippingFee: 0,
+  discountAmount: 0,
+  createdAt: "2026-10-16T10:30:00.000Z",
+  items: [
+    {
+      id: 1,
+      productName: "Áo thun Vibe",
+      variantName: "Size L",
+      imageUrl: "https://example.com/img.jpg",
+      price: 150000,
+      quantity: 1,
+      totalAmount: 150000,
+    },
+  ],
+  store: {
+    id: 1,
+    storeName: "Vibe Store",
+    avatarUrl: null,
+  },
+  shippingAddress: {
+    recipientName: "Nguyen Van A",
+    phone: "0901234567",
+    street: "123 Le Loi",
+    ward: "Ben Nghe",
+    district: "Quan 1",
+    province: "TP HCM",
+  },
+};
+
+// Mock useOrderById & useCancelOrder
+const mockUseOrderById = vi.fn();
+const mockUseCancelOrder = vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false });
+vi.mock("@/features/orders/hooks", () => ({
+  useOrderById: (...args: unknown[]) => mockUseOrderById(...args),
+  useCancelOrder: (...args: unknown[]) => mockUseCancelOrder(...args),
+}));
 
 // Mock useOrderPayment
 const mockUseOrderPayment = vi.fn();
@@ -70,6 +127,7 @@ import { OrderDetailClient } from "./OrderDetailClient";
 
 beforeEach(() => {
   mockUseOrderPayment.mockReset();
+  mockUseOrderById.mockReset();
 });
 
 afterEach(() => {
@@ -78,6 +136,12 @@ afterEach(() => {
 
 describe("OrderDetailClient — loading state", () => {
   it("render skeleton khi useOrderPayment đang loading", () => {
+    mockUseOrderById.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      error: null,
+    });
     mockUseOrderPayment.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -92,6 +156,12 @@ describe("OrderDetailClient — loading state", () => {
 
 describe("OrderDetailClient — error state", () => {
   it("render error UI khi useOrderPayment trả error", () => {
+    mockUseOrderById.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error("Network failed"),
+    });
     mockUseOrderPayment.mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -107,6 +177,12 @@ describe("OrderDetailClient — error state", () => {
 
 describe("OrderDetailClient — empty state", () => {
   it("render 'not found' khi không có data và không lỗi", () => {
+    mockUseOrderById.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
     mockUseOrderPayment.mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -115,12 +191,18 @@ describe("OrderDetailClient — empty state", () => {
     });
 
     render(<OrderDetailClient orderId={ORDER_ID} />);
-    expect(screen.getByTestId("order-detail-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("order-detail-error")).toBeInTheDocument();
   });
 });
 
 describe("OrderDetailClient — success state", () => {
   beforeEach(() => {
+    mockUseOrderById.mockReturnValue({
+      data: mockOrder,
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
     mockUseOrderPayment.mockReturnValue({
       data: PENDING_PAYMENT,
       isLoading: false,
@@ -129,9 +211,12 @@ describe("OrderDetailClient — success state", () => {
     });
   });
 
-  it("render panel + order code", () => {
+  it("render panel khi bấm Thanh toán ngay", () => {
     render(<OrderDetailClient orderId={ORDER_ID} />);
     expect(screen.getByTestId("order-detail")).toBeInTheDocument();
+
+    const payButton = screen.getByText("Thanh toán ngay");
+    fireEvent.click(payButton);
 
     const panel = screen.getByTestId("payment-panel");
     expect(panel).toBeInTheDocument();
@@ -141,7 +226,6 @@ describe("OrderDetailClient — success state", () => {
 
   it("hiển thị order code trong header", () => {
     render(<OrderDetailClient orderId={ORDER_ID} />);
-    // expect ORD_CODE somewhere visible
-    expect(screen.getAllByText(ORDER_CODE).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(new RegExp(ORDER_CODE)).length).toBeGreaterThan(0);
   });
 });
