@@ -16,6 +16,7 @@ import {
   type SearchQuery,
   type SearchResult,
   type SearchSortKey,
+  type ImageSearchResult,
 } from "./types";
 
 /** Tính giá trị dùng cho pagination ở client (BE sẽ trả total). */
@@ -180,4 +181,38 @@ export const __searchInternals = {
   DEFAULT_SEARCH_PAGE,
   DEFAULT_SEARCH_PAGE_SIZE,
 };
+
+/**
+ * Tìm kiếm sản phẩm bằng file ảnh tải lên.
+ */
+export async function searchByImageFile(
+  file: File,
+  limit = 20,
+): Promise<ImageSearchResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiFetch<ImageSearchResult>("/products/search/image", {
+    method: "POST",
+    body: formData,
+    query: { limit },
+    skipMock: true,
+  });
+}
+
+/**
+ * Tìm kiếm sản phẩm bằng URL ảnh.
+ */
+export async function searchByImageUrl(
+  imageUrl: string,
+  limit = 20,
+): Promise<ImageSearchResult> {
+  return apiFetch<ImageSearchResult>("/products/search/image/url", {
+    method: "POST",
+    json: { url: imageUrl },
+    query: { limit },
+    skipMock: true,
+  });
+}
+
 

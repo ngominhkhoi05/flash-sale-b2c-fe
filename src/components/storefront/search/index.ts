@@ -13,3 +13,5 @@ export { SearchProductGrid } from "./SearchProductGrid";
 export { SearchPagination } from "./SearchPagination";
 export { SearchEmptyState } from "./SearchEmptyState";
 export { SearchPageContent } from "./SearchPageContent";
+export { ImageSearchModal } from "./ImageSearchModal";
+
