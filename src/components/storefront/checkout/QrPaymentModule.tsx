@@ -222,11 +222,9 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
             {/* Header info */}
             <div className="flex items-center justify-between w-full mb-4">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary-container font-semibold text-label-sm uppercase tracking-wider">
-                  {t("zaloPayBadge")}
-                </span>
-                <span className="px-2 py-0.5 rounded bg-surface-variant text-on-surface-variant font-semibold text-label-sm">
-                  {t("vietQrBadge")}
+                <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-semibold text-label-sm uppercase tracking-wider flex items-center gap-1">
+                  <MaterialSymbol name="qr_code_2" size="[14px]" />
+                  {t("zaloPayBadge")} QR
                 </span>
               </div>
               <div className="flex items-center gap-1 text-on-surface-variant">
