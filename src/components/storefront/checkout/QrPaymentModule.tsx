@@ -144,12 +144,14 @@ function CircularCountdown({
           strokeDashoffset={offset}
           strokeLinecap="round"
           className="text-tertiary transition-all duration-1000"
+          suppressHydrationWarning
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <span
           className="font-bold text-tertiary text-headline-sm tabular-nums"
           data-testid="countdown-timer"
+          suppressHydrationWarning
         >
           {display}
         </span>
@@ -176,6 +178,8 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
   const expired = msLeft <= 0;
 
   useEffect(() => {
+    // Sync client clock immediately on mount
+    setNow(Date.now());
     if (expired) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
@@ -238,7 +242,10 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
 
             <CircularCountdown msLeft={msLeft} t={t} />
 
-            <p className="text-on-surface-variant text-center mb-5 text-body-sm">
+            <p
+              className="text-on-surface-variant text-center mb-5 text-body-sm"
+              suppressHydrationWarning
+            >
               {t("heldFor", { time: formatCountdown(msLeft) })}
             </p>
 
@@ -410,6 +417,17 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
 
           {/* CTA buttons */}
           <div className="space-y-2">
+            {order.paymentUrl && (
+              <a
+                href={order.paymentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 px-4 rounded-lg font-semibold text-label-lg transition-all shadow-sm flex items-center justify-center gap-2 bg-[#0284C7] text-white hover:bg-sky-700 active:scale-[0.98]"
+              >
+                <MaterialSymbol name="open_in_new" size="[20px]" />
+                <span>Mở ứng dụng ZaloPay</span>
+              </a>
+            )}
             <button
               type="button"
               onClick={onComplete}

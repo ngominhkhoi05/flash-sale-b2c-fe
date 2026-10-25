@@ -26,6 +26,8 @@ export const paymentEndpoints = {
     `/api/v1/orders/${orderId}/payment/zalopay`,
   queryZalopay: (orderId: number) =>
     `/api/v1/orders/${orderId}/payment/zalopay/query`,
+  queryZalopayByCode: (orderCode: string) =>
+    `/api/v1/orders/by-code/${encodeURIComponent(orderCode)}/payment/zalopay/query`,
 } as const;
 
 // ─── API functions ─────────────────────────────────────────────────────────
@@ -89,6 +91,20 @@ export async function queryZaloPayPayment(
 ): Promise<PaymentResponse> {
   return apiFetch<ApiResponse<PaymentResponse>>(
     paymentEndpoints.queryZalopay(orderId),
+    { method: "POST" },
+  ).then((envelope) => envelope.data);
+}
+
+/**
+ * POST /api/v1/orders/by-code/{orderCode}/payment/zalopay/query
+ *
+ * Manually sync với ZaloPay gateway theo orderCode.
+ */
+export async function queryZaloPayPaymentByCode(
+  orderCode: string,
+): Promise<PaymentResponse> {
+  return apiFetch<ApiResponse<PaymentResponse>>(
+    paymentEndpoints.queryZalopayByCode(orderCode),
     { method: "POST" },
   ).then((envelope) => envelope.data);
 }
