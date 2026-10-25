@@ -103,3 +103,18 @@ export interface SearchQuery {
 export const DEFAULT_SEARCH_SORT: SearchSortKey = "relevance";
 export const DEFAULT_SEARCH_PAGE = 1;
 export const DEFAULT_SEARCH_PAGE_SIZE = 20;
+
+/** 1 item kết quả tìm kiếm bằng hình ảnh kèm điểm tương đồng. */
+export interface ImageSearchItem {
+  product: RecommendedProductResponse;
+  similarityScore: number; // e.g. 0.95 (95%)
+  distance: number;        // Cosine distance
+}
+
+/** Toàn bộ kết quả tìm kiếm bằng hình ảnh. */
+export interface ImageSearchResult {
+  items: ImageSearchItem[];
+  total: number;
+  searchDurationMs: number;
+}
+

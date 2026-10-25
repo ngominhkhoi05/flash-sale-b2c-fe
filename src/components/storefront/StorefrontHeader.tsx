@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ImageSearchModal } from "@/components/storefront/search";
 
 export type StorefrontNavKey =
   | "home"
@@ -55,6 +57,7 @@ export function StorefrontHeader({
   // Cart count chỉ fetch khi đã đăng nhập (tránh 401 spam khi user chưa login)
   const { data: cartCount = 0 } = useCartCount(isAuthenticated);
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
+  const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
 
   const detected: StorefrontNavKey = (() => {
     if (pathname.startsWith(ROUTES.FLASH_SALE)) return "flash-sale";
@@ -98,6 +101,14 @@ export function StorefrontHeader({
             >
               <MaterialSymbol name="search" size="2xl" />
             </Link>
+            <button
+              type="button"
+              onClick={() => setIsImageSearchOpen(true)}
+              aria-label="Tìm kiếm bằng hình ảnh"
+              className="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-low flex items-center justify-center"
+            >
+              <MaterialSymbol name="photo_camera" size="2xl" />
+            </button>
             <Link
               href={ROUTES.CART}
               aria-label={t("nav.cart")}
@@ -179,6 +190,7 @@ export function StorefrontHeader({
             )}
           </div>
         </div>
+        <ImageSearchModal open={isImageSearchOpen} onOpenChange={setIsImageSearchOpen} />
       </header>
     );
   }
@@ -295,12 +307,21 @@ export function StorefrontHeader({
             >
               <div className="relative flex items-center">
                 <input
-                  className="w-full h-10 pl-4 pr-12 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary text-body-md"
+                  className="w-full h-10 pl-4 pr-20 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary text-body-md"
                   placeholder={t("searchPlaceholder")}
                   type="text"
                   name="q"
                   aria-label={t("searchPlaceholder")}
                 />
+                <button
+                  type="button"
+                  onClick={() => setIsImageSearchOpen(true)}
+                  className="absolute right-11 top-1 h-8 w-8 text-on-surface-variant hover:text-primary rounded-lg flex items-center justify-center transition-colors"
+                  aria-label="Tìm kiếm bằng hình ảnh"
+                  title="Tìm kiếm bằng hình ảnh"
+                >
+                  <MaterialSymbol name="photo_camera" size="base" />
+                </button>
                 <button
                   className="absolute right-1 top-1 h-8 w-10 bg-primary hover:bg-primary-container text-on-primary rounded-lg flex items-center justify-center transition-colors"
                   type="submit"
@@ -490,6 +511,7 @@ export function StorefrontHeader({
           </div>
         </div>
       </div>
+      <ImageSearchModal open={isImageSearchOpen} onOpenChange={setIsImageSearchOpen} />
     </header>
   );
 }

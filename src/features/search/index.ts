@@ -8,6 +8,8 @@ export * from "./schemas";
 export {
   searchProducts,
   TOTAL_PAGES_MOCK,
+  searchByImageFile,
+  searchByImageUrl,
 } from "./api";
 export {
   useSearchProducts,
