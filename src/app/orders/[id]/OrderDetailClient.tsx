@@ -50,7 +50,7 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8" data-testid="order-detail-loading">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-3 h-72 animate-pulse rounded-2xl bg-surface-container" />
           <div className="lg:col-span-9 flex flex-col gap-6">
@@ -65,7 +65,7 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
 
   if (isError || !order) {
     return (
-      <div className="mx-auto max-w-2xl py-16 text-center">
+      <div className="mx-auto max-w-2xl py-16 text-center" data-testid="order-detail-error">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-error-container text-error flex items-center justify-center">
           <MaterialSymbol name="error" size="[32px]" />
         </div>
@@ -188,7 +188,7 @@ export function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-7xl px-4 py-6" data-testid="order-detail">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Menu trái 240px theo Stitch spec */}
         <div className="lg:col-span-3">

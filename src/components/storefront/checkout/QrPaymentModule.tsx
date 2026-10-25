@@ -173,17 +173,18 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
     () => new Date(order.expiresAt).getTime(),
     [order.expiresAt],
   );
+  const [mounted, setMounted] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const msLeft = targetMs - now;
-  const expired = msLeft <= 0;
+  // Tránh hydration mismatch: chỉ render expired overlay sau khi đã mounted trên client
+  const expired = mounted && msLeft <= 0;
 
   useEffect(() => {
-    // Sync client clock immediately on mount
+    setMounted(true);
     setNow(Date.now());
-    if (expired) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [expired]);
+  }, []);
 
   const handleCopyOrderCode = async () => {
     try {

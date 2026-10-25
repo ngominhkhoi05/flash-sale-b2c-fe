@@ -44,13 +44,28 @@ export const paymentEndpoints = {
  *   - 409 ORDER_INVALID_STATUS_TRANSITION (order không ở PENDING_PAYMENT)
  *   - 500 INTERNAL_SERVER_ERROR (ZaloPay gateway error)
  */
+function extractPaymentResponse(
+  res: PaymentResponse | ApiResponse<PaymentResponse>,
+): PaymentResponse {
+  if (
+    res &&
+    typeof res === "object" &&
+    "data" in res &&
+    (res as ApiResponse<PaymentResponse>).data !== undefined
+  ) {
+    return (res as ApiResponse<PaymentResponse>).data;
+  }
+  return res as PaymentResponse;
+}
+
 export async function createZaloPayPayment(
   orderId: number,
 ): Promise<PaymentResponse> {
-  return apiFetch<ApiResponse<PaymentResponse>>(
+  const res = await apiFetch<PaymentResponse | ApiResponse<PaymentResponse>>(
     paymentEndpoints.createZalopay(orderId),
     { method: "POST" },
-  ).then((envelope) => envelope.data);
+  );
+  return extractPaymentResponse(res);
 }
 
 /**
@@ -69,10 +84,11 @@ export async function createZaloPayPayment(
 export async function getOrderPayment(
   orderId: number,
 ): Promise<PaymentResponse> {
-  return apiFetch<ApiResponse<PaymentResponse>>(
+  const res = await apiFetch<PaymentResponse | ApiResponse<PaymentResponse>>(
     paymentEndpoints.paymentBase(orderId),
     { method: "GET" },
-  ).then((envelope) => envelope.data);
+  );
+  return extractPaymentResponse(res);
 }
 
 /**
@@ -89,10 +105,11 @@ export async function getOrderPayment(
 export async function queryZaloPayPayment(
   orderId: number,
 ): Promise<PaymentResponse> {
-  return apiFetch<ApiResponse<PaymentResponse>>(
+  const res = await apiFetch<PaymentResponse | ApiResponse<PaymentResponse>>(
     paymentEndpoints.queryZalopay(orderId),
     { method: "POST" },
-  ).then((envelope) => envelope.data);
+  );
+  return extractPaymentResponse(res);
 }
 
 /**
@@ -103,8 +120,9 @@ export async function queryZaloPayPayment(
 export async function queryZaloPayPaymentByCode(
   orderCode: string,
 ): Promise<PaymentResponse> {
-  return apiFetch<ApiResponse<PaymentResponse>>(
+  const res = await apiFetch<PaymentResponse | ApiResponse<PaymentResponse>>(
     paymentEndpoints.queryZalopayByCode(orderCode),
     { method: "POST" },
-  ).then((envelope) => envelope.data);
+  );
+  return extractPaymentResponse(res);
 }
