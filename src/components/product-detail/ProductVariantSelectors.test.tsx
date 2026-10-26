@@ -221,3 +221,67 @@ describe("ProductVariantSelectors – defensive guards (BE nullable)", () => {
     ).not.toThrow();
   });
 });
+
+describe("ProductVariantSelectors – dynamic tiers from tierVariationConfigs", () => {
+  const dynamicTiers = [
+    {
+      name: "Color",
+      options: [
+        { label: "Black", bgClass: "bg-slate-900" },
+        { label: "White", bgClass: "bg-slate-100" },
+      ],
+    },
+    {
+      name: "Dung lượng",
+      options: [
+        { label: "128GB" },
+        { label: "256GB" },
+        { label: "512GB", disabled: true },
+      ],
+    },
+  ];
+
+  it("renders exactly the number of options defined in tiers (not extra)", () => {
+    renderWithIntl(
+      <ProductVariantSelectors
+        tiers={dynamicTiers}
+        selectedOptions={{ Color: "Black", "Dung lượng": "128GB" }}
+        onSelectOption={() => {}}
+      />,
+    );
+
+    // Color tier has name "Color" rendered verbatim as "Color:" (not translated)
+    expect(screen.getByText("Color:")).toBeInTheDocument();
+    expect(screen.getByText("Black")).toBeInTheDocument();
+    expect(screen.getByText("White")).toBeInTheDocument();
+
+    // Dung lượng tier has custom name and 3 options
+    expect(screen.getByText("Dung lượng:")).toBeInTheDocument();
+    expect(screen.getByText("128GB")).toBeInTheDocument();
+    expect(screen.getByText("256GB")).toBeInTheDocument();
+    expect(screen.getByText("512GB")).toBeInTheDocument();
+
+    // 512GB is disabled
+    expect(screen.getByRole("button", { name: /512GB/ })).toBeDisabled();
+  });
+
+  it("fires onSelectOption when clicking an active option", async () => {
+    const user = userEvent.setup();
+    const onSelectOption = vi.fn();
+
+    renderWithIntl(
+      <ProductVariantSelectors
+        tiers={dynamicTiers}
+        selectedOptions={{ Color: "Black", "Dung lượng": "128GB" }}
+        onSelectOption={onSelectOption}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /White/ }));
+    expect(onSelectOption).toHaveBeenCalledWith("Color", "White");
+
+    await user.click(screen.getByRole("button", { name: "256GB" }));
+    expect(onSelectOption).toHaveBeenCalledWith("Dung lượng", "256GB");
+  });
+});
+

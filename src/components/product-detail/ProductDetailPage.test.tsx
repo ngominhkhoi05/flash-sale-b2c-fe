@@ -10,7 +10,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
 import { TestWrapper } from "@/__tests__/test-wrapper";
-import { mockProductDetail } from "@/features/products";
+import { mockProductDetail, type ProductDetail } from "@/features/products";
 
 // Mock useAddToCart (cart) + useRouter (navigation)
 const mockAddMutateAsync = vi.fn();
@@ -378,4 +378,148 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
       expect.stringMatching(/hết hàng|out of stock/i),
     );
   });
+
+  test("tierVariationConfigs là Source of Truth: chỉ hiển thị đúng số options trong configs, không hiển thị thừa từ variants", () => {
+    // Giả lập case người dùng gặp:
+    // Response có tierVariationConfigs chỉ định nghĩa 2 màu ("Black", "White")
+    // Nhưng variants chứa 4 màu khác nhau ("Green", "Black", "Gray", "Red")
+    const product = {
+      ...mockProductDetail,
+      flashSales: [],
+      tierVariationConfigs: [
+        { name: "Color", options: ["Black", "White"] },
+      ],
+      variants: [
+        {
+          id: 101,
+          productId: 1,
+          sku: "V-GREEN",
+          variantName: "Green",
+          attributes: { Color: "Green" },
+          originalPrice: 100000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE" as const,
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: 102,
+          productId: 1,
+          sku: "V-BLACK",
+          variantName: "Black",
+          attributes: { Color: "Black" },
+          originalPrice: 100000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE" as const,
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: 103,
+          productId: 1,
+          sku: "V-GRAY",
+          variantName: "Gray",
+          attributes: { Color: "Gray" },
+          originalPrice: 100000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE" as const,
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: 104,
+          productId: 1,
+          sku: "V-WHITE",
+          variantName: "White",
+          attributes: { Color: "White" },
+          originalPrice: 100000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE" as const,
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-01T00:00:00Z",
+        },
+      ],
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    // Phải hiển thị đúng tên tier "Color:" và 2 màu từ tierVariationConfigs
+    expect(screen.getByText("Color:")).toBeInTheDocument();
+    expect(screen.getByText("Black")).toBeInTheDocument();
+    expect(screen.getByText("White")).toBeInTheDocument();
+
+    // TUYỆT ĐỐI KHÔNG hiển thị các màu thừa từ variants ("Green", "Gray")
+    expect(screen.queryByText("Green")).not.toBeInTheDocument();
+    expect(screen.queryByText("Gray")).not.toBeInTheDocument();
+  });
+
+  test("sparse variants (e.g. L-Blue 334, XXL-Green 473): hiển thị đúng stock từng variant (không cộng dồn 807) và không bị disabled oan", async () => {
+    const user = userEvent.setup();
+    const product: ProductDetail = {
+      ...mockProductDetail,
+      id: 8,
+      name: "Den ban Mini #8",
+      flashSales: [],
+      tierVariationConfigs: [
+        { name: "Size", options: ["L", "XXL"] },
+        { name: "Color", options: ["Blue", "Green"] },
+      ],
+      variants: [
+        {
+          id: 20,
+          productId: 8,
+          sku: "PRD-00008-V1",
+          variantName: "Variant 1 of #8",
+          attributes: { size: "L", color: "Blue", variant_index: "1" },
+          originalPrice: 10000,
+          stockQuantity: 334,
+          imageUrl: null,
+          status: "ACTIVE" as const,
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 21,
+          productId: 8,
+          sku: "PRD-00008-V2",
+          variantName: "Variant 2 of #8",
+          attributes: { size: "XXL", color: "Green", variant_index: "2" },
+          originalPrice: 10000,
+          stockQuantity: 473,
+          imageUrl: null,
+          status: "ACTIVE" as const,
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+      ],
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    // Không option nào bị disabled hay gạch chéo hết hàng
+    const xxlBtn = screen.getByRole("button", { name: "XXL" });
+    const greenBtn = screen.getByRole("button", { name: /Green/ });
+    expect(xxlBtn).not.toBeDisabled();
+    expect(greenBtn).not.toBeDisabled();
+
+    // Mặc định chọn L - Blue -> Tồn kho hiển thị là 334 (KHÔNG phải tổng 807)
+    expect(screen.getByText("334")).toBeInTheDocument();
+    expect(screen.queryByText("807")).not.toBeInTheDocument();
+
+    // Click XXL -> Tự động auto-switch sang Green và cập nhật tồn kho thành 473 (KHÔNG phải 807)
+    await user.click(xxlBtn);
+    expect(screen.getByText("473")).toBeInTheDocument();
+    expect(screen.queryByText("807")).not.toBeInTheDocument();
+  });
 });
+

@@ -35,7 +35,10 @@ import { ProductHeaderInfo } from "@/components/product-detail/ProductHeaderInfo
 import { ProductPricingBox } from "@/components/product-detail/ProductPricingBox";
 import { ProductVouchers } from "@/components/product-detail/ProductVouchers";
 import { ProductShipping } from "@/components/product-detail/ProductShipping";
-import { ProductVariantSelectors } from "@/components/product-detail/ProductVariantSelectors";
+import {
+  ProductVariantSelectors,
+  type TierConfigItem,
+} from "@/components/product-detail/ProductVariantSelectors";
 import { ProductQuantityStepper } from "@/components/product-detail/ProductQuantityStepper";
 import { ProductCtaButtons } from "@/components/product-detail/ProductCtaButtons";
 import { ProductStoreCard } from "@/components/product-detail/ProductStoreCard";
@@ -47,62 +50,114 @@ import { ProductBestSellers } from "@/components/product-detail/ProductBestSelle
 import type {
   ActiveFlashSaleDto,
   ProductDetail,
+  TierVariationConfig,
 } from "@/features/products";
 
 export interface ProductDetailPageProps {
   product: ProductDetail;
 }
 
+/** Case-insensitive attribute lookup */
+function getAttr(attributes: Record<string, string> | undefined, key: string): string | undefined {
+  if (!attributes) return undefined;
+  if (attributes[key] !== undefined) return attributes[key];
+  const lower = key.toLowerCase();
+  for (const [k, v] of Object.entries(attributes)) {
+    if (k.toLowerCase() === lower) return v;
+  }
+  return undefined;
+}
+
+/** Case-insensitive and trimmed attribute value comparison */
+function matchesAttrValue(vVal: string | undefined, optVal: string): boolean {
+  if (vVal === undefined) return false;
+  return vVal.trim().toLowerCase() === optVal.trim().toLowerCase();
+}
+
 /**
- * Lấy màu đầu tiên từ variants (key BE: "Color"), fallback dựa trên tier configs.
- *
- * Quyết định 2026-10-18: dùng key BE runtime (English: "Color"). BE trả
- * `variant.attributes: {Color: "Yellow"}` + `tier.name: "Color"`.
+ * Nguồn chân lý (Source of Truth): Lấy trực tiếp từ product.tierVariationConfigs nếu có.
+ * Chỉ fallback quét từ product.variants khi tierVariationConfigs rỗng/undefined.
+ */
+function deriveTierConfigs(product: ProductDetail): TierVariationConfig[] {
+  if (Array.isArray(product.tierVariationConfigs) && product.tierVariationConfigs.length > 0) {
+    return product.tierVariationConfigs;
+  }
+
+  // Fallback từ variants khi BE không trả tierVariationConfigs
+  const keysMap = new Map<string, Set<string>>();
+  for (const v of product.variants) {
+    if (!v.attributes) continue;
+    for (const [key, val] of Object.entries(v.attributes)) {
+      if (!val || key === "variant_index") continue;
+      if (!keysMap.has(key)) {
+        keysMap.set(key, new Set());
+      }
+      keysMap.get(key)!.add(val);
+    }
+  }
+
+  const result: TierVariationConfig[] = [];
+  for (const [name, set] of keysMap.entries()) {
+    result.push({
+      name,
+      options: Array.from(set),
+    });
+  }
+  return result;
+}
+
+/**
+ * Lấy danh sách màu sắc — ưu tiên lấy từ tierConfigs (Source of truth),
+ * fallback quét từ variants.
  */
 function deriveColors(
-  product: ProductDetail,
+  tierConfigs: TierVariationConfig[],
+  variants: ProductDetail["variants"],
 ): Array<{ name: string; bgClass: string }> {
+  const colorTier = tierConfigs.find((t) => /color|màu/i.test(t.name));
+  if (colorTier && colorTier.options.length > 0) {
+    return colorTier.options.map((name) => ({ name, bgClass: colorToBg(name) }));
+  }
+
   const seen = new Set<string>();
   const out: Array<{ name: string; bgClass: string }> = [];
-  for (const v of product.variants) {
-    const c = v.attributes["Color"];
+  for (const v of variants) {
+    const c = getAttr(v.attributes, "Color") ?? getAttr(v.attributes, "Màu sắc");
     if (!c || seen.has(c)) continue;
     seen.add(c);
     out.push({ name: c, bgClass: colorToBg(c) });
   }
-  if (out.length > 0) return out;
-
-  const tier = product.tierVariationConfigs.find(
-    (t) => t.name === "Color",
-  );
-  if (!tier) return [];
-  return tier.options.map((name) => ({ name, bgClass: colorToBg(name) }));
+  return out;
 }
 
 /**
- * Lấy size đầu tiên từ variants (key BE: "Size"), fallback tier configs.
- *
- * Quyết định 2026-10-18: dùng key BE runtime (English: "Size"). BE trả
- * `variant.attributes: {Size: "L"}` + `tier.name: "Size"`.
+ * Lấy danh sách kích thước — ưu tiên lấy từ tierConfigs (Source of truth),
+ * fallback quét từ variants.
  */
 function deriveSizes(
-  product: ProductDetail,
+  tierConfigs: TierVariationConfig[],
+  variants: ProductDetail["variants"],
 ): Array<{ label: string; disabled: boolean }> {
+  const sizeTier = tierConfigs.find((t) => /size|kích/i.test(t.name));
+  if (sizeTier && sizeTier.options.length > 0) {
+    return sizeTier.options.map((label) => {
+      const isOos = !variants.some((v) => {
+        const s = getAttr(v.attributes, "Size") ?? getAttr(v.attributes, "Kích cỡ");
+        return matchesAttrValue(s, label) && !v.isDisabled && v.stockQuantity > 0;
+      });
+      return { label, disabled: isOos };
+    });
+  }
+
   const seen = new Set<string>();
   const out: Array<{ label: string; disabled: boolean }> = [];
-  for (const v of product.variants) {
-    const s = v.attributes["Size"];
+  for (const v of variants) {
+    const s = getAttr(v.attributes, "Size") ?? getAttr(v.attributes, "Kích cỡ");
     if (!s || seen.has(s)) continue;
     seen.add(s);
     out.push({ label: s, disabled: v.isDisabled });
   }
-  if (out.length > 0) return out;
-
-  const tier = product.tierVariationConfigs.find(
-    (t) => t.name === "Size",
-  );
-  if (!tier) return [];
-  return tier.options.map((label) => ({ label, disabled: false }));
+  return out;
 }
 
 /**
@@ -110,11 +165,13 @@ function deriveSizes(
  */
 function colorToBg(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes("trắng")) return "bg-slate-100";
-  if (n.includes("đen")) return "bg-slate-900";
-  if (n.includes("vàng")) return "bg-amber-200";
-  if (n.includes("xanh")) return "bg-sky-300";
-  if (n.includes("đỏ")) return "bg-red-500";
+  if (n.includes("trắng") || n.includes("white")) return "bg-slate-100";
+  if (n.includes("đen") || n.includes("black")) return "bg-slate-900";
+  if (n.includes("vàng") || n.includes("yellow")) return "bg-amber-200";
+  if (n.includes("xanh") || n.includes("blue") || n.includes("green") || n.includes("sky")) return "bg-sky-300";
+  if (n.includes("đỏ") || n.includes("red")) return "bg-red-500";
+  if (n.includes("xám") || n.includes("gray") || n.includes("grey")) return "bg-gray-400";
+  if (n.includes("hồng") || n.includes("pink")) return "bg-pink-300";
   return "bg-slate-300";
 }
 
@@ -143,22 +200,21 @@ function pickActiveFlashSale(
 
 /**
  * Pick variant ACTIVE (không isDisabled) đầu tiên, hoặc undefined.
- * Ưu tiên match với combo (selectedColor, selectedSize) hiện tại.
- * Subplan B (2026-10-18): dùng cho auto-switch UX khi user selection không
- * khớp variant ACTIVE nào.
+ * Ưu tiên match với preferredSelection hiện tại.
  */
 function pickActiveVariant(
   variants: ProductDetail["variants"],
-  preferredColor?: string,
-  preferredSize?: string,
+  preferredSelection?: Record<string, string>,
 ): ProductDetail["variants"][number] | undefined {
-  const active = variants.filter((v) => !v.isDisabled);
+  const active = variants.filter((v) => !v.isDisabled && v.stockQuantity > 0);
   if (active.length === 0) return undefined;
-  // Ưu tiên variant ACTIVE match preferredColor + preferredSize.
-  if (preferredColor && preferredSize) {
-    const exact = active.find(
-      (v) =>
-        v.attributes.Color === preferredColor && v.attributes.Size === preferredSize,
+
+  if (preferredSelection && Object.keys(preferredSelection).length > 0) {
+    const exact = active.find((v) =>
+      Object.entries(preferredSelection).every(([tName, opt]) => {
+        const val = getAttr(v.attributes, tName);
+        return matchesAttrValue(val, opt);
+      }),
     );
     if (exact) return exact;
   }
@@ -176,9 +232,6 @@ function computeDiscountPercent(
 
 export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const t = useTranslations("productDetail");
-  // Subplan C (2026-10-18): dùng namespace `error` chung theo convention
-  // i18n.mdc mục 5. ApiError.code có thể là HTTP_401, HTTP_500, UNAUTHORIZED,
-  // CART_400_1, ... — tất cả đều map qua error.<CODE> (đã có trong messages).
   const tErr = useTranslations("error");
 
   // BE shape: flashSales[] (Active). Pick first ACTIVE, fallback first.
@@ -189,28 +242,24 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const isFlashSale = activeFlashSale !== null;
   const variant: "standard" | "flash" = isFlashSale ? "flash" : "standard";
 
-  const colors = useMemo(() => deriveColors(product), [product]);
-  const sizes = useMemo(() => deriveSizes(product), [product]);
+  // Tier variation configs: nguồn chân lý lấy trực tiếp từ BE tierVariationConfigs
+  const tierConfigs = useMemo(() => deriveTierConfigs(product), [product]);
+  const colors = useMemo(() => deriveColors(tierConfigs, product.variants), [tierConfigs, product.variants]);
+  const sizes = useMemo(() => deriveSizes(tierConfigs, product.variants), [tierConfigs, product.variants]);
 
-  // Subplan B (2026-10-18) — auto-switch: nếu default colors[0] / sizes[0] không
-  // trỏ tới variant ACTIVE nào, tự pick variant ACTIVE đầu tiên để sync state.
-  // Tính trực tiếp ở useState initial (cheap, chỉ chạy 1 lần mount).
-  const initialPick = pickActiveVariant(
-    product.variants,
-    colors[0]?.name,
-    sizes.find((s) => !s.disabled)?.label,
-  );
+  // Pick variant ACTIVE đầu tiên để khởi tạo selection khớp nhất
+  const initialPick = useMemo(() => pickActiveVariant(product.variants), [product.variants]);
 
-  const [selectedColor, setSelectedColor] = useState<string>(
-    () => initialPick?.attributes.Color ?? colors[0]?.name ?? "",
-  );
-  const [selectedSize, setSelectedSize] = useState<string>(
-    () =>
-      initialPick?.attributes.Size ??
-      sizes.find((s) => !s.disabled)?.label ??
-      sizes[0]?.label ??
-      "",
-  );
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const tier of tierConfigs) {
+      const activeAttr = initialPick ? getAttr(initialPick.attributes, tier.name) : undefined;
+      const matchedOpt = tier.options.find((opt) => matchesAttrValue(activeAttr, opt));
+      initial[tier.name] = matchedOpt ?? tier.options[0] ?? "";
+    }
+    return initial;
+  });
+
   const [quantity, setQuantity] = useState<number>(1);
 
   // ── Subplan A (2026-10-18) — wire cart CTA ───────────────────────────
@@ -294,32 +343,48 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     }
   }
 
-  const stockCount = totalStockCount(product);
-  // BE không trả `maxQtyPerUser` cho product detail → tạm default 2.
-  const flashMaxQty = activeFlashSale ? 2 : 2;
-  const maxQty = isFlashSale ? flashMaxQty : stockCount;
+  const selectedColor =
+    Object.entries(selectedOptions).find(([name]) => /color|màu/i.test(name))?.[1] ??
+    colors[0]?.name ??
+    "";
+  const selectedSize =
+    Object.entries(selectedOptions).find(([name]) => /size|kích/i.test(name))?.[1] ??
+    sizes.find((s) => !s.disabled)?.label ??
+    sizes[0]?.label ??
+    "";
 
-  // Derived: variant cho (selectedColor, selectedSize) hiện tại.
-  const variantForCurrent = product.variants.find(
-    (v) =>
-      v.attributes["Color"] === selectedColor &&
-      v.attributes["Size"] === selectedSize,
+  // Derived: variant cho selectedOptions hiện tại.
+  const variantForCurrent = product.variants.find((v) =>
+    Object.entries(selectedOptions).every(([tName, opt]) => {
+      const val = getAttr(v.attributes, tName);
+      return matchesAttrValue(val, opt);
+    }),
   );
+
   // Subplan B (2026-10-18) — auto-switch khi combo không match variant ACTIVE nào.
   // Trả về variant ACTIVE để CTA dùng thay vì undefined → user vẫn mua được.
-  // Tính trực tiếp (cheap): chỉ filter + find trên ~12 variants. React Compiler
-  // không thể memo hóa vì `variantForCurrent` không phải state/prop.
   const effectiveVariant =
     variantForCurrent &&
     !variantForCurrent.isDisabled &&
     variantForCurrent.stockQuantity > 0
       ? variantForCurrent
-      : pickActiveVariant(product.variants, selectedColor, selectedSize);
+      : pickActiveVariant(product.variants, selectedOptions);
 
   const effectiveSize =
     effectiveVariant && !effectiveVariant.isDisabled
-      ? effectiveVariant.attributes.Size
-      : (sizes.find((s) => !s.disabled)?.label ?? selectedSize);
+      ? (getAttr(effectiveVariant.attributes, "Size") ??
+         getAttr(effectiveVariant.attributes, "Kích cỡ") ??
+         selectedSize)
+      : selectedSize;
+
+  // Tồn kho hiển thị và giới hạn mua theo variant đang chọn (không cộng dồn toàn bộ SPU)
+  const currentStock =
+    effectiveVariant && !effectiveVariant.isDisabled
+      ? effectiveVariant.stockQuantity
+      : totalStockCount(product);
+  // BE không trả `maxQtyPerUser` cho product detail → tạm default 2.
+  const flashMaxQty = activeFlashSale ? 2 : 2;
+  const maxQty = isFlashSale ? flashMaxQty : currentStock;
 
   // Clamp quantity theo effective maxQty — dùng event handler wrapper thay vì effect.
   function clampQuantity(qty: number, cap: number) {
@@ -327,22 +392,64 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   }
   const safeQuantity = clampQuantity(quantity, Math.max(1, maxQty));
 
-  // Khi user đổi color mà size hiện tại không available, tự động đổi size.
-  function handleColorChange(color: string) {
-    setSelectedColor(color);
-    const stillValid = product.variants.some(
-      (v) =>
-        v.attributes["Color"] === color &&
-        v.attributes["Size"] === selectedSize &&
-        !v.isDisabled,
-    );
-    if (!stillValid) {
-      const firstAvailable = sizes.find(
-        (s) => !s.disabled && s.label !== selectedSize,
-      );
-      if (firstAvailable) setSelectedSize(firstAvailable.label);
+  function handleSelectOption(tierName: string, option: string) {
+    const nextSelected = { ...selectedOptions, [tierName]: option };
+
+    // Kiểm tra xem nextSelected có khớp variant ACTIVE nào không
+    const exactActive = product.variants.find((v) => {
+      if (v.isDisabled || v.stockQuantity <= 0) return false;
+      return Object.entries(nextSelected).every(([tName, opt]) => {
+        const val = getAttr(v.attributes, tName);
+        return matchesAttrValue(val, opt);
+      });
+    });
+
+    if (!exactActive) {
+      // Auto-switch: tìm variant ACTIVE khác match với option mới chọn
+      const alternative = product.variants.find((v) => {
+        if (v.isDisabled || v.stockQuantity <= 0) return false;
+        const val = getAttr(v.attributes, tierName);
+        return matchesAttrValue(val, option);
+      });
+      if (alternative) {
+        for (const tier of tierConfigs) {
+          if (tier.name !== tierName) {
+            const altVal = getAttr(alternative.attributes, tier.name);
+            const matched = tier.options.find((opt) => matchesAttrValue(altVal, opt));
+            if (matched) {
+              nextSelected[tier.name] = matched;
+            }
+          }
+        }
+      }
     }
+
+    setSelectedOptions(nextSelected);
   }
+
+  // Dynamic tiers build trực tiếp từ tierConfigs (Source of Truth)
+  const dynamicTiers: TierConfigItem[] = useMemo(() => {
+    return tierConfigs.map((tier) => {
+      const isColor = /color|màu/i.test(tier.name);
+      return {
+        name: tier.name,
+        options: tier.options.map((opt) => {
+          // Một option chỉ bị coi là hết hàng nếu không có bất kỳ biến thể ACTIVE nào chứa option đó có stock > 0
+          const hasActive = product.variants.some((v) => {
+            if (v.isDisabled || v.stockQuantity <= 0) return false;
+            const val = getAttr(v.attributes, tier.name);
+            return matchesAttrValue(val, opt);
+          });
+
+          return {
+            label: opt,
+            disabled: !hasActive,
+            bgClass: isColor ? colorToBg(opt) : undefined,
+          };
+        }),
+      };
+    });
+  }, [tierConfigs, product.variants]);
 
   // Defensive: minPrice/maxPrice có thể null (BE runtime trả null khi product
   // chưa set giá ngoài variant level). Truyền null cho PricingBox để render
@@ -430,21 +537,30 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             }
           />
 
-          {/* Section 5: Color + Size selectors */}
+          {/* Section 5: Variant selectors (dynamic từ tierConfigs) */}
           <ProductVariantSelectors
+            tiers={dynamicTiers}
+            selectedOptions={selectedOptions}
+            onSelectOption={handleSelectOption}
             colors={colors}
             sizes={sizes}
             selectedColor={selectedColor}
             selectedSize={effectiveSize}
-            onColorChange={handleColorChange}
-            onSizeChange={setSelectedSize}
+            onColorChange={(c) => {
+              const colorTier = tierConfigs.find((t) => /color|màu/i.test(t.name));
+              if (colorTier) handleSelectOption(colorTier.name, c);
+            }}
+            onSizeChange={(s) => {
+              const sizeTier = tierConfigs.find((t) => /size|kích/i.test(t.name));
+              if (sizeTier) handleSelectOption(sizeTier.name, s);
+            }}
           />
 
           {/* Section 6: Quantity stepper */}
           <ProductQuantityStepper
             value={safeQuantity}
             max={Math.max(1, maxQty)}
-            stockCount={stockCount}
+            stockCount={currentStock}
             onChange={setQuantity}
           />
 
