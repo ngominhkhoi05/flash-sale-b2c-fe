@@ -18,6 +18,10 @@ import {
 } from "@/components/admin/vouchers";
 import { ConfirmModal } from "@/components/admin/ConfirmModal";
 
+// Bộ nhớ đệm module-level giữ danh sách voucher khi chuyển trang (0ms transition)
+let cachedVoucherData: ReturnType<typeof voucherMockService.getAll> | null = null;
+let cachedVoucherKpis: VoucherKpis | null = null;
+
 export default function AdminVouchersPage() {
   const [, startTransition] = useTransition();
 
@@ -58,9 +62,9 @@ export default function AdminVouchersPage() {
 
   // State for vouchers & KPIs
   const [data, setData] = useState<ReturnType<typeof voucherMockService.getAll>>(() =>
-    voucherMockService.getAll({ page: 0, pageSize: 10 })
+    cachedVoucherData || voucherMockService.getAll({ page: 0, pageSize: 10 })
   );
-  const [kpis, setKpis] = useState<VoucherKpis>(() => voucherMockService.getKpis());
+  const [kpis, setKpis] = useState<VoucherKpis>(() => cachedVoucherKpis || voucherMockService.getKpis());
 
   // Load vouchers from BE API with fallback
   useEffect(() => {
@@ -79,6 +83,8 @@ export default function AdminVouchersPage() {
     ])
       .then(([vouchersRes, kpisRes]) => {
         if (!cancelled) {
+          cachedVoucherData = vouchersRes;
+          cachedVoucherKpis = kpisRes;
           setData(vouchersRes);
           setKpis(kpisRes);
         }
@@ -166,97 +172,147 @@ export default function AdminVouchersPage() {
     }
   };
 
-  const handleToggleStatus = async (id: string, e?: React.SyntheticEvent) => {
+  const handleToggleStatus = (id: string, e?: React.SyntheticEvent) => {
     if (e) e.stopPropagation();
-    try {
-      const target = data.items.find((item) => String(item.id) === String(id));
-      const updated = await toggleAdminPlatformVoucherStatus(id, target?.status);
-      setData((prev) => ({
-        ...prev,
-        items: prev.items.map((item) => (String(item.id) === String(id) ? updated : item)),
-      }));
-      startTransition(() => {
-        setRefreshKey((k) => k + 1);
-      });
-      showToast(
-        updated.isActive
-          ? `Đã kích hoạt lại mã ${updated.code}`
-          : `Đã tạm tắt mã ${updated.code}`
-      );
-    } catch (err: unknown) {
+    const target = data.items.find((item) => String(item.id) === String(id));
+    if (!target) return;
+    const nextIsActive = !target.isActive;
+
+    // 1. Bật Toast NGAY LẬP TỨC (0ms)
+    showToast(
+      nextIsActive
+        ? `Đã kích hoạt lại mã ${target.code}`
+        : `Đã tạm tắt mã ${target.code}`
+    );
+
+    // 2. Cập nhật state NGAY LẬP TỨC (0ms)
+    setData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        String(item.id) === String(id) ? { ...item, isActive: nextIsActive, status: nextIsActive ? "ACTIVE" : "EXPIRED" } : item
+      ),
+    }));
+
+    // 3. Đồng bộ ngầm với máy chủ BE
+    toggleAdminPlatformVoucherStatus(id, target.status).catch((err: unknown) => {
       const error = err as Error;
-      showToast(error.message || "Có lỗi xảy ra khi đổi trạng thái voucher");
-    }
+      showToast(error.message || "Có lỗi xảy ra khi đồng bộ máy chủ");
+      setRefreshKey((k) => k + 1);
+    });
   };
 
-  const handleCreateVoucher = async (formValues: Parameters<typeof voucherMockService.create>[0]) => {
-    try {
-      const created = await createAdminPlatformVoucher(formValues);
-      setData((prev) => ({
-        ...prev,
-        items: [created, ...prev.items],
-        total: prev.total + 1,
-        counts: {
-          ...prev.counts,
-          ALL: prev.counts.ALL + 1,
-          ACTIVE: prev.counts.ACTIVE + 1,
-        },
-      }));
-      startTransition(() => {
+  const handleCreateVoucher = (formValues: Parameters<typeof voucherMockService.create>[0]) => {
+    // 1. Đóng form và bật toast NGAY LẬP TỨC (0ms)
+    setIsFormOpen(false);
+    showToast(`Đã tạo thành công voucher: ${formValues.code}`);
+
+    // 2. Tạo optimistic item và cập nhật state NGAY LẬP TỨC (0ms)
+    const tempId = `v-${Date.now()}`;
+    const optimisticVoucher: AdminVoucher = {
+      id: tempId,
+      code: formValues.code,
+      name: formValues.name,
+      discountType: formValues.discountType,
+      discountValue: formValues.discountValue,
+      maxDiscountAmount: formValues.maxDiscountAmount,
+      minOrderAmount: formValues.minOrderAmount,
+      scope: formValues.scope,
+      totalCount: formValues.totalCount,
+      usedCount: 0,
+      limitPerCustomer: formValues.limitPerCustomer || 1,
+      isPublic: formValues.isPublic ?? true,
+      startDate: formValues.startDate,
+      endDate: formValues.endDate,
+      status: "ACTIVE",
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    setData((prev) => ({
+      ...prev,
+      items: [optimisticVoucher, ...prev.items],
+      total: prev.total + 1,
+      counts: {
+        ...prev.counts,
+        ALL: prev.counts.ALL + 1,
+        ACTIVE: prev.counts.ACTIVE + 1,
+      },
+    }));
+
+    // 3. Đồng bộ ngầm với máy chủ BE
+    createAdminPlatformVoucher(formValues)
+      .then((created) => {
+        setData((prev) => ({
+          ...prev,
+          items: prev.items.map((it) => (it.id === tempId ? created : it)),
+        }));
+      })
+      .catch((err: unknown) => {
+        const error = err as Error;
+        showToast(error.message || "Lỗi đồng bộ máy chủ khi tạo voucher");
         setRefreshKey((k) => k + 1);
       });
-      showToast(`Đã tạo thành công voucher: ${created.code}`);
-    } catch (err: unknown) {
-      const error = err as Error;
-      showToast(error.message || "Không thể tạo voucher");
-    }
   };
 
-  const handleEditVoucher = async (formValues: Parameters<typeof voucherMockService.update>[1]) => {
+  const handleEditVoucher = (formValues: Parameters<typeof voucherMockService.update>[1]) => {
     if (!selectedVoucherForEdit) return;
-    try {
-      const updated = await updateAdminPlatformVoucher(selectedVoucherForEdit.id, formValues);
-      setData((prev) => ({
-        ...prev,
-        items: prev.items.map((it) =>
-          String(it.id) === String(selectedVoucherForEdit.id) ? updated : it
-        ),
-      }));
-      startTransition(() => {
+    const target = selectedVoucherForEdit;
+
+    // 1. Đóng form và bật toast NGAY LẬP TỨC (0ms)
+    setIsFormOpen(false);
+    setSelectedVoucherForEdit(null);
+    showToast(`Đã cập nhật voucher: ${formValues.code || target.code}`);
+
+    // 2. Cập nhật state NGAY LẬP TỨC (0ms)
+    setData((prev) => ({
+      ...prev,
+      items: prev.items.map((it) =>
+        String(it.id) === String(target.id) ? { ...it, ...formValues } : it
+      ),
+    }));
+
+    // 3. Đồng bộ ngầm với máy chủ BE
+    updateAdminPlatformVoucher(target.id, formValues)
+      .then((updated) => {
+        setData((prev) => ({
+          ...prev,
+          items: prev.items.map((it) =>
+            String(it.id) === String(target.id) ? updated : it
+          ),
+        }));
+      })
+      .catch((err: unknown) => {
+        const error = err as Error;
+        showToast(error.message || "Lỗi đồng bộ máy chủ khi cập nhật");
         setRefreshKey((k) => k + 1);
       });
-      showToast(`Đã cập nhật voucher: ${updated.code}`);
-      setSelectedVoucherForEdit(null);
-      setIsFormOpen(false);
-    } catch (err: unknown) {
-      const error = err as Error;
-      showToast(error.message || "Không thể cập nhật voucher");
-    }
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
     if (!voucherToDelete) return;
-    try {
-      await deleteAdminPlatformVoucher(voucherToDelete.id);
-      setData((prev) => ({
-        ...prev,
-        items: prev.items.filter((it) => String(it.id) !== String(voucherToDelete.id)),
-        total: Math.max(0, prev.total - 1),
-        counts: {
-          ...prev.counts,
-          ALL: Math.max(0, prev.counts.ALL - 1),
-        },
-      }));
-      startTransition(() => {
-        setRefreshKey((k) => k + 1);
-      });
-      showToast(`Đã xóa voucher ${voucherToDelete.code}`);
-      setVoucherToDelete(null);
-    } catch (err: unknown) {
+    const target = voucherToDelete;
+
+    // 1. Đóng modal và bật toast NGAY LẬP TỨC (0ms)
+    setVoucherToDelete(null);
+    showToast(`Đã xóa voucher ${target.code}`);
+
+    // 2. Cập nhật state NGAY LẬP TỨC (0ms)
+    setData((prev) => ({
+      ...prev,
+      items: prev.items.filter((it) => String(it.id) !== String(target.id)),
+      total: Math.max(0, prev.total - 1),
+      counts: {
+        ...prev.counts,
+        ALL: Math.max(0, prev.counts.ALL - 1),
+      },
+    }));
+
+    // 3. Đồng bộ ngầm với máy chủ BE
+    deleteAdminPlatformVoucher(target.id).catch((err: unknown) => {
       const error = err as Error;
-      showToast(error.message || "Không thể xóa voucher");
-      setVoucherToDelete(null);
-    }
+      showToast(error.message || "Không thể xóa voucher máy chủ");
+      setRefreshKey((k) => k + 1);
+    });
   };
 
   const handleDuplicate = (v: AdminVoucher) => {

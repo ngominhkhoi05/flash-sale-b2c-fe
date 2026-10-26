@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import {
   getAdminCategories,
   createAdminCategory,
@@ -9,20 +10,40 @@ import {
   type AdminCategoryItem,
 } from "@/lib/api/admin";
 
+interface DeleteCategoryModalState {
+  isOpen: boolean;
+  category: AdminCategoryItem | null;
+}
+
+// Bộ nhớ đệm module-level giữ danh sách ngành hàng khi chuyển trang (0ms transition)
+let cachedCategories: AdminCategoryItem[] | null = null;
+
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<AdminCategoryItem[]>([]);
-  const [selectedCat, setSelectedCat] = useState<AdminCategoryItem | null>(null);
+  const [categories, setCategories] = useState<AdminCategoryItem[]>(() => cachedCategories || []);
+  const [selectedCat, setSelectedCat] = useState<AdminCategoryItem | null>(() => {
+    return cachedCategories && cachedCategories.length > 0 ? cachedCategories[0] : null;
+  });
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!cachedCategories);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Form state
-  const [formName, setFormName] = useState("");
-  const [formSlug, setFormSlug] = useState("");
-  const [formCommission, setFormCommission] = useState(5.0);
-  const [formDescription, setFormDescription] = useState("");
-  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [formName, setFormName] = useState(() => (cachedCategories && cachedCategories[0] ? cachedCategories[0].name : ""));
+  const [formSlug, setFormSlug] = useState(() => (cachedCategories && cachedCategories[0] ? cachedCategories[0].slug : ""));
+  const [formCommission, setFormCommission] = useState(() => {
+    if (cachedCategories && cachedCategories[0]) {
+      return cachedCategories[0].commissionRate ? Number((cachedCategories[0].commissionRate * 100).toFixed(1)) : 5.0;
+    }
+    return 5.0;
+  });
+  const [formDescription, setFormDescription] = useState(() => (cachedCategories && cachedCategories[0] ? cachedCategories[0].description || "" : ""));
+
+  // Modal xác nhận xóa
+  const [deleteModal, setDeleteModal] = useState<DeleteCategoryModalState>({
+    isOpen: false,
+    category: null,
+  });
 
   const selectCategory = useCallback((cat: AdminCategoryItem) => {
     setIsCreatingNew(false);
@@ -31,22 +52,26 @@ export default function AdminCategoriesPage() {
     setFormSlug(cat.slug);
     setFormCommission(cat.commissionRate ? Number((cat.commissionRate * 100).toFixed(1)) : 5.0);
     setFormDescription(cat.description || "");
-    setFeedbackMsg(null);
   }, []);
 
   const refreshCategories = useCallback(async () => {
     try {
       const data = await getAdminCategories();
+      cachedCategories = data;
       setCategories(data);
       if (data.length > 0) {
         setSelectedCat((prev) => {
-          if (prev) return prev;
+          if (prev) {
+            const found = data.find((c) => c.id === prev.id);
+            if (found) return found;
+          }
           selectCategory(data[0]);
           return data[0];
         });
       }
     } catch (err) {
       console.error("Lỗi tải danh mục:", err);
+      toast.error("Lỗi tải danh sách ngành hàng: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -57,6 +82,7 @@ export default function AdminCategoriesPage() {
     getAdminCategories()
       .then((data) => {
         if (isMounted) {
+          cachedCategories = data;
           setCategories(data);
           if (data.length > 0) {
             setSelectedCat((prev) => {
@@ -72,6 +98,9 @@ export default function AdminCategoriesPage() {
         console.error("Lỗi tải danh mục:", err);
         if (isMounted) {
           setIsLoading(false);
+          if (!cachedCategories) {
+            toast.error("Lỗi tải danh sách ngành hàng");
+          }
         }
       });
 
@@ -80,7 +109,6 @@ export default function AdminCategoriesPage() {
     };
   }, [selectCategory]);
 
-
   function handleAddNew() {
     setIsCreatingNew(true);
     setSelectedCat(null);
@@ -88,7 +116,6 @@ export default function AdminCategoriesPage() {
     setFormSlug("");
     setFormCommission(5.0);
     setFormDescription("");
-    setFeedbackMsg(null);
   }
 
   function handleNameChange(val: string) {
@@ -107,56 +134,134 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  async function handleSave(e: React.FormEvent) {
+  function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!formName.trim() || !formSlug.trim()) {
-      alert("Vui lòng điền đầy đủ tên danh mục và slug!");
+      toast.error("Vui lòng điền đầy đủ tên danh mục và slug!");
       return;
     }
 
-    try {
-      setIsSaving(true);
-      const payload = {
-        name: formName.trim(),
-        slug: formSlug.trim(),
-        commissionRate: formCommission / 100,
-        description: formDescription.trim(),
+    const payload = {
+      name: formName.trim(),
+      slug: formSlug.trim(),
+      commissionRate: formCommission / 100,
+      description: formDescription.trim(),
+    };
+
+    if (isCreatingNew) {
+      // 1. Phản hồi Toast NGAY LẬP TỨC (0ms)
+      toast.success(`Đã tạo mới ngành hàng "${payload.name}" thành công!`);
+
+      // 2. Cập nhật Optimistic UI ngay lập tức (0ms)
+      const tempId = Date.now();
+      const optimisticCat: AdminCategoryItem = {
+        id: tempId,
+        name: payload.name,
+        slug: payload.slug,
+        commissionRate: payload.commissionRate,
+        description: payload.description,
+        productCount: 0,
       };
 
-      if (isCreatingNew) {
-        const created = await createAdminCategory(payload);
-        setFeedbackMsg("Tạo mới danh mục thành công!");
-        await refreshCategories();
-        selectCategory(created);
-      } else if (selectedCat) {
-        await updateAdminCategory(selectedCat.id, payload);
-        setFeedbackMsg("Cập nhật danh mục thành công!");
-        await refreshCategories();
-      }
-    } catch (err) {
-      alert("Lỗi lưu danh mục: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsSaving(false);
+      setCategories((prev) => {
+        const next = [optimisticCat, ...prev];
+        cachedCategories = next;
+        return next;
+      });
+      selectCategory(optimisticCat);
+
+      // 3. Đồng bộ ngầm với máy chủ BE
+      createAdminCategory(payload)
+        .then((created) => {
+          setCategories((prev) => {
+            const next = prev.map((c) => (c.id === tempId ? created : c));
+            cachedCategories = next;
+            return next;
+          });
+          setSelectedCat((curr) => (curr && curr.id === tempId ? created : curr));
+        })
+        .catch((err) => {
+          console.error("Lỗi lưu danh mục máy chủ:", err);
+          toast.error("Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err)));
+          refreshCategories();
+        });
+    } else if (selectedCat) {
+      const targetId = selectedCat.id;
+
+      // 1. Phản hồi Toast NGAY LẬP TỨC (0ms)
+      toast.success(`Đã cập nhật ngành hàng "${payload.name}" thành công!`);
+
+      // 2. Cập nhật Optimistic UI ngay lập tức (0ms)
+      const updatedCat: AdminCategoryItem = {
+        ...selectedCat,
+        name: payload.name,
+        slug: payload.slug,
+        commissionRate: payload.commissionRate,
+        description: payload.description,
+      };
+
+      setCategories((prev) => {
+        const next = prev.map((c) => (c.id === targetId ? updatedCat : c));
+        cachedCategories = next;
+        return next;
+      });
+      setSelectedCat(updatedCat);
+
+      // 3. Đồng bộ ngầm với máy chủ BE
+      updateAdminCategory(targetId, payload)
+        .then((updated) => {
+          setCategories((prev) => {
+            const next = prev.map((c) => (c.id === targetId ? updated : c));
+            cachedCategories = next;
+            return next;
+          });
+          setSelectedCat((curr) => (curr && curr.id === targetId ? updated : curr));
+        })
+        .catch((err) => {
+          console.error("Lỗi cập nhật máy chủ:", err);
+          toast.error("Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err)));
+          refreshCategories();
+        });
     }
   }
 
-  async function handleDelete() {
+  function openDeleteModal() {
     if (!selectedCat) return;
-    if (!confirm(`Bạn có chắc muốn xóa danh mục "${selectedCat.name}" không?`)) {
-      return;
-    }
+    setDeleteModal({
+      isOpen: true,
+      category: selectedCat,
+    });
+  }
 
-    try {
-      setIsSaving(true);
-      await deleteAdminCategory(selectedCat.id);
-      alert("Xóa danh mục thành công!");
-      setSelectedCat(null);
-      await refreshCategories();
-    } catch (err) {
-      alert("Lỗi xóa danh mục: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsSaving(false);
-    }
+  function confirmDeleteCategory() {
+    if (!deleteModal.category) return;
+    const target = deleteModal.category;
+
+    // 1. Đóng Modal ngay lập tức (0ms)
+    setDeleteModal({ isOpen: false, category: null });
+
+    // 2. Phản hồi Toast NGAY LẬP TỨC (0ms)
+    toast.success(`Đã xóa ngành hàng "${target.name}" thành công!`);
+
+    // 3. Cập nhật Optimistic UI ngay lập tức (0ms)
+    setCategories((prev) => {
+      const next = prev.filter((c) => c.id !== target.id);
+      cachedCategories = next;
+      if (next.length > 0) {
+        selectCategory(next[0]);
+      } else {
+        setSelectedCat(null);
+        setIsCreatingNew(true);
+      }
+      return next;
+    });
+
+    // 4. Đồng bộ ngầm với máy chủ BE
+    deleteAdminCategory(target.id).catch((err) => {
+      console.error("Lỗi xóa danh mục máy chủ:", err);
+      toast.error("Lỗi xóa danh mục: " + (err instanceof Error ? err.message : String(err)));
+      refreshCategories();
+    });
   }
 
   const filteredCategories = categories.filter((c) =>
@@ -250,7 +355,10 @@ export default function AdminCategoriesPage() {
           {/* List of categories */}
           <div className="flex flex-col gap-1 overflow-y-auto max-h-[600px] pr-1">
             {isLoading ? (
-              <div className="p-8 text-center text-secondary text-sm">Đang tải danh mục...</div>
+              <div className="p-8 text-center text-secondary text-sm">
+                <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                <div>Đang tải danh mục...</div>
+              </div>
             ) : filteredCategories.length === 0 ? (
               <div className="p-8 text-center text-secondary text-sm">Không tìm thấy danh mục nào</div>
             ) : (
@@ -341,13 +449,6 @@ export default function AdminCategoriesPage() {
             )}
           </div>
 
-          {feedbackMsg && (
-            <div className="p-3 rounded-lg bg-primary-fixed text-on-primary-fixed-variant text-xs font-semibold flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">check_circle</span>
-              <span>{feedbackMsg}</span>
-            </div>
-          )}
-
           <form onSubmit={handleSave} className="flex flex-col gap-space-lg">
             {/* Field 1: Category Name */}
             <div className="flex flex-col gap-1.5">
@@ -370,13 +471,26 @@ export default function AdminCategoriesPage() {
 
             {/* Field 2: Slug URL */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-label-md text-xs font-semibold text-on-surface flex items-center gap-1">
-                <span>Đường dẫn chuẩn hóa (Slug URL)</span>
-                <span className="text-tertiary">*</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="font-label-md text-xs font-semibold text-on-surface flex items-center gap-1">
+                  <span>Đường dẫn chuẩn hóa (Slug URL)</span>
+                  <span className="text-tertiary">*</span>
+                </label>
+                {formSlug && !isCreatingNew && (
+                  <a
+                    href={`/categories/${formSlug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-semibold"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">open_in_new</span>
+                    <span>Xem ngoài sàn</span>
+                  </a>
+                )}
+              </div>
               <div className="flex items-center rounded-lg bg-surface-container-low shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary">
                 <span className="px-3 py-2 bg-surface-container text-xs text-secondary select-none">
-                  https://vibemart.vn/category/
+                  /categories/
                 </span>
                 <input
                   type="text"
@@ -452,9 +566,9 @@ export default function AdminCategoriesPage() {
               {!isCreatingNew && selectedCat ? (
                 <button
                   type="button"
-                  onClick={handleDelete}
+                  onClick={openDeleteModal}
                   disabled={isSaving}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-space-md py-2.5 rounded-lg text-tertiary hover:bg-error-container/40 text-xs font-semibold transition-colors disabled:opacity-50"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-space-md py-2.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200/80 text-xs font-semibold transition-colors disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[18px]">delete</span>
                   <span>Xóa danh mục này</span>
@@ -491,6 +605,90 @@ export default function AdminCategoriesPage() {
           </form>
         </main>
       </div>
+
+      {/* ============================================================ */}
+      {/* MODAL XÁC NHẬN XÓA DANH MỤC NẰM GIỮA MÀN HÌNH (CENTERED DIALOG) */}
+      {/* ============================================================ */}
+      {deleteModal.isOpen && deleteModal.category && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150 p-6 flex flex-col gap-4">
+            {/* Header Icon + Tiêu đề */}
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-[24px]">delete_forever</span>
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-base font-bold text-slate-900">
+                  Xác nhận xóa ngành hàng
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Thao tác này sẽ gỡ bỏ ngành hàng vĩnh viễn khỏi hệ thống sàn
+                </p>
+              </div>
+            </div>
+
+            {/* Thông tin tóm tắt danh mục */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Tên ngành hàng:</span>
+                <span className="font-bold text-slate-900">{deleteModal.category.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Đường dẫn slug:</span>
+                <span className="font-mono text-slate-700">/categories/{deleteModal.category.slug}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Hoa hồng sàn:</span>
+                <span className="font-bold text-primary">
+                  {deleteModal.category.commissionRate
+                    ? `${(deleteModal.category.commissionRate * 100).toFixed(1)}%`
+                    : "5.0%"}
+                </span>
+              </div>
+            </div>
+
+            {/* Cảnh báo hậu quả */}
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-xs text-rose-800 flex items-start gap-2 leading-relaxed">
+              <span className="material-symbols-outlined text-[18px] text-rose-600 shrink-0">
+                warning
+              </span>
+              <span>
+                <strong>Lưu ý an toàn:</strong> Nếu danh mục này đang có sản phẩm của người bán liên kết, hệ thống sẽ từ chối xóa để bảo toàn dữ liệu.
+              </span>
+            </div>
+
+            {/* Nút hành động Modal */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 mt-1">
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ isOpen: false, category: null })}
+                disabled={isSaving}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={confirmDeleteCategory}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-sm disabled:opacity-60 active:scale-95 flex items-center gap-1.5"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>Đang xóa...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                    <span>Xác nhận xóa</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
