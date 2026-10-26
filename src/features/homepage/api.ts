@@ -82,8 +82,33 @@ export interface CategoryResponse {
 }
 
 export async function fetchCategories(): Promise<CategoryResponse[]> {
-  return apiFetch<CategoryResponse[]>("/api/v1/categories");
+  try {
+    return await apiFetch<CategoryResponse[]>("/api/v1/categories");
+  } catch (err) {
+    console.warn("[fetchCategories] Backend API call failed, falling back to mock categories:", err);
+    return [
+      { id: 1, name: "Thời Trang Nam", slug: "thoi-trang-nam", commissionRate: 5, description: "Quần áo, phụ kiện nam cao cấp, phong cách trẻ trung và lịch lãm." },
+      { id: 2, name: "Thời Trang Nữ", slug: "thoi-trang-nu", commissionRate: 5, description: "Váy đầm, thời trang nữ thanh lịch và hiện đại, xu hướng mới nhất." },
+      { id: 3, name: "Điện Thoại & Phụ Kiện", slug: "dien-thoai", commissionRate: 3, description: "Smartphone, cáp sạc, ốp lưng, phụ kiện công nghệ chính hãng." },
+      { id: 4, name: "Laptop & Máy Tính", slug: "laptop", commissionRate: 3, description: "Máy tính xách tay, PC Gaming, văn phòng cấu hình cao." },
+      { id: 5, name: "Tai Nghe & Âm Thanh", slug: "tai-nghe", commissionRate: 4, description: "Tai nghe bluetooth không dây, loa di động, dàn âm thanh cao cấp." },
+      { id: 6, name: "Nội Thất & Đời Sống", slug: "noi-that", commissionRate: 6, description: "Nội thất gia đình, đồ trang trí nhà cửa, tiện ích đời sống tiện nghi." },
+      { id: 7, name: "Sắc Đẹp & Chăm Sóc", slug: "lam-dep", commissionRate: 5, description: "Mỹ phẩm, skincare, đồ chăm sóc sắc đẹp và sức khỏe chính hãng." },
+      { id: 8, name: "Mẹ & Bé", slug: "me-va-be", commissionRate: 4, description: "Sữa bỉm, đồ chơi, quần áo an toàn cho mẹ và bé." },
+    ];
+  }
 }
+
+export async function fetchCategoryBySlug(slug: string): Promise<CategoryResponse | null> {
+  try {
+    return await apiFetch<CategoryResponse>(`/api/v1/categories/slug/${slug}`);
+  } catch (err) {
+    console.warn(`[fetchCategoryBySlug] Failed for slug=${slug}, falling back:`, err);
+    const all = await fetchCategories();
+    return all.find((c) => c.slug === slug) ?? null;
+  }
+}
+
 
 // ─── Flash Sale types ────────────────────────────────────────────────────────
 
@@ -298,7 +323,7 @@ export async function fetchRecommendedProducts(
 // ─── Featured Products (fallback) ────────────────────────────────────────────
 
 /** PageResponse wrapper từ backend. */
-interface ProductPageResponse {
+export interface ProductPageResponse {
   items: RecommendedProductResponse[];
   pageNumber: number;
   pageSize: number;
@@ -335,3 +360,66 @@ export async function fetchFeaturedProducts(options: {
     imageUrl: imageUrlWithFallback(item.imageUrl, "product"),
   }));
 }
+
+/**
+ * fetchProductsByCategory – Lấy danh sách sản phẩm thuộc một ngành hàng (kèm lọc, tìm kiếm, sắp xếp).
+ * Backend: GET /api/v1/products?categoryId=...&page=...&size=...
+ */
+export async function fetchProductsByCategory(options: {
+  categoryId?: number;
+  keyword?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+} = {}): Promise<ProductPageResponse> {
+  const {
+    categoryId,
+    keyword,
+    minPrice,
+    maxPrice,
+    page = 0,
+    size = 20,
+    sortBy = "createdAt",
+    sortDirection = "desc",
+  } = options;
+
+  try {
+    const res = await apiFetch<ProductPageResponse>("/api/v1/products", {
+      query: {
+        ...(categoryId !== undefined ? { categoryId } : {}),
+        ...(keyword ? { keyword } : {}),
+        ...(minPrice !== undefined ? { minPrice } : {}),
+        ...(maxPrice !== undefined ? { maxPrice } : {}),
+        page,
+        size,
+        sortBy,
+        sortDirection,
+      },
+    });
+    const items = res.items ?? [];
+    return {
+      ...res,
+      items: items.map((item) => ({
+        ...item,
+        imageUrl: imageUrlWithFallback(item.imageUrl, "product"),
+      })),
+    };
+  } catch (err) {
+    console.warn("[fetchProductsByCategory] Error fetching products for category:", err);
+    return {
+      items: [],
+      pageNumber: page,
+      pageSize: size,
+      totalElements: 0,
+      totalPages: 0,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
+  }
+}
+
