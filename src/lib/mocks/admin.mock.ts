@@ -213,7 +213,7 @@ export interface MockStoreItem {
   ownerName: string;
   ownerEmail: string;
   phone: string;
-  status: "PENDING" | "APPROVED" | "BANNED";
+  status: "PENDING" | "APPROVED" | "BANNED" | "REJECTED";
   productsCount: number;
   ordersCount: number;
   ratingAvg: number;
@@ -419,7 +419,7 @@ export interface MockProductItem {
   minPrice: number;
   maxPrice: number;
   totalStock: number;
-  status: "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK";
+  status: "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK" | "BANNED";
   primaryImageUrl: string;
   createdAt: string;
 }
@@ -495,6 +495,20 @@ export const mockAdminProducts: MockProductItem[] = [
       "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=300&auto=format&fit=crop&q=80",
     createdAt: "2026-09-25T16:00:00Z",
   },
+  {
+    id: 1006,
+    name: "Sạc dự phòng không rõ nguồn gốc 50000mAh Fake Pro",
+    slug: "sac-du-phong-fake-pro",
+    storeName: "Cửa hàng Phụ kiện Giá rẻ",
+    categoryName: "Thiết bị điện tử",
+    minPrice: 99000,
+    maxPrice: 120000,
+    totalStock: 50,
+    status: "BANNED",
+    primaryImageUrl:
+      "https://images.unsplash.com/photo-1609592807908-1e247413d735?w=300&auto=format&fit=crop&q=80",
+    createdAt: "2026-09-28T09:00:00Z",
+  },
 ];
 
 export function getMockAdminProducts(params?: {
@@ -516,5 +530,16 @@ export function getMockAdminProducts(params?: {
     );
   }
   return list;
+}
+
+export function updateMockAdminProductStatus(
+  id: number,
+  status: "ACTIVE" | "INACTIVE" | "BANNED"
+): MockProductItem | undefined {
+  const item = mockAdminProducts.find((p) => p.id === id);
+  if (item) {
+    item.status = status;
+  }
+  return item;
 }
 

@@ -19,6 +19,7 @@ import {
   getMockFlashSaleSessions,
   createMockFlashSaleSession,
   updateMockFlashSaleSession,
+  cancelMockFlashSaleSession,
 } from "@/lib/mocks/flash-sessions.mock";
 import {
   getMockSkuApprovals,
@@ -60,6 +61,7 @@ import {
   getMockAdminStores,
   getMockAdminUsers,
   getMockAdminProducts,
+  updateMockAdminProductStatus,
   type MockStoreItem,
   type MockProductItem,
 } from "@/lib/mocks/admin.mock";
@@ -77,11 +79,25 @@ export function extractItems<T>(res: unknown): T[] {
   if (!res) return [];
   if (Array.isArray(res)) return res as T[];
   if (typeof res === "object") {
-    if ("items" in res && Array.isArray((res as { items: unknown }).items)) {
-      return (res as { items: T[] }).items;
+    // Trường hợp ApiResponse có trường data
+    if ("data" in res && res.data) {
+      if (Array.isArray(res.data)) return res.data as T[];
+      if (typeof res.data === "object") {
+        if ("content" in res.data && Array.isArray((res.data as { content: unknown }).content)) {
+          return (res.data as { content: T[] }).content;
+        }
+        if ("items" in res.data && Array.isArray((res.data as { items: unknown }).items)) {
+          return (res.data as { items: T[] }).items;
+        }
+      }
     }
+    // Trường hợp phân trang PageResponse: { content: [...] }
     if ("content" in res && Array.isArray((res as { content: unknown }).content)) {
       return (res as { content: T[] }).content;
+    }
+    // Trường hợp ApiResponse: { items: [...] }
+    if ("items" in res && Array.isArray((res as { items: unknown }).items)) {
+      return (res as { items: T[] }).items;
     }
   }
   return [];
@@ -132,18 +148,19 @@ function mapSlotToSession(slot: FlashSaleSlotResponse): AdminFlashSaleSession {
 
 /**
  * 1. Lấy danh sách toàn bộ phiên Flash Sale (KHỚP BE: GET /api/v1/admin/flash-sales/slots)
+ * Không fallback sang mock data khi DB chưa có phiên (trả về danh sách thực tế)
  */
 export async function getAdminFlashSaleSlots(): Promise<AdminFlashSaleSession[]> {
   try {
     const res = await apiFetch<unknown>("/admin/flash-sales/slots");
     const slots = extractItems<FlashSaleSlotResponse>(res);
-    if (!slots || slots.length === 0) {
-      return getMockFlashSaleSessions();
-    }
     return slots.map(mapSlotToSession);
   } catch (err) {
-    console.warn("[getAdminFlashSaleSlots] Backend API call failed, falling back to mock sessions:", err);
-    return getMockFlashSaleSessions();
+    console.error("[getAdminFlashSaleSlots] Backend API call failed:", err);
+    if (isMockMode()) {
+      return getMockFlashSaleSessions();
+    }
+    throw err;
   }
 }
 
@@ -226,6 +243,23 @@ export async function preWarmAdminFlashSaleSlot(id: number): Promise<void> {
     });
   } catch (err) {
     if (isMockMode()) {
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 4.1 Xóa vĩnh viễn phiên Flash Sale khỏi hệ thống (KHỚP BE: DELETE /api/v1/admin/flash-sales/slots/{id})
+ */
+export async function deleteAdminFlashSaleSlot(id: number): Promise<void> {
+  try {
+    await apiFetch<void>(`/admin/flash-sales/slots/${id}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (isMockMode()) {
+      cancelMockFlashSaleSession(id);
       return;
     }
     throw err;
@@ -1054,33 +1088,30 @@ export interface AdminCategoryItem {
   storeCount?: number;
 }
 
+let mockCategoriesMemory: AdminCategoryItem[] = [
+  { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam", commissionRate: 0.05, description: "Các sản phẩm thời trang cho nam giới", productCount: 1248, storeCount: 86 },
+  { id: 2, name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu", commissionRate: 0.03, description: "Điện thoại, máy tính, phụ kiện công nghệ", productCount: 3410, storeCount: 142 },
+  { id: 3, name: "Nhà cửa & Đời sống", slug: "nha-cua-doi-song", commissionRate: 0.05, description: "Đồ gia dụng, nội thất, tiện ích gia đình", productCount: 890, storeCount: 54 },
+  { id: 4, name: "Sức khỏe & Sắc đẹp", slug: "suc-khoe-sac-dep", commissionRate: 0.08, description: "Mỹ phẩm, chăm sóc cá nhân, thực phẩm chức năng", productCount: 1560, storeCount: 98 },
+  { id: 5, name: "Mẹ & Bé", slug: "me-va-be", commissionRate: 0.05, description: "Tã sữa, đồ chơi, quần áo trẻ em", productCount: 620, storeCount: 35 },
+  { id: 6, name: "Thể thao & Du lịch", slug: "the-thao-du-lich", commissionRate: 0.05, description: "Dụng cụ thể thao, trang phục dã ngoại", productCount: 450, storeCount: 28 },
+  { id: 7, name: "Bách hóa Online", slug: "bach-hoa-online", commissionRate: 0.04, description: "Thực phẩm đóng gói, gia vị, đồ uống", productCount: 2100, storeCount: 65 },
+];
+
 export async function getAdminCategories(): Promise<AdminCategoryItem[]> {
+  if (isMockMode()) {
+    return [...mockCategoriesMemory];
+  }
   try {
     const res = await apiFetch<unknown>("/categories");
     const items = extractItems<AdminCategoryItem>(res);
     if (items.length === 0) {
-      return [
-        { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam", commissionRate: 0.05, description: "Các sản phẩm thời trang cho nam giới", productCount: 1248, storeCount: 86 },
-        { id: 2, name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu", commissionRate: 0.03, description: "Điện thoại, máy tính, phụ kiện công nghệ", productCount: 3410, storeCount: 142 },
-        { id: 3, name: "Nhà cửa & Đời sống", slug: "nha-cua-doi-song", commissionRate: 0.05, description: "Đồ gia dụng, nội thất, tiện ích gia đình", productCount: 890, storeCount: 54 },
-        { id: 4, name: "Sức khỏe & Sắc đẹp", slug: "suc-khoe-sac-dep", commissionRate: 0.08, description: "Mỹ phẩm, chăm sóc cá nhân, thực phẩm chức năng", productCount: 1560, storeCount: 98 },
-        { id: 5, name: "Mẹ & Bé", slug: "me-va-be", commissionRate: 0.05, description: "Tã sữa, đồ chơi, quần áo trẻ em", productCount: 620, storeCount: 35 },
-        { id: 6, name: "Thể thao & Du lịch", slug: "the-thao-du-lich", commissionRate: 0.05, description: "Dụng cụ thể thao, trang phục dã ngoại", productCount: 450, storeCount: 28 },
-        { id: 7, name: "Bách hóa Online", slug: "bach-hoa-online", commissionRate: 0.04, description: "Thực phẩm đóng gói, gia vị, đồ uống", productCount: 2100, storeCount: 65 },
-      ];
+      return [...mockCategoriesMemory];
     }
     return items;
   } catch (err) {
     console.warn("[getAdminCategories] Backend API call failed, falling back to mock categories:", err);
-    return [
-      { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam", commissionRate: 0.05, description: "Các sản phẩm thời trang cho nam giới", productCount: 1248, storeCount: 86 },
-      { id: 2, name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu", commissionRate: 0.03, description: "Điện thoại, máy tính, phụ kiện công nghệ", productCount: 3410, storeCount: 142 },
-      { id: 3, name: "Nhà cửa & Đời sống", slug: "nha-cua-doi-song", commissionRate: 0.05, description: "Đồ gia dụng, nội thất, tiện ích gia đình", productCount: 890, storeCount: 54 },
-      { id: 4, name: "Sức khỏe & Sắc đẹp", slug: "suc-khoe-sac-dep", commissionRate: 0.08, description: "Mỹ phẩm, chăm sóc cá nhân, thực phẩm chức năng", productCount: 1560, storeCount: 98 },
-      { id: 5, name: "Mẹ & Bé", slug: "me-va-be", commissionRate: 0.05, description: "Tã sữa, đồ chơi, quần áo trẻ em", productCount: 620, storeCount: 35 },
-      { id: 6, name: "Thể thao & Du lịch", slug: "the-thao-du-lich", commissionRate: 0.05, description: "Dụng cụ thể thao, trang phục dã ngoại", productCount: 450, storeCount: 28 },
-      { id: 7, name: "Bách hóa Online", slug: "bach-hoa-online", commissionRate: 0.04, description: "Thực phẩm đóng gói, gia vị, đồ uống", productCount: 2100, storeCount: 65 },
-    ];
+    return [...mockCategoriesMemory];
   }
 }
 
@@ -1090,10 +1121,38 @@ export async function createAdminCategory(data: {
   commissionRate: number;
   description?: string;
 }): Promise<AdminCategoryItem> {
-  return await apiFetch<AdminCategoryItem>("/admin/categories", {
-    method: "POST",
-    json: data,
-  });
+  if (isMockMode()) {
+    const newCat: AdminCategoryItem = {
+      id: Date.now(),
+      name: data.name,
+      slug: data.slug,
+      commissionRate: data.commissionRate,
+      description: data.description,
+      productCount: 0,
+      storeCount: 0,
+    };
+    mockCategoriesMemory.push(newCat);
+    return newCat;
+  }
+  try {
+    return await apiFetch<AdminCategoryItem>("/admin/categories", {
+      method: "POST",
+      json: data,
+    });
+  } catch (err) {
+    console.warn("[createAdminCategory] Backend call failed, using mock fallback:", err);
+    const newCat: AdminCategoryItem = {
+      id: Date.now(),
+      name: data.name,
+      slug: data.slug,
+      commissionRate: data.commissionRate,
+      description: data.description,
+      productCount: 0,
+      storeCount: 0,
+    };
+    mockCategoriesMemory.push(newCat);
+    return newCat;
+  }
 }
 
 export async function updateAdminCategory(
@@ -1105,16 +1164,48 @@ export async function updateAdminCategory(
     description?: string;
   }
 ): Promise<AdminCategoryItem> {
-  return await apiFetch<AdminCategoryItem>(`/admin/categories/${id}`, {
-    method: "PUT",
-    json: data,
-  });
+  if (isMockMode()) {
+    const idx = mockCategoriesMemory.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      mockCategoriesMemory[idx] = {
+        ...mockCategoriesMemory[idx],
+        ...data,
+      };
+      return mockCategoriesMemory[idx];
+    }
+  }
+  try {
+    return await apiFetch<AdminCategoryItem>(`/admin/categories/${id}`, {
+      method: "PUT",
+      json: data,
+    });
+  } catch (err) {
+    console.warn("[updateAdminCategory] Backend call failed, using mock fallback:", err);
+    const idx = mockCategoriesMemory.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      mockCategoriesMemory[idx] = {
+        ...mockCategoriesMemory[idx],
+        ...data,
+      };
+      return mockCategoriesMemory[idx];
+    }
+    return { id, ...data };
+  }
 }
 
 export async function deleteAdminCategory(id: number): Promise<void> {
-  await apiFetch<void>(`/admin/categories/${id}`, {
-    method: "DELETE",
-  });
+  if (isMockMode()) {
+    mockCategoriesMemory = mockCategoriesMemory.filter((c) => c.id !== id);
+    return;
+  }
+  try {
+    await apiFetch<void>(`/admin/categories/${id}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    console.warn("[deleteAdminCategory] Backend call failed, using mock fallback:", err);
+    mockCategoriesMemory = mockCategoriesMemory.filter((c) => c.id !== id);
+  }
 }
 
 // ============================================================================
@@ -1139,7 +1230,7 @@ export async function getAdminStores(status?: string): Promise<AdminStore[]> {
       ownerName: s.ownerFullName || s.ownerName || "Chủ gian hàng",
       ownerEmail: s.ownerEmail || "",
       phone: s.phone || s.ownerPhone || "0900000000",
-      status: (s.status as "PENDING" | "APPROVED" | "BANNED") || "APPROVED",
+      status: (s.status as "PENDING" | "APPROVED" | "BANNED" | "REJECTED") || "APPROVED",
       productsCount: Number(s.productsCount || s.totalProducts || 0),
       ordersCount: Number(s.ordersCount || s.totalOrders || 0),
       ratingAvg: Number(s.ratingAvg || 5.0),
@@ -1155,11 +1246,12 @@ export async function getAdminStores(status?: string): Promise<AdminStore[]> {
 
 export async function updateAdminStoreStatus(
   id: number,
-  status: "APPROVED" | "BANNED" | "SUSPENDED"
+  status: "APPROVED" | "BANNED" | "SUSPENDED" | "REJECTED",
+  reason?: string
 ): Promise<void> {
   await apiFetch<void>(`/admin/stores/${id}/status`, {
     method: "PATCH",
-    json: { status },
+    json: { status, reason },
   });
 }
 
@@ -1248,16 +1340,24 @@ export async function getAdminProducts(params?: {
   categoryId?: number;
   status?: string;
   search?: string;
+  page?: number;
+  size?: number;
 }): Promise<AdminProduct[]> {
+  if (isMockMode()) {
+    return getMockAdminProducts(params);
+  }
+
   try {
     const query: Record<string, string | number> = {};
     if (params?.status && params.status !== "ALL") query.status = params.status;
     if (params?.categoryId) query.categoryId = params.categoryId;
     if (params?.search?.trim()) query.search = params.search.trim();
+    query.page = params?.page ?? 0;
+    query.size = params?.size ?? 100;
 
     const res = await apiFetch<unknown>("/admin/products", { query });
     const items = extractItems<any>(res);
-    if (items.length === 0) {
+    if (items.length === 0 && !params?.status && !params?.categoryId && !params?.search) {
       return getMockAdminProducts(params);
     }
     return items.map((p: any) => ({
@@ -1269,13 +1369,35 @@ export async function getAdminProducts(params?: {
       minPrice: Number(p.minPrice ?? 0),
       maxPrice: Number(p.maxPrice ?? p.minPrice ?? 0),
       totalStock: Number(p.totalStock ?? 0),
-      status: (p.status as "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK") || "ACTIVE",
+      status: (p.status as "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK" | "BANNED") || "ACTIVE",
       primaryImageUrl: p.primaryImageUrl || p.imageUrl || "/images/placeholder.png",
       createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
     }));
   } catch (err) {
     console.warn("[getAdminProducts] Backend API call failed, falling back to mock products:", err);
     return getMockAdminProducts(params);
+  }
+}
+
+export async function updateAdminProductStatus(
+  id: number,
+  status: "ACTIVE" | "INACTIVE" | "BANNED",
+  reason?: string
+): Promise<void> {
+  if (isMockMode()) {
+    updateMockAdminProductStatus(id, status);
+    return;
+  }
+
+  try {
+    await apiFetch<void>(`/admin/products/${id}/status`, {
+      method: "PATCH",
+      json: { status, reason },
+    });
+  } catch (err) {
+    updateMockAdminProductStatus(id, status);
+    console.warn("[updateAdminProductStatus] Backend call failed, updated mock fallback:", err);
+    throw err;
   }
 }
 
@@ -1371,6 +1493,111 @@ export async function rejectWithdrawal(
     method: "PATCH",
     json: payload,
   });
+}
+
+// ============================================================================
+// 34. Báo cáo & Thống kê Tổng quan Dashboard
+// ============================================================================
+
+export interface AdminDashboardChartPoint {
+  label: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AdminDashboardTopStore {
+  id: number;
+  name: string;
+  legalName: string;
+  revenue: number;
+  orders: number;
+  avatarUrl: string;
+}
+
+export interface AdminDashboardCategoryShare {
+  categoryId: number;
+  name: string;
+  revenue: number;
+  sharePercentage: number;
+}
+
+export interface AdminDashboardPendingTasks {
+  pendingStores: number;
+  pendingFlashSaleItems: number;
+  pendingWithdrawals: number;
+  reportedReviews: number;
+}
+
+export interface AdminDashboardSummary {
+  periodType: string;
+  periodLabel: string;
+  startDate: string;
+  endDate: string;
+  totalRevenue: number;
+  revenueGrowthPercent: number;
+  totalOrders: number;
+  ordersGrowthPercent: number;
+  newUsers: number;
+  usersGrowthPercent: number;
+  newStores: number;
+  storesGrowthPercent: number;
+  chartPoints: AdminDashboardChartPoint[];
+  topStores: AdminDashboardTopStore[];
+  categoryShares: AdminDashboardCategoryShare[];
+  pendingTasks: AdminDashboardPendingTasks;
+}
+
+export interface GetAdminDashboardParams {
+  periodType?: "DAY" | "MONTH" | "YEAR" | "CUSTOM";
+  year?: number;
+  month?: number;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export async function getAdminDashboardSummary(
+  params?: GetAdminDashboardParams
+): Promise<AdminDashboardSummary> {
+  const queryParts: string[] = [];
+  if (params?.periodType) queryParts.push(`periodType=${params.periodType}`);
+  if (params?.year) queryParts.push(`year=${params.year}`);
+  if (params?.month) queryParts.push(`month=${params.month}`);
+  if (params?.date) queryParts.push(`date=${params.date}`);
+  if (params?.startDate) queryParts.push(`startDate=${params.startDate}`);
+  if (params?.endDate) queryParts.push(`endDate=${params.endDate}`);
+  const qs = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
+  try {
+    const res = await apiFetch<any>(`/admin/dashboard/summary${qs}`);
+    const data = res?.data || res;
+    return {
+      periodType: data.periodType || params?.periodType || "MONTH",
+      periodLabel: data.periodLabel || "Kỳ báo cáo",
+      startDate: data.startDate || new Date().toISOString(),
+      endDate: data.endDate || new Date().toISOString(),
+      totalRevenue: Number(data.totalRevenue || 0),
+      revenueGrowthPercent: Number(data.revenueGrowthPercent || 0),
+      totalOrders: Number(data.totalOrders || 0),
+      ordersGrowthPercent: Number(data.ordersGrowthPercent || 0),
+      newUsers: Number(data.newUsers || 0),
+      usersGrowthPercent: Number(data.usersGrowthPercent || 0),
+      newStores: Number(data.newStores || 0),
+      storesGrowthPercent: Number(data.storesGrowthPercent || 0),
+      chartPoints: Array.isArray(data.chartPoints) ? data.chartPoints : [],
+      topStores: Array.isArray(data.topStores) ? data.topStores : [],
+      categoryShares: Array.isArray(data.categoryShares) ? data.categoryShares : [],
+      pendingTasks: data.pendingTasks || {
+        pendingStores: 0,
+        pendingFlashSaleItems: 0,
+        pendingWithdrawals: 0,
+        reportedReviews: 0,
+      },
+    };
+  } catch (err) {
+    console.warn("[getAdminDashboardSummary] Backend call failed, using fallback:", err);
+    throw err;
+  }
 }
 
 

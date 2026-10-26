@@ -15,12 +15,16 @@ import {
   createAdminFlashSaleSlot,
   updateAdminFlashSaleSlot,
   preWarmAdminFlashSaleSlot,
+  deleteAdminFlashSaleSlot,
 } from "@/lib/api/admin";
 import { cancelMockFlashSaleSession } from "@/lib/mocks/flash-sessions.mock";
 
+// Bộ nhớ đệm module-level giữ dữ liệu khi chuyển trang trong admin (0ms transition)
+let cachedSessions: AdminFlashSaleSession[] | null = null;
+
 export default function AdminFlashSaleSessionsPage() {
-  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() => cachedSessions || []);
+  const [loading, setLoading] = useState(() => !cachedSessions);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   // Search & Filter trong list view
@@ -44,21 +48,24 @@ export default function AdminFlashSaleSessionsPage() {
 
     async function loadSessions() {
       try {
-        setLoading(true);
+        if (!cachedSessions) {
+          setLoading(true);
+        }
         const data = await getAdminFlashSaleSlots();
         if (!cancelled) {
+          cachedSessions = data;
           setSessions(data);
+          setLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
-          toast.error(
-            err instanceof Error
-              ? err.message
-              : "Không thể tải danh sách khung giờ Flash Sale"
-          );
-        }
-      } finally {
-        if (!cancelled) {
+          if (!cachedSessions) {
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Không thể tải danh sách khung giờ Flash Sale"
+            );
+          }
           setLoading(false);
         }
       }
@@ -71,12 +78,19 @@ export default function AdminFlashSaleSessionsPage() {
     };
   }, []);
 
-  // Thống kê nhanh
-  const activeCount = useMemo(
-    () => sessions.filter((s) => s.status === "ACTIVE").length,
-    [sessions]
-  );
+  // Thống kê nhanh theo trạng thái
+  const countsByStatus = useMemo(() => {
+    return {
+      ALL: sessions.length,
+      ACTIVE: sessions.filter((s) => s.status === "ACTIVE").length,
+      UPCOMING: sessions.filter((s) => s.status === "UPCOMING").length,
+      REGISTRATION_OPEN: sessions.filter((s) => s.status === "REGISTRATION_OPEN").length,
+      ENDED: sessions.filter((s) => s.status === "ENDED").length,
+    };
+  }, [sessions]);
+  const activeCount = countsByStatus.ACTIVE;
   const totalCount = sessions.length;
+
 
   // Xử lý tạo mới / sửa
   const handleOpenCreate = (date?: string, time?: string) => {
@@ -97,33 +111,104 @@ export default function AdminFlashSaleSessionsPage() {
   };
 
   const handleSaveSlot = (input: CreateFlashSaleSessionInput) => {
-    startTransition(async () => {
-      try {
-        if (editingSession) {
-          const updated = await updateAdminFlashSaleSlot(editingSession.id, input);
-          const freshSessions = await getAdminFlashSaleSlots();
-          setSessions(freshSessions);
-          toast.success("Cập nhật khung giờ thành công!", {
-            description: `Phiên "${updated.name}" đã được cập nhật thông tin.`,
+    // 1. Đóng modal ngay lập tức (0ms)
+    setIsModalOpen(false);
+    const targetEditing = editingSession;
+    setEditingSession(null);
+
+    const isEdit = Boolean(targetEditing);
+    const sessionName = input.name;
+
+    if (isEdit && targetEditing) {
+      // BẬT THÔNG BÁO THÀNH CÔNG NGAY LẬP TỨC (0ms)
+      toast.success("Cập nhật khung giờ thành công!", {
+        description: `Phiên "${sessionName}" đã được cập nhật thông tin.`,
+      });
+
+      const updatedOptimistic: AdminFlashSaleSession = {
+        ...targetEditing,
+        name: input.name,
+        description: input.description || targetEditing.description,
+        date: input.date,
+        timeRangeDisplay: `${input.startTime} - ${input.endTime}`,
+        holdSeconds: Number(input.holdSeconds) || targetEditing.holdSeconds,
+        registrationDeadline: input.registrationDeadline || targetEditing.registrationDeadline,
+      };
+
+      // Cập nhật state ngay lập tức (0ms)
+      setSessions((prev) => {
+        const next = prev.map((s) => (s.id === targetEditing.id ? updatedOptimistic : s));
+        cachedSessions = next;
+        return next;
+      });
+
+      // Đồng bộ ngầm với máy chủ
+      updateAdminFlashSaleSlot(targetEditing.id, input)
+        .then((updated) => {
+          setSessions((prev) => {
+            const next = prev.map((s) => (s.id === updated.id ? updated : s));
+            cachedSessions = next;
+            return next;
           });
-        } else {
-          const created = await createAdminFlashSaleSlot(input);
-          const freshSessions = await getAdminFlashSaleSlots();
-          setSessions(freshSessions);
-          toast.success("Tạo khung giờ Flash Sale mới thành công!", {
-            description: `Phiên "${created.name}" đã được thêm vào lịch tuần.`,
+        })
+        .catch((err) => {
+          toast.error(err instanceof Error ? err.message : "Đồng bộ máy chủ thất bại!");
+          getAdminFlashSaleSlots().then((fresh) => {
+            cachedSessions = fresh;
+            setSessions(fresh);
           });
-        }
-        setIsModalOpen(false);
-        setEditingSession(null);
-      } catch (err) {
-        toast.error(
-          err instanceof Error
-            ? err.message
-            : "Lưu khung giờ Flash Sale thất bại"
-        );
-      }
-    });
+        });
+    } else {
+      // BẬT THÔNG BÁO THÀNH CÔNG NGAY LẬP TỨC (0ms)
+      toast.success("Tạo khung giờ Flash Sale mới thành công!", {
+        description: `Phiên "${sessionName}" đã được thêm vào lịch tuần.`,
+      });
+
+      const tempId = Date.now();
+      const newOptimistic: AdminFlashSaleSession = {
+        id: tempId,
+        code: `FS-${input.date.replace(/-/g, "")}-${input.startTime.replace(":", "")}`,
+        name: input.name,
+        description: input.description || "",
+        date: input.date,
+        startTime: `${input.date}T${input.startTime}:00`,
+        endTime: `${input.date}T${input.endTime}:00`,
+        timeRangeDisplay: `${input.startTime} - ${input.endTime}`,
+        holdSeconds: Number(input.holdSeconds) || 300,
+        registrationDeadline: input.registrationDeadline || `${input.date}T${input.startTime}:00`,
+        approvedSkusCount: 0,
+        pendingSkusCount: 0,
+        totalSkusCount: 0,
+        soldQuantity: 0,
+        allocatedQuantity: 0,
+        status: "UPCOMING",
+        createdAt: new Date().toISOString(),
+      };
+
+      // Thêm vào state ngay lập tức (0ms)
+      setSessions((prev) => {
+        const next = [newOptimistic, ...prev];
+        cachedSessions = next;
+        return next;
+      });
+
+      // Gửi request ngầm lên máy chủ
+      createAdminFlashSaleSlot(input)
+        .then((created) => {
+          setSessions((prev) => {
+            const next = prev.map((s) => (s.id === tempId ? created : s));
+            cachedSessions = next;
+            return next;
+          });
+        })
+        .catch((err) => {
+          toast.error(err instanceof Error ? err.message : "Lưu máy chủ thất bại!");
+          getAdminFlashSaleSlots().then((fresh) => {
+            cachedSessions = fresh;
+            setSessions(fresh);
+          });
+        });
+    }
   };
 
   // Pre-warm Redis nạp kho trước phiên
@@ -140,24 +225,52 @@ export default function AdminFlashSaleSessionsPage() {
     }
   };
 
-  // Xử lý hủy phiên
+  // Xử lý hủy / xóa phiên
   const handleConfirmCancel = (data: { reason: string; note: string }) => {
     if (!sessionToCancel) return;
-    setIsCancelling(true);
-    setTimeout(async () => {
-      const ok = cancelMockFlashSaleSession(sessionToCancel.id);
-      setIsCancelling(false);
+    const target = sessionToCancel;
+
+    // RÀNG BUỘC CHẶT CHẼ: Chỉ xóa được phiên chưa diễn ra hoặc đã kết thúc!
+    if (target.status === "ACTIVE") {
+      toast.error("Không thể xóa phiên Flash Sale đang diễn ra!", {
+        description: "Hệ thống chỉ cho phép xóa các phiên chưa diễn ra (Sắp diễn ra, Mở đăng ký) hoặc đã kết thúc.",
+      });
       setSessionToCancel(null);
-      if (ok) {
-        const fresh = await getAdminFlashSaleSlots();
-        setSessions(fresh);
-        toast.success("Hủy phiên Flash Sale thành công!", {
-          description: `Phiên "${sessionToCancel.name}" đã bị hủy. Lý do: ${data.reason}`,
-        });
-      } else {
-        toast.error("Không thể hủy phiên đang chạy hoặc đã kết thúc!");
+      setIsCancelling(false);
+      return;
+    }
+
+    // Đóng modal ngay lập tức không delay
+    setSessionToCancel(null);
+    setIsCancelling(false);
+
+    // Optimistic delete: gỡ khỏi state ngay lập tức (0ms)
+    setSessions((prev) => {
+      const next = prev.filter((s) => s.id !== target.id);
+      cachedSessions = next;
+      return next;
+    });
+    toast.success(
+      target.status === "ENDED"
+        ? "Đã xóa phiên Flash Sale đã kết thúc thành công!"
+        : "Đã hủy phiên Flash Sale thành công!",
+      {
+        description: `Phiên "${target.name}" đã được gỡ khỏi hệ thống. Lý do: ${data.reason}`,
       }
-    }, 400);
+    );
+
+    // Đồng bộ gọi API xóa vĩnh viễn khỏi Database
+    deleteAdminFlashSaleSlot(target.id).catch((err) => {
+      console.error("Lỗi xóa phiên Flash Sale khỏi DB:", err);
+      toast.error(
+        "Lỗi máy chủ khi xóa phiên Flash Sale: " +
+          (err instanceof Error ? err.message : String(err))
+      );
+      getAdminFlashSaleSlots().then((fresh) => {
+        cachedSessions = fresh;
+        setSessions(fresh);
+      });
+    });
   };
 
   // Dữ liệu lọc cho List view
@@ -179,8 +292,14 @@ export default function AdminFlashSaleSessionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Cột DataTable cho List view
-  const columns: DataTableColumn<AdminFlashSaleSession>[] = [
+  const handleStatusFilterClick = (status: string) => {
+    setStatusFilter(statusFilter === status ? "ALL" : status);
+    setCurrentPage(1);
+  };
+
+  // Cột DataTable cho List view (Memoized để tăng tốc độ phân trang và lọc)
+  const columns: DataTableColumn<AdminFlashSaleSession>[] = useMemo(
+    () => [
     {
       key: "name",
       header: "Tên phiên Flash Sale",
@@ -346,47 +465,57 @@ export default function AdminFlashSaleSessionsPage() {
       header: "Thao tác",
       align: "right",
       render: (row) => {
-        const canEditOrCancel = row.status !== "ACTIVE" && row.status !== "ENDED";
+        const canPreWarm = row.status !== "ACTIVE" && row.status !== "ENDED";
+        const canEdit = row.status !== "ACTIVE" && row.status !== "ENDED";
+        // RÀNG BUỘC: Chỉ xóa được phiên chưa diễn ra hoặc đã kết thúc! Phiên ACTIVE bị khóa.
+        const canDelete = row.status !== "ACTIVE";
 
         return (
           <div className="flex items-center justify-end gap-1">
-            {canEditOrCancel ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handlePreWarmSlot(row.id, row.name)}
-                  className="p-1.5 rounded-lg text-secondary hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
-                  title="Pre-warm nạp kho Redis"
-                >
-                  <span className="material-symbols-outlined text-[18px]">bolt</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(row)}
-                  className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
-                  title="Chỉnh sửa khung giờ"
-                >
-                  <span className="material-symbols-outlined text-[18px]">edit</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSessionToCancel(row)}
-                  className="p-1.5 rounded-lg text-secondary hover:text-error hover:bg-error-container/40 transition-colors cursor-pointer"
-                  title="Hủy phiên Flash Sale"
-                >
-                  <span className="material-symbols-outlined text-[18px]">cancel</span>
-                </button>
-              </>
+            {canPreWarm && (
+              <button
+                type="button"
+                onClick={() => handlePreWarmSlot(row.id, row.name)}
+                className="p-1.5 rounded-lg text-secondary hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+                title="Pre-warm nạp kho Redis"
+              >
+                <span className="material-symbols-outlined text-[18px]">bolt</span>
+              </button>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleOpenEdit(row)}
+                className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
+                title="Chỉnh sửa khung giờ"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit</span>
+              </button>
+            )}
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={() => setSessionToCancel(row)}
+                className="p-1.5 rounded-lg text-secondary hover:text-error hover:bg-error-container/40 transition-colors cursor-pointer"
+                title={row.status === "ENDED" ? "Xóa phiên Flash Sale đã kết thúc" : "Hủy / Xóa phiên Flash Sale"}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {row.status === "ENDED" ? "delete" : "cancel"}
+                </span>
+              </button>
             ) : (
-              <span className="font-label-sm text-label-sm text-outline italic px-2">
-                Không thể sửa
+              <span
+                className="p-1.5 text-outline/40 cursor-not-allowed inline-flex items-center"
+                title="Không thể xóa phiên Flash Sale đang diễn ra!"
+              >
+                <span className="material-symbols-outlined text-[18px]">block</span>
               </span>
             )}
           </div>
         );
       },
     },
-  ];
+  ], []);
 
   return (
     <div className="flex flex-col w-full">
@@ -457,35 +586,107 @@ export default function AdminFlashSaleSessionsPage() {
           </div>
         </div>
 
-        {/* LEGEND CHIPS & SYSTEM STATUS */}
+        {/* INTERACTIVE STATUS FILTER BAR */}
         <div className="flex flex-wrap items-center justify-between gap-space-md p-space-md rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs">
-          <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+          <div className="flex flex-wrap items-center gap-2 lg:gap-2.5">
             <span className="font-label-sm text-label-sm text-secondary uppercase tracking-wider pr-1 font-semibold">
-              Trạng thái:
+              Bộ lọc trạng thái:
             </span>
-            {/* Legend: Sắp diễn ra */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high text-primary border border-primary/20 font-label-md text-label-md">
-              <span className="h-2 w-2 rounded-full bg-primary" />
-              <span>Sắp diễn ra</span>
-            </div>
-            {/* Legend: Đang diễn ra */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-tertiary-fixed text-tertiary border border-tertiary/25 font-label-md text-label-md">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-tertiary" />
+
+            {/* Filter: Tất cả */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterClick("ALL")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-xs transition-all cursor-pointer border",
+                statusFilter === "ALL"
+                  ? "bg-on-surface text-surface-container-lowest border-on-surface font-bold shadow-xs scale-[1.02]"
+                  : "bg-surface-container text-secondary border-outline-variant/40 hover:text-on-surface hover:bg-surface-container-high"
+              )}
+            >
+              <span>Tất cả</span>
+              <span className={cn(
+                "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
+                statusFilter === "ALL" ? "bg-white/20 text-white" : "bg-surface-container-high text-secondary"
+              )}>
+                {countsByStatus.ALL}
               </span>
-              <span className="font-semibold">Đang diễn ra</span>
-            </div>
-            {/* Legend: Đang mở đăng ký */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low text-on-surface border border-outline-variant/60 font-label-md text-label-md">
+            </button>
+
+            {/* Filter: Đang diễn ra */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterClick("ACTIVE")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-xs transition-all cursor-pointer border",
+                statusFilter === "ACTIVE"
+                  ? "bg-tertiary text-on-tertiary border-tertiary font-bold shadow-xs ring-2 ring-tertiary/30 scale-[1.02]"
+                  : "bg-tertiary-fixed/60 text-tertiary border-tertiary/25 hover:bg-tertiary-fixed"
+              )}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
+              </span>
+              <span>Đang diễn ra</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-black/10">
+                {countsByStatus.ACTIVE}
+              </span>
+            </button>
+
+            {/* Filter: Sắp diễn ra */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterClick("UPCOMING")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-xs transition-all cursor-pointer border",
+                statusFilter === "UPCOMING"
+                  ? "bg-primary text-on-primary border-primary font-bold shadow-xs ring-2 ring-primary/30 scale-[1.02]"
+                  : "bg-surface-container-high text-primary border-primary/20 hover:bg-primary-fixed"
+              )}
+            >
+              <span className="h-2 w-2 rounded-full bg-current" />
+              <span>Sắp diễn ra</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-black/10">
+                {countsByStatus.UPCOMING}
+              </span>
+            </button>
+
+            {/* Filter: Đang mở đăng ký */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterClick("REGISTRATION_OPEN")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-xs transition-all cursor-pointer border",
+                statusFilter === "REGISTRATION_OPEN"
+                  ? "bg-primary-container text-on-primary-container border-primary-container font-bold shadow-xs ring-2 ring-primary/30 scale-[1.02]"
+                  : "bg-surface-container-low text-on-surface border-outline-variant/60 hover:bg-surface-container"
+              )}
+            >
               <span className="h-2 w-2 rounded-full bg-primary-container" />
               <span>Đang mở đăng ký</span>
-            </div>
-            {/* Legend: Đã kết thúc */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface text-secondary border border-outline-variant/30 font-label-md text-label-md">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-black/10">
+                {countsByStatus.REGISTRATION_OPEN}
+              </span>
+            </button>
+
+            {/* Filter: Đã kết thúc */}
+            <button
+              type="button"
+              onClick={() => handleStatusFilterClick("ENDED")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-label-md text-xs transition-all cursor-pointer border",
+                statusFilter === "ENDED"
+                  ? "bg-slate-700 text-white border-slate-700 font-bold shadow-xs ring-2 ring-slate-400 scale-[1.02]"
+                  : "bg-surface text-secondary border-outline-variant/30 hover:bg-surface-container"
+              )}
+            >
               <span className="h-2 w-2 rounded-full bg-outline" />
               <span>Đã kết thúc</span>
-            </div>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-black/10">
+                {countsByStatus.ENDED}
+              </span>
+            </button>
           </div>
 
           {/* Quick Metrics Pill */}
@@ -493,7 +694,7 @@ export default function AdminFlashSaleSessionsPage() {
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-primary text-[17px]">memory</span>
               <span>
-                Redis sync: <strong className="text-on-surface font-semibold">Tự động (5m)</strong>
+                Redis sync: <strong className="text-on-surface font-semibold">Tự động (5s)</strong>
               </span>
             </div>
             <div className="pl-space-md flex items-center gap-1.5">
@@ -509,6 +710,7 @@ export default function AdminFlashSaleSessionsPage() {
         {viewMode === "calendar" && (
           <FlashSaleCalendar
             sessions={sessions}
+            statusFilter={statusFilter}
             onSelectSession={handleOpenEdit}
             onCreateSlot={handleOpenCreate}
           />
@@ -519,7 +721,7 @@ export default function AdminFlashSaleSessionsPage() {
           <div className="flex flex-col gap-space-md bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-xs p-space-md">
             {/* Filter Bar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-space-sm">
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-80">
                 <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[16px]">
                   search
                 </span>
@@ -528,33 +730,12 @@ export default function AdminFlashSaleSessionsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Tìm kiếm phiên theo tên, mốc giờ..."
-                  className="w-full h-9 pl-8 pr-3 text-body-sm bg-surface-container-lowest border border-outline-variant/60 rounded-lg placeholder:text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="w-full h-9 pl-8 pr-3 text-body-sm bg-surface-container-lowest border border-outline-variant/60 rounded-lg placeholder:text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-xs"
                 />
               </div>
 
-              {/* Status Tabs */}
-              <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 bg-surface-container-low rounded-lg">
-                {[
-                  { key: "ALL", label: "Tất cả" },
-                  { key: "ACTIVE", label: "Đang diễn ra" },
-                  { key: "UPCOMING", label: "Sắp tới" },
-                  { key: "REGISTRATION_OPEN", label: "Mở đăng ký" },
-                  { key: "ENDED", label: "Đã xong" },
-                ].map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setStatusFilter(tab.key)}
-                    className={cn(
-                      "px-3 py-1 rounded-md font-label-md text-xs transition-colors cursor-pointer",
-                      statusFilter === tab.key
-                        ? "bg-surface-container-lowest text-primary font-semibold shadow-xs"
-                        : "text-secondary hover:text-on-surface"
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="text-xs text-secondary self-start sm:self-auto">
+                Hiển thị <strong className="text-on-surface font-semibold">{filteredSessions.length}</strong> phiên phù hợp bộ lọc trên
               </div>
             </div>
 
@@ -595,32 +776,38 @@ export default function AdminFlashSaleSessionsPage() {
         defaultTime={modalDefaultTime}
       />
 
-      {/* CANCEL SESSION CONFIRM MODAL */}
+      {/* CANCEL / DELETE SESSION CONFIRM MODAL */}
       <ConfirmModal
         isOpen={Boolean(sessionToCancel)}
         onClose={() => setSessionToCancel(null)}
         onConfirm={handleConfirmCancel}
-        title="Hủy phiên Flash Sale"
+        title={sessionToCancel?.status === "ENDED" ? "Xóa phiên Flash Sale đã kết thúc" : "Hủy / Xóa phiên Flash Sale"}
         subtitle={sessionToCancel ? `${sessionToCancel.name} (${sessionToCancel.timeRangeDisplay})` : ""}
-        icon="cancel"
+        icon={sessionToCancel?.status === "ENDED" ? "delete" : "cancel"}
         variant="danger"
-        warningMessage="Hành động này sẽ hủy bỏ khung giờ đã lên lịch. Mọi sản phẩm đã đăng ký/chờ duyệt cho phiên này sẽ được mở khóa lại kho cho người bán."
+        warningMessage={
+          sessionToCancel?.status === "ENDED"
+            ? "Hành động này sẽ gỡ bỏ dữ liệu phiên đã kết thúc khỏi hệ thống quản lý."
+            : "Hành động này sẽ hủy bỏ khung giờ đã lên lịch. Mọi sản phẩm đã đăng ký/chờ duyệt cho phiên này sẽ được mở khóa lại kho cho người bán."
+        }
         targetSummary={
           sessionToCancel ? (
             <div className="flex flex-col gap-0.5">
               <span>Mã phiên: <strong>{sessionToCancel.code}</strong></span>
               <span>Thời gian: {sessionToCancel.timeRangeDisplay} - Ngày {sessionToCancel.date}</span>
+              <span>Trạng thái: <strong>{sessionToCancel.status === "ENDED" ? "Đã kết thúc" : sessionToCancel.status}</strong></span>
             </div>
           ) : undefined
         }
-        reasonLabel="Lý do hủy phiên"
+        reasonLabel="Lý do thao tác"
         reasonOptions={[
           { value: "PLAN_CHANGE", label: "Thay đổi kế hoạch vận hành sàn" },
           { value: "EVENT_CONFLICT", label: "Trùng lặp sự kiện khuyến mãi khác" },
+          { value: "CLEANUP", label: "Dọn dẹp phiên đã kết thúc / không còn sử dụng" },
           { value: "TECHNICAL_ISSUE", label: "Sự cố kỹ thuật / Bảo trì hệ thống" },
           { value: "OTHER", label: "Lý do khác" },
         ]}
-        reasonPlaceholder="-- Chọn lý do hủy --"
+        reasonPlaceholder="-- Chọn lý do --"
         noteLabel="Giải trình chi tiết"
         notePlaceholder="Nhập lý do chi tiết để lưu vết audit hệ thống..."
         noteRequired={false}
@@ -630,3 +817,5 @@ export default function AdminFlashSaleSessionsPage() {
     </div>
   );
 }
+
+
