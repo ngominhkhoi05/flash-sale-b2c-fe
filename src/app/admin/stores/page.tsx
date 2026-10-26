@@ -2,36 +2,58 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 import {
   getAdminStores,
   updateAdminStoreStatus,
   type AdminStore,
 } from "@/lib/api/admin";
 
-type StoreTabKey = "ALL" | "PENDING" | "APPROVED" | "BANNED";
+type StoreTabKey = "ALL" | "PENDING" | "APPROVED" | "BANNED" | "REJECTED";
 
 const STORE_TABS: { key: StoreTabKey; label: string }[] = [
   { key: "ALL", label: "Tất cả gian hàng" },
   { key: "PENDING", label: "Chờ xét duyệt" },
   { key: "APPROVED", label: "Đang hoạt động" },
-  { key: "BANNED", label: "Đã tạm dừng / Cấm" },
+  { key: "BANNED", label: "Đã tạm dừng" },
+  { key: "REJECTED", label: "Đã từ chối" },
 ];
 
+interface ActionModalState {
+  isOpen: boolean;
+  store: AdminStore | null;
+  targetStatus: "APPROVED" | "BANNED" | "REJECTED";
+  reason: string;
+}
+
+// Bộ nhớ đệm module-level giữ dữ liệu khi chuyển trang trong admin (0ms transition)
+const cachedStores: Record<string, AdminStore[]> = {};
+
 export default function AdminStoresPage() {
-  const [stores, setStores] = useState<AdminStore[]>([]);
+  const [stores, setStores] = useState<AdminStore[]>(() => cachedStores["ALL"] || []);
   const [activeTab, setActiveTab] = useState<StoreTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !cachedStores["ALL"]);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+
+  // Modal xác nhận thao tác giữa màn hình
+  const [actionModal, setActionModal] = useState<ActionModalState>({
+    isOpen: false,
+    store: null,
+    targetStatus: "APPROVED",
+    reason: "",
+  });
 
   const refreshStores = useCallback(async (tab: StoreTabKey) => {
     try {
-      setIsLoading(true);
+      if (!cachedStores[tab]) {
+        setIsLoading(true);
+      }
       const data = await getAdminStores(tab === "ALL" ? undefined : tab);
+      cachedStores[tab] = data;
       setStores(data);
     } catch (err) {
       console.error("Lỗi tải gian hàng:", err);
-      setStores([]);
     } finally {
       setIsLoading(false);
     }
@@ -39,12 +61,14 @@ export default function AdminStoresPage() {
 
   useEffect(() => {
     let isMounted = true;
-    const timer = setTimeout(() => {
+    if (!cachedStores[activeTab]) {
       setIsLoading(true);
-    }, 0);
+    }
+
     getAdminStores(activeTab === "ALL" ? undefined : activeTab)
       .then((data) => {
         if (isMounted) {
+          cachedStores[activeTab] = data;
           setStores(data);
           setIsLoading(false);
         }
@@ -52,34 +76,85 @@ export default function AdminStoresPage() {
       .catch((err) => {
         console.error("Lỗi tải gian hàng:", err);
         if (isMounted) {
-          setStores([]);
+          if (!cachedStores[activeTab]) {
+            setStores([]);
+          }
           setIsLoading(false);
         }
       });
 
     return () => {
       isMounted = false;
-      clearTimeout(timer);
     };
   }, [activeTab]);
 
+  const handleTabClick = (tabKey: StoreTabKey) => {
+    setActiveTab(tabKey);
+    if (cachedStores[tabKey]) {
+      setStores(cachedStores[tabKey]);
+      setIsLoading(false);
+    }
+  };
 
-  async function handleUpdateStatus(storeId: number, newStatus: "APPROVED" | "BANNED") {
-    const actionText = newStatus === "APPROVED" ? "phê duyệt" : "khóa";
-    if (!confirm(`Bạn có chắc chắn muốn ${actionText} gian hàng này không?`)) {
-      return;
+  // Mở hộp thoại xác nhận giữa màn hình
+  const openConfirmModal = (
+    store: AdminStore,
+    targetStatus: "APPROVED" | "BANNED" | "REJECTED"
+  ) => {
+    setActionModal({
+      isOpen: true,
+      store,
+      targetStatus,
+      reason: "",
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setActionModal({
+      isOpen: false,
+      store: null,
+      targetStatus: "APPROVED",
+      reason: "",
+    });
+  };
+
+  // Xác nhận thực hiện thao tác (Phản hồi tức thì 0ms)
+  function handleConfirmAction() {
+    if (!actionModal.store) return;
+    const { store, targetStatus, reason } = actionModal;
+
+    let actionLabel = "phê duyệt";
+    if (targetStatus === "REJECTED") actionLabel = "từ chối";
+    else if (targetStatus === "BANNED") actionLabel = "khóa";
+    else if (targetStatus === "APPROVED") {
+      actionLabel = store.status === "BANNED" ? "mở khóa" : "phê duyệt";
     }
 
-    try {
-      setActionLoadingId(storeId);
-      await updateAdminStoreStatus(storeId, newStatus);
-      alert(`Đã ${actionText} gian hàng thành công!`);
-      await refreshStores(activeTab);
-    } catch (err) {
-      alert("Lỗi cập nhật gian hàng: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setActionLoadingId(null);
-    }
+    // 1. Đóng modal ngay lập tức
+    closeConfirmModal();
+
+    // 2. BẬT THÔNG BÁO THÀNH CÔNG NGAY LẬP TỨC (0ms)
+    toast.success(`Đã ${actionLabel} gian hàng "${store.name}" thành công!`);
+
+    // 3. Cập nhật state ngay lập tức (Optimistic update)
+    const updatedStore: AdminStore = { ...store, status: targetStatus };
+    setStores((prev) => {
+      const next = prev.map((s) => (s.id === store.id ? updatedStore : s));
+      cachedStores[activeTab] = next;
+      cachedStores["ALL"] = (cachedStores["ALL"] || []).map((s) =>
+        s.id === store.id ? updatedStore : s
+      );
+      return next;
+    });
+
+    // 4. Đồng bộ ngầm với máy chủ
+    updateAdminStoreStatus(store.id, targetStatus, reason.trim() || undefined).catch((err) => {
+      console.error("Lỗi cập nhật gian hàng:", err);
+      toast.error(
+        "Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err))
+      );
+      refreshStores(activeTab);
+    });
   }
 
   const storeList = Array.isArray(stores) ? stores : [];
@@ -110,7 +185,7 @@ export default function AdminStoresPage() {
             </span>
           </div>
           <p className="font-body-sm text-xs text-secondary mt-0.5">
-            Xét duyệt hồ sơ mở shop, quản lý tình trạng kinh doanh và xếp hạng đối tác bán hàng
+            Xét duyệt hồ sơ mở shop, quản lý tình trạng kinh doanh và kiểm soát chất lượng đối tác
           </p>
         </div>
       </div>
@@ -121,23 +196,21 @@ export default function AdminStoresPage() {
           {STORE_TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-                activeTab === tab.key
+              onClick={() => handleTabClick(tab.key)}
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap ${activeTab === tab.key
                   ? "bg-primary text-on-primary shadow-sm"
                   : "bg-surface-container-low text-secondary hover:text-on-surface hover:bg-surface-container"
-              }`}
+                }`}
             >
               <span>{tab.label}</span>
               {tab.key === "PENDING" && pendingCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-tertiary text-on-tertiary text-[10px] font-bold">
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold">
                   {pendingCount}
                 </span>
               )}
             </button>
           ))}
         </div>
-
 
         <div className="relative w-full sm:w-72">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -237,18 +310,23 @@ export default function AdminStoresPage() {
 
                     <td className="py-3 px-4 text-center">
                       {store.status === "APPROVED" && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                           Đang bán
                         </span>
                       )}
                       {store.status === "PENDING" && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
                           Chờ duyệt
                         </span>
                       )}
                       {store.status === "BANNED" && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
                           Đã cấm
+                        </span>
+                      )}
+                      {store.status === "REJECTED" && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                          Đã từ chối
                         </span>
                       )}
                     </td>
@@ -256,22 +334,32 @@ export default function AdminStoresPage() {
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {store.status === "PENDING" && (
-                          <button
-                            type="button"
-                            disabled={actionLoadingId === store.id}
-                            onClick={() => handleUpdateStatus(store.id, "APPROVED")}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
-                          >
-                            {actionLoadingId === store.id ? "Đang xử lý..." : "Duyệt shop"}
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              disabled={actionLoadingId === store.id}
+                              onClick={() => openConfirmModal(store, "APPROVED")}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
+                            >
+                              Duyệt shop
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionLoadingId === store.id}
+                              onClick={() => openConfirmModal(store, "REJECTED")}
+                              className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 text-xs font-semibold transition-colors disabled:opacity-50"
+                            >
+                              Từ chối
+                            </button>
+                          </>
                         )}
 
                         {store.status === "APPROVED" && (
                           <button
                             type="button"
                             disabled={actionLoadingId === store.id}
-                            onClick={() => handleUpdateStatus(store.id, "BANNED")}
-                            className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors disabled:opacity-50"
+                            onClick={() => openConfirmModal(store, "BANNED")}
+                            className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 text-xs font-semibold transition-colors disabled:opacity-50"
                           >
                             Khóa shop
                           </button>
@@ -281,10 +369,21 @@ export default function AdminStoresPage() {
                           <button
                             type="button"
                             disabled={actionLoadingId === store.id}
-                            onClick={() => handleUpdateStatus(store.id, "APPROVED")}
-                            className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
+                            onClick={() => openConfirmModal(store, "APPROVED")}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
                           >
                             Mở khóa
+                          </button>
+                        )}
+
+                        {store.status === "REJECTED" && (
+                          <button
+                            type="button"
+                            disabled={actionLoadingId === store.id}
+                            onClick={() => openConfirmModal(store, "APPROVED")}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm disabled:opacity-50"
+                          >
+                            Xét duyệt lại
                           </button>
                         )}
                       </div>
@@ -296,6 +395,156 @@ export default function AdminStoresPage() {
           </table>
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/* MODAL XÁC NHẬN THAO TÁC NẰM GIỮA MÀN HÌNH (CENTERED DIALOG) */}
+      {/* ============================================================ */}
+      {actionModal.isOpen && actionModal.store && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150 p-6 flex flex-col gap-4">
+            {/* Header Icon + Tiêu đề */}
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${actionModal.targetStatus === "APPROVED"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : actionModal.targetStatus === "REJECTED"
+                      ? "bg-rose-100 text-rose-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+              >
+                <span className="material-symbols-outlined text-[24px]">
+                  {actionModal.targetStatus === "APPROVED"
+                    ? "check_circle"
+                    : actionModal.targetStatus === "REJECTED"
+                      ? "cancel"
+                      : "block"}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-base font-bold text-slate-900">
+                  {actionModal.targetStatus === "APPROVED"
+                    ? actionModal.store.status === "BANNED"
+                      ? "Xác nhận mở khóa gian hàng"
+                      : "Phê duyệt hồ sơ gian hàng"
+                    : actionModal.targetStatus === "REJECTED"
+                      ? "Từ chối hồ sơ gian hàng"
+                      : "Xác nhận khóa gian hàng"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Vui lòng kiểm tra kỹ thông tin trước khi thực hiện
+                </p>
+              </div>
+            </div>
+
+            {/* Thông tin tóm tắt gian hàng */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Tên gian hàng:</span>
+                <span className="font-bold text-slate-900">{actionModal.store.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Chủ gian hàng:</span>
+                <span className="font-semibold text-slate-800">{actionModal.store.ownerName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Số điện thoại:</span>
+                <span className="font-mono text-slate-700">{actionModal.store.phone}</span>
+              </div>
+              {actionModal.store.ownerEmail && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Email:</span>
+                  <span className="text-slate-700">{actionModal.store.ownerEmail}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Cảnh báo hậu quả thao tác */}
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {actionModal.targetStatus === "APPROVED" && (
+                <>
+                  Gian hàng sẽ được chuyển sang trạng thái <strong>Đang bán</strong>, chủ shop sẽ được kích hoạt quyền <strong>Người bán (Seller)</strong> để bắt đầu đăng sản phẩm.
+                </>
+              )}
+              {actionModal.targetStatus === "REJECTED" && (
+                <>
+                  Hồ sơ mở gian hàng sẽ bị <strong>từ chối</strong>. Người bán sẽ nhận được thông báo phản hồi lý do để chỉnh sửa lại thông tin đăng ký.
+                </>
+              )}
+              {actionModal.targetStatus === "BANNED" && (
+                <>
+                  Gian hàng sẽ bị <strong>tạm ngừng kinh doanh</strong> ngay lập tức. Toàn bộ sản phẩm của gian hàng sẽ bị ẩn khỏi sàn thương mại điện tử.
+                </>
+              )}
+            </p>
+
+            {/* Nhập lý do nếu là thao tác TỪ CHỐI */}
+            {actionModal.targetStatus === "REJECTED" && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Lý do từ chối</span>
+                  <span className="text-[11px] text-slate-400 font-normal">Tùy chọn</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={actionModal.reason}
+                  onChange={(e) =>
+                    setActionModal((prev) => ({ ...prev, reason: e.target.value }))
+                  }
+                  placeholder="Nhập lý do từ chối gửi cho người bán (VD: Thông tin CMND/CCCD chưa khớp, giấy phép kinh doanh mờ...)"
+                  className="w-full text-xs p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {[
+                    "Hồ sơ pháp lý chưa đầy đủ",
+                    "Thông tin liên hệ không chính xác",
+                    "Vi phạm điều khoản đăng ký",
+                  ].map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() =>
+                        setActionModal((prev) => ({ ...prev, reason: sug }))
+                      }
+                      className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                    >
+                      + {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nút hành động Modal */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 mt-1">
+              <button
+                type="button"
+                onClick={closeConfirmModal}
+                disabled={actionLoadingId !== null}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={actionLoadingId !== null}
+                onClick={handleConfirmAction}
+                className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-sm disabled:opacity-60 active:scale-95 ${actionModal.targetStatus === "APPROVED"
+                    ? "bg-emerald-600 hover:bg-emerald-700"
+                    : "bg-rose-600 hover:bg-rose-700"
+                  }`}
+              >
+                {actionLoadingId !== null
+                  ? "Đang xử lý..."
+                  : actionModal.targetStatus === "APPROVED"
+                    ? "Xác nhận duyệt"
+                    : actionModal.targetStatus === "REJECTED"
+                      ? "Xác nhận từ chối"
+                      : "Xác nhận khóa"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

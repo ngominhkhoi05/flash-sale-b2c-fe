@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 import {
   getAdminUsers,
   updateAdminUserStatus,
@@ -18,21 +19,28 @@ const USER_TABS: { key: UserTabKey; label: string }[] = [
   { key: "LOCKED", label: "Bị khóa" },
 ];
 
+// Bộ nhớ đệm module-level giữ danh sách người dùng khi chuyển trang (0ms transition)
+const cachedUsersData: Record<string, { items: AdminUser[]; totalElements: number; totalPages: number }> = {};
+
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const initialCache = cachedUsersData["ALL_0_"] || null;
+  const [users, setUsers] = useState<AdminUser[]>(() => initialCache ? initialCache.items : []);
   const [activeTab, setActiveTab] = useState<UserTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
   const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(() => initialCache ? initialCache.totalPages : 1);
+  const [totalElements, setTotalElements] = useState(() => initialCache ? initialCache.totalElements : 0);
+  const [isLoading, setIsLoading] = useState(!initialCache);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
   const loadUsers = useCallback(
     async (tab: UserTabKey, page: number, search: string) => {
-      setIsLoading(true);
+      const cacheKey = `${tab}_${page}_${search}`;
+      if (!cachedUsersData[cacheKey]) {
+        setIsLoading(true);
+      }
       setErrorMessage(null);
       try {
         const params: {
@@ -58,18 +66,25 @@ export default function AdminUsersPage() {
 
         const res = await getAdminUsers(params);
         const items = res.content ?? res.items ?? [];
+        cachedUsersData[cacheKey] = {
+          items,
+          totalElements: res.totalElements ?? items.length,
+          totalPages: res.totalPages ?? 1,
+        };
         setUsers(items);
         setPageNumber(res.pageNumber ?? page);
         setTotalPages(res.totalPages ?? 1);
         setTotalElements(res.totalElements ?? items.length);
       } catch (err) {
         console.error("Lỗi tải người dùng:", err);
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Không thể tải danh sách người dùng từ máy chủ"
-        );
-        setUsers([]);
+        if (!cachedUsersData[cacheKey]) {
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : "Không thể tải danh sách người dùng từ máy chủ"
+          );
+          setUsers([]);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -88,6 +103,13 @@ export default function AdminUsersPage() {
   const handleTabChange = (tab: UserTabKey) => {
     setActiveTab(tab);
     setPageNumber(0);
+    const key = `${tab}_0_${searchQuery}`;
+    if (cachedUsersData[key]) {
+      setUsers(cachedUsersData[key].items);
+      setTotalPages(cachedUsersData[key].totalPages);
+      setTotalElements(cachedUsersData[key].totalElements);
+      setIsLoading(false);
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,36 +117,35 @@ export default function AdminUsersPage() {
     setPageNumber(0);
   };
 
-  async function handleToggleLock(user: AdminUser) {
+  function handleToggleLock(user: AdminUser) {
     const newStatus = user.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
     const actionText =
       newStatus === "LOCKED" ? "khóa tài khoản" : "mở khóa tài khoản";
 
-    if (
-      !confirm(`Bạn có chắc muốn ${actionText} của "${user.fullName}" không?`)
-    ) {
-      return;
-    }
+    // 1. Phản hồi Toast NGAY LẬP TỨC (0ms)
+    toast.success(`Đã ${actionText} của "${user.fullName}" thành công!`);
 
-    try {
-      setActionLoadingId(user.id);
-      await updateAdminUserStatus(
-        user.id,
-        newStatus,
-        newStatus === "LOCKED"
-          ? "Admin tạm dừng hoạt động tài khoản"
-          : "Admin mở khóa tài khoản"
-      );
-      alert(`Đã ${actionText} thành công!`);
-      await loadUsers(activeTab, pageNumber, searchQuery);
-    } catch (err) {
-      alert(
-        "Lỗi cập nhật người dùng: " +
+    // 2. Cập nhật state trực tiếp ngay lập tức (0ms)
+    const updatedUser: AdminUser = { ...user, status: newStatus };
+    setUsers((prev) =>
+      prev.map((u) => (u.id === user.id ? updatedUser : u))
+    );
+
+    // 3. Đồng bộ ngầm với máy chủ BE
+    updateAdminUserStatus(
+      user.id,
+      newStatus,
+      newStatus === "LOCKED"
+        ? "Admin tạm dừng hoạt động tài khoản"
+        : "Admin mở khóa tài khoản"
+    ).catch((err) => {
+      console.error("Lỗi cập nhật người dùng máy chủ:", err);
+      toast.error(
+        "Lỗi cập nhật máy chủ: " +
           (err instanceof Error ? err.message : String(err))
       );
-    } finally {
-      setActionLoadingId(null);
-    }
+      loadUsers(activeTab, pageNumber, searchQuery);
+    });
   }
 
   return (
