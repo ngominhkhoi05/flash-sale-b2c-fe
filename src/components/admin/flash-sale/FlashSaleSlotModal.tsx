@@ -8,25 +8,80 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { AdminFlashSaleSession, CreateFlashSaleSessionInput } from "@/types/flash-sale";
 
+function getLocalDateStr(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function getLocalISOString(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseLocalDateTime(dateTimeStr: string): number {
+  if (!dateTimeStr) return NaN;
+  const parts = dateTimeStr.split("T");
+  if (parts.length !== 2) return NaN;
+  const [datePart, timePart] = parts;
+  const [year, month, day] = datePart.split("-").map(Number);
+  const timeSubParts = timePart.split(":").map(Number);
+  const hour = timeSubParts[0];
+  const minute = timeSubParts[1];
+  const second = timeSubParts[2] || 0;
+  if (
+    isNaN(year) || isNaN(month) || isNaN(day) ||
+    isNaN(hour) || isNaN(minute)
+  ) {
+    return NaN;
+  }
+  return new Date(year, month - 1, day, hour, minute, second, 0).getTime();
+}
+
 const slotFormSchema = z
   .object({
     name: z
       .string()
-      .min(1, "Tên phiên không được để trống")
+      .trim()
+      .min(3, "Tên phiên không được để trống (tối thiểu 3 ký tự)")
       .max(60, "Tên phiên tối đa 60 ký tự"),
     description: z.string().optional(),
     date: z.string().min(1, "Vui lòng chọn ngày tổ chức"),
     startTime: z.string().min(1, "Vui lòng chọn giờ bắt đầu"),
     endTime: z.string().min(1, "Vui lòng chọn giờ kết thúc"),
     holdSeconds: z.coerce
-      .number()
+      .number({ invalid_type_error: "Thời gian giữ hàng phải là số nguyên" })
       .int("Thời gian giữ hàng phải là số nguyên")
-      .min(60, "Thời gian giữ hàng tối thiểu 60 giây")
+      .min(60, "Thời gian giữ hàng tối thiểu 60 giây (1 phút)")
       .max(1800, "Thời gian giữ hàng tối đa 1800 giây (30 phút)"),
-    registrationDeadline: z.string().min(1, "Vui lòng chọn hạn đăng ký"),
+    registrationDeadline: z.string().min(1, "Vui lòng chọn hạn cuối đăng ký sản phẩm"),
   })
   .superRefine((val, ctx) => {
-    // 1. Giờ kết thúc phải sau giờ bắt đầu
+    const now = new Date();
+    const todayStr = getLocalDateStr(now);
+
+    // 1. Ngày tổ chức không được là ngày trong quá khứ
+    if (val.date && val.date < todayStr) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Ngày tổ chức không được là ngày trong quá khứ",
+        path: ["date"],
+      });
+    }
+
+    // 2. Giờ bắt đầu hôm nay không được trong quá khứ
+    if (val.date === todayStr && val.startTime) {
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const [sh, sm] = val.startTime.split(":").map(Number);
+      if (sh * 60 + sm <= currentMinutes) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Giờ bắt đầu hôm nay phải sau thời điểm hiện tại",
+          path: ["startTime"],
+        });
+      }
+    }
+
+    // 3. Giờ kết thúc phải sau giờ bắt đầu
     if (val.startTime && val.endTime) {
       const [sh, sm] = val.startTime.split(":").map(Number);
       const [eh, em] = val.endTime.split(":").map(Number);
@@ -39,20 +94,43 @@ const slotFormSchema = z
           message: "Giờ kết thúc phải sau giờ bắt đầu",
           path: ["endTime"],
         });
+      } else if (endMin - startMin < 30) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Thời lượng phiên Flash Sale tối thiểu 30 phút",
+          path: ["endTime"],
+        });
       }
     }
 
-    // 2. Hạn đăng ký phải trước giờ bắt đầu
-    if (val.date && val.startTime && val.registrationDeadline) {
-      const startDateTime = new Date(`${val.date}T${val.startTime}:00`).getTime();
-      const deadlineTime = new Date(val.registrationDeadline).getTime();
+    // 4. Hạn đăng ký cho người bán:
+    // - Phải lớn hơn thời gian hiện tại
+    // - Phải sớm hơn thời gian bắt đầu phiên mở bán
+    if (val.registrationDeadline) {
+      const deadlineTime = parseLocalDateTime(val.registrationDeadline);
+      const nowTime = now.getTime();
 
-      if (deadlineTime >= startDateTime) {
+      if (isNaN(deadlineTime)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Hạn đăng ký phải trước giờ bắt đầu phiên mở bán",
+          message: "Vui lòng chọn hạn cuối đăng ký sản phẩm hợp lệ",
           path: ["registrationDeadline"],
         });
+      } else if (deadlineTime <= nowTime) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Hạn cuối đăng ký phải lớn hơn thời gian hiện tại",
+          path: ["registrationDeadline"],
+        });
+      } else if (val.date && val.startTime) {
+        const startDateTime = parseLocalDateTime(`${val.date}T${val.startTime}`);
+        if (!isNaN(startDateTime) && deadlineTime >= startDateTime) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Hạn cuối đăng ký phải sớm hơn thời gian bắt đầu phiên mở bán",
+            path: ["registrationDeadline"],
+          });
+        }
       }
     }
   });
@@ -96,8 +174,29 @@ function FlashSaleSlotModalDialog({
       };
     }
 
-    const today = defaultDate || new Date().toISOString().split("T")[0];
-    const startTime = defaultTime || "12:00";
+    const now = new Date();
+    const today = defaultDate || getLocalDateStr(now);
+
+    let startTime = defaultTime || "12:00";
+    if (!defaultTime && today === getLocalDateStr(now)) {
+      const nextHour = now.getHours() + 3;
+      if (nextHour >= 22) {
+        const tomorrow = new Date(now.getTime() + 86400000);
+        const tomorrowStr = getLocalDateStr(tomorrow);
+        return {
+          name: "",
+          description: "",
+          date: tomorrowStr,
+          startTime: "10:00",
+          endTime: "12:00",
+          holdSeconds: 300,
+          registrationDeadline: `${tomorrowStr}T08:00`,
+        };
+      } else {
+        startTime = `${String(nextHour).padStart(2, "0")}:00`;
+      }
+    }
+
     const [h, m] = startTime.split(":").map(Number);
     const endHour = String(Math.min(h + 2, 23)).padStart(2, "0");
     const endTime = `${endHour}:${String(m).padStart(2, "0")}`;
@@ -121,10 +220,12 @@ function FlashSaleSlotModalDialog({
     handleSubmit,
     watch,
     setError,
-    formState: { errors, isSubmitting },
+    trigger,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<SlotFormValues>({
     resolver: zodResolver(slotFormSchema),
     defaultValues,
+    mode: "onChange",
   });
 
   // React Hook Form's watch() không tương thích với React Compiler
@@ -132,8 +233,19 @@ function FlashSaleSlotModalDialog({
   // react-hooks/incompatible-library). Giữ nguyên, suppress warning.
   // eslint-disable-next-line react-hooks/incompatible-library
   const holdSec = watch("holdSeconds");
+  const dateVal = watch("date");
   const startTimeVal = watch("startTime");
   const endTimeVal = watch("endTime");
+  const regDeadlineVal = watch("registrationDeadline");
+
+  // Re-trigger cross-field validations khi có field liên quan thay đổi
+  useEffect(() => {
+    if (isDirty) {
+      if (regDeadlineVal) trigger("registrationDeadline");
+      if (endTimeVal) trigger("endTime");
+      if (startTimeVal) trigger("startTime");
+    }
+  }, [dateVal, startTimeVal, endTimeVal, regDeadlineVal, isDirty, trigger]);
 
   // Tính thời lượng
   const durationText = useMemo(() => {
@@ -165,7 +277,7 @@ function FlashSaleSlotModalDialog({
 
   function onSubmit(values: SlotFormValues) {
     // 3. Kiểm tra trùng khung giờ với phiên khác trên cùng một ngày
-    const isOverlapping = existingSessions.some((s) => {
+    const overlappingSession = existingSessions.find((s) => {
       if (initialData && s.id === initialData.id) return false;
       if (s.date !== values.date) return false;
 
@@ -176,21 +288,25 @@ function FlashSaleSlotModalDialog({
       const [eEndH, eEndM] = sEnd.split(":").map(Number);
 
       const vS = vStartH * 60 + vStartM;
-      const vE = vEndH * vEndM ? vEndH * 60 + vEndM : vStartH * 60 + 120;
+      const vE = vEndH * 60 + vEndM;
       const eS = eStartH * 60 + eStartM;
-      const eE = eEndH * eEndM ? eEndH * 60 + eEndM : eStartH * 60 + 120;
+      const eE = eEndH * 60 + eEndM;
 
       // Giao thoa khoảng thời gian: [vS, vE] và [eS, eE]
       return Math.max(vS, eS) < Math.min(vE, eE);
     });
 
-    if (isOverlapping) {
+    if (overlappingSession) {
       setError("startTime", {
         type: "manual",
-        message: "Khung giờ này đã bị trùng lặp với phiên khác trong ngày",
+        message: `Trùng lặp với phiên "${overlappingSession.name}" (${overlappingSession.timeRangeDisplay})`,
       });
-      toast.error("Trùng khung giờ!", {
-        description: "Ngày này đã có phiên Flash Sale mở bán trong cùng khoảng thời gian.",
+      setError("endTime", {
+        type: "manual",
+        message: `Khung giờ này đã bị trùng lặp với phiên khác`,
+      });
+      toast.error("Trùng khung giờ mở bán!", {
+        description: `Ngày ${values.date} đã có phiên "${overlappingSession.name}" trong khoảng ${overlappingSession.timeRangeDisplay}.`,
       });
       return;
     }
@@ -256,7 +372,7 @@ function FlashSaleSlotModalDialog({
             <div className="flex flex-col gap-1.5">
               <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center justify-between">
                 <span>
-                  Tên phiên Flash Sale <span className="text-error">*</span>
+                  Tên phiên Flash Sale <span className="text-red-500">*</span>
                 </span>
                 <span className="font-label-sm text-label-sm text-secondary">Tối đa 60 ký tự</span>
               </label>
@@ -264,21 +380,24 @@ function FlashSaleSlotModalDialog({
                 {...register("name")}
                 placeholder="VD: Siêu Sale Giờ Vàng 12:00"
                 className={cn(
-                  "h-10 px-3 rounded-lg border bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none focus:ring-1 transition-all",
+                  "h-10 px-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
                   errors.name
-                    ? "border-error focus:border-error focus:ring-error"
-                    : "border-outline-variant/60 focus:border-primary focus:ring-primary"
+                    ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                    : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                 )}
               />
               {errors.name && (
-                <span className="text-error text-xs font-medium">{errors.name.message}</span>
+                <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+                  <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
+                  <span>{errors.name.message}</span>
+                </div>
               )}
             </div>
 
             {/* Field 2: Ngày tổ chức */}
             <div className="flex flex-col gap-1.5">
               <label className="font-label-md text-label-md font-semibold text-on-surface">
-                Ngày tổ chức mở bán <span className="text-error">*</span>
+                Ngày tổ chức mở bán <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -286,17 +405,21 @@ function FlashSaleSlotModalDialog({
                 </span>
                 <input
                   type="date"
+                  min={getLocalDateStr()}
                   {...register("date")}
                   className={cn(
-                    "w-full h-10 pl-10 pr-3 rounded-lg border bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none focus:ring-1 transition-all",
+                    "w-full h-10 pl-10 pr-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
                     errors.date
-                      ? "border-error focus:border-error focus:ring-error"
-                      : "border-outline-variant/60 focus:border-primary focus:ring-primary"
+                      ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                      : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                   )}
                 />
               </div>
               {errors.date && (
-                <span className="text-error text-xs font-medium">{errors.date.message}</span>
+                <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+                  <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
+                  <span>{errors.date.message}</span>
+                </div>
               )}
             </div>
 
@@ -304,7 +427,7 @@ function FlashSaleSlotModalDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
               <div className="flex flex-col gap-1.5">
                 <label className="font-label-md text-label-md font-semibold text-on-surface">
-                  Giờ bắt đầu <span className="text-error">*</span>
+                  Giờ bắt đầu <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -314,22 +437,25 @@ function FlashSaleSlotModalDialog({
                     type="time"
                     {...register("startTime")}
                     className={cn(
-                      "w-full h-10 pl-10 pr-3 rounded-lg border bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none focus:ring-1 transition-all",
+                      "w-full h-10 pl-10 pr-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
                       errors.startTime
-                        ? "border-error focus:border-error focus:ring-error"
-                        : "border-outline-variant/60 focus:border-primary focus:ring-primary"
+                        ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                        : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                     )}
                   />
                 </div>
                 {errors.startTime && (
-                  <span className="text-error text-xs font-medium">{errors.startTime.message}</span>
+                  <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+                    <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
+                    <span>{errors.startTime.message}</span>
+                  </div>
                 )}
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center justify-between">
                   <span>
-                    Giờ kết thúc <span className="text-error">*</span>
+                    Giờ kết thúc <span className="text-red-500">*</span>
                   </span>
                   {durationText && (
                     <span className="text-primary font-label-sm text-label-sm font-semibold">
@@ -345,15 +471,18 @@ function FlashSaleSlotModalDialog({
                     type="time"
                     {...register("endTime")}
                     className={cn(
-                      "w-full h-10 pl-10 pr-3 rounded-lg border bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none focus:ring-1 transition-all",
+                      "w-full h-10 pl-10 pr-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
                       errors.endTime
-                        ? "border-error focus:border-error focus:ring-error"
-                        : "border-outline-variant/60 focus:border-primary focus:ring-primary"
+                        ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                        : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                     )}
                   />
                 </div>
                 {errors.endTime && (
-                  <span className="text-error text-xs font-medium">{errors.endTime.message}</span>
+                  <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+                    <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
+                    <span>{errors.endTime.message}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -362,7 +491,7 @@ function FlashSaleSlotModalDialog({
             <div className="flex flex-col gap-1.5">
               <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center justify-between">
                 <span>
-                  Thời gian giữ chỗ hàng (Lock time) <span className="text-error">*</span>
+                  Thời gian giữ chỗ hàng (Lock time) <span className="text-red-500">*</span>
                 </span>
                 <span className="font-label-sm text-label-sm text-primary font-semibold">
                   Khuyến nghị: 300s
@@ -377,10 +506,10 @@ function FlashSaleSlotModalDialog({
                     max="1800"
                     {...register("holdSeconds")}
                     className={cn(
-                      "w-full h-10 px-3 pr-12 rounded-lg border bg-surface-container-lowest font-data-tabular text-body-md text-on-surface focus:outline-none focus:ring-1 transition-all",
+                      "w-full h-10 px-3 pr-12 rounded-lg border font-data-tabular text-body-md transition-all focus:outline-none",
                       errors.holdSeconds
-                        ? "border-error focus:border-error focus:ring-error"
-                        : "border-outline-variant/60 focus:border-primary focus:ring-primary"
+                        ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                        : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                     )}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 font-label-md text-label-md text-secondary pointer-events-none">
@@ -395,7 +524,10 @@ function FlashSaleSlotModalDialog({
                 Khoảng thời gian SKU được tạm khóa trong giỏ hàng trước khi hủy checkout để nhường cho khách tiếp theo.
               </span>
               {errors.holdSeconds && (
-                <span className="text-error text-xs font-medium">{errors.holdSeconds.message}</span>
+                <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+                  <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
+                  <span>{errors.holdSeconds.message}</span>
+                </div>
               )}
             </div>
 
@@ -403,7 +535,7 @@ function FlashSaleSlotModalDialog({
             <div className="flex flex-col gap-1.5">
               <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center justify-between">
                 <span>
-                  Hạn cuối đăng ký sản phẩm cho người bán <span className="text-error">*</span>
+                  Hạn cuối đăng ký sản phẩm cho người bán <span className="text-red-500">*</span>
                 </span>
                 <span className="font-label-sm text-label-sm text-secondary">
                   (Khuyến nghị trước 2 giờ mở bán)
@@ -411,20 +543,23 @@ function FlashSaleSlotModalDialog({
               </label>
               <input
                 type="datetime-local"
+                min={getLocalISOString()}
                 {...register("registrationDeadline")}
                 className={cn(
-                  "h-10 px-3 rounded-lg border bg-surface-container-lowest font-body-md text-body-md text-on-surface focus:outline-none focus:ring-1 transition-all",
+                  "h-10 px-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
                   errors.registrationDeadline
-                    ? "border-error focus:border-error focus:ring-error"
-                    : "border-outline-variant/60 focus:border-primary focus:ring-primary"
+                    ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                    : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                 )}
               />
               {errors.registrationDeadline && (
-                <span className="text-error text-xs font-medium">
-                  {errors.registrationDeadline.message}
-                </span>
+                <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
+                  <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
+                  <span>{errors.registrationDeadline.message}</span>
+                </div>
               )}
             </div>
+
 
             {/* Alert Box: Cơ chế Redis Cache */}
             <div className="p-3.5 rounded-xl bg-surface-container-high/60 border border-primary/30 flex items-start gap-3">
