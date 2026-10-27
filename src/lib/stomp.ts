@@ -1,6 +1,7 @@
 import { Client, type IMessage, type StompConfig } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { WS_RECONNECT_BACKOFF_MS } from "@/lib/constants";
+import { isTokenExpired } from "@/features/auth/jwt";
 
 /**
  * STOMP client factory — BE contract 2026-10-15.
@@ -68,12 +69,17 @@ export function createFlashSaleStompClient(
   accessToken: string | null
 ): FlashSaleStompClient {
   const wsBase = getWsUrl();
+  // Nếu token đã hết hạn, không gửi query param token để fallback về public access an toàn
+  const validToken = accessToken && !isTokenExpired(accessToken) ? accessToken : null;
 
   const config: StompConfig = {
     // Truyền token qua URL query param cho handshake interceptor
     // (BE `HandshakeAuthInterceptor` đọc `token` query param).
+    // Giới hạn transport an toàn, bỏ jsonp/iframe để tránh CORS error và fallback storm
     webSocketFactory: () =>
-      new SockJS(buildSockJsUrl(wsBase, accessToken)) as unknown as WebSocket,
+      new SockJS(buildSockJsUrl(wsBase, validToken), null, {
+        transports: ["websocket", "xhr-streaming", "xhr-polling"],
+      }) as unknown as WebSocket,
     reconnectDelay: WS_RECONNECT_BACKOFF_MS[0],
     heartbeatIncoming: 10_000,
     heartbeatOutgoing: 10_000,

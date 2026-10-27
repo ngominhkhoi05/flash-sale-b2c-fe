@@ -27,6 +27,7 @@ export const QR_HOLD_DURATION_MS = HELD_ORDER_DURATION_MS;
 // =========================================================
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: "fs_access_token",
+  REFRESH_TOKEN: "fs_refresh_token",
   AUTH: "fs_auth",
   CART: "fs_cart",
 } as const;

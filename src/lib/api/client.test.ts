@@ -203,3 +203,88 @@ describe("apiFetch – network error wrapping (2026-10-18)", () => {
     expect(str).not.toBe("[object Error]");
   });
 });
+
+describe("RefreshToken & Auto-refresh on 401", () => {
+  it("getRefreshToken / setRefreshToken / clearRefreshToken lưu trữ trên localStorage", async () => {
+    const mod = await loadApi();
+    mod.setRefreshToken("test-refresh-token-xyz");
+    expect(mod.getRefreshToken()).toBe("test-refresh-token-xyz");
+
+    mod.clearRefreshToken();
+    expect(mod.getRefreshToken()).toBeNull();
+  });
+
+  it("apiFetch tự động refresh token khi gặp 401 và retry request thành công", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    const mod = await loadApi();
+    mod.setAccessToken("expired-token");
+    mod.setRefreshToken("valid-refresh-token");
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      // 1. Request ban đầu bị 401
+      if (url.includes("/api/v1/users/me") && fetchMock.mock.calls.length === 1) {
+        return new Response(JSON.stringify({ code: "UNAUTHORIZED", message: "Token expired" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      // 2. Request refresh token thành công
+      if (url.includes("/api/v1/auth/refresh-token")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: { accessToken: "new-access-token", refreshToken: "new-refresh-token" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      // 3. Retry request ban đầu thành công với token mới
+      if (url.includes("/api/v1/users/me") && fetchMock.mock.calls.length === 3) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: { id: 1, email: "user@example.com" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await mod.apiFetch<{ id: number; email: string }>("/api/v1/users/me");
+
+    expect(result).toEqual({ id: 1, email: "user@example.com" });
+    expect(mod.getAccessToken()).toBe("new-access-token");
+    expect(mod.getRefreshToken()).toBe("new-refresh-token");
+  });
+
+  it("apiFetch ném lỗi 401 và dọn sạch token khi refresh token thất bại", async () => {
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
+    const mod = await loadApi();
+    mod.setAccessToken("expired-token");
+    mod.setRefreshToken("expired-refresh-token");
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/v1/users/me")) {
+        return new Response(JSON.stringify({ code: "UNAUTHORIZED", message: "Token expired" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/api/v1/auth/refresh-token")) {
+        return new Response(
+          JSON.stringify({ code: "REFRESH_TOKEN_EXPIRED", message: "Refresh token expired" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(mod.apiFetch("/api/v1/users/me")).rejects.toThrow(mod.ApiError);
+    expect(mod.getAccessToken()).toBeNull();
+    expect(mod.getRefreshToken()).toBeNull();
+  });
+});
+

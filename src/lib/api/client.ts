@@ -61,22 +61,20 @@ export function clearAccessToken(): void {
   document.cookie = `${COOKIE_KEYS.ACCESS_TOKEN}=; Path=/; Max-Age=0`;
 }
 
-/** Refresh token – lưu sessionStorage (đóng khi tab đóng, an toàn hơn localStorage). */
-const REFRESH_TOKEN_KEY = "fs_refresh_token";
-
+/** Refresh token – lưu localStorage đồng bộ cùng access_token */
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem(REFRESH_TOKEN_KEY);
+  return window.localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
 }
 
 export function setRefreshToken(token: string): void {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
+  window.localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, token);
 }
 
 export function clearRefreshToken(): void {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  window.localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
 }
 
 import {
@@ -220,9 +218,80 @@ function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string | null) => void> = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+/**
+ * requestNewAccessToken – gọi POST /api/v1/auth/refresh-token
+ * Cập nhật access_token và refresh_token mới vào localStorage.
+ * Trả về access token mới hoặc null nếu thất bại.
+ */
+export async function requestNewAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    clearAccessToken();
+    clearRefreshToken();
+    return null;
+  }
+
+  try {
+    const url = buildUrl("/api/v1/auth/refresh-token");
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) {
+      clearAccessToken();
+      clearRefreshToken();
+      return null;
+    }
+
+    const payload = (await res.json()) as BackendEnvelope<{
+      accessToken?: string;
+      refreshToken?: string;
+    }>;
+    const data =
+      payload.data ??
+      (payload as unknown as { accessToken?: string; refreshToken?: string });
+    const newAccessToken = data?.accessToken;
+    const newRefreshToken = data?.refreshToken;
+
+    if (newAccessToken) {
+      setAccessToken(newAccessToken);
+      if (newRefreshToken) {
+        setRefreshToken(newRefreshToken);
+      }
+      return newAccessToken;
+    }
+
+    clearAccessToken();
+    clearRefreshToken();
+    return null;
+  } catch {
+    clearAccessToken();
+    clearRefreshToken();
+    return null;
+  }
+}
+
 /**
  * apiFetch – client chính cho mọi request (rule §7, rule api-data).
  * - Gắn Authorization từ localStorage (fs_access_token).
+ * - Tự động refresh token khi gặp 401 với queue chống race condition.
  * - Gắn X-User-Id theo quy ước đồ án.
  * - Tự set Content-Type cho JSON.
  * - Hỗ trợ mock data tự động trong dev mode khi BE chưa sẵn sàng.
@@ -281,13 +350,68 @@ export async function apiFetch<T>(
         }
       }
 
+      let currentStatus = res.status;
+      let currentStatusText = res.statusText;
+
       if (!res.ok) {
+        // Tự động refresh token khi gặp 401
+        if (
+          res.status === 401 &&
+          withAuth &&
+          !path.includes("/auth/refresh-token") &&
+          !path.includes("/auth/login")
+        ) {
+          let newToken: string | null = null;
+          if (!isRefreshing) {
+            isRefreshing = true;
+            newToken = await requestNewAccessToken();
+            isRefreshing = false;
+            onRefreshed(newToken);
+          } else {
+            newToken = await new Promise<string | null>((resolve) => {
+              subscribeTokenRefresh((token) => resolve(token));
+            });
+          }
+
+          if (newToken) {
+            finalHeaders["Authorization"] = `Bearer ${newToken}`;
+            const retryRes = await fetch(url, { ...init, headers: finalHeaders, body });
+            if (retryRes.status === 204) return undefined as T;
+
+            const retryText = await retryRes.text();
+            let retryPayload: BackendEnvelope<T> | null = null;
+            if (retryText) {
+              try {
+                retryPayload = JSON.parse(retryText) as BackendEnvelope<T>;
+              } catch {
+                retryPayload = { message: retryText } as BackendEnvelope<T>;
+              }
+            }
+
+            if (retryRes.ok) {
+              if (
+                retryPayload &&
+                typeof retryPayload === "object" &&
+                "data" in retryPayload &&
+                retryPayload.data !== undefined
+              ) {
+                return retryPayload.data as T;
+              }
+              return retryPayload as T;
+            }
+
+            payload = retryPayload;
+            currentStatus = retryRes.status;
+            currentStatusText = retryRes.statusText;
+          }
+        }
+
         const errCode =
-          payload?.code ?? payload?.error?.code ?? `HTTP_${res.status}`;
+          payload?.code ?? payload?.error?.code ?? `HTTP_${currentStatus}`;
         const errMsg =
-          payload?.message ?? payload?.error?.message ?? res.statusText;
+          payload?.message ?? payload?.error?.message ?? currentStatusText;
         throw new ApiError({
-          status: res.status,
+          status: currentStatus,
           code: errCode,
           message: errMsg,
           details: payload?.error?.details ?? payload,
