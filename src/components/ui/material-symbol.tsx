@@ -156,6 +156,7 @@ export type MaterialSymbolName =
   | "info"
   | "manage_search"
   | "add"
+  | "remove"
   | "check"
   // Maintenance page
   | "terminal"

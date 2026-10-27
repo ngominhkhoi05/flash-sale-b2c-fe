@@ -46,6 +46,13 @@ export function CartStoreGroupCard({
             isLoading={isLoading}
             onIncrement={() => onUpdateQty(item.id, item.quantity + 1)}
             onDecrement={() => onUpdateQty(item.id, Math.max(1, item.quantity - 1))}
+            onChangeQuantity={(qty) => {
+              if (qty <= 0) {
+                onRemoveItem(item.id);
+              } else {
+                onUpdateQty(item.id, qty);
+              }
+            }}
             onRemove={() => onRemoveItem(item.id)}
           />
         ))}

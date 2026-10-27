@@ -189,6 +189,88 @@ describe("GioHangPage", () => {
     });
   });
 
+  it("click qty - gọi useUpdateCartItem với {itemId, quantity: 1}", async () => {
+    mockAuthAuthed();
+    mockUseCart.mockReturnValue({
+      data: MOCK_CART,
+      isLoading: false,
+      isError: false,
+    });
+
+    const user = userEvent.setup();
+    withWrapper(<GioHangPage />);
+    const decBtn = screen.getByRole("button", { name: /Giảm số lượng/ });
+    await user.click(decBtn);
+
+    expect(mockUpdateMut.mutate).toHaveBeenCalledWith({
+      itemId: 501,
+      quantity: 1,
+    });
+  });
+
+  it("vô hiệu hoá nút giảm khi số lượng bằng 1", () => {
+    mockAuthAuthed();
+    const cartWithQty1 = {
+      ...MOCK_CART,
+      storeGroups: [
+        {
+          ...MOCK_CART.storeGroups[0],
+          items: [{ ...MOCK_CART.storeGroups[0].items[0], quantity: 1 }],
+        },
+      ],
+    };
+    mockUseCart.mockReturnValue({
+      data: cartWithQty1,
+      isLoading: false,
+      isError: false,
+    });
+
+    withWrapper(<GioHangPage />);
+    const decBtn = screen.getByRole("button", { name: /Giảm số lượng/ });
+    expect(decBtn).toBeDisabled();
+  });
+
+  it("nhập số lượng mới trực tiếp (ví dụ 4) gọi useUpdateCartItem", async () => {
+    mockAuthAuthed();
+    mockUseCart.mockReturnValue({
+      data: MOCK_CART,
+      isLoading: false,
+      isError: false,
+    });
+
+    const user = userEvent.setup();
+    withWrapper(<GioHangPage />);
+    const qtyInput = screen.getByTestId("cart-item-qty");
+
+    await user.clear(qtyInput);
+    await user.type(qtyInput, "4{Enter}");
+
+    expect(mockUpdateMut.mutate).toHaveBeenCalledWith({
+      itemId: 501,
+      quantity: 4,
+    });
+  });
+
+  it("nhập 0 vào ô số lượng gọi useRemoveCartItem để xoá khỏi giỏ hàng", async () => {
+    mockAuthAuthed();
+    mockUseCart.mockReturnValue({
+      data: MOCK_CART,
+      isLoading: false,
+      isError: false,
+    });
+
+    const user = userEvent.setup();
+    withWrapper(<GioHangPage />);
+    const qtyInput = screen.getByTestId("cart-item-qty");
+
+    await user.clear(qtyInput);
+    await user.type(qtyInput, "0{Enter}");
+
+    expect(mockRemoveMut.mutate).toHaveBeenCalledWith({
+      itemId: 501,
+    });
+  });
+
   it("click nút xoá gọi useRemoveCartItem", async () => {
     mockAuthAuthed();
     mockUseCart.mockReturnValue({

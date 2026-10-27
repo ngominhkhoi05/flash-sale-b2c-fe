@@ -385,6 +385,7 @@
       "summaryTitle": "Order summary",
       "decrement": "Decrease quantity",
       "increment": "Increase quantity",
+      "quantity": "Quantity",
       "remove": "Remove",
       "shopSubtotal": "Shop subtotal:",
       "totalItems": "{count, plural, =0 {No items} one {# item} other {# items}}",

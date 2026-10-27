@@ -80,7 +80,10 @@ function CartContent() {
 
   // ── Handlers ────────────────────────────────────────────────────
   function handleUpdateQty(itemId: number, quantity: number) {
-    if (quantity < 1) return;
+    if (quantity < 1) {
+      handleRemoveItem(itemId);
+      return;
+    }
     updateMut.mutate({ itemId, quantity });
   }
 
