@@ -230,6 +230,47 @@ describe("GioHangPage", () => {
     expect(decBtn).toBeDisabled();
   });
 
+  it("nhập số lượng mới trực tiếp (ví dụ 4) gọi useUpdateCartItem", async () => {
+    mockAuthAuthed();
+    mockUseCart.mockReturnValue({
+      data: MOCK_CART,
+      isLoading: false,
+      isError: false,
+    });
+
+    const user = userEvent.setup();
+    withWrapper(<GioHangPage />);
+    const qtyInput = screen.getByTestId("cart-item-qty");
+
+    await user.clear(qtyInput);
+    await user.type(qtyInput, "4{Enter}");
+
+    expect(mockUpdateMut.mutate).toHaveBeenCalledWith({
+      itemId: 501,
+      quantity: 4,
+    });
+  });
+
+  it("nhập 0 vào ô số lượng gọi useRemoveCartItem để xoá khỏi giỏ hàng", async () => {
+    mockAuthAuthed();
+    mockUseCart.mockReturnValue({
+      data: MOCK_CART,
+      isLoading: false,
+      isError: false,
+    });
+
+    const user = userEvent.setup();
+    withWrapper(<GioHangPage />);
+    const qtyInput = screen.getByTestId("cart-item-qty");
+
+    await user.clear(qtyInput);
+    await user.type(qtyInput, "0{Enter}");
+
+    expect(mockRemoveMut.mutate).toHaveBeenCalledWith({
+      itemId: 501,
+    });
+  });
+
   it("click nút xoá gọi useRemoveCartItem", async () => {
     mockAuthAuthed();
     mockUseCart.mockReturnValue({

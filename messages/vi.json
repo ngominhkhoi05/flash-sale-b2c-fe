@@ -385,6 +385,7 @@
       "summaryTitle": "Tổng đơn hàng",
       "decrement": "Giảm số lượng",
       "increment": "Tăng số lượng",
+      "quantity": "Số lượng",
       "remove": "Xoá",
       "shopSubtotal": "Tạm tính shop:",
       "totalItems": "{count, plural, =0 {Không có sản phẩm} one {# sản phẩm} other {# sản phẩm}}",

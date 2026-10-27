@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
@@ -12,6 +13,7 @@ export interface CartItemRowProps {
   isLoading?: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
+  onChangeQuantity?: (quantity: number) => void;
   onRemove: () => void;
 }
 
@@ -23,9 +25,73 @@ export function CartItemRow({
   isLoading = false,
   onIncrement,
   onDecrement,
+  onChangeQuantity,
   onRemove,
 }: CartItemRowProps) {
   const t = useTranslations("storefront.cart");
+  const [inputValue, setInputValue] = useState<string>(String(item.quantity));
+  const [isFocused, setIsFocused] = useState(false);
+  const lastCommittedRef = useRef<number>(item.quantity);
+
+  useEffect(() => {
+    lastCommittedRef.current = item.quantity;
+    if (!isFocused) {
+      setInputValue(String(item.quantity));
+    }
+  }, [item.quantity, isFocused]);
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value;
+    // Chặn dấu âm và mọi ký tự không phải số
+    const cleaned = raw.replace(/\D/g, "");
+
+    if (cleaned === "") {
+      setInputValue("");
+      return;
+    }
+
+    // Nếu nhập 01 -> hiển thị 1 (loại bỏ leading zero)
+    const parsed = parseInt(cleaned, 10);
+    setInputValue(String(parsed));
+  }
+
+  function commitValue() {
+    const digitsOnly = inputValue.replace(/\D/g, "");
+    const parsed = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
+
+    // Nếu về 0 -> xóa khỏi giỏ hàng
+    if (parsed <= 0) {
+      setInputValue("0");
+      if (lastCommittedRef.current !== 0) {
+        lastCommittedRef.current = 0;
+        if (onChangeQuantity) {
+          onChangeQuantity(0);
+        }
+        onRemove();
+      }
+      return;
+    }
+
+    setInputValue(String(parsed));
+    if (parsed !== lastCommittedRef.current) {
+      lastCommittedRef.current = parsed;
+      if (onChangeQuantity) {
+        onChangeQuantity(parsed);
+      }
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Chặn phím dấu âm '-', '+', '.', 'e'
+    if (e.key === "-" || e.key === "+" || e.key === "." || e.key === "e") {
+      e.preventDefault();
+      return;
+    }
+    if (e.key === "Enter") {
+      commitValue();
+      e.currentTarget.blur();
+    }
+  }
 
   return (
     <div
@@ -81,12 +147,27 @@ export function CartItemRow({
           >
             <MaterialSymbol name="remove" size="sm" />
           </button>
-          <span
-            className="min-w-8 border-x border-outline-variant/40 px-2 py-0.5 text-center font-label-md font-semibold text-on-surface tabular-nums select-none"
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={inputValue}
+            disabled={isLoading}
+            aria-label={t("quantity")}
             data-testid="cart-item-qty"
-          >
-            {item.quantity}
-          </span>
+            onChange={handleInputChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              setIsFocused(false);
+              commitValue();
+            }}
+            onKeyDown={handleKeyDown}
+            className={cn(
+              "h-7 w-11 border-x border-outline-variant/40 bg-transparent px-1 text-center font-label-md font-semibold text-on-surface tabular-nums",
+              "focus:bg-surface-container/40 focus:outline-none focus:ring-1 focus:ring-primary/40",
+              "disabled:cursor-not-allowed disabled:text-outline-variant",
+            )}
+          />
           <button
             type="button"
             onClick={onIncrement}
