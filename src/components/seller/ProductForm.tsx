@@ -39,6 +39,42 @@ interface SkuRowState {
   priceError?: string;
 }
 
+function extractTierOptionValue(
+  config: { name: string; options: string[] } | undefined,
+  attrs: Record<string, unknown>
+): string | undefined {
+  if (!config) return undefined;
+  const configName = config.name?.trim().toLowerCase();
+  const options = config.options || [];
+
+  // 1. Tìm theo key của attributes (không phân biệt hoa thường)
+  if (configName) {
+    for (const [key, val] of Object.entries(attrs)) {
+      if (key.trim().toLowerCase() === configName && val != null) {
+        const valStr = String(val).trim();
+        const matched = options.find(
+          (opt) => opt.trim().toLowerCase() === valStr.toLowerCase()
+        );
+        return matched || valStr;
+      }
+    }
+  }
+
+  // 2. Fallback: Nếu tên key trong attributes lệch (ví dụ 'size' vs 'Size'),
+  // kiểm tra xem có value nào trong attributes khớp với một trong các options của config
+  for (const val of Object.values(attrs)) {
+    if (val != null) {
+      const valStr = String(val).trim();
+      const matched = options.find(
+        (opt) => opt.trim().toLowerCase() === valStr.toLowerCase()
+      );
+      if (matched) return matched;
+    }
+  }
+
+  return undefined;
+}
+
 function parseInlineToNodes(text: string): React.ReactNode[] {
   const inlineRegex =
     /(\*\*[^*]+\*\*|__[^_]+__|(?:\*|_)[^*_]+(?:\*|_)|<u>.*?<\/u>|~~.*?~~|`.*?`)/g;
@@ -566,6 +602,24 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             setHasVariations(false);
           }
 
+          // Cập nhật giá và kho gợi ý theo sản phẩm thực tế
+          if (detail.minPrice != null && Number(detail.minPrice) > 0) {
+            setBatchPrice(String(Math.round(Number(detail.minPrice))));
+          } else if (
+            Array.isArray(detail.variants) &&
+            detail.variants.length > 0 &&
+            detail.variants[0].originalPrice
+          ) {
+            setBatchPrice(String(Math.round(Number(detail.variants[0].originalPrice))));
+          }
+          if (
+            Array.isArray(detail.variants) &&
+            detail.variants.length > 0 &&
+            detail.variants[0].stockQuantity != null
+          ) {
+            setBatchStock(String(detail.variants[0].stockQuantity));
+          }
+
           // Nạp các variants vào skuOverrides kèm variant ID!
           if (Array.isArray(detail.variants) && detail.variants.length > 0) {
             const initialOverrides: Record<
@@ -581,21 +635,23 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
             detail.variants.forEach((v) => {
               const attrs = v.attributes || {};
-              const t1Name = configs[0]?.name;
-              const t2Name = configs[1]?.name;
-              const t1Val = t1Name ? attrs[t1Name] : undefined;
-              const t2Val = t2Name ? attrs[t2Name] : undefined;
+              const t1Val = extractTierOptionValue(configs[0], attrs);
+              const t2Val = extractTierOptionValue(configs[1], attrs);
 
               const rowKey =
-                t1Val && t2Val
-                  ? `${t1Val}-${t2Val}`
-                  : t1Val
-                  ? `${t1Val}-Mặc định`
+                configs.length > 1
+                  ? t1Val && t2Val
+                    ? `${t1Val}-${t2Val}`
+                    : "default"
+                  : configs.length === 1
+                  ? t1Val
+                    ? `${t1Val}-Mặc định`
+                    : "default"
                   : "default";
 
               initialOverrides[rowKey] = {
                 id: v.id,
-                sku: v.sku || v.skuCode,
+                sku: v.sku || (v as unknown as { skuCode?: string }).skuCode,
                 originalPrice: Number(v.originalPrice) || 0,
                 stockQuantity: Number(v.stockQuantity) || 0,
                 isActive: v.status === "ACTIVE",
@@ -661,7 +717,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         const p2 = normalizeSkuPart(t2).slice(0, 3) || "DEF";
         const defaultSku =
           mode === "edit"
-            ? `AT-${p1}-${p2}`
+            ? `SKU-${productId || "PRD"}-${p1}-${p2}`
             : `AT-${skuSeed}-${p1}-${p2}`;
 
         rows.push({
@@ -948,7 +1004,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         sku: r.sku,
         variantName:
           r.tier2Val && r.tier2Val !== "-"
-            ? `${r.tier1Val}, Size ${r.tier2Val}`
+            ? `${r.tier1Val}, ${r.tier2Val}`
             : r.tier1Val,
         originalPrice: r.originalPrice,
         stockQuantity: r.stockQuantity,
