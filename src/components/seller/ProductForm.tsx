@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -37,6 +37,9 @@ interface SkuRowState {
   stockQuantity: number;
   isActive: boolean;
   priceError?: string;
+  isExisting: boolean;
+  isMarkedForRemoval?: boolean;
+  isNewlyAdded?: boolean;
 }
 
 function extractTierOptionValue(
@@ -532,6 +535,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         originalPrice?: number;
         stockQuantity?: number;
         isActive?: boolean;
+        isExisting?: boolean;
+        isMarkedForRemoval?: boolean;
       }
     >
   >({});
@@ -556,6 +561,107 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Helper load product detail from server
+  const loadProductDetail = useCallback(async (id: number) => {
+    try {
+      const detail = await getSellerProductDetail(id);
+      setName(detail.name || "");
+      setCategoryId(detail.categoryId || 1);
+      setDescription(detail.description || "");
+      if (detail.imageUrl) {
+        setImages([detail.imageUrl]);
+      }
+
+      const configs =
+        detail.tierVariationConfigs || detail.tierVariations || [];
+      if (configs.length > 0) {
+        setHasVariations(true);
+        const t1 = configs[0];
+        if (t1) {
+          setTier1Name(t1.name);
+          setTier1Options(t1.options || []);
+        }
+        const t2 = configs[1];
+        if (t2) {
+          setTier2Name(t2.name);
+          setTier2Options(t2.options || []);
+        } else {
+          setTier2Options([]);
+        }
+      } else {
+        setHasVariations(false);
+      }
+
+      // Cập nhật giá và kho gợi ý theo sản phẩm thực tế
+      if (detail.minPrice != null && Number(detail.minPrice) > 0) {
+        setBatchPrice(String(Math.round(Number(detail.minPrice))));
+      } else if (
+        Array.isArray(detail.variants) &&
+        detail.variants.length > 0 &&
+        detail.variants[0].originalPrice
+      ) {
+        setBatchPrice(String(Math.round(Number(detail.variants[0].originalPrice))));
+      }
+      if (
+        Array.isArray(detail.variants) &&
+        detail.variants.length > 0 &&
+        detail.variants[0].stockQuantity != null
+      ) {
+        setBatchStock(String(detail.variants[0].stockQuantity));
+      }
+
+      // Nạp các variants vào skuOverrides kèm variant ID!
+      if (Array.isArray(detail.variants) && detail.variants.length > 0) {
+        const initialOverrides: Record<
+          string,
+          {
+            id?: number;
+            sku?: string;
+            originalPrice?: number;
+            stockQuantity?: number;
+            isActive?: boolean;
+            isExisting?: boolean;
+            isMarkedForRemoval?: boolean;
+          }
+        > = {};
+
+        detail.variants.forEach((v) => {
+          const attrs = v.attributes || {};
+          const t1Val = extractTierOptionValue(configs[0], attrs);
+          const t2Val = extractTierOptionValue(configs[1], attrs);
+
+          const rowKey =
+            configs.length > 1
+              ? t1Val && t2Val
+                ? `${t1Val}-${t2Val}`
+                : "default"
+              : configs.length === 1
+              ? t1Val
+                ? `${t1Val}-Mặc định`
+                : "default"
+              : "default";
+
+          initialOverrides[rowKey] = {
+            id: v.id,
+            sku: v.sku || (v as unknown as { skuCode?: string }).skuCode,
+            originalPrice: Number(v.originalPrice) || 0,
+            stockQuantity: Number(v.stockQuantity) || 0,
+            isActive: v.status === "ACTIVE",
+            isExisting: true,
+            isMarkedForRemoval: false,
+          };
+        });
+
+        setSkuOverrides(initialOverrides);
+      }
+    } catch (err) {
+      console.error("Failed to load product detail:", err);
+      setErrorMessage("Không thể tải thông tin sản phẩm cần sửa.");
+    } finally {
+      setIsPageLoading(false);
+    }
+  }, []);
+
   // Load categories and initial product details
   useEffect(() => {
     let isMounted = true;
@@ -572,108 +678,13 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       });
 
     if (mode === "edit" && productId) {
-      getSellerProductDetail(productId)
-        .then((detail) => {
-          if (!isMounted) return;
-          setName(detail.name || "");
-          setCategoryId(detail.categoryId || 1);
-          setDescription(detail.description || "");
-          if (detail.imageUrl) {
-            setImages([detail.imageUrl]);
-          }
-
-          const configs =
-            detail.tierVariationConfigs || detail.tierVariations || [];
-          if (configs.length > 0) {
-            setHasVariations(true);
-            const t1 = configs[0];
-            if (t1) {
-              setTier1Name(t1.name);
-              setTier1Options(t1.options || []);
-            }
-            const t2 = configs[1];
-            if (t2) {
-              setTier2Name(t2.name);
-              setTier2Options(t2.options || []);
-            } else {
-              setTier2Options([]);
-            }
-          } else {
-            setHasVariations(false);
-          }
-
-          // Cập nhật giá và kho gợi ý theo sản phẩm thực tế
-          if (detail.minPrice != null && Number(detail.minPrice) > 0) {
-            setBatchPrice(String(Math.round(Number(detail.minPrice))));
-          } else if (
-            Array.isArray(detail.variants) &&
-            detail.variants.length > 0 &&
-            detail.variants[0].originalPrice
-          ) {
-            setBatchPrice(String(Math.round(Number(detail.variants[0].originalPrice))));
-          }
-          if (
-            Array.isArray(detail.variants) &&
-            detail.variants.length > 0 &&
-            detail.variants[0].stockQuantity != null
-          ) {
-            setBatchStock(String(detail.variants[0].stockQuantity));
-          }
-
-          // Nạp các variants vào skuOverrides kèm variant ID!
-          if (Array.isArray(detail.variants) && detail.variants.length > 0) {
-            const initialOverrides: Record<
-              string,
-              {
-                id?: number;
-                sku?: string;
-                originalPrice?: number;
-                stockQuantity?: number;
-                isActive?: boolean;
-              }
-            > = {};
-
-            detail.variants.forEach((v) => {
-              const attrs = v.attributes || {};
-              const t1Val = extractTierOptionValue(configs[0], attrs);
-              const t2Val = extractTierOptionValue(configs[1], attrs);
-
-              const rowKey =
-                configs.length > 1
-                  ? t1Val && t2Val
-                    ? `${t1Val}-${t2Val}`
-                    : "default"
-                  : configs.length === 1
-                  ? t1Val
-                    ? `${t1Val}-Mặc định`
-                    : "default"
-                  : "default";
-
-              initialOverrides[rowKey] = {
-                id: v.id,
-                sku: v.sku || (v as unknown as { skuCode?: string }).skuCode,
-                originalPrice: Number(v.originalPrice) || 0,
-                stockQuantity: Number(v.stockQuantity) || 0,
-                isActive: v.status === "ACTIVE",
-              };
-            });
-
-            setSkuOverrides(initialOverrides);
-          }
-          setIsPageLoading(false);
-        })
-        .catch((err) => {
-          if (!isMounted) return;
-          console.error("Failed to load product detail:", err);
-          setErrorMessage("Không thể tải thông tin sản phẩm cần sửa.");
-          setIsPageLoading(false);
-        });
+      loadProductDetail(productId);
     }
 
     return () => {
       isMounted = false;
     };
-  }, [mode, productId]);
+  }, [mode, productId, loadProductDetail]);
 
   // Compute SKU Matrix dynamically without cascading renders
   const skuMatrix: SkuRowState[] = useMemo(() => {
@@ -691,6 +702,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           stockQuantity: def?.stockQuantity ?? (Number(batchStock) || 50),
           isActive: def?.isActive ?? true,
           priceError: price <= 0 ? "Giá phải lớn hơn 0" : undefined,
+          isExisting: true,
         },
       ];
     }
@@ -720,6 +732,17 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             ? `SKU-${productId || "PRD"}-${p1}-${p2}`
             : `AT-${skuSeed}-${p1}-${p2}`;
 
+        const isFromDb = ov?.id !== undefined;
+        const isMarkedForRemoval = isFromDb && !!ov?.isMarkedForRemoval;
+
+        // Nếu đã gán isExisting thì dùng; nếu chưa thì trong edit mode chỉ dòng có id từ DB mới là existing
+        const isExisting =
+          ov?.isExisting !== undefined
+            ? ov.isExisting
+            : mode === "create" || isFromDb;
+
+        const isNewlyAdded = !isFromDb && isExisting;
+
         rows.push({
           key: rowKey,
           id: ov?.id,
@@ -728,21 +751,42 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           sku: ov?.sku || defaultSku,
           originalPrice: price,
           stockQuantity: stock,
-          isActive: ov?.isActive ?? true,
-          priceError: price <= 0 ? "Giá phải lớn hơn 0" : undefined,
+          isActive: isMarkedForRemoval ? false : (ov?.isActive ?? true),
+          priceError: !isMarkedForRemoval && price <= 0 ? "Giá phải lớn hơn 0" : undefined,
+          isExisting,
+          isMarkedForRemoval,
+          isNewlyAdded,
         });
       }
     }
     return rows;
-  }, [hasVariations, tier1Options, tier2Options, skuOverrides, batchPrice, batchStock, mode, skuSeed]);
+  }, [hasVariations, tier1Options, tier2Options, skuOverrides, batchPrice, batchStock, mode, skuSeed, productId]);
 
-  // Batch apply handler
+  // Danh sách biến thể đang kinh doanh (đưa các biến thể mới thêm xuống DƯỚI CÙNG)
+  const existingSkuRows = useMemo(() => {
+    const active = skuMatrix.filter((r) => r.isExisting);
+    const dbRows = active.filter((r) => !r.isNewlyAdded);
+    const newRows = active.filter((r) => r.isNewlyAdded);
+    return [...dbRows, ...newRows];
+  }, [skuMatrix]);
+
+  const unaddedSkuRows = useMemo(
+    () => skuMatrix.filter((r) => !r.isExisting && r.id === undefined),
+    [skuMatrix]
+  );
+
+  // Hiển thị tối đa 10 biến thể đang kinh doanh (nếu chưa bấm Xem thêm)
+  const visibleExistingRows = isMatrixExpanded
+    ? existingSkuRows
+    : existingSkuRows.slice(0, 10);
+
+  // Batch apply handler - Chỉ áp dụng cho các SKU đang kinh doanh
   const handleBatchApply = () => {
     const numPrice = Number(batchPrice) || 0;
     const numStock = Number(batchStock) || 0;
     setSkuOverrides((prev) => {
       const next = { ...prev };
-      skuMatrix.forEach((row) => {
+      existingSkuRows.forEach((row) => {
         next[row.key] = {
           ...next[row.key],
           originalPrice: numPrice,
@@ -751,6 +795,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       });
       return next;
     });
+    toast.success(`Đã áp dụng giá và kho cho ${existingSkuRows.length} SKU đang kinh doanh!`);
   };
 
   // Add tier 1 option
@@ -917,6 +962,50 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     }));
   };
 
+  const handleToggleRowExisting = (key: string, nextExisting: boolean) => {
+    setSkuOverrides((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        isExisting: nextExisting,
+      },
+    }));
+    if (nextExisting) {
+      toast.success("Đã thêm biến thể mới vào danh mục kinh doanh (hiển thị màu xanh lá ở dưới cùng)!");
+    } else {
+      toast.info("Đã chuyển biến thể về danh mục chưa kinh doanh.");
+    }
+  };
+
+  const handleToggleRowRemoval = (key: string, isRemoval: boolean) => {
+    setSkuOverrides((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        isMarkedForRemoval: isRemoval,
+      },
+    }));
+    if (isRemoval) {
+      toast.warning("Biến thể được đánh dấu ngừng bán (đổi sang màu đỏ) và sẽ chuyển sang trạng thái Ngừng kinh doanh.");
+    } else {
+      toast.success("Đã khôi phục biến thể kinh doanh!");
+    }
+  };
+
+  const handleAddAllUnadded = () => {
+    setSkuOverrides((prev) => {
+      const next = { ...prev };
+      unaddedSkuRows.forEach((row) => {
+        next[row.key] = {
+          ...next[row.key],
+          isExisting: true,
+        };
+      });
+      return next;
+    });
+    toast.success(`Đã thêm toàn bộ ${unaddedSkuRows.length} tổ hợp vào danh sách kinh doanh!`);
+  };
+
   // Volumetric weight
   const estimatedVolumetricWeight = useMemo(() => {
     return Math.round((lengthCm * widthCm * heightCm) / 6);
@@ -933,14 +1022,14 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
 
   // Minimum and Maximum prices for preview
   const previewPriceDisplay = useMemo(() => {
-    if (skuMatrix.length === 0) return "149.000₫";
-    const validPrices = skuMatrix
+    if (existingSkuRows.length === 0) return "149.000₫";
+    const validPrices = existingSkuRows
       .map((r) => r.originalPrice)
       .filter((p) => p > 0);
     if (validPrices.length === 0) return "149.000₫";
     const min = Math.min(...validPrices);
     return formatVND(min);
-  }, [skuMatrix]);
+  }, [existingSkuRows]);
 
   // Form submission
   const handleSubmit = async (targetStatus: "ACTIVE" | "INACTIVE") => {
@@ -970,15 +1059,16 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       return;
     }
 
-    if (skuMatrix.length === 0) {
-      const msg = "Sản phẩm phải có ít nhất 1 biến thể SKU.";
+    const activeSellingRows = existingSkuRows.filter((r) => !r.isMarkedForRemoval);
+    if (activeSellingRows.length === 0) {
+      const msg = "Sản phẩm phải có ít nhất 1 biến thể SKU đang kinh doanh (không bị đánh dấu ngừng bán).";
       setErrorMessage(msg);
       toast.error(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    const invalidRow = skuMatrix.find((r) => r.originalPrice <= 0);
+    const invalidRow = activeSellingRows.find((r) => r.originalPrice <= 0);
     if (invalidRow) {
       const msg = `Biến thể [${invalidRow.tier1Val} - ${invalidRow.tier2Val}] có giá bán không hợp lệ (phải > 0).`;
       setErrorMessage(msg);
@@ -999,7 +1089,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           ]
         : [];
 
-      const variants: CreateProductVariantDto[] = skuMatrix.map((r) => ({
+      // GỬI CẢ CÁC BIẾN THỂ ĐANG BÁN VÀ BIẾN THỂ BỊ ĐÁNH DẤU ĐỎ (VỚI STATUS INACTIVE)
+      const variants: CreateProductVariantDto[] = existingSkuRows.map((r) => ({
         id: r.id,
         sku: r.sku,
         variantName:
@@ -1007,8 +1098,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             ? `${r.tier1Val}, ${r.tier2Val}`
             : r.tier1Val,
         originalPrice: r.originalPrice,
-        stockQuantity: r.stockQuantity,
-        status: r.isActive ? "ACTIVE" : "INACTIVE",
+        stockQuantity: r.isMarkedForRemoval ? 0 : r.stockQuantity,
+        status: r.isMarkedForRemoval ? "INACTIVE" : r.isActive ? "ACTIVE" : "INACTIVE",
         attributes: {
           [tier1Name]: r.tier1Val,
           ...(r.tier2Val && r.tier2Val !== "-" ? { [tier2Name]: r.tier2Val } : {}),
@@ -1074,10 +1165,19 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         }
       }
 
-      setTimeout(() => {
+      if (mode === "create") {
+        setTimeout(() => {
+          router.refresh();
+          router.push("/seller/products");
+        }, 800);
+      } else {
+        // mode === "edit": Giữ nguyên trên trang hiện tại, làm mới dữ liệu từ server
+        if (productId) {
+          await loadProductDetail(productId);
+        }
         router.refresh();
-        router.push("/seller/products");
-      }, 800);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } catch (err: unknown) {
       const errObj = err as { message?: string };
       const msg =
@@ -1810,12 +1910,17 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                       Danh sách phân loại chi tiết
                     </h2>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-md text-label-md font-bold">
-                      {skuMatrix.length} SKU
+                      {existingSkuRows.length} SKU đang bán
                     </span>
+                    {unaddedSkuRows.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container-low text-secondary font-label-sm text-label-sm font-medium">
+                        +{unaddedSkuRows.length} chưa bán
+                      </span>
+                    )}
                   </div>
                   <p className="font-body-sm text-label-sm text-secondary">
                     {hasVariations
-                      ? `Ma trận sinh tự động từ ${tier1Options.length} ${tier1Name} × ${tier2Options.length} ${tier2Name}. Nhập giá bán và kho riêng biệt.`
+                      ? `Phân loại ${tier1Options.length} ${tier1Name} × ${tier2Options.length} ${tier2Name}. Chỉ các biến thể được chọn mới lưu vào hệ thống.`
                       : "Sản phẩm không có phân loại thuộc tính."}
                   </p>
                 </div>
@@ -1830,7 +1935,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                   size="[20px]"
                   className="text-emerald-600"
                 />
-                <span>Áp dụng nhanh cho tất cả SKU:</span>
+                <span>Áp dụng nhanh cho các SKU đang bán:</span>
               </div>
               <div className="flex flex-wrap items-center gap-2.5 flex-1 justify-end">
                 <div className="relative w-36">
@@ -1857,7 +1962,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                 <button
                   type="button"
                   onClick={handleBatchApply}
-                  className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-body-sm font-semibold shadow-sm transition-all flex items-center gap-1"
+                  className="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-body-sm font-semibold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <MaterialSymbol name="done_all" size="[16px]" />
                   <span>Áp dụng tất cả</span>
@@ -1865,7 +1970,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
               </div>
             </div>
 
-            {/* SKU Matrix Table */}
+            {/* Active SKU Table (Biến thể đang kinh doanh) */}
             <div className="overflow-x-auto rounded-lg border border-outline-variant/30">
               <table className="w-full text-left border-collapse min-w-[760px]">
                 <thead>
@@ -1880,112 +1985,292 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                       Tồn kho <span className="text-tertiary">*</span>
                     </th>
                     <th className="py-3 px-3 w-24 text-center">Trạng thái</th>
+                    <th className="py-3 px-3 w-20 text-center">Bỏ bán</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20 font-body-md text-body-sm text-on-surface">
-                  {visibleMatrixRows.map((row) => (
-                    <tr
-                      key={row.key}
-                      className={`hover:bg-surface-container-low/40 transition-colors ${
-                        row.priceError ? "bg-red-50/50" : ""
-                      }`}
-                    >
-                      <td className="py-3 px-4 font-semibold text-on-surface">
-                        {row.tier1Val}
-                      </td>
-                      <td className="py-2.5 px-3 font-data-tabular font-bold text-on-surface">
-                        <span className="px-2 py-0.5 rounded bg-surface-container-low font-semibold">
-                          {row.tier2Val}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <input
-                          type="text"
-                          value={row.sku}
-                          onChange={(e) => handleRowSkuChange(row.key, e.target.value)}
-                          className="h-9 w-full px-2.5 rounded bg-surface-container-lowest border border-outline-variant/40 font-data-tabular text-body-sm focus:border-emerald-500 focus:outline-none"
-                        />
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={row.originalPrice}
-                              onChange={(e) =>
-                                handleRowPriceChange(row.key, e.target.value)
-                              }
-                              className={`h-9 w-full pl-2.5 pr-6 rounded bg-surface-container-lowest border font-data-tabular text-body-sm focus:outline-none text-right font-semibold ${
-                                row.priceError
-                                  ? "border-2 border-error text-error"
-                                  : "border-outline-variant/40 focus:border-emerald-500"
-                              }`}
-                            />
-                            <span className="absolute right-2 top-2 text-[11px] text-secondary font-medium">
-                              ₫
-                            </span>
-                          </div>
-                          {row.priceError && (
-                            <span className="font-label-sm text-[11px] text-error flex items-center gap-0.5">
-                              <MaterialSymbol name="error" size="[14px]" />
-                              <span>{row.priceError}</span>
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <input
-                          type="number"
-                          value={row.stockQuantity}
-                          onChange={(e) =>
-                            handleRowStockChange(row.key, e.target.value)
-                          }
-                          className="h-9 w-full px-2.5 rounded bg-surface-container-lowest border border-outline-variant/40 font-data-tabular text-body-sm focus:border-emerald-500 focus:outline-none text-right"
-                        />
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={row.isActive}
-                          onClick={() => handleRowToggleActive(row.key, row.isActive)}
-                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                            row.isActive ? "bg-emerald-500" : "bg-gray-300"
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition ${
-                              row.isActive ? "translate-x-4" : "translate-x-0"
-                            }`}
-                          />
-                        </button>
+                  {visibleExistingRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-secondary italic">
+                        Chưa có biến thể nào được chọn để kinh doanh. Hãy bấm &quot;+ Thêm SKU&quot; ở danh sách bên dưới.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    visibleExistingRows.map((row) => {
+                      const isRed = row.isMarkedForRemoval;
+                      const isGreen = row.isNewlyAdded;
+
+                      return (
+                        <tr
+                          key={row.key}
+                          className={`transition-colors ${
+                            isRed
+                              ? "bg-red-50/75 border-l-[4px] border-l-red-500 hover:bg-red-100/50"
+                              : isGreen
+                              ? "bg-emerald-50/75 border-l-[4px] border-l-emerald-500 hover:bg-emerald-100/50"
+                              : row.priceError
+                              ? "bg-red-50/50"
+                              : "hover:bg-surface-container-low/40"
+                          }`}
+                        >
+                          <td className="py-3 px-4 font-semibold text-on-surface">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={isRed ? "line-through text-red-700/80" : ""}>
+                                {row.tier1Val}
+                              </span>
+                              {isRed && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                                  Ngừng bán
+                                </span>
+                              )}
+                              {isGreen && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  Mới thêm
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 font-data-tabular font-bold text-on-surface">
+                            <span
+                              className={`px-2 py-0.5 rounded font-semibold ${
+                                isRed
+                                  ? "bg-red-100 text-red-700 line-through"
+                                  : isGreen
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-surface-container-low"
+                              }`}
+                            >
+                              {row.tier2Val}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <input
+                              type="text"
+                              value={row.sku}
+                              disabled={isRed}
+                              onChange={(e) => handleRowSkuChange(row.key, e.target.value)}
+                              className={`h-9 w-full px-2.5 rounded font-data-tabular text-body-sm focus:outline-none ${
+                                isRed
+                                  ? "bg-red-100/40 border border-red-200 text-red-600 line-through cursor-not-allowed"
+                                  : isGreen
+                                  ? "bg-surface-container-lowest border border-emerald-300 focus:border-emerald-500 font-semibold text-emerald-900"
+                                  : "bg-surface-container-lowest border border-outline-variant/40 focus:border-emerald-500"
+                              }`}
+                            />
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <div className="flex flex-col gap-1">
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  value={row.originalPrice}
+                                  disabled={isRed}
+                                  onChange={(e) =>
+                                    handleRowPriceChange(row.key, e.target.value)
+                                  }
+                                  className={`h-9 w-full pl-2.5 pr-6 rounded font-data-tabular text-body-sm focus:outline-none text-right font-semibold ${
+                                    isRed
+                                      ? "bg-red-100/40 border border-red-200 text-red-500 line-through cursor-not-allowed"
+                                      : row.priceError
+                                      ? "border-2 border-error text-error bg-surface-container-lowest"
+                                      : isGreen
+                                      ? "bg-surface-container-lowest border border-emerald-300 focus:border-emerald-500 text-emerald-900"
+                                      : "bg-surface-container-lowest border-outline-variant/40 focus:border-emerald-500"
+                                  }`}
+                                />
+                                <span className="absolute right-2 top-2 text-[11px] text-secondary font-medium">
+                                  ₫
+                                </span>
+                              </div>
+                              {row.priceError && !isRed && (
+                                <span className="font-label-sm text-[11px] text-error flex items-center gap-0.5">
+                                  <MaterialSymbol name="error" size="[14px]" />
+                                  <span>{row.priceError}</span>
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <input
+                              type="number"
+                              value={row.stockQuantity}
+                              disabled={isRed}
+                              onChange={(e) =>
+                                handleRowStockChange(row.key, e.target.value)
+                              }
+                              className={`h-9 w-full px-2.5 rounded font-data-tabular text-body-sm focus:outline-none text-right ${
+                                isRed
+                                  ? "bg-red-100/40 border border-red-200 text-red-500 line-through cursor-not-allowed"
+                                  : isGreen
+                                  ? "bg-surface-container-lowest border border-emerald-300 focus:border-emerald-500 text-emerald-900 font-semibold"
+                                  : "bg-surface-container-lowest border border-outline-variant/40 focus:border-emerald-500"
+                              }`}
+                            />
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              type="button"
+                              role="switch"
+                              disabled={isRed}
+                              aria-checked={row.isActive && !isRed}
+                              onClick={() => handleRowToggleActive(row.key, row.isActive)}
+                              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                                isRed
+                                  ? "bg-gray-200 cursor-not-allowed opacity-50"
+                                  : row.isActive
+                                  ? "bg-emerald-500 cursor-pointer"
+                                  : "bg-gray-300 cursor-pointer"
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition ${
+                                  row.isActive && !isRed ? "translate-x-4" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {isRed ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRowRemoval(row.key, false)}
+                                title="Khôi phục bán biến thể này"
+                                className="h-8 px-2.5 rounded-lg bg-white border border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400 font-label-md text-label-sm font-semibold flex items-center gap-1 mx-auto transition-colors cursor-pointer shadow-2xs"
+                              >
+                                <MaterialSymbol name="undo" size="[16px]" />
+                                <span>Khôi phục</span>
+                              </button>
+                            ) : isGreen ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRowExisting(row.key, false)}
+                                title="Hủy thêm biến thể này"
+                                className="p-1.5 rounded-lg text-secondary hover:text-error hover:bg-red-50 transition-colors cursor-pointer"
+                              >
+                                <MaterialSymbol name="close" size="[18px]" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRowRemoval(row.key, true)}
+                                title="Ngừng bán biến thể này (Chuyển sang màu đỏ)"
+                                className="p-1.5 rounded-lg text-secondary hover:text-error hover:bg-red-50 transition-colors cursor-pointer"
+                              >
+                                <MaterialSymbol name="do_not_disturb_on" size="[18px]" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {skuMatrix.length > 6 && (
+            {/* Pagination / Expand - Hiển thị tối đa 10 dòng */}
+            {existingSkuRows.length > 10 && (
               <div className="flex items-center justify-between text-secondary pt-1">
                 <span className="font-body-sm text-label-sm">
-                  Hiển thị {visibleMatrixRows.length} / {skuMatrix.length} SKU
+                  Hiển thị {visibleExistingRows.length} / {existingSkuRows.length} SKU đang bán
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsMatrixExpanded(!isMatrixExpanded)}
-                  className="text-emerald-700 hover:text-emerald-800 font-label-md text-label-md font-semibold flex items-center gap-1"
+                  className="text-emerald-700 hover:text-emerald-800 font-label-md text-label-md font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <span>
                     {isMatrixExpanded
                       ? "Thu gọn danh sách"
-                      : `Xem toàn bộ ${skuMatrix.length} biến thể (Mở rộng)`}
+                      : `Xem toàn bộ ${existingSkuRows.length} biến thể (Mở rộng)`}
                   </span>
                   <MaterialSymbol
                     name={isMatrixExpanded ? "arrow_upward" : "expand_more"}
                     size="[16px]"
                   />
                 </button>
+              </div>
+            )}
+
+            {/* Sub-section: Các tổ hợp biến thể chưa kinh doanh (Hiển thị mờ, có nút Thêm) */}
+            {hasVariations && unaddedSkuRows.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-dashed border-outline-variant/40 flex flex-col gap-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 rounded-xl bg-surface-container-low/50 border border-outline-variant/30">
+                  <div className="flex items-center gap-2.5">
+                    <MaterialSymbol
+                      name="visibility_off"
+                      size="[20px]"
+                      className="text-secondary"
+                    />
+                    <div>
+                      <h4 className="font-headline-sm text-body-md font-semibold text-on-surface">
+                        Tổ hợp biến thể chưa kinh doanh ({unaddedSkuRows.length})
+                      </h4>
+                      <p className="font-body-sm text-[12px] text-secondary">
+                        Các biến thể từ phân loại nhưng chưa đưa vào bán. Bấm &quot;+ Thêm SKU&quot; để bắt đầu kinh doanh.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddAllUnadded}
+                    className="h-8 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-label-md text-label-sm font-semibold flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <MaterialSymbol name="add_circle" size="[16px]" />
+                    <span>Thêm tất cả {unaddedSkuRows.length} tổ hợp</span>
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-outline-variant/20 bg-surface-container-low/20">
+                  <table className="w-full text-left border-collapse min-w-[760px] opacity-65 hover:opacity-100 transition-opacity">
+                    <thead>
+                      <tr className="bg-surface-container-low/80 text-secondary font-label-sm text-label-sm uppercase tracking-wider border-b border-outline-variant/20">
+                        <th className="py-2.5 px-4 w-32">{tier1Name}</th>
+                        <th className="py-2.5 px-3 w-24">{tier2Name}</th>
+                        <th className="py-2.5 px-4 w-44">Mã SKU đề xuất</th>
+                        <th className="py-2.5 px-4 w-44">Giá bán dự kiến</th>
+                        <th className="py-2.5 px-4 w-32">Kho dự kiến</th>
+                        <th className="py-2.5 px-3 w-28 text-center">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10 font-body-md text-body-sm text-secondary">
+                      {unaddedSkuRows.map((row) => (
+                        <tr
+                          key={row.key}
+                          className="hover:bg-surface-container-low/60 transition-colors"
+                        >
+                          <td className="py-2.5 px-4 font-medium text-on-surface/70">
+                            {row.tier1Val}
+                          </td>
+                          <td className="py-2 px-3 font-data-tabular">
+                            <span className="px-2 py-0.5 rounded bg-surface-container-low/80 font-medium">
+                              {row.tier2Val}
+                            </span>
+                          </td>
+                          <td className="py-2 px-4 font-mono text-[12px] text-secondary">
+                            {row.sku}
+                          </td>
+                          <td className="py-2 px-4 font-data-tabular text-right">
+                            {formatVND(row.originalPrice)}
+                          </td>
+                          <td className="py-2 px-4 font-data-tabular text-right">
+                            {row.stockQuantity}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRowExisting(row.key, true)}
+                              className="h-8 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-label-md text-label-sm font-semibold shadow-xs flex items-center gap-1 mx-auto transition-all cursor-pointer"
+                            >
+                              <MaterialSymbol name="add" size="[16px]" />
+                              <span>Thêm SKU</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </section>
@@ -2223,7 +2508,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
                     3
                   </span>
                   <span className="font-headline-md text-body-sm">
-                    3. Danh sách SKU ({skuMatrix.length})
+                    3. Danh sách SKU ({existingSkuRows.length})
                   </span>
                 </div>
               </a>
