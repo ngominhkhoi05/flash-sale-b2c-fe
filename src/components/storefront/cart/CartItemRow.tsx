@@ -67,23 +67,22 @@ export function CartItemRow({
         <p className="font-headline-sm text-on-surface tabular-nums">
           {formatVND(item.itemSubtotal)}
         </p>
-        <div className="flex items-center gap-1">
+        <div className="inline-flex items-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest shadow-2xs">
           <button
             type="button"
             onClick={onDecrement}
             disabled={isLoading || item.quantity <= 1}
             aria-label={t("decrement")}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-md border border-outline-variant",
-              isLoading
-                ? "cursor-not-allowed text-outline/40"
-                : "text-on-surface hover:bg-surface-container",
+              "flex h-7 w-7 items-center justify-center text-on-surface transition-colors",
+              "hover:bg-surface-container active:scale-95",
+              "disabled:cursor-not-allowed disabled:text-outline-variant disabled:opacity-40 disabled:hover:bg-transparent disabled:active:scale-100",
             )}
           >
-            <MaterialSymbol name="close" size="sm" />
+            <MaterialSymbol name="remove" size="sm" />
           </button>
           <span
-            className="w-8 text-center font-label-md text-on-surface tabular-nums"
+            className="min-w-8 border-x border-outline-variant/40 px-2 py-0.5 text-center font-label-md font-semibold text-on-surface tabular-nums select-none"
             data-testid="cart-item-qty"
           >
             {item.quantity}
@@ -94,10 +93,9 @@ export function CartItemRow({
             disabled={isLoading}
             aria-label={t("increment")}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-md border border-outline-variant",
-              isLoading
-                ? "cursor-not-allowed text-outline/40"
-                : "text-on-surface hover:bg-surface-container",
+              "flex h-7 w-7 items-center justify-center text-on-surface transition-colors",
+              "hover:bg-surface-container active:scale-95",
+              "disabled:cursor-not-allowed disabled:text-outline-variant disabled:opacity-40 disabled:hover:bg-transparent disabled:active:scale-100",
             )}
           >
             <MaterialSymbol name="add" size="sm" />
