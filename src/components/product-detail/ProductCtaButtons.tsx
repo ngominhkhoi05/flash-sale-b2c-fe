@@ -19,8 +19,12 @@ export interface ProductCtaButtonsProps {
   mode: "standard" | "flash";
   /** Lý do disable. Mặc định 'canPurchase'. */
   disabledReason?: CtaDisabledReason;
-  /** Khi true → disable buttons + show spinner. Dùng khi mutation đang chạy. */
+  /** Khi true → disable buttons + show spinner (fallback chung nếu không tách lẻ). */
   isLoading?: boolean;
+  /** Khi true → chỉ hiển thị spinner cho nút Thêm vào giỏ hàng. */
+  isAddingToCart?: boolean;
+  /** Khi true → chỉ hiển thị spinner cho nút Mua ngay. */
+  isBuyingNow?: boolean;
   /** Add-to-Cart handler (standard mode only). */
   onAddToCart?: () => void;
   /** Buy-Now handler (both modes). */
@@ -37,6 +41,8 @@ export function ProductCtaButtons({
   mode,
   disabledReason = "canPurchase",
   isLoading = false,
+  isAddingToCart = false,
+  isBuyingNow = false,
   onAddToCart,
   onBuyNow,
   className,
@@ -44,8 +50,16 @@ export function ProductCtaButtons({
   const t = useTranslations("productDetail.cta");
   const reasonKey = disabledReason === "canPurchase" ? null : DISABLED_REASON_KEY[disabledReason];
   const disabledTooltip = reasonKey ? t(reasonKey) : undefined;
-  // Disabled khi disabledReason != 'canPurchase' HOẶC đang loading.
-  const isDisabled = disabledReason !== "canPurchase" || isLoading;
+
+  const isAnyLoading = isLoading || isAddingToCart || isBuyingNow;
+  // Disabled khi disabledReason != 'canPurchase' HOẶC có bất kỳ action nào đang chạy.
+  const isDisabled = disabledReason !== "canPurchase" || isAnyLoading;
+
+  // Xác định nút nào hiển thị spinner xoay xoay:
+  // Nếu truyền isAddingToCart hoặc isBuyingNow riêng thì nút tương ứng xoay.
+  // Nếu chỉ truyền isLoading chung (legacy/flash) thì fallback theo isLoading.
+  const showAddToCartSpinner = isAddingToCart || (isLoading && !isBuyingNow);
+  const showBuyNowSpinner = isBuyingNow || (isLoading && !isAddingToCart);
 
   if (mode === "flash") {
     return (
@@ -63,7 +77,7 @@ export function ProductCtaButtons({
               : "bg-tertiary hover:bg-tertiary-hover"
           )}
         >
-          {isLoading ? (
+          {showBuyNowSpinner || isAnyLoading ? (
             <Spinner />
           ) : (
             <BoltIcon className="h-6 w-6" />
@@ -92,7 +106,7 @@ export function ProductCtaButtons({
             : "border-primary bg-surface-container-lowest text-primary hover:bg-surface-container"
         )}
       >
-        {isLoading ? (
+        {showAddToCartSpinner ? (
           <Spinner />
         ) : (
           <CartIcon className="h-5 w-5" />
@@ -112,7 +126,7 @@ export function ProductCtaButtons({
             : "bg-primary hover:bg-primary-hover"
         )}
       >
-        {isLoading ? (
+        {showBuyNowSpinner ? (
           <Spinner />
         ) : (
           <BagIcon className="h-5 w-5" />

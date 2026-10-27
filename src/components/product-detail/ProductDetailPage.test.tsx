@@ -521,5 +521,68 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
     expect(screen.getByText("473")).toBeInTheDocument();
     expect(screen.queryByText("807")).not.toBeInTheDocument();
   });
+
+  test("cập nhật giá chính xác theo biến thể được chọn (vd: L-green 9.000₫ -> M-red 100.000₫)", async () => {
+    const user = userEvent.setup();
+    const product: ProductDetail = {
+      ...mockProductDetail,
+      flashSales: [],
+      minPrice: 9000,
+      maxPrice: 100000,
+      discountPercent: null,
+      tierVariationConfigs: [
+        { name: "Size", options: ["L", "M"] },
+        { name: "Color", options: ["Green", "Red"] },
+      ],
+      variants: [
+        {
+          id: 1,
+          productId: 1,
+          sku: "VAR-L-GREEN",
+          variantName: "L, Green",
+          attributes: { Size: "L", Color: "Green" },
+          originalPrice: 9000,
+          stockQuantity: 50,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 2,
+          productId: 1,
+          sku: "VAR-M-RED",
+          variantName: "M, Red",
+          attributes: { Size: "M", Color: "Red" },
+          originalPrice: 100000,
+          stockQuantity: 30,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+      ],
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    const priceEl = screen.getByTestId("standard-price");
+
+    // Ban đầu biến thể active đầu tiên (L - Green) được chọn -> Giá hiển thị là 9.000₫
+    expect(priceEl).toHaveTextContent("9.000₫");
+
+    // Chọn biến thể M và Red
+    const mBtn = screen.getByRole("button", { name: "M" });
+    const redBtn = screen.getByRole("button", { name: /Red/ });
+
+    await user.click(mBtn);
+    await user.click(redBtn);
+
+    // Giá lập tức cập nhật sang 100.000₫ của biến thể M - Red
+    expect(priceEl).toHaveTextContent("100.000₫");
+  });
 });
+
 

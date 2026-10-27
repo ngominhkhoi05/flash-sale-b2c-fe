@@ -301,6 +301,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     return false;
   }
 
+  const [pendingAction, setPendingAction] = useState<"addToCart" | "buyNow" | null>(null);
+
   async function handleAddToCart() {
     if (!requireAuthOrRedirect("addToCart")) return;
     if (!effectiveVariant) {
@@ -311,6 +313,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       // Auto-switch: thông báo user biết variant đã đổi.
       toast.info(t("toast.variantAutoSwitched"));
     }
+    setPendingAction("addToCart");
     try {
       await addToCartMut.mutateAsync({
         variantId: effectiveVariant.id,
@@ -319,6 +322,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       toast.success(t("toast.addedToCart"));
     } catch {
       // onError handler đã hiển thị toast.
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -331,6 +336,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     if (effectiveVariant !== variantForCurrent) {
       toast.info(t("toast.variantAutoSwitched"));
     }
+    setPendingAction("buyNow");
     try {
       await addToCartMut.mutateAsync({
         variantId: effectiveVariant.id,
@@ -340,6 +346,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       router.push(ROUTES.CHECKOUT);
     } catch {
       // onError đã hiển thị toast.
+      setPendingAction(null);
     }
   }
 
@@ -370,6 +377,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       ? variantForCurrent
       : pickActiveVariant(product.variants, selectedOptions);
 
+  const currentVariant = variantForCurrent ?? effectiveVariant;
+
   const effectiveSize =
     effectiveVariant && !effectiveVariant.isDisabled
       ? (getAttr(effectiveVariant.attributes, "Size") ??
@@ -379,8 +388,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
 
   // Tồn kho hiển thị và giới hạn mua theo variant đang chọn (không cộng dồn toàn bộ SPU)
   const currentStock =
-    effectiveVariant && !effectiveVariant.isDisabled
-      ? effectiveVariant.stockQuantity
+    currentVariant && !currentVariant.isDisabled
+      ? currentVariant.stockQuantity
       : totalStockCount(product);
   // BE không trả `maxQtyPerUser` cho product detail → tạm default 2.
   const flashMaxQty = activeFlashSale ? 2 : 2;
@@ -473,19 +482,45 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       ? "outOfStock"
       : "canPurchase";
 
-  // Pricing for box
-  const pricingMinPrice = activeFlashSale
-    ? activeFlashSale.flashSalePrice
-    : displayMinPrice;
-  const pricingOriginalPrice = activeFlashSale
-    ? activeFlashSale.originalPrice
-    : displayMaxPrice;
-  const pricingDiscount = activeFlashSale
+  // Flash sale record tương ứng với variant đang chọn (nếu có)
+  const currentVariantFlashSale = useMemo(() => {
+    if (!currentVariant) return activeFlashSale;
+    return (
+      product.flashSales.find(
+        (f) =>
+          f.variantId === currentVariant.id &&
+          (f.slotStatus === "ACTIVE" || f.slotStatus === "ONGOING")
+      ) ??
+      product.flashSales.find((f) => f.variantId === currentVariant.id) ??
+      null
+    );
+  }, [currentVariant, product.flashSales, activeFlashSale]);
+
+  const activeFlashForCurrent = currentVariantFlashSale ?? activeFlashSale;
+
+  // Pricing for box:
+  // - Khi có Flash Sale: hiển thị flashSalePrice + gạch ngang originalPrice + % giảm.
+  // - Khi ở chế độ Standard (bình thường):
+  //   + minPrice: hiển thị chính xác giá bán của variant đang chọn (currentVariant.originalPrice),
+  //     nếu chưa chọn hoặc không có variant thì fallback về product.minPrice.
+  //   + originalPrice: null (tránh gạch ngang sai lệch giá giữa các variant khác nhau).
+  //   + discountPercent: 0.
+  const pricingMinPrice = isFlashSale && activeFlashForCurrent
+    ? activeFlashForCurrent.flashSalePrice
+    : currentVariant?.originalPrice != null
+      ? currentVariant.originalPrice
+      : displayMinPrice;
+
+  const pricingOriginalPrice = isFlashSale && activeFlashForCurrent
+    ? activeFlashForCurrent.originalPrice
+    : null;
+
+  const pricingDiscount = isFlashSale && activeFlashForCurrent
     ? computeDiscountPercent(
-        activeFlashSale.originalPrice,
-        activeFlashSale.flashSalePrice,
+        activeFlashForCurrent.originalPrice,
+        activeFlashForCurrent.flashSalePrice,
       )
-    : (product.discountPercent ?? 0);
+    : 0;
 
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-4">
@@ -526,11 +561,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
             originalPrice={pricingOriginalPrice}
             discountPercent={pricingDiscount}
             flashSale={
-              activeFlashSale
+              activeFlashForCurrent
                 ? {
-                    endsAt: activeFlashSale.slotEndTime,
+                    endsAt: activeFlashForCurrent.slotEndTime,
                     soldStock: 0, // BE không trả soldStock ở product detail
-                    totalStock: activeFlashSale.stockAvailable,
+                    totalStock: activeFlashForCurrent.stockAvailable,
                     maxQtyPerUser: flashMaxQty,
                   }
                 : null
@@ -569,7 +604,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
           <ProductCtaButtons
             mode={variant}
             disabledReason={ctaDisabledReason}
-            isLoading={addToCartMut.isPending}
+            isAddingToCart={pendingAction === "addToCart"}
+            isBuyingNow={pendingAction === "buyNow"}
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
           />
