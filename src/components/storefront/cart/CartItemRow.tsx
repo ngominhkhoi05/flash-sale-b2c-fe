@@ -133,64 +133,71 @@ export function CartItemRow({
         <p className="font-headline-sm text-on-surface tabular-nums">
           {formatVND(item.itemSubtotal)}
         </p>
-        <div className="inline-flex items-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest shadow-2xs">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center rounded-lg border border-outline-variant/60 bg-surface-container-lowest shadow-2xs">
+            <button
+              type="button"
+              onClick={onDecrement}
+              disabled={isLoading || item.quantity <= 1}
+              aria-label={t("decrement")}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center text-on-surface transition-colors",
+                "hover:bg-surface-container active:scale-95",
+                "disabled:cursor-not-allowed disabled:text-outline-variant disabled:opacity-40 disabled:hover:bg-transparent disabled:active:scale-100",
+              )}
+            >
+              <MaterialSymbol name="remove" size="sm" />
+            </button>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={inputValue}
+              disabled={isLoading}
+              aria-label={t("quantity")}
+              data-testid="cart-item-qty"
+              onChange={handleInputChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => {
+                setIsFocused(false);
+                commitValue();
+              }}
+              onKeyDown={handleKeyDown}
+              className={cn(
+                "h-7 w-11 border-x border-outline-variant/40 bg-transparent px-1 text-center font-label-md font-semibold text-on-surface tabular-nums",
+                "focus:bg-surface-container/40 focus:outline-none focus:ring-1 focus:ring-primary/40",
+                "disabled:cursor-not-allowed disabled:text-outline-variant",
+              )}
+            />
+            <button
+              type="button"
+              onClick={onIncrement}
+              disabled={isLoading}
+              aria-label={t("increment")}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center text-on-surface transition-colors",
+                "hover:bg-surface-container active:scale-95",
+                "disabled:cursor-not-allowed disabled:text-outline-variant disabled:opacity-40 disabled:hover:bg-transparent disabled:active:scale-100",
+              )}
+            >
+              <MaterialSymbol name="add" size="sm" />
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={onDecrement}
-            disabled={isLoading || item.quantity <= 1}
-            aria-label={t("decrement")}
+            onClick={onRemove}
+            disabled={isLoading}
+            aria-label={t("remove")}
             className={cn(
-              "flex h-7 w-7 items-center justify-center text-on-surface transition-colors",
-              "hover:bg-surface-container active:scale-95",
-              "disabled:cursor-not-allowed disabled:text-outline-variant disabled:opacity-40 disabled:hover:bg-transparent disabled:active:scale-100",
+              "flex h-7 w-7 items-center justify-center rounded-lg text-outline transition-colors",
+              "hover:bg-error-container/40 hover:text-error active:scale-95",
+              "disabled:cursor-not-allowed disabled:opacity-40",
             )}
           >
-            <MaterialSymbol name="remove" size="sm" />
-          </button>
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={inputValue}
-            disabled={isLoading}
-            aria-label={t("quantity")}
-            data-testid="cart-item-qty"
-            onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              setIsFocused(false);
-              commitValue();
-            }}
-            onKeyDown={handleKeyDown}
-            className={cn(
-              "h-7 w-11 border-x border-outline-variant/40 bg-transparent px-1 text-center font-label-md font-semibold text-on-surface tabular-nums",
-              "focus:bg-surface-container/40 focus:outline-none focus:ring-1 focus:ring-primary/40",
-              "disabled:cursor-not-allowed disabled:text-outline-variant",
-            )}
-          />
-          <button
-            type="button"
-            onClick={onIncrement}
-            disabled={isLoading}
-            aria-label={t("increment")}
-            className={cn(
-              "flex h-7 w-7 items-center justify-center text-on-surface transition-colors",
-              "hover:bg-surface-container active:scale-95",
-              "disabled:cursor-not-allowed disabled:text-outline-variant disabled:opacity-40 disabled:hover:bg-transparent disabled:active:scale-100",
-            )}
-          >
-            <MaterialSymbol name="add" size="sm" />
+            <MaterialSymbol name="delete" size="[18px]" />
           </button>
         </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={isLoading}
-          aria-label={t("remove")}
-          className="font-label-sm text-error hover:underline"
-        >
-          {t("remove")}
-        </button>
       </div>
     </div>
   );

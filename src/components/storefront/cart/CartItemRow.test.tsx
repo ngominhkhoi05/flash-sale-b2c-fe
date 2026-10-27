@@ -73,6 +73,14 @@ describe("CartItemRow", () => {
     expect(screen.queryByTestId("material-symbol-close")).not.toBeInTheDocument();
   });
 
+  it("hiển thị nút xoá dưới dạng icon delete nằm ngang hàng với cụm số lượng", () => {
+    renderRow();
+    const deleteIcon = screen.getByTestId("material-symbol-delete");
+    expect(deleteIcon).toBeInTheDocument();
+    const removeBtn = screen.getByRole("button", { name: /Xoá|Xóa/ });
+    expect(removeBtn).toContainElement(deleteIcon);
+  });
+
   it("khi nhập 01 -> hiển thị 1 (loại bỏ leading zero)", () => {
     renderRow();
     const qtyInput = screen.getByTestId("cart-item-qty");
