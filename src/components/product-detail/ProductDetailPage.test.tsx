@@ -519,7 +519,7 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
     expect(screen.queryByText("807")).not.toBeInTheDocument();
   });
 
-  test("tự động xám màu (disabled) tùy chọn không tồn tại theo lựa chọn hiện tại (vd: L-pink không có thì khi chọn L thì Pink bị xám, chọn Pink thì L bị xám)", async () => {
+  test("Smart Auto-Switch chuẩn Shopee: không khóa chéo các option còn hàng và tự động chuyển đổi tổ hợp hợp lệ khi click", async () => {
     const user = userEvent.setup();
     const product: ProductDetail = {
       ...mockProductDetail,
@@ -622,24 +622,154 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
     render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
 
     const lBtn = screen.getByRole("button", { name: "L" });
-    const mBtn = screen.getByRole("button", { name: "M" });
     const pinkBtn = screen.getByRole("button", { name: /Pink/ });
 
-    // 1. Khi đang chọn L (L-Black):
-    // Phân loại Pink tự động bị xám màu (disabled) vì L không có Pink!
-    expect(pinkBtn).toBeDisabled();
-    expect(pinkBtn).toHaveAttribute("aria-disabled", "true");
-
-    // 2. Chọn sang Size M (Size M có Pink):
-    await user.click(mBtn);
-    // Nút Pink lúc này được mở xám (enabled)
+    // 1. Khi đang chọn L (L-Black 10 cái):
+    // Pink KHÔNG bị disabled vì Pink vẫn còn hàng ở M (30) và S (12)!
     expect(pinkBtn).not.toBeDisabled();
+    expect(screen.getByText("10")).toBeInTheDocument();
 
-    // 3. Chọn Pink:
+    // 2. Click Pink: Smart Auto-Switch tự động đổi Size sang M (candidate tốt nhất của Pink)
     await user.click(pinkBtn);
-    // Khi đang chọn Pink thì Size L tự động bị xám màu (disabled) vì L không có Pink!
-    expect(lBtn).toBeDisabled();
-    expect(lBtn).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "M" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("30")).toBeInTheDocument();
+
+    // 3. Đang chọn M-Pink, click L: L không bị disabled và tự động đổi màu sang Black (hợp lệ với L)
+    expect(lBtn).not.toBeDisabled();
+    await user.click(lBtn);
+    expect(lBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Black/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("10")).toBeInTheDocument();
+  });
+
+  test("sparse orthogonal variants (Tui xach Mini #3: L-Yellow 133, S-White 427): không bị deadlock, click White tự switch S, click Yellow tự switch L", async () => {
+    const user = userEvent.setup();
+    const product: ProductDetail = {
+      ...mockProductDetail,
+      id: 3,
+      name: "Tui xach Mini #3",
+      flashSales: [],
+      tierVariationConfigs: [
+        { name: "Size", options: ["S", "L"] },
+        { name: "Color", options: ["Yellow", "White"] },
+      ],
+      variants: [
+        {
+          id: 6,
+          productId: 3,
+          sku: "PRD-00003-V1",
+          variantName: "Variant 1 of #3",
+          attributes: { size: "L", color: "Yellow", variant_index: "1" },
+          originalPrice: 100000,
+          stockQuantity: 133,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 7,
+          productId: 3,
+          sku: "PRD-00003-V2",
+          variantName: "Variant 2 of #3",
+          attributes: { size: "S", color: "White", variant_index: "2" },
+          originalPrice: 100000,
+          stockQuantity: 427,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+      ],
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    const sBtn = screen.getByRole("button", { name: "S" });
+    const lBtn = screen.getByRole("button", { name: "L" });
+    const yellowBtn = screen.getByRole("button", { name: /Yellow/ });
+    const whiteBtn = screen.getByRole("button", { name: /White/ });
+
+    // Không nút nào bị disabled oan
+    expect(sBtn).not.toBeDisabled();
+    expect(lBtn).not.toBeDisabled();
+    expect(yellowBtn).not.toBeDisabled();
+    expect(whiteBtn).not.toBeDisabled();
+
+    // Mặc định chọn L - Yellow (133 tồn kho)
+    expect(lBtn).toHaveAttribute("aria-pressed", "true");
+    expect(yellowBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("133")).toBeInTheDocument();
+
+    // Click White -> Smart Auto-Switch tự động chuyển sang S - White (427 tồn kho)
+    await user.click(whiteBtn);
+    expect(sBtn).toHaveAttribute("aria-pressed", "true");
+    expect(whiteBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("427")).toBeInTheDocument();
+
+    // Click Yellow -> Smart Auto-Switch tự động chuyển lại sang L - Yellow (133 tồn kho)
+    await user.click(yellowBtn);
+    expect(lBtn).toHaveAttribute("aria-pressed", "true");
+    expect(yellowBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("133")).toBeInTheDocument();
+
+    // Click S -> Smart Auto-Switch tự động chuyển sang S - White (427 tồn kho)
+    await user.click(sBtn);
+    expect(sBtn).toHaveAttribute("aria-pressed", "true");
+    expect(whiteBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("427")).toBeInTheDocument();
+  });
+
+  test("option hết hàng thực sự (0 tồn kho trên mọi variant) bị disabled và hiển thị nhãn Hết hàng", () => {
+    const product: ProductDetail = {
+      ...mockProductDetail,
+      flashSales: [],
+      tierVariationConfigs: [
+        { name: "Size", options: ["M", "XL"] },
+        { name: "Color", options: ["Black"] },
+      ],
+      variants: [
+        {
+          id: 1,
+          productId: 1,
+          sku: "VAR-M-BLACK",
+          variantName: "M, Black",
+          attributes: { Size: "M", Color: "Black" },
+          originalPrice: 10000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 2,
+          productId: 1,
+          sku: "VAR-XL-BLACK",
+          variantName: "XL, Black",
+          attributes: { Size: "XL", Color: "Black" },
+          originalPrice: 10000,
+          stockQuantity: 0, // Hết hàng
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+      ],
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    const mBtn = screen.getByRole("button", { name: "M" });
+    const xlBtn = screen.getByRole("button", { name: /XL/ });
+
+    expect(mBtn).not.toBeDisabled();
+    expect(xlBtn).toBeDisabled();
+    expect(xlBtn).toHaveAttribute("aria-disabled", "true");
   });
 
   test("cập nhật giá chính xác theo biến thể được chọn (vd: L-green 9.000₫ -> M-red 100.000₫)", async () => {

@@ -398,8 +398,79 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   }
   const safeQuantity = clampQuantity(quantity, Math.max(1, maxQty));
 
+  /**
+   * Smart Selection (Chuẩn Shopee):
+   * Khi người dùng chọn 1 option (vd: Color = "White"):
+   * 1. Kiểm tra xem có variant ACTIVE còn hàng nào khớp với option mới này VÀ giữ nguyên các tier khác đang chọn không.
+   *    - Nếu có: chỉ cập nhật tier này -> giữ nguyên các tier khác.
+   * 2. Nếu KHÔNG có variant nào khớp với tổ hợp đó (như đang chọn Size L mà bấm White):
+   *    - Tìm các variant ACTIVE còn hàng có chứa option mới này.
+   *    - Chọn candidate variant có số lượng thuộc tính trùng khớp nhiều nhất với `selectedOptions` hiện tại.
+   *    - Tự động cập nhật toàn bộ `selectedOptions` theo candidate variant đó.
+   */
   function handleSelectOption(tierName: string, option: string) {
-    setSelectedOptions((prev) => ({ ...prev, [tierName]: option }));
+    // 1. Thử giữ nguyên các tier khác xem có variant ACTIVE còn hàng nào khớp hoàn hảo không
+    const exactMatch = product.variants.find((v) => {
+      if (v.isDisabled || v.stockQuantity <= 0 || v.status === "INACTIVE") return false;
+      const thisVal = getAttr(v.attributes, tierName);
+      if (!matchesAttrValue(thisVal, option)) return false;
+
+      for (const [otherTierName, otherOpt] of Object.entries(selectedOptions)) {
+        if (otherTierName.toLowerCase() === tierName.toLowerCase()) continue;
+        const otherVal = getAttr(v.attributes, otherTierName);
+        if (!matchesAttrValue(otherVal, otherOpt)) return false;
+      }
+      return true;
+    });
+
+    if (exactMatch) {
+      setSelectedOptions((prev) => ({ ...prev, [tierName]: option }));
+      return;
+    }
+
+    // 2. Không có combo hoàn hảo với các tier hiện tại (Smart Auto-Switch chuẩn Shopee):
+    // Tìm các variant ACTIVE còn hàng có chứa option này
+    const candidates = product.variants.filter((v) => {
+      if (v.isDisabled || v.stockQuantity <= 0 || v.status === "INACTIVE") return false;
+      const val = getAttr(v.attributes, tierName);
+      return matchesAttrValue(val, option);
+    });
+
+    if (candidates.length > 0) {
+      // Tìm candidate có số lượng attribute trùng khớp nhiều nhất với selectedOptions hiện tại
+      let bestCandidate = candidates[0];
+      let maxMatches = -1;
+
+      for (const cand of candidates) {
+        let matchCount = 0;
+        for (const [otherTierName, otherOpt] of Object.entries(selectedOptions)) {
+          if (otherTierName.toLowerCase() === tierName.toLowerCase()) continue;
+          const otherVal = getAttr(cand.attributes, otherTierName);
+          if (matchesAttrValue(otherVal, otherOpt)) {
+            matchCount++;
+          }
+        }
+        if (matchCount > maxMatches) {
+          maxMatches = matchCount;
+          bestCandidate = cand;
+        }
+      }
+
+      // Cập nhật selectedOptions đồng bộ theo candidate tốt nhất
+      const nextSelection: Record<string, string> = {};
+      for (const tier of tierConfigs) {
+        if (tier.name.toLowerCase() === tierName.toLowerCase()) {
+          nextSelection[tier.name] = option;
+        } else {
+          const candAttr = getAttr(bestCandidate.attributes, tier.name);
+          const matchedOpt = tier.options.find((opt) => matchesAttrValue(candAttr, opt));
+          nextSelection[tier.name] = matchedOpt ?? tier.options[0] ?? "";
+        }
+      }
+      setSelectedOptions(nextSelection);
+    } else {
+      setSelectedOptions((prev) => ({ ...prev, [tierName]: option }));
+    }
   }
 
   // Dynamic tiers build trực tiếp từ tierConfigs (Source of Truth)
@@ -409,32 +480,25 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       return {
         name: tier.name,
         options: tier.options.map((opt) => {
-          // Một option bị xám màu (disabled) nếu không có bất kỳ biến thể ACTIVE, còn hàng nào
-          // khớp với option này VÀ khớp với các tier khác đang được chọn
-          const hasMatchingActiveVariant = product.variants.some((v) => {
+          // Một option chỉ bị xám màu (disabled - Hết hàng) nếu KHÔNG CÒN BẤT KỲ biến thể ACTIVE,
+          // còn hàng nào (stockQuantity > 0) trên toàn bộ sản phẩm chứa option này.
+          // Chuẩn Shopee: Không khóa chéo (cross-lock) các option còn hàng ở biến thể khác,
+          // cho phép người dùng click để tự động chuyển sang biến thể hợp lệ (Smart Auto-Switch).
+          const existsInAnyActiveVariant = product.variants.some((v) => {
             if (v.isDisabled || v.stockQuantity <= 0 || v.status === "INACTIVE") return false;
-            // Khớp với option đang xét của tier này
             const val = getAttr(v.attributes, tier.name);
-            if (!matchesAttrValue(val, opt)) return false;
-
-            // Khớp với giá trị đã chọn ở các tier khác
-            for (const [otherTierName, otherOpt] of Object.entries(selectedOptions)) {
-              if (otherTierName.toLowerCase() === tier.name.toLowerCase()) continue;
-              const otherVal = getAttr(v.attributes, otherTierName);
-              if (!matchesAttrValue(otherVal, otherOpt)) return false;
-            }
-            return true;
+            return matchesAttrValue(val, opt);
           });
 
           return {
             label: opt,
-            disabled: !hasMatchingActiveVariant,
+            disabled: !existsInAnyActiveVariant,
             bgClass: isColor ? colorToBg(opt) : undefined,
           };
         }),
       };
     });
-  }, [tierConfigs, product.variants, selectedOptions]);
+  }, [tierConfigs, product.variants]);
 
   // Defensive: minPrice/maxPrice có thể null (BE runtime trả null khi product
   // chưa set giá ngoài variant level). Truyền null cho PricingBox để render

@@ -81,8 +81,11 @@ export function ProductVariantSelectors({
                         disabled={opt.disabled}
                         onClick={() => {
                           if (!opt.disabled) {
-                            onSelectOption?.(tier.name, opt.label);
-                            onColorChange?.(opt.label);
+                            if (onSelectOption) {
+                              onSelectOption(tier.name, opt.label);
+                            } else {
+                              onColorChange?.(opt.label);
+                            }
                           }
                         }}
                         className={cn(
@@ -129,8 +132,11 @@ export function ProductVariantSelectors({
                         disabled={opt.disabled}
                         onClick={() => {
                           if (!opt.disabled) {
-                            onSelectOption?.(tier.name, opt.label);
-                            if (isSize) onSizeChange?.(opt.label);
+                            if (onSelectOption) {
+                              onSelectOption(tier.name, opt.label);
+                            } else if (isSize) {
+                              onSizeChange?.(opt.label);
+                            }
                           }
                         }}
                         className={cn(
