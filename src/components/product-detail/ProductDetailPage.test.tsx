@@ -470,7 +470,7 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
       flashSales: [],
       tierVariationConfigs: [
         { name: "Size", options: ["L", "XXL"] },
-        { name: "Color", options: ["Blue", "Green"] },
+        { name: "Color", options: ["Blue"] },
       ],
       variants: [
         {
@@ -492,7 +492,7 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
           productId: 8,
           sku: "PRD-00008-V2",
           variantName: "Variant 2 of #8",
-          attributes: { size: "XXL", color: "Green", variant_index: "2" },
+          attributes: { size: "XXL", color: "Blue", variant_index: "2" },
           originalPrice: 10000,
           stockQuantity: 473,
           imageUrl: null,
@@ -506,20 +506,140 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
 
     render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
 
-    // Không option nào bị disabled hay gạch chéo hết hàng
     const xxlBtn = screen.getByRole("button", { name: "XXL" });
-    const greenBtn = screen.getByRole("button", { name: /Green/ });
     expect(xxlBtn).not.toBeDisabled();
-    expect(greenBtn).not.toBeDisabled();
 
     // Mặc định chọn L - Blue -> Tồn kho hiển thị là 334 (KHÔNG phải tổng 807)
     expect(screen.getByText("334")).toBeInTheDocument();
     expect(screen.queryByText("807")).not.toBeInTheDocument();
 
-    // Click XXL -> Tự động auto-switch sang Green và cập nhật tồn kho thành 473 (KHÔNG phải 807)
+    // Click XXL -> Cập nhật tồn kho thành 473 của XXL - Blue
     await user.click(xxlBtn);
     expect(screen.getByText("473")).toBeInTheDocument();
     expect(screen.queryByText("807")).not.toBeInTheDocument();
+  });
+
+  test("tự động xám màu (disabled) tùy chọn không tồn tại theo lựa chọn hiện tại (vd: L-pink không có thì khi chọn L thì Pink bị xám, chọn Pink thì L bị xám)", async () => {
+    const user = userEvent.setup();
+    const product: ProductDetail = {
+      ...mockProductDetail,
+      flashSales: [],
+      tierVariationConfigs: [
+        { name: "Size", options: ["L", "M", "S"] },
+        { name: "Color", options: ["Black", "Green", "Pink"] },
+      ],
+      variants: [
+        // L chỉ có Black và Green (KHÔNG có Pink)
+        {
+          id: 1,
+          productId: 1,
+          sku: "VAR-L-BLACK",
+          variantName: "L, Black",
+          attributes: { Size: "L", Color: "Black" },
+          originalPrice: 10000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 2,
+          productId: 1,
+          sku: "VAR-L-GREEN",
+          variantName: "L, Green",
+          attributes: { Size: "L", Color: "Green" },
+          originalPrice: 10000,
+          stockQuantity: 15,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        // M có Black, Green, Pink
+        {
+          id: 3,
+          productId: 1,
+          sku: "VAR-M-BLACK",
+          variantName: "M, Black",
+          attributes: { Size: "M", Color: "Black" },
+          originalPrice: 10000,
+          stockQuantity: 20,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 4,
+          productId: 1,
+          sku: "VAR-M-GREEN",
+          variantName: "M, Green",
+          attributes: { Size: "M", Color: "Green" },
+          originalPrice: 10000,
+          stockQuantity: 25,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 5,
+          productId: 1,
+          sku: "VAR-M-PINK",
+          variantName: "M, Pink",
+          attributes: { Size: "M", Color: "Pink" },
+          originalPrice: 10000,
+          stockQuantity: 30,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        // S có Pink
+        {
+          id: 6,
+          productId: 1,
+          sku: "VAR-S-PINK",
+          variantName: "S, Pink",
+          attributes: { Size: "S", Color: "Pink" },
+          originalPrice: 10000,
+          stockQuantity: 12,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+      ],
+    };
+
+    render(<ProductDetailPage product={product} />, { wrapper: TestWrapper });
+
+    const lBtn = screen.getByRole("button", { name: "L" });
+    const mBtn = screen.getByRole("button", { name: "M" });
+    const pinkBtn = screen.getByRole("button", { name: /Pink/ });
+
+    // 1. Khi đang chọn L (L-Black):
+    // Phân loại Pink tự động bị xám màu (disabled) vì L không có Pink!
+    expect(pinkBtn).toBeDisabled();
+    expect(pinkBtn).toHaveAttribute("aria-disabled", "true");
+
+    // 2. Chọn sang Size M (Size M có Pink):
+    await user.click(mBtn);
+    // Nút Pink lúc này được mở xám (enabled)
+    expect(pinkBtn).not.toBeDisabled();
+
+    // 3. Chọn Pink:
+    await user.click(pinkBtn);
+    // Khi đang chọn Pink thì Size L tự động bị xám màu (disabled) vì L không có Pink!
+    expect(lBtn).toBeDisabled();
+    expect(lBtn).toHaveAttribute("aria-disabled", "true");
   });
 
   test("cập nhật giá chính xác theo biến thể được chọn (vd: L-green 9.000₫ -> M-red 100.000₫)", async () => {
@@ -552,6 +672,20 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
         {
           id: 2,
           productId: 1,
+          sku: "VAR-L-RED",
+          variantName: "L, Red",
+          attributes: { Size: "L", Color: "Red" },
+          originalPrice: 12000,
+          stockQuantity: 40,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 3,
+          productId: 1,
           sku: "VAR-M-RED",
           variantName: "M, Red",
           attributes: { Size: "M", Color: "Red" },
@@ -573,12 +707,14 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
     // Ban đầu biến thể active đầu tiên (L - Green) được chọn -> Giá hiển thị là 9.000₫
     expect(priceEl).toHaveTextContent("9.000₫");
 
-    // Chọn biến thể M và Red
-    const mBtn = screen.getByRole("button", { name: "M" });
+    // Click chọn Red (L - Red có giá 12.000₫)
     const redBtn = screen.getByRole("button", { name: /Red/ });
-
-    await user.click(mBtn);
     await user.click(redBtn);
+    expect(priceEl).toHaveTextContent("12.000₫");
+
+    // Chọn tiếp Size M (M - Red có giá 100.000₫)
+    const mBtn = screen.getByRole("button", { name: "M" });
+    await user.click(mBtn);
 
     // Giá lập tức cập nhật sang 100.000₫ của biến thể M - Red
     expect(priceEl).toHaveTextContent("100.000₫");

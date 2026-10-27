@@ -380,11 +380,8 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const currentVariant = variantForCurrent ?? effectiveVariant;
 
   const effectiveSize =
-    effectiveVariant && !effectiveVariant.isDisabled
-      ? (getAttr(effectiveVariant.attributes, "Size") ??
-         getAttr(effectiveVariant.attributes, "Kích cỡ") ??
-         selectedSize)
-      : selectedSize;
+    Object.entries(selectedOptions).find(([name]) => /size|kích/i.test(name))?.[1] ??
+    selectedSize;
 
   // Tồn kho hiển thị và giới hạn mua theo variant đang chọn (không cộng dồn toàn bộ SPU)
   const currentStock =
@@ -402,38 +399,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const safeQuantity = clampQuantity(quantity, Math.max(1, maxQty));
 
   function handleSelectOption(tierName: string, option: string) {
-    const nextSelected = { ...selectedOptions, [tierName]: option };
-
-    // Kiểm tra xem nextSelected có khớp variant ACTIVE nào không
-    const exactActive = product.variants.find((v) => {
-      if (v.isDisabled || v.stockQuantity <= 0) return false;
-      return Object.entries(nextSelected).every(([tName, opt]) => {
-        const val = getAttr(v.attributes, tName);
-        return matchesAttrValue(val, opt);
-      });
-    });
-
-    if (!exactActive) {
-      // Auto-switch: tìm variant ACTIVE khác match với option mới chọn
-      const alternative = product.variants.find((v) => {
-        if (v.isDisabled || v.stockQuantity <= 0) return false;
-        const val = getAttr(v.attributes, tierName);
-        return matchesAttrValue(val, option);
-      });
-      if (alternative) {
-        for (const tier of tierConfigs) {
-          if (tier.name !== tierName) {
-            const altVal = getAttr(alternative.attributes, tier.name);
-            const matched = tier.options.find((opt) => matchesAttrValue(altVal, opt));
-            if (matched) {
-              nextSelected[tier.name] = matched;
-            }
-          }
-        }
-      }
-    }
-
-    setSelectedOptions(nextSelected);
+    setSelectedOptions((prev) => ({ ...prev, [tierName]: option }));
   }
 
   // Dynamic tiers build trực tiếp từ tierConfigs (Source of Truth)
@@ -443,22 +409,32 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       return {
         name: tier.name,
         options: tier.options.map((opt) => {
-          // Một option chỉ bị coi là hết hàng nếu không có bất kỳ biến thể ACTIVE nào chứa option đó có stock > 0
-          const hasActive = product.variants.some((v) => {
-            if (v.isDisabled || v.stockQuantity <= 0) return false;
+          // Một option bị xám màu (disabled) nếu không có bất kỳ biến thể ACTIVE, còn hàng nào
+          // khớp với option này VÀ khớp với các tier khác đang được chọn
+          const hasMatchingActiveVariant = product.variants.some((v) => {
+            if (v.isDisabled || v.stockQuantity <= 0 || v.status === "INACTIVE") return false;
+            // Khớp với option đang xét của tier này
             const val = getAttr(v.attributes, tier.name);
-            return matchesAttrValue(val, opt);
+            if (!matchesAttrValue(val, opt)) return false;
+
+            // Khớp với giá trị đã chọn ở các tier khác
+            for (const [otherTierName, otherOpt] of Object.entries(selectedOptions)) {
+              if (otherTierName.toLowerCase() === tier.name.toLowerCase()) continue;
+              const otherVal = getAttr(v.attributes, otherTierName);
+              if (!matchesAttrValue(otherVal, otherOpt)) return false;
+            }
+            return true;
           });
 
           return {
             label: opt,
-            disabled: !hasActive,
+            disabled: !hasMatchingActiveVariant,
             bgClass: isColor ? colorToBg(opt) : undefined,
           };
         }),
       };
     });
-  }, [tierConfigs, product.variants]);
+  }, [tierConfigs, product.variants, selectedOptions]);
 
   // Defensive: minPrice/maxPrice có thể null (BE runtime trả null khi product
   // chưa set giá ngoài variant level). Truyền null cho PricingBox để render
