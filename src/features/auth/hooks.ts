@@ -6,6 +6,7 @@ import { useAuthStore, type AuthUser } from "@/stores/auth.store";
 import {
   setAccessToken,
   setRefreshToken,
+  getRefreshToken,
   clearAccessToken,
   clearRefreshToken,
 } from "@/lib/api";
@@ -138,11 +139,7 @@ export function useLogoutMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => {
-      // Lấy refreshToken từ sessionStorage để gửi cho backend
-      const rt =
-        typeof window !== "undefined"
-          ? window.sessionStorage.getItem("fs_refresh_token")
-          : null;
+      const rt = getRefreshToken();
       return logoutRequest(rt ?? "");
     },
     onSettled: () => {

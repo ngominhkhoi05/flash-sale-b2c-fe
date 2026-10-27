@@ -108,7 +108,8 @@ export function WsConnectionProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback((): FlashSaleStompClient => {
     teardown();
-    const token = tokenRef.current;
+    const token = getAccessToken();
+    tokenRef.current = token;
     const conn = createFlashSaleStompClient(token);
 
     // Subscribe lifecycle events của underlying Client
@@ -118,8 +119,8 @@ export function WsConnectionProvider({ children }: { children: ReactNode }) {
       store.setState("connected");
     };
     client.onDisconnect = () => {
-      // Disconnect không phải lỗi nếu user chủ động logout → chỉ retry khi còn token.
-      if (!tokenRef.current) {
+      // Disconnect không phải lỗi nếu user chủ động logout
+      if (!getAccessToken()) {
         store.setState("disconnected");
         return;
       }

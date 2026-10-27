@@ -85,3 +85,19 @@ export function decodeJwtPrimaryRole(token: string): Role {
   if (roles.includes('SELLER')) return 'SELLER';
   return roles[0] ?? 'BUYER';
 }
+
+/**
+ * isTokenExpired – kiểm tra token có hết hạn hay không (với buffer 10s an toàn).
+ * - Nếu token rỗng: trả về true.
+ * - Nếu token có claim exp: so sánh với thời gian hiện tại (+ 10s buffer).
+ * - Nếu token không có claim exp (ví dụ mock-token trong testing): trả về false để tương thích test.
+ */
+export function isTokenExpired(token: string | null | undefined): boolean {
+  if (!token) return true;
+  const payload = parseJwt(token);
+  if (typeof payload.exp === "number") {
+    // exp là epoch timestamp tính bằng giây; buffer 10 giây
+    return payload.exp * 1000 <= Date.now() + 10_000;
+  }
+  return false;
+}

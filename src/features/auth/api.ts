@@ -148,6 +148,14 @@ export async function logoutRequest(refreshToken: string): Promise<void> {
   }).catch(() => undefined);
 }
 
+export async function refreshTokenRequest(refreshToken: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/v1/auth/refresh-token', {
+    method: 'POST',
+    json: { refreshToken },
+    withAuth: false,
+  });
+}
+
 const verifyOtpPayloadSchema = z.object({
   email: emailSchema,
   code: z
