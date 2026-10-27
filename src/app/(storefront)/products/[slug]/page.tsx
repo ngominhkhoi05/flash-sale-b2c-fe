@@ -8,6 +8,7 @@
  *   2. Nếu slug là numeric id → gọi `GET /api/v1/products/{id}` để resolve slug SEO → redirect.
  *   3. Nếu slug không phải số → gọi `GET /api/v1/products/slug/{slug}` → render.
  *   4. 404 khi API trả NOT_FOUND → render not-found page.
+ *   5. Lỗi kết nối mạng / máy chủ không phản hồi → render ServerConnectionError.
  *
  * Xem plan: docs/superpowers/plans/2026-10-12-product-detail-page-stitch.md
  *           docs/superpowers/plans/2026-10-14-product-detail-api.md
@@ -16,6 +17,7 @@
  */
 import { notFound, redirect } from "next/navigation";
 import { ProductDetailPage } from "@/components/product-detail/ProductDetailPage";
+import { ServerConnectionError } from "@/components/common/ServerConnectionError";
 import {
   fetchProductDetailById,
   fetchProductDetailBySlug,
@@ -35,25 +37,41 @@ export default async function ProductDetailRoute({ params }: PageProps) {
   setRequestLocale("vi");
 
   // Tách fetch ra ngoài try/catch để tránh "JSX in try/catch" warning.
-  // Trả về `ProductDetail | "redirect" | "notFound"` rồi render ở ngoài.
   const result = await loadProduct(slug);
 
-  if (result === "notFound") {
+  if (result.type === "notFound") {
     notFound();
   }
-  if (result === "redirect") {
+  if (result.type === "redirect") {
     // loadProduct đã throw NEXT_REDIRECT, code không tới đây.
     return null;
+  }
+  if (result.type === "networkError") {
+    return (
+      <main className="py-8 md:py-16">
+        <ServerConnectionError
+          title="Không thể kết nối đến máy chủ"
+          message={
+            result.message ||
+            "Không thể tải thông tin sản phẩm do mất kết nối mạng hoặc máy chủ không phản hồi. Vui lòng kiểm tra lại đường truyền và thử lại."
+          }
+        />
+      </main>
+    );
   }
 
   return (
     <main className="pt-4 md:pt-6">
-      <ProductDetailPage product={result} />
+      <ProductDetailPage product={result.data} />
     </main>
   );
 }
 
-type LoadResult = ProductDetail | "redirect" | "notFound";
+type LoadResult =
+  | { type: "success"; data: ProductDetail }
+  | { type: "redirect" }
+  | { type: "notFound" }
+  | { type: "networkError"; message?: string };
 
 async function loadProduct(slug: string): Promise<LoadResult> {
   try {
@@ -62,14 +80,29 @@ async function loadProduct(slug: string): Promise<LoadResult> {
       const id = Number(slug);
       const product = await fetchProductDetailById(id);
       redirect(`/products/${product.slug}`);
-      return "redirect"; // unreachable, redirect() throws
+      return { type: "redirect" }; // unreachable, redirect() throws
     }
 
     // Trường hợp 2: slug SEO → fetch chi tiết.
-    return await fetchProductDetailBySlug(slug);
+    const product = await fetchProductDetailBySlug(slug);
+    return { type: "success", data: product };
   } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      return "notFound";
+    if (err instanceof ApiError) {
+      if (err.status === 404) {
+        return { type: "notFound" };
+      }
+      if (err.code === "NETWORK_ERROR" || err.status === 0) {
+        return {
+          type: "networkError",
+          message: "Mất kết nối mạng hoặc máy chủ không phản hồi. Vui lòng thử lại sau.",
+        };
+      }
+    }
+    if (err instanceof TypeError && err.message.toLowerCase().includes("fetch failed")) {
+      return {
+        type: "networkError",
+        message: "Mất kết nối mạng hoặc máy chủ không phản hồi. Vui lòng thử lại sau.",
+      };
     }
     throw err;
   }
@@ -85,8 +118,6 @@ export async function generateMetadata({ params }: PageProps) {
   try {
     const product = await fetchProductDetailBySlug(slug);
     return {
-      // Chỉ trả product.name — root layout đã có title.template = '%s | Vibe Mart'.
-      // Trước đây trả `${product.name} | Vibe Mart` gây duplicate "Vibe Mart".
       title: product.name,
       description: product.description.slice(0, 160),
     };

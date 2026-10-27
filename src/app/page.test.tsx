@@ -27,6 +27,22 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return {
+    ...actual,
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      prefetch: vi.fn(),
+      refresh: vi.fn(),
+    }),
+    usePathname: () => "/",
+  };
+});
+
 // Mock homepage API hooks to avoid network calls in snapshot test
 vi.mock("@/features/homepage/hooks", () => ({
   useHomeBanners: () => ({

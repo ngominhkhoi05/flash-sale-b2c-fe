@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ImageSearchModal } from "@/components/storefront/search";
+import { useScrollHeader } from "@/hooks/useScrollHeader";
 
 export type StorefrontNavKey =
   | "home"
@@ -58,6 +59,12 @@ export function StorefrontHeader({
   const { data: cartCount = 0 } = useCartCount(isAuthenticated);
   const { mutate: logout, isPending: isLoggingOut } = useLogoutMutation();
   const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
+  const [isFocusedInside, setIsFocusedInside] = useState(false);
+
+  const isVisible = useScrollHeader({
+    threshold: 80,
+    forceVisible: isImageSearchOpen || isFocusedInside,
+  });
 
   const detected: StorefrontNavKey = (() => {
     if (pathname.startsWith(ROUTES.FLASH_SALE)) return "flash-sale";
@@ -77,8 +84,17 @@ export function StorefrontHeader({
   if (variant === "compact") {
     return (
       <header
+        onFocusCapture={() => setIsFocusedInside(true)}
+        onBlurCapture={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setIsFocusedInside(false);
+          }
+        }}
+        data-visible={isVisible}
         className={cn(
-          "sticky top-0 z-50 w-full border-b border-outline-variant bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)]",
+          "sticky top-0 z-50 w-full border-b border-outline-variant bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out will-change-transform",
+          !isVisible && "-translate-y-full",
+          isVisible && "translate-y-0",
           className
         )}
       >
@@ -197,8 +213,17 @@ export function StorefrontHeader({
 
   return (
     <header
+      onFocusCapture={() => setIsFocusedInside(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setIsFocusedInside(false);
+        }
+      }}
+      data-visible={isVisible}
       className={cn(
-        "sticky top-0 z-50 w-full",
+        "sticky top-0 z-50 w-full transition-transform duration-300 ease-in-out will-change-transform",
+        !isVisible && "-translate-y-full",
+        isVisible && "translate-y-0",
         className
       )}
     >

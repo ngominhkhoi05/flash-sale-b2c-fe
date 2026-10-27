@@ -105,6 +105,33 @@ describe("ProductDetailRoute - fetch by slug", () => {
     await expect(ProductDetailRoute({ params })).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
+
+  it("renders ServerConnectionError when API throws NETWORK_ERROR (status 0)", async () => {
+    const networkError = new ApiError({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "Mất kết nối mạng hoặc máy chủ không phản hồi: fetch failed",
+    });
+    mockFetchBySlug.mockRejectedValueOnce(networkError);
+    const params = Promise.resolve({ slug: "vo-so-mini-9" });
+
+    const result = await ProductDetailRoute({ params });
+
+    expect(result).toBeDefined();
+    expect(notFound).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("renders ServerConnectionError when fetch throws TypeError ('fetch failed')", async () => {
+    mockFetchBySlug.mockRejectedValueOnce(new TypeError("fetch failed"));
+    const params = Promise.resolve({ slug: "vo-so-mini-9" });
+
+    const result = await ProductDetailRoute({ params });
+
+    expect(result).toBeDefined();
+    expect(notFound).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
 });
 
 describe("generateMetadata", () => {

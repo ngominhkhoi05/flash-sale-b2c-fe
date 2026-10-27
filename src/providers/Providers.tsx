@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { WsConnectionProvider } from "./WsConnectionProvider";
 import { SessionCookieBridge } from "./SessionCookieBridge";
+import { NetworkStatusListener } from "./NetworkStatusListener";
 
 /**
  * Providers gốc – mount trong app/layout.tsx.
@@ -13,6 +14,7 @@ import { SessionCookieBridge } from "./SessionCookieBridge";
  * - WsConnectionProvider: mount STOMP context (lazy).
  * - SessionCookieBridge: đồng bộ access_token localStorage <-> cookie.
  * - <Toaster/>: thông báo kết quả (rule §7).
+ * - <NetworkStatusListener/>: cảnh báo mất mạng thời gian thực.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -32,6 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <SessionCookieBridge />
+      <NetworkStatusListener />
       <WsConnectionProvider>{children}</WsConnectionProvider>
       <Toaster richColors position="top-right" duration={4000} />
       {process.env.NODE_ENV === "development" && (

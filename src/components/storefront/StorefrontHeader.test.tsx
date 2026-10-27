@@ -7,14 +7,23 @@
  * Không test snapshot (pixel-match) — nằm ở page-level HomepageView test.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StorefrontHeader } from "./StorefrontHeader";
 import { TestWrapper } from "@/__tests__/test-wrapper";
 
 const mockUsePathname = vi.fn(() => "/");
+const mockRouter = {
+  push: vi.fn(),
+  replace: vi.fn(),
+  back: vi.fn(),
+  forward: vi.fn(),
+  prefetch: vi.fn(),
+  refresh: vi.fn(),
+};
 vi.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
+  useRouter: () => mockRouter,
 }));
 
 // Mock useAuth – mặc định chưa auth (cart count = 0)
@@ -574,3 +583,90 @@ describe("StorefrontHeader – logo overflow guard", () => {
     expect((logoImg as HTMLImageElement | undefined)?.className).toMatch(/h-9/);
   });
 });
+
+describe("StorefrontHeader – hide on scroll down, show immediately on scroll up", () => {
+  beforeEach(() => {
+    mockUsePathname.mockReturnValue("/");
+    Object.defineProperty(window, "scrollY", {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(document.documentElement, "scrollHeight", {
+      value: 2000,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      value: 800,
+      writable: true,
+      configurable: true,
+    });
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+  });
+
+  it("header có data-visible='true' và class translate-y-0 khi vừa tải trang", () => {
+    withProviders(<StorefrontHeader />);
+    const header = document.querySelector("header");
+    expect(header).toBeDefined();
+    expect(header?.getAttribute("data-visible")).toBe("true");
+    expect(header?.className).toContain("translate-y-0");
+    expect(header?.className).not.toContain("-translate-y-full");
+  });
+
+  it("header ẩn đi (-translate-y-full, data-visible='false') khi lướt xuống qua threshold", () => {
+    withProviders(<StorefrontHeader />);
+    const header = document.querySelector("header");
+
+    act(() => {
+      window.scrollY = 200;
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    expect(header?.getAttribute("data-visible")).toBe("false");
+    expect(header?.className).toContain("-translate-y-full");
+  });
+
+  it("header hiện ngay lập tức (translate-y-0, data-visible='true') khi lướt lên", () => {
+    withProviders(<StorefrontHeader />);
+    const header = document.querySelector("header");
+
+    // Lướt xuống
+    act(() => {
+      window.scrollY = 250;
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(header?.getAttribute("data-visible")).toBe("false");
+
+    // Lướt lên ngay lập tức
+    act(() => {
+      window.scrollY = 240;
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(header?.getAttribute("data-visible")).toBe("true");
+    expect(header?.className).toContain("translate-y-0");
+  });
+
+  it("compact variant cũng ẩn khi cuộn xuống và hiện khi cuộn lên", () => {
+    withProviders(<StorefrontHeader variant="compact" />);
+    const header = document.querySelector("header");
+
+    act(() => {
+      window.scrollY = 200;
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(header?.getAttribute("data-visible")).toBe("false");
+    expect(header?.className).toContain("-translate-y-full");
+
+    act(() => {
+      window.scrollY = 190;
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(header?.getAttribute("data-visible")).toBe("true");
+    expect(header?.className).toContain("translate-y-0");
+  });
+});
+
