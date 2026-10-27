@@ -144,3 +144,49 @@ describe("ProductCtaButtons - disabledReason='contact' (no price)", () => {
     expect(addBtn).toHaveAttribute("title", "Sản phẩm hiện đã hết hàng");
   });
 });
+
+describe("ProductCtaButtons - independent loading states", () => {
+  it("shows spinner ONLY on Add-to-Cart button when isAddingToCart is true", () => {
+    const { container } = renderWithIntl(
+      <ProductCtaButtons
+        mode="standard"
+        isAddingToCart={true}
+        isBuyingNow={false}
+        onAddToCart={() => {}}
+        onBuyNow={() => {}}
+      />
+    );
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    const buyBtn = screen.getByRole("button", { name: /Mua Ngay/ });
+
+    // Cả 2 nút đều bị disabled để tránh double-click
+    expect(addBtn).toBeDisabled();
+    expect(buyBtn).toBeDisabled();
+
+    // Chỉ có Add to Cart có spinner
+    expect(addBtn.querySelector(".animate-spin")).toBeInTheDocument();
+    expect(buyBtn.querySelector(".animate-spin")).not.toBeInTheDocument();
+  });
+
+  it("shows spinner ONLY on Buy Now button when isBuyingNow is true", () => {
+    renderWithIntl(
+      <ProductCtaButtons
+        mode="standard"
+        isAddingToCart={false}
+        isBuyingNow={true}
+        onAddToCart={() => {}}
+        onBuyNow={() => {}}
+      />
+    );
+    const addBtn = screen.getByRole("button", { name: /Thêm Vào Giỏ Hàng/ });
+    const buyBtn = screen.getByRole("button", { name: /Mua Ngay/ });
+
+    expect(addBtn).toBeDisabled();
+    expect(buyBtn).toBeDisabled();
+
+    // Chỉ có Buy Now có spinner
+    expect(addBtn.querySelector(".animate-spin")).not.toBeInTheDocument();
+    expect(buyBtn.querySelector(".animate-spin")).toBeInTheDocument();
+  });
+});
+
