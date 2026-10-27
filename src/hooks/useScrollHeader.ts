@@ -44,7 +44,9 @@ export function useScrollHeader(options: UseScrollHeaderOptions = {}) {
   const isVisibleRef = useRef(true);
 
   // Cập nhật ref để tránh stale closure trong requestAnimationFrame callback
-  isVisibleRef.current = isVisible;
+  useEffect(() => {
+    isVisibleRef.current = isVisible;
+  }, [isVisible]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

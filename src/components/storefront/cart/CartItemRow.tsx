@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
@@ -29,16 +29,17 @@ export function CartItemRow({
   onRemove,
 }: CartItemRowProps) {
   const t = useTranslations("storefront.cart");
+  const [prevQuantity, setPrevQuantity] = useState(item.quantity);
   const [inputValue, setInputValue] = useState<string>(String(item.quantity));
   const [isFocused, setIsFocused] = useState(false);
-  const lastCommittedRef = useRef<number>(item.quantity);
+  const isRemovingRef = useRef(false);
 
-  useEffect(() => {
-    lastCommittedRef.current = item.quantity;
+  if (item.quantity !== prevQuantity) {
+    setPrevQuantity(item.quantity);
     if (!isFocused) {
       setInputValue(String(item.quantity));
     }
-  }, [item.quantity, isFocused]);
+  }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value;
@@ -62,8 +63,8 @@ export function CartItemRow({
     // Nếu về 0 -> xóa khỏi giỏ hàng
     if (parsed <= 0) {
       setInputValue("0");
-      if (lastCommittedRef.current !== 0) {
-        lastCommittedRef.current = 0;
+      if (!isRemovingRef.current) {
+        isRemovingRef.current = true;
         if (onChangeQuantity) {
           onChangeQuantity(0);
         }
@@ -73,8 +74,7 @@ export function CartItemRow({
     }
 
     setInputValue(String(parsed));
-    if (parsed !== lastCommittedRef.current) {
-      lastCommittedRef.current = parsed;
+    if (parsed !== item.quantity) {
       if (onChangeQuantity) {
         onChangeQuantity(parsed);
       }
