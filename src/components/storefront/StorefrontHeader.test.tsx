@@ -111,6 +111,48 @@ describe("StorefrontHeader – nav pill active detection", () => {
     expect(homeLink).not.toHaveAttribute("aria-current", "page");
     expect(flashPill).toBeDefined();
   });
+
+  it("does not highlight any nav item when pathname is a product detail page (e.g. /products/123)", () => {
+    mockUsePathname.mockReturnValue("/products/123");
+    withProviders(<StorefrontHeader />);
+    const pillsWithAriaCurrent = screen
+      .getAllByRole("link")
+      .filter((l) => l.getAttribute("aria-current") === "page");
+    expect(pillsWithAriaCurrent).toHaveLength(0);
+
+    const featuredLink = screen.getByRole("link", { name: /Thương hiệu nổi bật/i });
+    expect(featuredLink).not.toHaveAttribute("aria-current");
+    expect(featuredLink.className).not.toContain("bg-primary");
+
+    const bestSellersLink = screen.getByRole("link", { name: /Bán chạy/i });
+    expect(bestSellersLink).not.toHaveAttribute("aria-current");
+    expect(bestSellersLink.className).not.toContain("bg-primary");
+  });
+
+  it("does not highlight any nav item when activeNav is null", () => {
+    mockUsePathname.mockReturnValue("/");
+    withProviders(<StorefrontHeader activeNav={null} />);
+    const pillsWithAriaCurrent = screen
+      .getAllByRole("link")
+      .filter((l) => l.getAttribute("aria-current") === "page");
+    expect(pillsWithAriaCurrent).toHaveLength(0);
+  });
+
+  it("highlights Thương hiệu nổi bật when on /maintenance?feature=featured-brands", () => {
+    mockUsePathname.mockReturnValue("/maintenance?feature=featured-brands");
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Thương hiệu nổi bật/i });
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link.className).toContain("bg-primary");
+  });
+
+  it("highlights Bán chạy when on /maintenance?feature=best-sellers", () => {
+    mockUsePathname.mockReturnValue("/maintenance?feature=best-sellers");
+    withProviders(<StorefrontHeader />);
+    const link = screen.getByRole("link", { name: /Bán chạy/i });
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link.className).toContain("bg-primary");
+  });
 });
 
 describe("StorefrontHeader – renders all sections", () => {

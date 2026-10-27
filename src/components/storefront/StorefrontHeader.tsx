@@ -27,6 +27,8 @@ export type StorefrontNavKey =
   | "home"
   | "flash-sale"
   | "category"
+  | "featured-brands"
+  | "best-sellers"
   | "voucher"
   | null;
 
@@ -76,10 +78,20 @@ export function StorefrontHeader({
       pathname.includes(`feature=${MAINTENANCE_FEATURE_CODES.CATEGORY}`)
     )
       return "category";
+    if (
+      pathname.startsWith("/featured-brands") ||
+      pathname.includes(`feature=${MAINTENANCE_FEATURE_CODES.FEATURED_BRANDS}`)
+    )
+      return "featured-brands";
+    if (
+      pathname.startsWith("/best-sellers") ||
+      pathname.includes(`feature=${MAINTENANCE_FEATURE_CODES.BEST_SELLERS}`)
+    )
+      return "best-sellers";
     if (pathname === ROUTES.HOME || pathname === "/") return "home";
     return null;
   })();
-  const active = activeNav ?? detected;
+  const active = activeNav !== undefined ? activeNav : detected;
 
   if (variant === "compact") {
     return (
@@ -483,12 +495,12 @@ export function StorefrontHeader({
                   label: t("nav.newArrivals"),
                 },
                 {
-                  key: null,
+                  key: "featured-brands" as const,
                   href: ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.FEATURED_BRANDS),
                   label: t("nav.featuredBrands"),
                 },
                 {
-                  key: null,
+                  key: "best-sellers" as const,
                   href: ROUTES.MAINTENANCE(MAINTENANCE_FEATURE_CODES.BEST_SELLERS),
                   label: t("nav.bestSellers"),
                 },
@@ -498,7 +510,7 @@ export function StorefrontHeader({
                   label: t("nav.voucherPromo"),
                 },
               ].map((item) => {
-                const isActive = active === item.key;
+                const isActive = Boolean(active && item.key && active === item.key);
                 // Tách base classes (chứa text-label-lg cho font-size) ra
                 // NGOÀI cn(twMerge) để tailwind-merge không strip text-label-lg
                 // khi color branch dùng text-on-primary/text-tertiary. tailwind-merge
