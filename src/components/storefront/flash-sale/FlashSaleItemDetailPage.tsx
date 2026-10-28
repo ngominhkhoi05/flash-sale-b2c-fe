@@ -22,9 +22,13 @@ import {
 import { toast } from "sonner";
 import { formatVND } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useAddToCart } from "@/features/cart";
 import { useAuth } from "@/hooks/useAuth";
-import type { PublicFlashSaleItemDetailResponse } from "@/features/flash-sale";
+import {
+  reserveFlashSale,
+  isFlashSaleReserveError,
+  FLASH_SALE_ERROR_MESSAGES,
+  type PublicFlashSaleItemDetailResponse,
+} from "@/features/flash-sale";
 
 export interface FlashSaleItemDetailPageProps {
   item: PublicFlashSaleItemDetailResponse;
@@ -38,6 +42,7 @@ export function FlashSaleItemDetailPage({ item }: FlashSaleItemDetailPageProps) 
   );
   const [quantity, setQuantity] = useState<number>(1);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [isReserving, setIsReserving] = useState<boolean>(false);
 
   // Maximum quantity allowed to buy in flash sale
   const maxAllowedQuantity = Math.max(
@@ -83,30 +88,40 @@ export function FlashSaleItemDetailPage({ item }: FlashSaleItemDetailPageProps) 
     return () => clearInterval(interval);
   }, [item.slotEndTime, item.slotStartTime, isUpcoming]);
 
-  // Buy now via cart mutation
-  const { mutate: addToCartMutate, isPending: isBuying } = useAddToCart({
-    onError: (err: any) => {
-      toast.error(err?.message || "Không thể thực hiện mua hàng. Vui lòng thử lại!");
-    },
-  });
-
-  const handleBuyNow = () => {
+  // Flash Sale direct reservation flow (trừ stock flash sale, không đụng stock gốc)
+  const handleBuyNow = async () => {
     if (!isAuthenticated) {
       toast.info("Vui lòng đăng nhập để mua sản phẩm Flash Sale");
       router.push(`/auth/login?redirect=/flash-sale/${item.id}`);
       return;
     }
-    addToCartMutate(
-      {
-        variantId: item.variantId,
-        quantity,
-      },
-      {
-        onSuccess: () => {
-          router.push("/cart");
+
+    try {
+      setIsReserving(true);
+      const idempotencyKey =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `fs-order-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+      const res = await reserveFlashSale(
+        {
+          flashSaleItemId: item.id,
+          quantity,
         },
+        idempotencyKey
+      );
+
+      toast.success(res.message || "Đặt giữ chỗ Flash Sale thành công! Đang chuyển đến thanh toán...");
+      router.push(`/checkout/qr?orderCode=${encodeURIComponent(res.orderCode)}`);
+    } catch (err: any) {
+      if (isFlashSaleReserveError(err)) {
+        toast.error(FLASH_SALE_ERROR_MESSAGES[err.code] || err.message);
+      } else {
+        toast.error(err?.message || "Không thể đặt giữ chỗ Flash Sale. Vui lòng thử lại!");
       }
-    );
+    } finally {
+      setIsReserving(false);
+    }
   };
 
   const handleShare = () => {
@@ -511,7 +526,7 @@ export function FlashSaleItemDetailPage({ item }: FlashSaleItemDetailPageProps) 
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={isSoldOut || !isActive || isBuying}
+                disabled={isSoldOut || !isActive || isReserving}
                 className={cn(
                   "flex h-12 w-full items-center justify-center gap-2.5 rounded-xl px-8 text-sm sm:text-base font-black uppercase tracking-wider text-white shadow-xl transition-all",
                   isSoldOut
@@ -528,7 +543,7 @@ export function FlashSaleItemDetailPage({ item }: FlashSaleItemDetailPageProps) 
                   ? "CHƯA ĐẾN GIỜ MỞ BÁN"
                   : isEnded
                   ? "PHIÊN SALE ĐÃ KẾT THÚC"
-                  : isBuying
+                  : isReserving
                   ? "ĐANG XỬ LÝ..."
                   : "MUA NGAY VỚI GIÁ FLASH SALE"}
               </button>

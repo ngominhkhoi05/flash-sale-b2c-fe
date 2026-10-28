@@ -18,12 +18,23 @@ vi.mock("@/hooks/useAuth", () => ({
   }),
 }));
 
-vi.mock("@/features/cart", () => ({
-  useAddToCart: () => ({
-    mutate: vi.fn(),
-    isPending: false,
-  }),
-}));
+vi.mock("@/features/flash-sale", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    reserveFlashSale: vi.fn().mockResolvedValue({
+      orderId: 99,
+      orderCode: "FS-123456",
+      flashSaleItemId: 1,
+      quantity: 1,
+      flashSalePrice: 750000,
+      totalAmount: 750000,
+      status: "PENDING_PAYMENT",
+      expiresAt: new Date(Date.now() + 300000).toISOString(),
+      message: "Đặt giữ chỗ Flash Sale thành công!",
+    }),
+  };
+});
 
 describe("FlashSaleItemDetailPage", () => {
   const mockItem: PublicFlashSaleItemDetailResponse = {
@@ -115,5 +126,21 @@ describe("FlashSaleItemDetailPage", () => {
 
     // CHỈ CÓ duy nhất nút Mua ngay
     expect(screen.getByRole("button", { name: /MUA NGAY VỚI GIÁ FLASH SALE/i })).toBeInTheDocument();
+  });
+
+  it("calls reserveFlashSale when clicking Buy Now button", async () => {
+    const { reserveFlashSale } = await import("@/features/flash-sale");
+    render(<FlashSaleItemDetailPage item={mockItem} />);
+
+    const buyButton = screen.getByRole("button", { name: /MUA NGAY VỚI GIÁ FLASH SALE/i });
+    buyButton.click();
+
+    expect(reserveFlashSale).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flashSaleItemId: 1,
+        quantity: 1,
+      }),
+      expect.any(String)
+    );
   });
 });

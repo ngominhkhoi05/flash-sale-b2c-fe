@@ -33,6 +33,8 @@ export {
   getOrderPayment as getOrderPaymentApi,
   queryZaloPayPayment as queryZaloPayPaymentApi,
   queryZaloPayPaymentByCode as queryZaloPayPaymentByCodeApi,
+  confirmCodPaymentByCode as confirmCodPaymentByCodeApi,
+  confirmCodPaymentByCode,
 } from "./payment.api";
 export {
   checkoutKeys,

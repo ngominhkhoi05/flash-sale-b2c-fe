@@ -21,6 +21,7 @@ import {
   mockQrOrderDetail,
   useOrderForQr,
   useQueryZaloPayPaymentByCode,
+  confirmCodPaymentByCode,
 } from "@/features/checkout";
 import { useFlashSaleWs } from "@/hooks/useFlashSaleWs";
 
@@ -93,7 +94,18 @@ export function QrPaymentPageContent({ orderCode }: QrPaymentPageContentProps) {
     }
   };
 
+  // 4. User click chọn thanh toán khi nhận hàng (COD)
+  const handleCod = async () => {
+    if (!orderCode) return;
+    try {
+      await confirmCodPaymentByCode(orderCode);
+      handleSuccessRedirect();
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể chuyển sang phương thức COD");
+    }
+  };
+
   return (
-    <QrPaymentModule order={order} onComplete={handleComplete} />
+    <QrPaymentModule order={order} onComplete={handleComplete} onSelectCod={handleCod} />
   );
 }
