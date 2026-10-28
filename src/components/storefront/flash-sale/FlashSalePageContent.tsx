@@ -151,11 +151,16 @@ function FlashSalePageContentBody({ slots, className }: FlashSalePageContentBody
           status: s.status as "UPCOMING" | "ACTIVE" | "ENDED",
         }))}
         activeSlotId={activeSlotId}
-        onSelect={setActiveSlotId}
+        onSelect={(slotId) => {
+          setActiveSlotId(slotId);
+          setActiveCategory(ALL_CATEGORIES_KEY);
+        }}
       />
 
       <FlashSaleCountdownBar
         endsAt={activeSlot.endTime}
+        startsAt={activeSlot.startTime}
+        status={activeSlot.status as "UPCOMING" | "ACTIVE" | "ENDED"}
         liveViewers={1240}
       />
 
@@ -167,7 +172,7 @@ function FlashSalePageContentBody({ slots, className }: FlashSalePageContentBody
 
       <FlashSaleDealsGrid
         items={filteredItems}
-        renderItem={(item) => <FlashSaleDealCard item={item} />}
+        renderItem={(item) => <FlashSaleDealCard key={item.id} item={item} />}
       />
 
       {upcomingSlot && (

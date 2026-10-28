@@ -100,4 +100,32 @@ describe("FlashSaleSlotNav", () => {
     vi.useFakeTimers();
     vi.setSystemTime(FIXED_NOW);
   });
+
+  it("keeps actual status labels when an UPCOMING slot is selected", () => {
+    // Chọn slot 3 (UPCOMING) thay vì slot 2 (ACTIVE)
+    render(<FlashSaleSlotNav slots={slots} activeSlotId={3} />);
+
+    const slot2Btn = screen.getByTestId("slot-2");
+    const slot3Btn = screen.getByTestId("slot-3");
+    const slot1Btn = screen.getByTestId("slot-1");
+    const slot5Btn = screen.getByTestId("slot-5");
+
+    // Slot 3 được chọn nhưng nhãn phải là "Sắp diễn ra", không phải "Đang diễn ra"
+    expect(slot3Btn).toHaveAttribute("aria-current", "true");
+    expect(slot3Btn).toHaveTextContent(/sắp diễn ra/i);
+    expect(slot3Btn).not.toHaveTextContent(/đang diễn ra/i);
+
+    // Slot 2 vẫn là ACTIVE trong thực tế nên phải giữ nhãn "Đang diễn ra"
+    expect(slot2Btn).toHaveTextContent(/đang diễn ra/i);
+
+    // Slot 1 (ENDED) vẫn là "Đã kết thúc"
+    expect(slot1Btn).toHaveTextContent(/đã kết thúc/i);
+
+    // Slot 5 (Ngày mai) vẫn là "Ngày mai"
+    expect(slot5Btn).toHaveTextContent(/ngày mai/i);
+
+    // Live ping dot chỉ nằm ở slot 2, không nằm ở slot 3
+    expect(slot2Btn.querySelector(".animate-ping")).toBeInTheDocument();
+    expect(slot3Btn.querySelector(".animate-ping")).toBeNull();
+  });
 });

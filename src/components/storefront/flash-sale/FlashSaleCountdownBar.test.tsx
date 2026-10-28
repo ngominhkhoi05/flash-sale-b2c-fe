@@ -59,4 +59,21 @@ describe("FlashSaleCountdownBar", () => {
     });
     expect(timer.textContent).toMatch(/29/);
   });
+
+  it("renders 'Bắt đầu sau' and 'đang chờ săn deal' when status is UPCOMING", () => {
+    const now = new Date("2026-10-13T10:00:00.000Z");
+    vi.setSystemTime(now);
+    const start = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+    const end = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+    render(
+      <FlashSaleCountdownBar
+        startsAt={start}
+        endsAt={end}
+        status="UPCOMING"
+        liveViewers={500}
+      />,
+    );
+    expect(screen.getByText("Bắt đầu sau")).toBeInTheDocument();
+    expect(screen.getByText(/500 đang chờ săn deal/i)).toBeInTheDocument();
+  });
 });

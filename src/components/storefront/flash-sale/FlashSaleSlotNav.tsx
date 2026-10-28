@@ -64,41 +64,58 @@ export function FlashSaleSlotNav({
     >
       <div className="grid grid-cols-5 gap-2">
         {slots.slice(0, 5).map((slot) => {
-          const isActive = slot.id === activeSlotId;
-          const isEnded = slot.status === "ENDED";
-          const isUpcomingToday = slot.status === "UPCOMING" && !isTomorrowSlot(slot.startTime);
-          const isUpcomingTomorrow = slot.status === "UPCOMING" && isTomorrowSlot(slot.startTime);
+          const isSelected = slot.id === activeSlotId;
+          const isSlotActive = slot.status === "ACTIVE";
+          const isSlotEnded = slot.status === "ENDED";
+          const isSlotUpcoming = slot.status === "UPCOMING";
+          const isTomorrow = isSlotUpcoming && isTomorrowSlot(slot.startTime);
+
+          const statusLabel = isSlotActive
+            ? "Đang diễn ra"
+            : isSlotEnded
+              ? "Đã kết thúc"
+              : isTomorrow
+                ? "Ngày mai"
+                : "Sắp diễn ra";
 
           // Color/styling
           const containerCls = cn(
-            "flex flex-col items-center justify-center rounded-lg py-2.5 px-1 text-center transition-all",
-            isActive
+            "flex flex-col items-center justify-center rounded-lg py-2.5 px-1 text-center transition-all cursor-pointer",
+            isSelected
               ? "relative bg-tertiary text-on-tertiary shadow-sm active:scale-[0.99] overflow-hidden"
-              : isEnded
-                ? "bg-surface-container-low hover:bg-surface-container"
-                : isUpcomingToday
-                  ? "bg-primary-fixed/40 hover:bg-primary-fixed"
-                  : isUpcomingTomorrow
-                    ? "bg-surface-container-low hover:bg-surface-container"
+              : isSlotActive
+                ? "relative bg-tertiary/10 hover:bg-tertiary/20 text-tertiary border border-tertiary/30"
+                : isSlotEnded
+                  ? "bg-surface-container-low hover:bg-surface-container"
+                  : !isTomorrow
+                    ? "bg-primary-fixed/40 hover:bg-primary-fixed"
                     : "bg-surface-container-low hover:bg-surface-container",
           );
 
           const labelCls = cn(
             "text-headline-sm font-semibold transition-colors",
-            isActive
+            isSelected
               ? "text-on-tertiary"
-              : isEnded
-                ? "text-outline group-hover:text-on-surface"
-                : isUpcomingToday
-                  ? "text-primary"
-                  : "text-on-surface-variant",
+              : isSlotActive
+                ? "text-tertiary font-bold"
+                : isSlotEnded
+                  ? "text-outline group-hover:text-on-surface"
+                  : !isTomorrow
+                    ? "text-primary"
+                    : "text-on-surface-variant",
           );
 
           const subLabelCls = cn(
             "mt-0.5 text-label-sm font-medium",
-            isActive ? "font-bold uppercase tracking-wider text-on-tertiary/90" : "text-outline",
-            !isActive && isUpcomingToday && "text-primary",
-            !isActive && !isEnded && !isUpcomingToday && "text-on-surface-variant",
+            isSelected
+              ? "font-bold uppercase tracking-wider text-on-tertiary/90"
+              : isSlotActive
+                ? "font-bold uppercase tracking-wider text-tertiary"
+                : isSlotEnded
+                  ? "text-outline"
+                  : !isTomorrow
+                    ? "text-primary"
+                    : "text-on-surface-variant",
           );
 
           return (
@@ -106,29 +123,35 @@ export function FlashSaleSlotNav({
               key={slot.id}
               type="button"
               data-testid={`slot-${slot.id}`}
-              aria-current={isActive ? "true" : undefined}
+              aria-current={isSelected ? "true" : undefined}
               onClick={() => onSelect?.(slot.id)}
               className={containerCls}
             >
               <div className="flex items-center gap-1.5">
-                {isActive && (
+                {isSlotActive && (
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-surface-container-lowest opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-surface-container-lowest" />
+                    <span
+                      className={cn(
+                        "absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+                        isSelected
+                          ? "bg-surface-container-lowest"
+                          : "bg-tertiary",
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "relative inline-flex h-2 w-2 rounded-full",
+                        isSelected
+                          ? "bg-surface-container-lowest"
+                          : "bg-tertiary",
+                      )}
+                    />
                   </span>
                 )}
                 <span className={labelCls}>{formatHHmm(slot.startTime)}</span>
               </div>
-              <span className={subLabelCls}>
-                {isActive
-                  ? "Đang diễn ra"
-                  : isEnded
-                    ? "Đã kết thúc"
-                    : isUpcomingTomorrow
-                      ? "Ngày mai"
-                      : "Sắp diễn ra"}
-              </span>
-              {isActive && (
+              <span className={subLabelCls}>{statusLabel}</span>
+              {isSelected && (
                 <div className="absolute bottom-0 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-surface-container-lowest" />
               )}
             </button>
