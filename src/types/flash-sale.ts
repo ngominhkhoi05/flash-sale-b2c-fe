@@ -1,4 +1,5 @@
-export type FlashSaleSlotStatus = "UPCOMING" | "REGISTRATION_OPEN" | "ACTIVE" | "ENDED";
+export type FlashSaleSlotStatus = "UPCOMING" | "REGISTRATION_OPEN" | "ACTIVE" | "ENDED" | "PAUSED";
+
 
 export interface FlashSaleSlot {
   id: number;

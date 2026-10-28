@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type {
   RealtimeTelemetry,
   LiveSkuInventoryItem,
+  LiveSkuStatus,
   LiveLogEvent,
   TrafficDataPoint,
 } from "@/types/flash-monitor";
@@ -20,15 +21,6 @@ import {
   toggleAdminEmergencyPause,
 } from "@/lib/api/admin";
 import {
-  getMockTelemetry,
-  toggleSessionPause,
-  getMockLiveSkus,
-  getMockLiveLogs,
-  clearMockLiveLogs,
-  INITIAL_TRAFFIC_DATA,
-} from "@/lib/mocks/flash-monitor.mock";
-import { getMockFlashSaleSessions } from "@/lib/mocks/flash-sessions.mock";
-import {
   TrafficChart,
   AntiOversoldCard,
   LiveEventFeed,
@@ -42,50 +34,141 @@ const formatCountdown = (totalSeconds: number) => {
   return `${h}:${m}:${s}`;
 };
 
-export default function AdminFlashSaleMonitorPage() {
-  // 1. Session Picker
-  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() =>
-    getMockFlashSaleSessions()
-  );
-  const [selectedSessionId, setSelectedSessionId] = useState<number>(3);
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useAdminSlotsQuery,
+  useAdminTelemetryQuery,
+  useAdminLiveSkusQuery,
+  ADMIN_QUERY_KEYS,
+} from "@/hooks/useAdminQueries";
+import { useWs } from "@/providers/WsConnectionProvider";
+
+function MonitorContent() {
+  const queryClient = useQueryClient();
+  const { connectionState } = useWs();
+  const searchParams = useSearchParams();
+  const rawParamSlotId = searchParams.get("slotId");
+  const urlSlotId = rawParamSlotId ? Number(rawParamSlotId) : null;
+
+  // 1. Session Picker lấy trực tiếp từ React Query cache (0ms, đã nạp sẵn)
+  const { data: sessions = [] } = useAdminSlotsQuery();
+
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(() => {
+    if (urlSlotId && !isNaN(urlSlotId)) return urlSlotId;
+    return null;
+  });
   const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
 
-  // Load sessions from BE API
-  useEffect(() => {
-    let cancelled = false;
-    async function loadSessions() {
-      try {
-        const slots = await getAdminFlashSaleSlots();
-        if (!cancelled && slots.length > 0) {
-          setSessions(slots);
-          const active = slots.find((s) => s.status === "ACTIVE");
-          if (active) setSelectedSessionId(active.id);
-          else setSelectedSessionId(slots[0].id);
-        }
-      } catch {
-        // fallback to default sessions
-      }
+  // CHỈ LỌC CÁC PHIÊN ĐANG DIỄN RA (ACTIVE) HOẶC ĐANG TẠM DỪNG (PAUSED) ĐỂ KÍCH HOẠT LẠI
+  // Tuyệt đối không lấy phiên sắp xảy ra (UPCOMING) và đã kết thúc (ENDED)
+  const monitorableSessions = useMemo(() => {
+    return sessions
+      .filter((s) => s.status === "ACTIVE" || s.status === "PAUSED")
+      .sort((a, b) => {
+        if (a.status === "ACTIVE" && b.status !== "ACTIVE") return -1;
+        if (b.status === "ACTIVE" && a.status !== "ACTIVE") return 1;
+        return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+      });
+  }, [sessions]);
+
+  const activeSessionsCount = useMemo(() => {
+    return monitorableSessions.filter((s) => s.status === "ACTIVE").length;
+  }, [monitorableSessions]);
+
+  const pausedSessionsCount = useMemo(() => {
+    return monitorableSessions.filter((s) => s.status === "PAUSED").length;
+  }, [monitorableSessions]);
+
+  // Bộ lọc trong dropdown: Tất cả (ACTIVE + PAUSED), Đang live (ACTIVE), hoặc Tạm dừng (PAUSED)
+  const [sessionFilterMode, setSessionFilterMode] = useState<"ALL" | "ACTIVE_ONLY" | "PAUSED_ONLY">("ALL");
+
+  const selectableSessions = useMemo(() => {
+    if (sessionFilterMode === "ACTIVE_ONLY") {
+      return monitorableSessions.filter((s) => s.status === "ACTIVE");
     }
-    void loadSessions();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (sessionFilterMode === "PAUSED_ONLY") {
+      return monitorableSessions.filter((s) => s.status === "PAUSED");
+    }
+    return monitorableSessions;
+  }, [monitorableSessions, sessionFilterMode]);
+
+  // Tự động nhận diện slotId: chỉ chọn trong các phiên ACTIVE hoặc PAUSED
+  useEffect(() => {
+    if (urlSlotId && !isNaN(urlSlotId) && monitorableSessions.some((s) => s.id === urlSlotId)) {
+      setSelectedSessionId(urlSlotId);
+      return;
+    }
+    if (monitorableSessions.length > 0) {
+      if (!selectedSessionId || !monitorableSessions.some((s) => s.id === selectedSessionId)) {
+        const active = monitorableSessions.find((s) => s.status === "ACTIVE");
+        setSelectedSessionId(active ? active.id : monitorableSessions[0].id);
+      }
+    } else {
+      setSelectedSessionId(null);
+    }
+  }, [urlSlotId, monitorableSessions, selectedSessionId]);
 
   const currentSession = useMemo(() => {
-    return sessions.find((s) => s.id === selectedSessionId) || sessions[0];
-  }, [sessions, selectedSessionId]);
+    if (!selectedSessionId) return monitorableSessions[0] || null;
+    return monitorableSessions.find((s) => s.id === selectedSessionId) || monitorableSessions[0] || null;
+  }, [monitorableSessions, selectedSessionId]);
 
-  // 2. Telemetry, SKUs & Live Logs
-  const [telemetry, setTelemetry] = useState<RealtimeTelemetry>(() =>
-    getMockTelemetry()
-  );
-  const [trafficData] = useState<TrafficDataPoint[]>(() => INITIAL_TRAFFIC_DATA);
-  const [skus, setSkus] = useState<LiveSkuInventoryItem[]>(() => getMockLiveSkus());
-  const [logs, setLogs] = useState<LiveLogEvent[]>(() => getMockLiveLogs());
-  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  // 2. React Query nạp Telemetry & SKUs có Caching và placeholderData
+  const activeSlotId = selectedSessionId ?? undefined;
+  const { data: cachedTelemetry, error: telemetryError } = useAdminTelemetryQuery(activeSlotId);
+  const { data: cachedSkus = [] } = useAdminLiveSkusQuery(activeSlotId);
+
+  // Local state cho Realtime Streaming từ WebSocket STOMP
+  const [telemetry, setTelemetry] = useState<RealtimeTelemetry>({
+    rps: 0,
+    activeLocks: 0,
+    completedOrders: 0,
+    totalRevenue: 0,
+    expiredReleases: 0,
+    p99LatencyMs: 0,
+    isPaused: false,
+    lastUpdated: "--:--:--",
+  });
+  const [trafficData, setTrafficData] = useState<TrafficDataPoint[]>([]);
+  const [skus, setSkus] = useState<LiveSkuInventoryItem[]>([]);
+  const [logs, setLogs] = useState<LiveLogEvent[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isPausing, setIsPausing] = useState<boolean>(false);
+
+  // Đồng bộ telemetry từ query cache vào local state
+  useEffect(() => {
+    if (cachedTelemetry) {
+      setTelemetry((prev) => ({
+        ...cachedTelemetry,
+        completedOrders: Math.max(prev.completedOrders, cachedTelemetry.completedOrders),
+        totalRevenue: Math.max(prev.totalRevenue, cachedTelemetry.totalRevenue),
+      }));
+    }
+  }, [cachedTelemetry]);
+
+  // Đồng bộ skus từ query cache vào local state
+  useEffect(() => {
+    if (cachedSkus && cachedSkus.length > 0) {
+      setSkus((prev) => {
+        if (prev.length === 0) return cachedSkus;
+        const prevMap = new Map(prev.map((item) => [item.id, item]));
+        return cachedSkus.map((item) => {
+          const existing = prevMap.get(item.id);
+          if (existing && existing.availableStock !== undefined) {
+            return {
+              ...item,
+              availableStock: existing.availableStock,
+              soldStock: existing.soldStock,
+              status: existing.status,
+            };
+          }
+          return item;
+        });
+      });
+    }
+  }, [cachedSkus]);
 
   // Realtime STOMP WebSocket subscriber for slot status & stock updates
   useFlashSaleWs({
@@ -134,6 +217,22 @@ export default function AdminFlashSaleMonitorPage() {
           );
         }
 
+        // Khi có đơn mua thành công (trừ kho)
+        if (event.eventType === "STOCK_DECREMENTED") {
+          setTelemetry((prev) => ({
+            ...prev,
+            completedOrders: prev.completedOrders + 1,
+            activeLocks: Math.max(0, prev.activeLocks - 1),
+            rps: Math.max(prev.rps, 1) + Math.floor(Math.random() * 3 + 1),
+          }));
+        } else if (event.eventType === "STOCK_RESTORED") {
+          setTelemetry((prev) => ({
+            ...prev,
+            expiredReleases: prev.expiredReleases + 1,
+            activeLocks: Math.max(0, prev.activeLocks - 1),
+          }));
+        }
+
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
           now.getMinutes()
@@ -150,59 +249,123 @@ export default function AdminFlashSaleMonitorPage() {
               : event.eventType === "STOCK_RESTORED"
               ? "EXPIRED_RELEASE"
               : "SYNC_DB",
-          message: `[WS] Event: ${event.eventType}${itemId}`,
+          message: `[WS Realtime] ${event.eventType}${itemId} (${now.toLocaleTimeString("vi-VN")})`,
           tag: event.eventType,
           tagColor:
             event.eventType === "STOCK_DECREMENTED" ? "primary" : "warning",
         };
         setLogs((prev) => [newEvt, ...prev].slice(0, 50));
+
+        // Cập nhật nhịp traffic graph theo realtime event
+        setTrafficData((prev) => {
+          const pt: TrafficDataPoint = {
+            time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`,
+            rps: Math.floor(Math.random() * 5 + 3),
+            ordersPerSec: event.eventType === "STOCK_DECREMENTED" ? 1 : 0,
+          };
+          return [...prev.slice(-9), pt];
+        });
       }
     },
   });
 
+  // Nạp Live Logs ban đầu khi đổi phiên (chỉ 1 lần ngầm, không block UI)
   useEffect(() => {
+    if (!selectedSessionId) return;
     let cancelled = false;
-    async function fetchData() {
-      try {
-        const [tData, skusData, logsData] = await Promise.all([
-          getAdminRealtimeTelemetry(selectedSessionId),
-          getAdminLiveSkus(selectedSessionId),
-          getAdminLiveLogs(selectedSessionId),
-        ]);
-        if (!cancelled) {
-          setTelemetry(tData);
-          setSkus(skusData);
+
+    getAdminLiveLogs(selectedSessionId)
+      .then((logsData) => {
+        if (!cancelled && logsData) {
           setLogs(logsData);
-          setLoadError(null);
-          setIsLoadingData(false);
         }
-      } catch (err: unknown) {
-        if (!cancelled) {
-          const msg =
-            err instanceof Error ? err.message : "Lỗi khi tải dữ liệu giám sát phiên";
-          setLoadError(msg);
-          setIsLoadingData(false);
-        }
-      }
-    }
-    void fetchData();
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
   }, [selectedSessionId]);
 
+  // Heartbeat nhẹ nhàng cập nhật biểu đồ traffic mượt mà mỗi 2s mà KHÔNG gọi API làm lag mạng
+  useEffect(() => {
+    if (!selectedSessionId || telemetry.isPaused) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+        now.getMinutes()
+      ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+
+      setTrafficData((prev) => {
+        const pt: TrafficDataPoint = {
+          time: timeStr,
+          rps: telemetry.rps,
+          ordersPerSec: Math.floor(telemetry.completedOrders / 60),
+        };
+        return prev.length === 0 ? [pt] : [...prev.slice(-9), pt];
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [selectedSessionId, telemetry.isPaused, telemetry.rps, telemetry.completedOrders]);
+
   // 3. Filters
   const [skuSearch, setSkuSearch] = useState("");
+  const [skuStoreFilter, setSkuStoreFilter] = useState("");
+  const [skuCategoryFilter, setSkuCategoryFilter] = useState("");
+  const [skuStatusFilter, setSkuStatusFilter] = useState<"ALL" | LiveSkuStatus>("ALL");
 
-  // 4. Countdown & Heartbeat State
-  const [secondsLeft, setSecondsLeft] = useState(5077); // ~01:24:37
+  // Danh sách duy nhất gian hàng & ngành hàng từ SKUs
+  const uniqueStores = useMemo(() => {
+    return Array.from(new Set(skus.map((s) => s.storeName).filter(Boolean))).sort();
+  }, [skus]);
+
+  const uniqueCategories = useMemo(() => {
+    return Array.from(
+      new Set(skus.map((s) => s.categoryName).filter((c): c is string => Boolean(c)))
+    ).sort();
+  }, [skus]);
+
+  const hasActiveFilters = Boolean(
+    skuSearch.trim() || skuStoreFilter || skuCategoryFilter || skuStatusFilter !== "ALL"
+  );
+
+  const handleResetFilters = () => {
+    setSkuSearch("");
+    setSkuStoreFilter("");
+    setSkuCategoryFilter("");
+    setSkuStatusFilter("ALL");
+  };
+
+  // 4. Real Countdown & Heartbeat State
+  const countdownSeconds = useMemo(() => {
+    if (!currentSession) return 0;
+    const now = Date.now();
+    if (currentSession.status === "ACTIVE") {
+      const end = new Date(currentSession.endTime).getTime();
+      return Math.max(0, Math.floor((end - now) / 1000));
+    } else if (
+      currentSession.status === "UPCOMING" ||
+      currentSession.status === "REGISTRATION_OPEN"
+    ) {
+      const start = new Date(currentSession.startTime).getTime();
+      return Math.max(0, Math.floor((start - now) / 1000));
+    }
+    return 0;
+  }, [currentSession]);
+
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [lastHeartbeatSec, setLastHeartbeatSec] = useState(1);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
 
+  useEffect(() => {
+    setSecondsLeft(countdownSeconds);
+  }, [countdownSeconds]);
+
   // Countdown timer effect
   useEffect(() => {
-    if (telemetry.isPaused) return;
+    if (telemetry.isPaused || secondsLeft <= 0) return;
 
     const interval = setInterval(() => {
       setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
@@ -210,92 +373,85 @@ export default function AdminFlashSaleMonitorPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [telemetry.isPaused]);
+  }, [telemetry.isPaused, secondsLeft]);
 
-  // Live fluctuating RPS metric effect
-  useEffect(() => {
-    if (telemetry.isPaused) return;
-
-    const interval = setInterval(() => {
-      const jitter = Math.floor(Math.random() * 80) - 40;
-      setTelemetry((prev) => ({
-        ...prev,
-        rps: Math.max(100, 3482 + jitter),
-      }));
-    }, 1500);
-
-    return () => clearInterval(interval);
-  }, [telemetry.isPaused]);
-
-  // Periodic simulated live event injection
-  useEffect(() => {
-    if (telemetry.isPaused) return;
-
-    const interval = setInterval(() => {
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
-        now.getMinutes()
-      ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}.${String(
-        now.getMilliseconds()
-      ).padStart(3, "0")}`;
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-
-      const newEvt: LiveLogEvent = {
-        id: `sim-${Date.now()}`,
-        timestamp: timeStr,
-        type: "LOCK",
-        orderCode: `FS-261005-K${randomNum.toString().slice(0, 3)}`,
-        message: "Giữ 1 · Áo thun Compact Đen L (Khóa thành công 300s)",
-        tag: "Khóa thành công 300s",
-        tagColor: "warning",
-        userOrInfo: `user_${randomNum}`,
-      };
-
-      setLogs((prev) => [newEvt, ...prev].slice(0, 35));
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, [telemetry.isPaused]);
-
-  // Filtered SKUs
+  // Filtered SKUs theo đa tiêu chí: Tên/SKU, Gian hàng (Shop), Danh mục ngành hàng, Trạng thái bán
   const filteredSkus = useMemo(() => {
-    if (!skuSearch.trim()) return skus;
-    const query = skuSearch.toLowerCase().trim();
-    return skus.filter(
-      (s) =>
-        s.productName.toLowerCase().includes(query) ||
-        s.skuCode.toLowerCase().includes(query) ||
-        s.storeName.toLowerCase().includes(query)
-    );
-  }, [skus, skuSearch]);
+    return skus.filter((s) => {
+      if (skuSearch.trim()) {
+        const q = skuSearch.toLowerCase().trim();
+        const match =
+          s.productName.toLowerCase().includes(q) ||
+          s.skuCode.toLowerCase().includes(q) ||
+          s.storeName.toLowerCase().includes(q) ||
+          (s.categoryName && s.categoryName.toLowerCase().includes(q)) ||
+          s.variantName.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (skuStoreFilter && s.storeName !== skuStoreFilter) {
+        return false;
+      }
+      if (skuCategoryFilter && s.categoryName !== skuCategoryFilter) {
+        return false;
+      }
+      if (skuStatusFilter !== "ALL" && s.status !== skuStatusFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [skus, skuSearch, skuStoreFilter, skuCategoryFilter, skuStatusFilter]);
+
+  // Stock aggregation
+  const totalAvailableStock = useMemo(
+    () => skus.reduce((sum, s) => sum + (s.availableStock || 0), 0),
+    [skus]
+  );
+  const totalAllocatedStock = useMemo(
+    () => skus.reduce((sum, s) => sum + (s.allocatedStock || 0), 0),
+    [skus]
+  );
 
   // Handlers
   const handleToggleEmergencyPause = async () => {
+    if (!selectedSessionId) return;
+
     if (telemetry.isPaused) {
       // Resume
+      setIsPausing(true);
       try {
-        await toggleAdminEmergencyPause(selectedSessionId, "Resume by admin");
-      } catch {
-        // fallback
-      }
-      const updated = toggleSessionPause(false);
-      setTelemetry(updated);
+        await toggleAdminEmergencyPause(selectedSessionId, "Resume by admin", false, true);
+        setTelemetry((prev) => ({ ...prev, isPaused: false }));
 
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
-        now.getMinutes()
-      ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}.000`;
-      const resumeEvt: LiveLogEvent = {
-        id: `resume-${Date.now()}`,
-        timestamp: timeStr,
-        type: "SYNC_DB",
-        message: "Phiên Flash Sale đã được TIẾP TỤC bởi Ban Quản Trị",
-        tag: "Tiếp tục phiên",
-        tagColor: "success",
-        userOrInfo: "Super Admin",
-      };
-      setLogs((prev) => [resumeEvt, ...prev]);
-      toast.success("Đã tiếp tục phiên Flash Sale thành công!");
+        // Cập nhật ngay cache slots để status đổi thành ACTIVE
+        queryClient.setQueryData<AdminFlashSaleSession[]>(ADMIN_QUERY_KEYS.slots, (old) => {
+          if (!old) return old;
+          return old.map((s) => (s.id === selectedSessionId ? { ...s, status: "ACTIVE" } : s));
+        });
+        queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.slots });
+        queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.telemetry(selectedSessionId) });
+        queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.liveSkus(selectedSessionId) });
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+          now.getMinutes()
+        ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}.000`;
+        const resumeEvt: LiveLogEvent = {
+          id: `resume-${Date.now()}`,
+          timestamp: timeStr,
+          type: "SYNC_DB",
+          message: "Phiên Flash Sale đã được TIẾP TỤC bởi Ban Quản Trị",
+          tag: "Tiếp tục phiên",
+          tagColor: "success",
+          userOrInfo: "Super Admin",
+        };
+        setLogs((prev) => [resumeEvt, ...prev]);
+        toast.success("Đã tiếp tục phiên Flash Sale thành công!");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Không thể tiếp tục phiên";
+        toast.error(msg);
+      } finally {
+        setIsPausing(false);
+      }
     } else {
       setIsPauseModalOpen(true);
     }
@@ -306,6 +462,7 @@ export default function AdminFlashSaleMonitorPage() {
     rollbackStock: boolean,
     note?: string
   ) => {
+    if (!selectedSessionId) return;
     setIsPausing(true);
     try {
       const fullReason = note ? `${reason}: ${note}` : reason;
@@ -316,6 +473,15 @@ export default function AdminFlashSaleMonitorPage() {
       );
       setTelemetry((prev) => ({ ...prev, isPaused: true }));
       setIsPauseModalOpen(false);
+
+      // Cập nhật ngay cache slots sang PAUSED để dropdown và UI đổi ngay lập tức
+      queryClient.setQueryData<AdminFlashSaleSession[]>(ADMIN_QUERY_KEYS.slots, (old) => {
+        if (!old) return old;
+        return old.map((s) => (s.id === selectedSessionId ? { ...s, status: "PAUSED" } : s));
+      });
+      queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.slots });
+      queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.telemetry(selectedSessionId) });
+      queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.liveSkus(selectedSessionId) });
 
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
@@ -347,30 +513,10 @@ export default function AdminFlashSaleMonitorPage() {
     }
   };
 
+
   const handleClearLogs = () => {
-    clearMockLiveLogs();
     setLogs([]);
     toast.info("Đã làm mới luồng sự kiện thời gian thực.");
-  };
-
-  const handleExportData = () => {
-    const snapshot = {
-      exportedAt: new Date().toISOString(),
-      session: currentSession,
-      telemetry,
-      skus,
-      logs,
-    };
-    const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `flash-sale-monitor-snapshot-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Đã xuất snapshot dữ liệu realtime thành công!");
   };
 
   return (
@@ -390,11 +536,13 @@ export default function AdminFlashSaleMonitorPage() {
                 ⚡
               </span>
               <span className="font-headline-md text-headline-md text-on-surface font-semibold">
-                {currentSession?.name || "Giờ Vàng 12:00"}
+                {currentSession?.name || "Không có phiên live/tạm dừng"}
               </span>
-              <span className="font-body-sm text-body-sm text-secondary">
-                ({currentSession?.timeRangeDisplay || "12:00 - 14:00"})
-              </span>
+              {currentSession && (
+                <span className="font-body-sm text-body-sm text-secondary">
+                  ({currentSession.timeRangeDisplay})
+                </span>
+              )}
               <span className="material-symbols-outlined text-[18px] text-secondary">
                 expand_more
               </span>
@@ -406,49 +554,107 @@ export default function AdminFlashSaleMonitorPage() {
                   className="fixed inset-0 z-40"
                   onClick={() => setIsSessionDropdownOpen(false)}
                 />
-                <div className="absolute left-0 top-12 z-50 w-80 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 p-2 flex flex-col gap-1">
-                  <span className="px-3 py-1.5 font-label-sm text-[11px] font-semibold text-secondary uppercase tracking-wider">
-                    Chọn phiên Flash Sale giám sát
-                  </span>
-                  {sessions.slice(0, 6).map((s) => (
+                <div className="absolute left-0 top-12 z-50 w-96 bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/40 p-2.5 flex flex-col gap-2 animate-fadeIn">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="font-label-sm text-[11px] font-bold text-on-surface uppercase tracking-wider">
+                      Chọn phiên giám sát realtime
+                    </span>
+                    <span className="text-[11px] font-semibold text-secondary">
+                      {selectableSessions.length} phiên
+                    </span>
+                  </div>
+
+                  {/* Filter Tabs: Chỉ lọc phiên Đang diễn ra hoặc Tạm dừng */}
+                  <div className="grid grid-cols-3 gap-1 p-0.5 rounded-lg bg-surface-container-low border border-outline-variant/30">
                     <button
-                      key={s.id}
                       type="button"
-                      onClick={() => {
-                        setSelectedSessionId(s.id);
-                        setIsSessionDropdownOpen(false);
-                      }}
+                      onClick={() => setSessionFilterMode("ALL")}
                       className={cn(
-                        "w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-body-sm transition-colors",
-                        s.id === selectedSessionId
-                          ? "bg-primary-fixed text-primary font-semibold"
-                          : "hover:bg-surface-container-low text-on-surface"
+                        "py-1 px-1.5 rounded-md font-label-sm text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1",
+                        sessionFilterMode === "ALL"
+                          ? "bg-on-surface text-surface-container-lowest shadow-xs"
+                          : "text-secondary hover:text-on-surface"
                       )}
                     >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{s.name}</span>
-                        <span className="text-secondary text-[11px]">
-                          {s.timeRangeDisplay} · {s.date}
-                        </span>
-                      </div>
-                      <span
+                      <span>Tất cả ({monitorableSessions.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionFilterMode("ACTIVE_ONLY")}
+                      className={cn(
+                        "py-1 px-1.5 rounded-md font-label-sm text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1",
+                        sessionFilterMode === "ACTIVE_ONLY"
+                          ? "bg-rose-600 text-white shadow-xs"
+                          : "text-secondary hover:text-on-surface"
+                      )}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current animate-ping" />
+                      <span>Đang live ({activeSessionsCount})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionFilterMode("PAUSED_ONLY")}
+                      className={cn(
+                        "py-1 px-1.5 rounded-md font-label-sm text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1",
+                        sessionFilterMode === "PAUSED_ONLY"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "text-secondary hover:text-on-surface"
+                      )}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      <span>Tạm dừng ({pausedSessionsCount})</span>
+                    </button>
+                  </div>
+
+                  {/* List Sessions (Cuộn mượt mà không cắt bớt) */}
+                  <div className="max-h-80 overflow-y-auto flex flex-col gap-1 pr-0.5 divide-y divide-outline-variant/20">
+                    {selectableSessions.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSessionId(s.id);
+                          setIsSessionDropdownOpen(false);
+                        }}
                         className={cn(
-                          "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase",
-                          s.status === "ACTIVE"
-                            ? "bg-rose-100 text-rose-700"
-                            : s.status === "ENDED"
-                            ? "bg-slate-100 text-slate-600"
-                            : "bg-sky-100 text-sky-700"
+                          "w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-body-sm transition-colors cursor-pointer mt-1",
+                          s.id === selectedSessionId
+                            ? "bg-primary-fixed text-primary font-semibold border border-primary/30"
+                            : "hover:bg-surface-container-low text-on-surface"
                         )}
                       >
-                        {s.status === "ACTIVE"
-                          ? "Live"
-                          : s.status === "ENDED"
-                          ? "Kết thúc"
-                          : "Sắp tới"}
-                      </span>
-                    </button>
-                  ))}
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <span className="font-semibold truncate">{s.name}</span>
+                          <span className="text-secondary text-[11px]">
+                            {s.timeRangeDisplay} · {s.date}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[11px] font-medium text-secondary">
+                            {s.approvedSkusCount || 0} SKU
+                          </span>
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                              s.status === "ACTIVE"
+                                ? "bg-rose-100 text-rose-700 animate-pulse border border-rose-300"
+                                : "bg-amber-100 text-amber-800 border border-amber-300 font-semibold"
+                            )}
+                          >
+                            {s.status === "ACTIVE" ? "LIVE" : "TẠM DỪNG"}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                    {selectableSessions.length === 0 && (
+                      <div className="py-6 px-3 text-center text-secondary text-xs">
+                        {monitorableSessions.length === 0
+                          ? "Không có phiên Flash Sale nào đang diễn ra hoặc tạm dừng."
+                          : "Không có phiên nào ở trạng thái này."}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}
@@ -486,20 +692,25 @@ export default function AdminFlashSaleMonitorPage() {
             </span>
           </div>
 
-          {/* WebSocket Heartbeat */}
-          <div className="flex items-center gap-2 bg-surface px-2.5 py-1 rounded-lg">
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                telemetry.isPaused
-                  ? "bg-amber-500"
-                  : "bg-[#16A34A] animate-pulse"
+          {/* WebSocket STOMP Connection Status */}
+          <div className="flex items-center gap-2 bg-surface px-2.5 py-1 rounded-lg border border-outline-variant/30">
+            <span className="relative flex h-2 w-2">
+              {connectionState === "connected" ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
               )}
-            />
+            </span>
             <span className="font-body-sm text-body-sm text-secondary flex items-center gap-1">
-              Kết nối trực tiếp ·{" "}
+              <span className={connectionState === "connected" ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>
+                {connectionState === "connected" ? "WebSocket STOMP: Live" : "Đang kết nối lại..."}
+              </span>
+              ·{" "}
               <span className="text-on-surface font-medium">
-                Cập nhật {lastHeartbeatSec} giây trước
+                Cập nhật {lastHeartbeatSec}s trước
               </span>
             </span>
           </div>
@@ -534,16 +745,6 @@ export default function AdminFlashSaleMonitorPage() {
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleExportData}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-all font-headline-md text-body-sm font-semibold shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              file_download
-            </span>
-            <span>Xuất dữ liệu realtime</span>
-          </button>
         </div>
       </div>
 
@@ -647,7 +848,7 @@ export default function AdminFlashSaleMonitorPage() {
               </span>
             </div>
             <span className="font-body-sm text-body-sm text-on-surface font-medium block mt-1 tabular-nums">
-              Doanh thu ~ 385,4 triệu ₫
+              Doanh thu ~ {telemetry.totalRevenue.toLocaleString("vi-VN")} ₫
             </span>
           </div>
         </div>
@@ -717,8 +918,8 @@ export default function AdminFlashSaleMonitorPage() {
         {/* 40% Column: Anti-Oversold Engine */}
         <div className="lg:col-span-5">
           <AntiOversoldCard
-            redisStock={2500}
-            postgresStock={2500}
+            redisStock={totalAvailableStock}
+            postgresStock={totalAllocatedStock}
             completedOrders={telemetry.completedOrders}
             holdingLocks={telemetry.activeLocks}
             syncIntervalMs={1000}
@@ -728,21 +929,36 @@ export default function AdminFlashSaleMonitorPage() {
 
       {/* Section 3: Live SKU Inventory Table */}
       <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
-        {/* Table Header */}
-        <div className="px-space-lg py-space-md border-b border-outline-variant/30 flex flex-wrap items-center justify-between gap-space-sm">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[20px]">
-              inventory_2
-            </span>
-            <h2 className="font-headline-md text-headline-md text-on-surface font-semibold">
-              Tồn kho theo SKU (Cập nhật thời gian thực)
-            </h2>
-            <span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-semibold">
-              {skus.length} SKU tham gia
-            </span>
+        {/* Table Header & Multi-Filter Bar */}
+        <div className="p-space-md lg:p-space-lg border-b border-outline-variant/30 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-space-sm">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[20px]">
+                inventory_2
+              </span>
+              <h2 className="font-headline-md text-headline-md text-on-surface font-semibold">
+                Tồn kho theo SKU (Cập nhật thời gian thực)
+              </h2>
+              <span className="font-label-sm text-label-sm px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-semibold">
+                {filteredSkus.length} / {skus.length} SKU
+              </span>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-md transition-colors"
+              >
+                <span className="material-symbols-outlined text-[14px]">close</span>
+                <span>Đặt lại bộ lọc</span>
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-space-sm">
+          {/* Filters Bar: Search, Shop, Danh mục, Trạng thái bán */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+            {/* 1. Lọc sản phẩm & SKU */}
             <div className="relative">
               <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[16px]">
                 search
@@ -751,9 +967,73 @@ export default function AdminFlashSaleMonitorPage() {
                 type="text"
                 value={skuSearch}
                 onChange={(e) => setSkuSearch(e.target.value)}
-                placeholder="Lọc mã SKU, tên shop..."
-                className="h-9 pl-8 pr-3 rounded-lg border border-outline-variant/60 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-all bg-surface-bright"
+                placeholder="Tìm mã SKU, tên sản phẩm..."
+                className="w-full h-9 pl-8 pr-3 rounded-lg border border-outline-variant/60 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-all bg-surface-bright placeholder:text-secondary text-[12px]"
               />
+            </div>
+
+            {/* 2. Lọc theo Shop / Gian hàng */}
+            <div className="relative">
+              <select
+                value={skuStoreFilter}
+                onChange={(e) => setSkuStoreFilter(e.target.value)}
+                className="w-full h-9 pl-8 pr-7 rounded-lg border border-outline-variant/60 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-all bg-surface-bright appearance-none cursor-pointer text-[12px]"
+              >
+                <option value="">Tất cả gian hàng ({uniqueStores.length})</option>
+                {uniqueStores.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[16px]">
+                storefront
+              </span>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[16px]">
+                expand_more
+              </span>
+            </div>
+
+            {/* 3. Lọc theo Danh mục */}
+            <div className="relative">
+              <select
+                value={skuCategoryFilter}
+                onChange={(e) => setSkuCategoryFilter(e.target.value)}
+                className="w-full h-9 pl-8 pr-7 rounded-lg border border-outline-variant/60 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-all bg-surface-bright appearance-none cursor-pointer text-[12px]"
+              >
+                <option value="">Tất cả ngành hàng {uniqueCategories.length > 0 ? `(${uniqueCategories.length})` : ""}</option>
+                {uniqueCategories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[16px]">
+                category
+              </span>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[16px]">
+                expand_more
+              </span>
+            </div>
+
+            {/* 4. Lọc theo Trạng thái bán */}
+            <div className="relative">
+              <select
+                value={skuStatusFilter}
+                onChange={(e) => setSkuStatusFilter(e.target.value as "ALL" | LiveSkuStatus)}
+                className="w-full h-9 pl-8 pr-7 rounded-lg border border-outline-variant/60 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-all bg-surface-bright appearance-none cursor-pointer text-[12px]"
+              >
+                <option value="ALL">Tất cả trạng thái bán</option>
+                <option value="SELLING">Đang mở bán</option>
+                <option value="ALMOST_OUT">Sắp cháy hàng (&lt;10%)</option>
+                <option value="SOLD_OUT">Đã hết hàng</option>
+              </select>
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[16px]">
+                tune
+              </span>
+              <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[16px]">
+                expand_more
+              </span>
             </div>
           </div>
         </div>
@@ -796,8 +1076,20 @@ export default function AdminFlashSaleMonitorPage() {
                           <div className="font-headline-md text-body-md font-semibold text-on-surface truncate">
                             {sku.productName}
                           </div>
-                          <div className="font-label-sm text-label-sm text-secondary font-mono">
-                            {sku.skuCode}
+                          <div className="flex items-center gap-1.5 font-label-sm text-label-sm text-secondary font-mono">
+                            <span>{sku.skuCode}</span>
+                            {sku.categoryName && (
+                              <>
+                                <span>·</span>
+                                <span className="text-secondary/80 font-sans">{sku.categoryName}</span>
+                              </>
+                            )}
+                            {sku.variantName && (
+                              <>
+                                <span>·</span>
+                                <span className="text-primary font-sans">{sku.variantName}</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -886,9 +1178,7 @@ export default function AdminFlashSaleMonitorPage() {
               {filteredSkus.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-center py-8 text-secondary">
-                    {isLoadingData
-                      ? "Đang tải dữ liệu sản phẩm..."
-                      : "Không có sản phẩm nào trong phiên này."}
+                    Không có sản phẩm nào trong phiên này.
                   </td>
                 </tr>
               )}
@@ -913,5 +1203,20 @@ export default function AdminFlashSaleMonitorPage() {
         sessionName={currentSession?.name}
       />
     </div>
+  );
+}
+
+export default function AdminFlashSaleMonitorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px] text-secondary gap-2">
+          <span className="material-symbols-outlined animate-spin text-[24px]">progress_activity</span>
+          <span>Đang kết nối giám sát thời gian thực...</span>
+        </div>
+      }
+    >
+      <MonitorContent />
+    </Suspense>
   );
 }

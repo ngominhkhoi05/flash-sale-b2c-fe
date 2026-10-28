@@ -11,20 +11,28 @@ import {
 import { FlashSaleCalendar, FlashSaleSlotModal } from "@/components/admin/flash-sale";
 import type { AdminFlashSaleSession, CreateFlashSaleSessionInput } from "@/types/flash-sale";
 import {
-  getAdminFlashSaleSlots,
   createAdminFlashSaleSlot,
   updateAdminFlashSaleSlot,
   preWarmAdminFlashSaleSlot,
   deleteAdminFlashSaleSlot,
 } from "@/lib/api/admin";
 import { cancelMockFlashSaleSession } from "@/lib/mocks/flash-sessions.mock";
-
-// Bộ nhớ đệm module-level giữ dữ liệu khi chuyển trang trong admin (0ms transition)
-let cachedSessions: AdminFlashSaleSession[] | null = null;
+import { useAdminSlotsQuery, ADMIN_QUERY_KEYS } from "@/hooks/useAdminQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 export default function AdminFlashSaleSessionsPage() {
-  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() => cachedSessions || []);
-  const [loading, setLoading] = useState(() => !cachedSessions);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: rawSessions = [], isLoading: loading, refetch } = useAdminSlotsQuery();
+
+  const [localSessions, setLocalSessions] = useState<AdminFlashSaleSession[] | null>(null);
+  const sessions = localSessions ?? rawSessions;
+
+  useEffect(() => {
+    setLocalSessions(null);
+  }, [rawSessions]);
+
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   // Search & Filter trong list view
@@ -42,41 +50,6 @@ export default function AdminFlashSaleSessionsPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Load sessions from BE API
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSessions() {
-      try {
-        if (!cachedSessions) {
-          setLoading(true);
-        }
-        const data = await getAdminFlashSaleSlots();
-        if (!cancelled) {
-          cachedSessions = data;
-          setSessions(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          if (!cachedSessions) {
-            toast.error(
-              err instanceof Error
-                ? err.message
-                : "Không thể tải danh sách khung giờ Flash Sale"
-            );
-          }
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadSessions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Thống kê nhanh theo trạng thái
   const countsByStatus = useMemo(() => {
@@ -102,7 +75,7 @@ export default function AdminFlashSaleSessionsPage() {
 
   const handleOpenEdit = (session: AdminFlashSaleSession) => {
     if (session.status === "ACTIVE" || session.status === "ENDED") {
-      toast.error("Không thể chỉnh sửa phiên đã hoặc đang diễn ra!");
+      router.push(`/admin/flash-sale/monitor?slotId=${session.id}`);
       return;
     }
     setEditingSession(session);
@@ -136,27 +109,19 @@ export default function AdminFlashSaleSessionsPage() {
       };
 
       // Cập nhật state ngay lập tức (0ms)
-      setSessions((prev) => {
-        const next = prev.map((s) => (s.id === targetEditing.id ? updatedOptimistic : s));
-        cachedSessions = next;
-        return next;
+      setLocalSessions((prev) => {
+        const base = prev ?? rawSessions;
+        return base.map((s) => (s.id === targetEditing.id ? updatedOptimistic : s));
       });
 
       // Đồng bộ ngầm với máy chủ
       updateAdminFlashSaleSlot(targetEditing.id, input)
-        .then((updated) => {
-          setSessions((prev) => {
-            const next = prev.map((s) => (s.id === updated.id ? updated : s));
-            cachedSessions = next;
-            return next;
-          });
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.slots });
         })
         .catch((err) => {
           toast.error(err instanceof Error ? err.message : "Đồng bộ máy chủ thất bại!");
-          getAdminFlashSaleSlots().then((fresh) => {
-            cachedSessions = fresh;
-            setSessions(fresh);
-          });
+          void refetch();
         });
     } else {
       // BẬT THÔNG BÁO THÀNH CÔNG NGAY LẬP TỨC (0ms)
@@ -186,27 +151,19 @@ export default function AdminFlashSaleSessionsPage() {
       };
 
       // Thêm vào state ngay lập tức (0ms)
-      setSessions((prev) => {
-        const next = [newOptimistic, ...prev];
-        cachedSessions = next;
-        return next;
+      setLocalSessions((prev) => {
+        const base = prev ?? rawSessions;
+        return [newOptimistic, ...base];
       });
 
       // Gửi request ngầm lên máy chủ
       createAdminFlashSaleSlot(input)
-        .then((created) => {
-          setSessions((prev) => {
-            const next = prev.map((s) => (s.id === tempId ? created : s));
-            cachedSessions = next;
-            return next;
-          });
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.slots });
         })
         .catch((err) => {
           toast.error(err instanceof Error ? err.message : "Lưu máy chủ thất bại!");
-          getAdminFlashSaleSlots().then((fresh) => {
-            cachedSessions = fresh;
-            setSessions(fresh);
-          });
+          void refetch();
         });
     }
   };
@@ -245,10 +202,9 @@ export default function AdminFlashSaleSessionsPage() {
     setIsCancelling(false);
 
     // Optimistic delete: gỡ khỏi state ngay lập tức (0ms)
-    setSessions((prev) => {
-      const next = prev.filter((s) => s.id !== target.id);
-      cachedSessions = next;
-      return next;
+    setLocalSessions((prev) => {
+      const base = prev ?? rawSessions;
+      return base.filter((s) => s.id !== target.id);
     });
     toast.success(
       target.status === "ENDED"
@@ -260,17 +216,18 @@ export default function AdminFlashSaleSessionsPage() {
     );
 
     // Đồng bộ gọi API xóa vĩnh viễn khỏi Database
-    deleteAdminFlashSaleSlot(target.id).catch((err) => {
-      console.error("Lỗi xóa phiên Flash Sale khỏi DB:", err);
-      toast.error(
-        "Lỗi máy chủ khi xóa phiên Flash Sale: " +
-          (err instanceof Error ? err.message : String(err))
-      );
-      getAdminFlashSaleSlots().then((fresh) => {
-        cachedSessions = fresh;
-        setSessions(fresh);
+    deleteAdminFlashSaleSlot(target.id)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.slots });
+      })
+      .catch((err) => {
+        console.error("Lỗi xóa phiên Flash Sale khỏi DB:", err);
+        toast.error(
+          "Lỗi máy chủ khi xóa phiên Flash Sale: " +
+            (err instanceof Error ? err.message : String(err))
+        );
+        void refetch();
       });
-    });
   };
 
   // Dữ liệu lọc cho List view

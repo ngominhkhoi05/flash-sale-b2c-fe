@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import {
-  getAdminStores,
   updateAdminStoreStatus,
   type AdminStore,
 } from "@/lib/api/admin";
+import { useAdminStoresQuery } from "@/hooks/useAdminQueries";
+import { useQueryClient } from "@tanstack/react-query";
 
 type StoreTabKey = "ALL" | "PENDING" | "APPROVED" | "BANNED" | "REJECTED";
 
@@ -26,14 +27,10 @@ interface ActionModalState {
   reason: string;
 }
 
-// Bộ nhớ đệm module-level giữ dữ liệu khi chuyển trang trong admin (0ms transition)
-const cachedStores: Record<string, AdminStore[]> = {};
-
 export default function AdminStoresPage() {
-  const [stores, setStores] = useState<AdminStore[]>(() => cachedStores["ALL"] || []);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<StoreTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(() => !cachedStores["ALL"]);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
   // Modal xác nhận thao tác giữa màn hình
@@ -44,56 +41,17 @@ export default function AdminStoresPage() {
     reason: "",
   });
 
-  const refreshStores = useCallback(async (tab: StoreTabKey) => {
-    try {
-      if (!cachedStores[tab]) {
-        setIsLoading(true);
-      }
-      const data = await getAdminStores(tab === "ALL" ? undefined : tab);
-      cachedStores[tab] = data;
-      setStores(data);
-    } catch (err) {
-      console.error("Lỗi tải gian hàng:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: rawStores = [], isLoading, isFetching, refetch } = useAdminStoresQuery(undefined);
+
+  const [localStores, setLocalStores] = useState<AdminStore[] | null>(null);
+  const stores = localStores ?? rawStores;
 
   useEffect(() => {
-    let isMounted = true;
-    if (!cachedStores[activeTab]) {
-      setIsLoading(true);
-    }
-
-    getAdminStores(activeTab === "ALL" ? undefined : activeTab)
-      .then((data) => {
-        if (isMounted) {
-          cachedStores[activeTab] = data;
-          setStores(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Lỗi tải gian hàng:", err);
-        if (isMounted) {
-          if (!cachedStores[activeTab]) {
-            setStores([]);
-          }
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab]);
+    setLocalStores(null);
+  }, [rawStores]);
 
   const handleTabClick = (tabKey: StoreTabKey) => {
     setActiveTab(tabKey);
-    if (cachedStores[tabKey]) {
-      setStores(cachedStores[tabKey]);
-      setIsLoading(false);
-    }
   };
 
   // Mở hộp thoại xác nhận giữa màn hình
@@ -138,38 +96,61 @@ export default function AdminStoresPage() {
 
     // 3. Cập nhật state ngay lập tức (Optimistic update)
     const updatedStore: AdminStore = { ...store, status: targetStatus };
-    setStores((prev) => {
-      const next = prev.map((s) => (s.id === store.id ? updatedStore : s));
-      cachedStores[activeTab] = next;
-      cachedStores["ALL"] = (cachedStores["ALL"] || []).map((s) =>
-        s.id === store.id ? updatedStore : s
-      );
-      return next;
+    setLocalStores((prev) => {
+      const base = prev ?? rawStores;
+      return base.map((s) => (s.id === store.id ? updatedStore : s));
     });
 
-    // 4. Đồng bộ ngầm với máy chủ
-    updateAdminStoreStatus(store.id, targetStatus, reason.trim() || undefined).catch((err) => {
-      console.error("Lỗi cập nhật gian hàng:", err);
-      toast.error(
-        "Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err))
-      );
-      refreshStores(activeTab);
-    });
+    // 4. Đồng bộ ngầm với máy chủ và invalidate React Query Cache
+    updateAdminStoreStatus(store.id, targetStatus, reason.trim() || undefined)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["admin", "stores"] });
+      })
+      .catch((err) => {
+        console.error("Lỗi cập nhật gian hàng:", err);
+        toast.error(
+          "Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err))
+        );
+        void refetch();
+      });
   }
 
   const storeList = Array.isArray(stores) ? stores : [];
-  const filteredStores = storeList.filter((s) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      (s.name && s.name.toLowerCase().includes(q)) ||
-      (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
-      (s.phone && s.phone.includes(q)) ||
-      (s.legalName && s.legalName.toLowerCase().includes(q))
-    );
-  });
 
-  const pendingCount = storeList.filter((s) => s.status === "PENDING").length;
+  // Tính số lượng gian hàng cho từng tab ngay lập tức (0ms)
+  const tabCounts = useMemo(() => {
+    const counts: Record<StoreTabKey, number> = {
+      ALL: storeList.length,
+      PENDING: 0,
+      APPROVED: 0,
+      BANNED: 0,
+      REJECTED: 0,
+    };
+    for (const s of storeList) {
+      if (s.status === "PENDING") counts.PENDING++;
+      else if (s.status === "APPROVED") counts.APPROVED++;
+      else if (s.status === "BANNED") counts.BANNED++;
+      else if (s.status === "REJECTED") counts.REJECTED++;
+    }
+    return counts;
+  }, [storeList]);
+
+  // Bộ lọc siêu tốc 0ms: Lọc tức thì theo Tab và Tìm kiếm
+  const filteredStores = useMemo(() => {
+    return storeList.filter((s) => {
+      if (activeTab !== "ALL" && s.status !== activeTab) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.ownerName && s.ownerName.toLowerCase().includes(q)) ||
+        (s.phone && s.phone.includes(q)) ||
+        (s.legalName && s.legalName.toLowerCase().includes(q))
+      );
+    });
+  }, [storeList, activeTab, searchQuery]);
+
+  const pendingCount = tabCounts.PENDING;
 
   return (
     <div className="flex flex-col w-full gap-space-lg select-none">
@@ -203,11 +184,21 @@ export default function AdminStoresPage() {
                 }`}
             >
               <span>{tab.label}</span>
-              {tab.key === "PENDING" && pendingCount > 0 && (
+              {tab.key === "PENDING" && pendingCount > 0 ? (
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold">
                   {pendingCount}
                 </span>
-              )}
+              ) : tabCounts[tab.key] > 0 ? (
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    activeTab === tab.key
+                      ? "bg-white/20 text-on-primary"
+                      : "bg-surface-container text-secondary"
+                  }`}
+                >
+                  {tabCounts[tab.key]}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -220,9 +211,18 @@ export default function AdminStoresPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo tên shop, chủ shop, SĐT..."
-            className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+            placeholder="Tìm theo tên shop, chủ shop, SĐT... (0ms)"
+            className="w-full h-9 pl-9 pr-8 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm transition-all"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -255,7 +255,7 @@ export default function AdminStoresPage() {
                   </td>
                 </tr>
               ) : (
-                filteredStores.map((store) => (
+                filteredStores.map((store: AdminStore) => (
                   <tr key={store.id} className="hover:bg-surface transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">

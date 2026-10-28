@@ -24,8 +24,8 @@ function SessionCard({
   if (session.status === "ACTIVE") {
     const percent =
       session.allocatedQuantity > 0
-        ? Math.round((session.soldQuantity / session.allocatedQuantity) * 100)
-        : 78;
+        ? Math.min(100, Math.round((session.soldQuantity / session.allocatedQuantity) * 100))
+        : 0;
 
     return (
       <div
@@ -55,10 +55,10 @@ function SessionCard({
         <div className="mt-2 pt-2 border-t border-tertiary/20">
           <div className="flex items-center justify-between font-label-md text-label-md">
             <span className="text-on-tertiary-fixed-variant font-medium text-[11px]">
-              {session.approvedSkusCount} SKU
+              {session.approvedSkusCount > 0 ? `${session.approvedSkusCount} SKU` : "0 SKU"}
             </span>
             <span className="text-tertiary font-bold text-[11px]">
-              Đã bán {percent}%
+              {session.allocatedQuantity > 0 ? `Đã bán ${percent}%` : "Chưa bán"}
             </span>
           </div>
           <div className="w-full bg-surface-container-lowest/80 h-1.5 rounded-full overflow-hidden mt-1">
@@ -93,6 +93,8 @@ function SessionCard({
           <span className="text-error font-medium text-[11px]">
             {session.pendingSkusCount > 0
               ? `${session.pendingSkusCount} SKU chờ duyệt`
+              : session.approvedSkusCount > 0
+              ? `${session.approvedSkusCount} SKU đã duyệt`
               : "Chờ nộp SKU"}
           </span>
         </div>
@@ -119,7 +121,9 @@ function SessionCard({
         </div>
         <div className="flex items-center justify-between font-label-sm text-label-sm text-secondary mt-0.5">
           <span>{session.approvedSkusCount} SKU</span>
-          <span className="text-on-surface font-semibold text-[11px]">Hoàn tất</span>
+          <span className="text-on-surface font-semibold text-[11px]">
+            {session.soldQuantity > 0 ? `Đã bán ${session.soldQuantity}` : "Hoàn tất"}
+          </span>
         </div>
       </div>
     );
@@ -142,9 +146,20 @@ function SessionCard({
       <span className="font-headline-md text-body-sm text-on-surface font-medium truncate">
         {session.name}
       </span>
-      <span className="font-label-sm text-label-sm text-primary">
-        {session.approvedSkusCount} SKU đã chốt
-      </span>
+      <div className="flex items-center justify-between font-label-sm text-label-sm mt-0.5">
+        <span className="text-primary font-medium text-[11px]">
+          {session.approvedSkusCount > 0
+            ? `${session.approvedSkusCount} SKU đã chốt`
+            : session.pendingSkusCount > 0
+            ? `${session.pendingSkusCount} SKU chờ duyệt`
+            : "Chờ duyệt SKU"}
+        </span>
+        {session.pendingSkusCount > 0 && session.approvedSkusCount > 0 && (
+          <span className="text-error font-medium text-[10px]">
+            +{session.pendingSkusCount} chờ
+          </span>
+        )}
+      </div>
     </div>
   );
 }
