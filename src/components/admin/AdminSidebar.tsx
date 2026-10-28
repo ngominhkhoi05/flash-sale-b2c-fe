@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { getApprovalCounts } from "@/lib/mocks";
+import { prefetchAdminRoute, useAdminApprovalCountsQuery } from "@/hooks/useAdminQueries";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
 interface NavItem {
   key: string;
@@ -55,7 +57,6 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Duyệt sản phẩm",
         href: "/admin/flash-sale/approvals",
         icon: "check_box",
-        badge: "14",
         badgeVariant: "tertiary",
       },
       {
@@ -95,16 +96,21 @@ const NAV_GROUPS: NavGroup[] = [
  */
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [pendingSkuCount, setPendingSkuCount] = useState<number>(() => {
-    try {
-      return getApprovalCounts().pending;
-    } catch {
-      return 14;
-    }
-  });
+  const queryClient = useQueryClient();
+  useAdminRealtime();
 
-  // Tìm href dài nhất khớp với pathname hiện tại (longest prefix match) để tránh
-  // /admin/flash-sale luôn active khi đang ở /admin/flash-sale/approvals hoặc /admin/flash-sale/monitor
+  // Nạp counts từ React Query Cache (có sẵn 0ms khi chuyển trang)
+  const { data: approvalCounts } = useAdminApprovalCountsQuery();
+  const [pendingSkuCount, setPendingSkuCount] = useState<number>(0);
+
+  // Đồng bộ số pending từ cache hoặc event
+  useEffect(() => {
+    if (typeof approvalCounts?.pending === "number") {
+      setPendingSkuCount(approvalCounts.pending);
+    }
+  }, [approvalCounts?.pending]);
+
+  // Tìm href dài nhất khớp với pathname hiện tại (longest prefix match)
   const activeHref = React.useMemo(() => {
     if (!pathname) return "/admin";
     const allHrefs = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href).filter(Boolean)) as string[];
@@ -115,6 +121,7 @@ export function AdminSidebar() {
     return matches.sort((a, b) => b.length - a.length)[0];
   }, [pathname]);
 
+  // Lắng nghe sự kiện cập nhật số lượng SKU chờ duyệt từ các module khác
   useEffect(() => {
     const handler = (e: Event) => {
       const customEvent = e as CustomEvent<number>;
@@ -212,6 +219,8 @@ export function AdminSidebar() {
                     <Link
                       key={item.key}
                       href={item.href}
+                      onMouseEnter={() => prefetchAdminRoute(queryClient, item.href)}
+                      onFocus={() => prefetchAdminRoute(queryClient, item.href)}
                       className={cn(
                         "flex items-center justify-between px-space-sm py-2 rounded-lg font-body-md text-sm transition-colors",
                         isActive
@@ -229,8 +238,10 @@ export function AdminSidebar() {
         </nav>
       </div>
 
-      {/* Footer Exit & Copyright */}
+      {/* Footer Exit */}
       <div className="p-space-md border-t border-outline-variant/20 flex flex-col gap-space-xs shrink-0">
+
+
         <Link
           href="/"
           className="flex items-center justify-center gap-space-xs w-full py-2 px-space-sm bg-secondary/30 hover:bg-secondary/50 text-on-primary rounded-lg text-body-sm font-medium transition-colors"

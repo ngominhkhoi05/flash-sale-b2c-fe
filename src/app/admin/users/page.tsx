@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  getAdminUsers,
   updateAdminUserStatus,
   type AdminUser,
 } from "@/lib/api/admin";
+import {
+  useAdminUsersQuery,
+  ADMIN_QUERY_KEYS,
+} from "@/hooks/useAdminQueries";
 
 type UserTabKey = "ALL" | "ADMIN" | "SELLER" | "BUYER" | "LOCKED";
 
@@ -19,97 +23,95 @@ const USER_TABS: { key: UserTabKey; label: string }[] = [
   { key: "LOCKED", label: "Bị khóa" },
 ];
 
-// Bộ nhớ đệm module-level giữ danh sách người dùng khi chuyển trang (0ms transition)
-const cachedUsersData: Record<string, { items: AdminUser[]; totalElements: number; totalPages: number }> = {};
-
 export default function AdminUsersPage() {
-  const initialCache = cachedUsersData["ALL_0_"] || null;
-  const [users, setUsers] = useState<AdminUser[]>(() => initialCache ? initialCache.items : []);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<UserTabKey>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
-  const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(() => initialCache ? initialCache.totalPages : 1);
-  const [totalElements, setTotalElements] = useState(() => initialCache ? initialCache.totalElements : 0);
-  const [isLoading, setIsLoading] = useState(!initialCache);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const pageSize = 10;
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
-  const loadUsers = useCallback(
-    async (tab: UserTabKey, page: number, search: string) => {
-      const cacheKey = `${tab}_${page}_${search}`;
-      if (!cachedUsersData[cacheKey]) {
-        setIsLoading(true);
-      }
-      setErrorMessage(null);
-      try {
-        const params: {
-          role?: string;
-          status?: string;
-          search?: string;
-          page: number;
-          size: number;
-        } = {
-          page,
-          size: pageSize,
-        };
+  // Nạp 100 người dùng một lần và lưu vào React Query Cache để toàn bộ bộ lọc phản hồi TỨC THÌ 0ms!
+  const {
+    data: pageData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useAdminUsersQuery({
+    page: 0,
+    size: 100,
+  });
 
-        if (tab === "ADMIN" || tab === "SELLER" || tab === "BUYER") {
-          params.role = tab;
-        } else if (tab === "LOCKED") {
-          params.status = "LOCKED";
-        }
+  const rawUsers: AdminUser[] = useMemo(() => {
+    return pageData?.content ?? pageData?.items ?? [];
+  }, [pageData]);
 
-        if (search.trim()) {
-          params.search = search.trim();
-        }
+  const [localUsers, setLocalUsers] = useState<AdminUser[] | null>(null);
+  const allUsers = localUsers ?? rawUsers;
 
-        const res = await getAdminUsers(params);
-        const items = res.content ?? res.items ?? [];
-        cachedUsersData[cacheKey] = {
-          items,
-          totalElements: res.totalElements ?? items.length,
-          totalPages: res.totalPages ?? 1,
-        };
-        setUsers(items);
-        setPageNumber(res.pageNumber ?? page);
-        setTotalPages(res.totalPages ?? 1);
-        setTotalElements(res.totalElements ?? items.length);
-      } catch (err) {
-        console.error("Lỗi tải người dùng:", err);
-        if (!cachedUsersData[cacheKey]) {
-          setErrorMessage(
-            err instanceof Error
-              ? err.message
-              : "Không thể tải danh sách người dùng từ máy chủ"
-          );
-          setUsers([]);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [pageSize]
-  );
+  // Tính số lượng người dùng cho từng tab ngay lập tức (0ms)
+  const tabCounts = useMemo(() => {
+    const counts: Record<UserTabKey, number> = {
+      ALL: allUsers.length,
+      ADMIN: 0,
+      SELLER: 0,
+      BUYER: 0,
+      LOCKED: 0,
+    };
+    for (const u of allUsers) {
+      if (u.status === "LOCKED") counts.LOCKED++;
+      const role = u.role || (u.roles && u.roles[0]) || "BUYER";
+      if (role === "ADMIN") counts.ADMIN++;
+      else if (role === "SELLER") counts.SELLER++;
+      else if (role === "BUYER") counts.BUYER++;
+    }
+    return counts;
+  }, [allUsers]);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      loadUsers(activeTab, pageNumber, searchQuery);
-    }, 250);
+  // Bộ lọc siêu tốc 0ms: Lọc tức thì theo Tab và Tìm kiếm theo từng ký tự gõ
+  const filteredUsers = useMemo(() => {
+    let list = allUsers;
 
-    return () => clearTimeout(handler);
-  }, [activeTab, pageNumber, searchQuery, loadUsers]);
+    // 1. Lọc theo Tab
+    if (activeTab === "ADMIN") {
+      list = list.filter((u) => u.role === "ADMIN" || u.roles?.includes("ADMIN"));
+    } else if (activeTab === "SELLER") {
+      list = list.filter((u) => u.role === "SELLER" || u.roles?.includes("SELLER"));
+    } else if (activeTab === "BUYER") {
+      list = list.filter((u) => u.role === "BUYER" || (!u.role && !u.roles?.length));
+    } else if (activeTab === "LOCKED") {
+      list = list.filter((u) => u.status === "LOCKED");
+    }
+
+    // 2. Lọc theo Tìm kiếm tức thì
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (u) =>
+          (u.fullName && u.fullName.toLowerCase().includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.phone && u.phone.includes(q)) ||
+          String(u.id).includes(q)
+      );
+    }
+
+    return list;
+  }, [allUsers, activeTab, searchQuery]);
+
+  const totalFiltered = filteredUsers.length;
+  const totalPages = Math.ceil(totalFiltered / pageSize) || 1;
+
+  // Cắt trang an toàn 0ms
+  const paginatedUsers = useMemo(() => {
+    const safePage = Math.min(pageNumber, Math.max(0, totalPages - 1));
+    const start = safePage * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [filteredUsers, pageNumber, pageSize, totalPages]);
 
   const handleTabChange = (tab: UserTabKey) => {
     setActiveTab(tab);
     setPageNumber(0);
-    const key = `${tab}_0_${searchQuery}`;
-    if (cachedUsersData[key]) {
-      setUsers(cachedUsersData[key].items);
-      setTotalPages(cachedUsersData[key].totalPages);
-      setTotalElements(cachedUsersData[key].totalElements);
-      setIsLoading(false);
-    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,35 +119,58 @@ export default function AdminUsersPage() {
     setPageNumber(0);
   };
 
-  function handleToggleLock(user: AdminUser) {
+  async function handleToggleLock(user: AdminUser) {
     const newStatus = user.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
     const actionText =
       newStatus === "LOCKED" ? "khóa tài khoản" : "mở khóa tài khoản";
 
     // 1. Phản hồi Toast NGAY LẬP TỨC (0ms)
     toast.success(`Đã ${actionText} của "${user.fullName}" thành công!`);
+    setActionLoadingId(user.id);
 
-    // 2. Cập nhật state trực tiếp ngay lập tức (0ms)
+    // 2. Cập nhật lạc quan (Optimistic Update) trong local state và React Query cache để UI đổi ngay 0ms
     const updatedUser: AdminUser = { ...user, status: newStatus };
-    setUsers((prev) =>
-      prev.map((u) => (u.id === user.id ? updatedUser : u))
+    setLocalUsers((prev) => {
+      const base = prev ?? rawUsers;
+      return base.map((u) => (u.id === user.id ? updatedUser : u));
+    });
+
+    queryClient.setQueryData(
+      ADMIN_QUERY_KEYS.users(0, "", "ALL", "ALL"),
+      (old: import("@/types/api").PageResponse<AdminUser> | undefined) => {
+        if (!old) return old;
+        const currentItems = old.content ?? old.items ?? [];
+        const nextItems = currentItems.map((u) =>
+          u.id === user.id ? updatedUser : u
+        );
+        return {
+          ...old,
+          content: nextItems,
+          items: nextItems,
+        };
+      }
     );
 
     // 3. Đồng bộ ngầm với máy chủ BE
-    updateAdminUserStatus(
-      user.id,
-      newStatus,
-      newStatus === "LOCKED"
-        ? "Admin tạm dừng hoạt động tài khoản"
-        : "Admin mở khóa tài khoản"
-    ).catch((err) => {
+    try {
+      await updateAdminUserStatus(
+        user.id,
+        newStatus as "ACTIVE" | "LOCKED",
+        newStatus === "LOCKED"
+          ? "Admin tạm dừng hoạt động tài khoản"
+          : "Admin mở khóa tài khoản"
+      );
+      void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch (err) {
       console.error("Lỗi cập nhật người dùng máy chủ:", err);
       toast.error(
         "Lỗi cập nhật máy chủ: " +
           (err instanceof Error ? err.message : String(err))
       );
-      loadUsers(activeTab, pageNumber, searchQuery);
-    });
+      void refetch();
+    } finally {
+      setActionLoadingId(null);
+    }
   }
 
   return (
@@ -160,26 +185,35 @@ export default function AdminUsersPage() {
             <span className="inline-flex items-center px-2 py-0.5 rounded-full font-label-sm text-xs bg-primary-fixed text-on-primary-fixed-variant font-semibold">
               Bảo mật RBAC
             </span>
+            {isFetching && !isLoading && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary px-2 py-0.5 bg-primary/10 rounded-full animate-pulse">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
+                Realtime Sync
+              </span>
+            )}
           </div>
           <p className="font-body-sm text-xs text-secondary mt-0.5">
-            Quản trị thông tin tài khoản, phân quyền vai trò và kiểm soát trạng
-            thái truy cập
+            Quản trị thông tin tài khoản, phân quyền vai trò và kiểm soát trạng thái truy cập
           </p>
         </div>
       </div>
 
       {/* Error Alert */}
-      {errorMessage && (
+      {error && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[18px]">
               error
             </span>
-            <span>{errorMessage}</span>
+            <span>
+              {error instanceof Error
+                ? error.message
+                : "Không thể kết nối máy chủ quản trị người dùng"}
+            </span>
           </div>
           <button
             type="button"
-            onClick={() => loadUsers(activeTab, pageNumber, searchQuery)}
+            onClick={() => refetch()}
             className="px-3 py-1 rounded bg-rose-600 text-white font-medium hover:bg-rose-700 transition-colors"
           >
             Thử lại
@@ -187,27 +221,36 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Tabs & Search Filter */}
+      {/* Tabs & Search Filter – Bộ lọc phản hồi TỨC THÌ 0ms */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant/30">
         <div className="flex items-center gap-2 overflow-x-auto">
-          {USER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                activeTab === tab.key
-                  ? "bg-primary text-on-primary shadow-sm"
-                  : "bg-surface-container-low text-secondary hover:text-on-surface hover:bg-surface-container"
-              }`}
-            >
-              <span>{tab.label}</span>
-              {activeTab === tab.key && totalElements > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-surface-container-highest text-on-surface text-[10px] font-bold">
-                  {totalElements}
-                </span>
-              )}
-            </button>
-          ))}
+          {USER_TABS.map((tab) => {
+            const count = tabCounts[tab.key];
+            return (
+              <button
+                key={tab.key}
+                onClick={() => handleTabChange(tab.key)}
+                className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === tab.key
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "bg-surface-container-low text-secondary hover:text-on-surface hover:bg-surface-container"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {count > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      activeTab === tab.key
+                        ? "bg-white/20 text-on-primary"
+                        : "bg-surface-container text-secondary"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <div className="relative w-full sm:w-72">
@@ -218,9 +261,18 @@ export default function AdminUsersPage() {
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Tìm theo tên, email, SĐT..."
-            className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+            placeholder="Tìm theo tên, email, SĐT... (0ms)"
+            className="w-full h-9 pl-9 pr-8 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm transition-all"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+            >
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -239,26 +291,49 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20 text-sm">
-              {isLoading ? (
+              {isLoading && allUsers.length === 0 ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} className="animate-pulse">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-surface-container shrink-0" />
+                        <div className="flex flex-col gap-1.5 w-32">
+                          <div className="h-3.5 bg-surface-container rounded w-24" />
+                          <div className="h-2.5 bg-surface-container-high rounded w-16" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-col gap-1.5 w-36">
+                        <div className="h-3.5 bg-surface-container rounded w-32" />
+                        <div className="h-2.5 bg-surface-container-high rounded w-20" />
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="h-5 w-20 bg-surface-container rounded-full mx-auto" />
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="h-4 w-6 bg-surface-container rounded mx-auto" />
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="h-5 w-16 bg-surface-container rounded-full mx-auto" />
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <div className="h-7 w-20 bg-surface-container rounded-lg ml-auto" />
+                    </td>
+                  </tr>
+                ))
+              ) : paginatedUsers.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
                     className="py-12 text-center text-secondary text-sm"
                   >
-                    Đang tải danh sách người dùng...
-                  </td>
-                </tr>
-              ) : users.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="py-12 text-center text-secondary text-sm"
-                  >
-                    Không tìm thấy người dùng nào phù hợp.
+                    Không tìm thấy người dùng nào phù hợp với bộ lọc.
                   </td>
                 </tr>
               ) : (
-                users.map((user) => {
+                paginatedUsers.map((user) => {
                   const avatarSrc =
                     user.avatarUrl ||
                     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=60";
@@ -370,10 +445,10 @@ export default function AdminUsersPage() {
         <div className="flex items-center justify-between px-4 py-3 bg-surface-container-low/50 border-t border-outline-variant/20 text-xs text-secondary">
           <div>
             Hiển thị{" "}
-            <span className="font-semibold text-on-surface">{users.length}</span>{" "}
+            <span className="font-semibold text-on-surface">{paginatedUsers.length}</span>{" "}
             trên tổng số{" "}
             <span className="font-semibold text-on-surface">
-              {totalElements}
+              {totalFiltered}
             </span>{" "}
             người dùng
           </div>
