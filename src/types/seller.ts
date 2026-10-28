@@ -127,6 +127,8 @@ export interface SellerProductDetailResponse {
   description?: string;
   imageUrl?: string;
   status: string;
+  minPrice?: number;
+  maxPrice?: number;
   variants: SellerProductVariantResponse[];
   tierVariations?: Array<{
     name: string;

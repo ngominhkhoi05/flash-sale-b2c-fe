@@ -207,7 +207,16 @@ export type MaterialSymbolName =
   | "pin_drop"
   | "percent"
   | "qr_code"
-  | "upload";
+  | "upload"
+  // Network / server connection error symbols
+  | "wifi_off"
+  | "cloud_off"
+  // Product form actions
+  | "undo"
+  | "do_not_disturb_on"
+  | "add_circle"
+  // Support any valid Google Material Symbol while preserving autocompletion
+  | (string & {});
 
 export interface MaterialSymbolProps {
   name: MaterialSymbolName;
