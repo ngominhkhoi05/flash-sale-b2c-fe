@@ -3,41 +3,38 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
-  getAdminCategories,
   createAdminCategory,
   updateAdminCategory,
   deleteAdminCategory,
   type AdminCategoryItem,
 } from "@/lib/api/admin";
+import { useAdminCategoriesQuery, ADMIN_QUERY_KEYS } from "@/hooks/useAdminQueries";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface DeleteCategoryModalState {
   isOpen: boolean;
   category: AdminCategoryItem | null;
 }
 
-// Bộ nhớ đệm module-level giữ danh sách ngành hàng khi chuyển trang (0ms transition)
-let cachedCategories: AdminCategoryItem[] | null = null;
-
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<AdminCategoryItem[]>(() => cachedCategories || []);
+  const queryClient = useQueryClient();
+  const { data: rawCategories = [], isLoading, refetch } = useAdminCategoriesQuery();
+
+  const [localCategories, setLocalCategories] = useState<AdminCategoryItem[] | null>(null);
+  const categories = localCategories ?? rawCategories;
+
   const [selectedCat, setSelectedCat] = useState<AdminCategoryItem | null>(() => {
-    return cachedCategories && cachedCategories.length > 0 ? cachedCategories[0] : null;
+    return rawCategories.length > 0 ? rawCategories[0] : null;
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(!cachedCategories);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Form state
-  const [formName, setFormName] = useState(() => (cachedCategories && cachedCategories[0] ? cachedCategories[0].name : ""));
-  const [formSlug, setFormSlug] = useState(() => (cachedCategories && cachedCategories[0] ? cachedCategories[0].slug : ""));
-  const [formCommission, setFormCommission] = useState(() => {
-    if (cachedCategories && cachedCategories[0]) {
-      return cachedCategories[0].commissionRate ? Number((cachedCategories[0].commissionRate * 100).toFixed(1)) : 5.0;
-    }
-    return 5.0;
-  });
-  const [formDescription, setFormDescription] = useState(() => (cachedCategories && cachedCategories[0] ? cachedCategories[0].description || "" : ""));
+  const [formName, setFormName] = useState("");
+  const [formSlug, setFormSlug] = useState("");
+  const [formCommission, setFormCommission] = useState(5.0);
+  const [formDescription, setFormDescription] = useState("");
 
   // Modal xác nhận xóa
   const [deleteModal, setDeleteModal] = useState<DeleteCategoryModalState>({
@@ -54,60 +51,17 @@ export default function AdminCategoriesPage() {
     setFormDescription(cat.description || "");
   }, []);
 
-  const refreshCategories = useCallback(async () => {
-    try {
-      const data = await getAdminCategories();
-      cachedCategories = data;
-      setCategories(data);
-      if (data.length > 0) {
-        setSelectedCat((prev) => {
-          if (prev) {
-            const found = data.find((c) => c.id === prev.id);
-            if (found) return found;
-          }
-          selectCategory(data[0]);
-          return data[0];
-        });
-      }
-    } catch (err) {
-      console.error("Lỗi tải danh mục:", err);
-      toast.error("Lỗi tải danh sách ngành hàng: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsLoading(false);
+  // Tự động chọn danh mục đầu tiên khi categories nạp xong
+  useEffect(() => {
+    if (categories.length > 0 && !selectedCat && !isCreatingNew) {
+      selectCategory(categories[0]);
     }
-  }, [selectCategory]);
+  }, [categories, selectedCat, isCreatingNew, selectCategory]);
 
   useEffect(() => {
-    let isMounted = true;
-    getAdminCategories()
-      .then((data) => {
-        if (isMounted) {
-          cachedCategories = data;
-          setCategories(data);
-          if (data.length > 0) {
-            setSelectedCat((prev) => {
-              if (prev) return prev;
-              selectCategory(data[0]);
-              return data[0];
-            });
-          }
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Lỗi tải danh mục:", err);
-        if (isMounted) {
-          setIsLoading(false);
-          if (!cachedCategories) {
-            toast.error("Lỗi tải danh sách ngành hàng");
-          }
-        }
-      });
+    setLocalCategories(null);
+  }, [rawCategories]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [selectCategory]);
 
   function handleAddNew() {
     setIsCreatingNew(true);
@@ -163,27 +117,21 @@ export default function AdminCategoriesPage() {
         productCount: 0,
       };
 
-      setCategories((prev) => {
-        const next = [optimisticCat, ...prev];
-        cachedCategories = next;
-        return next;
+      setLocalCategories((prev) => {
+        const base = prev ?? rawCategories;
+        return [optimisticCat, ...base];
       });
       selectCategory(optimisticCat);
 
       // 3. Đồng bộ ngầm với máy chủ BE
       createAdminCategory(payload)
-        .then((created) => {
-          setCategories((prev) => {
-            const next = prev.map((c) => (c.id === tempId ? created : c));
-            cachedCategories = next;
-            return next;
-          });
-          setSelectedCat((curr) => (curr && curr.id === tempId ? created : curr));
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.categories });
         })
         .catch((err) => {
           console.error("Lỗi lưu danh mục máy chủ:", err);
           toast.error("Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err)));
-          refreshCategories();
+          void refetch();
         });
     } else if (selectedCat) {
       const targetId = selectedCat.id;
@@ -200,27 +148,21 @@ export default function AdminCategoriesPage() {
         description: payload.description,
       };
 
-      setCategories((prev) => {
-        const next = prev.map((c) => (c.id === targetId ? updatedCat : c));
-        cachedCategories = next;
-        return next;
+      setLocalCategories((prev) => {
+        const base = prev ?? rawCategories;
+        return base.map((c) => (c.id === targetId ? updatedCat : c));
       });
       setSelectedCat(updatedCat);
 
       // 3. Đồng bộ ngầm với máy chủ BE
       updateAdminCategory(targetId, payload)
-        .then((updated) => {
-          setCategories((prev) => {
-            const next = prev.map((c) => (c.id === targetId ? updated : c));
-            cachedCategories = next;
-            return next;
-          });
-          setSelectedCat((curr) => (curr && curr.id === targetId ? updated : curr));
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.categories });
         })
         .catch((err) => {
           console.error("Lỗi cập nhật máy chủ:", err);
           toast.error("Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err)));
-          refreshCategories();
+          void refetch();
         });
     }
   }
@@ -244,9 +186,9 @@ export default function AdminCategoriesPage() {
     toast.success(`Đã xóa ngành hàng "${target.name}" thành công!`);
 
     // 3. Cập nhật Optimistic UI ngay lập tức (0ms)
-    setCategories((prev) => {
-      const next = prev.filter((c) => c.id !== target.id);
-      cachedCategories = next;
+    setLocalCategories((prev) => {
+      const base = prev ?? rawCategories;
+      const next = base.filter((c) => c.id !== target.id);
       if (next.length > 0) {
         selectCategory(next[0]);
       } else {
@@ -257,11 +199,15 @@ export default function AdminCategoriesPage() {
     });
 
     // 4. Đồng bộ ngầm với máy chủ BE
-    deleteAdminCategory(target.id).catch((err) => {
-      console.error("Lỗi xóa danh mục máy chủ:", err);
-      toast.error("Lỗi xóa danh mục: " + (err instanceof Error ? err.message : String(err)));
-      refreshCategories();
-    });
+    deleteAdminCategory(target.id)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.categories });
+      })
+      .catch((err) => {
+        console.error("Lỗi xóa danh mục máy chủ:", err);
+        toast.error("Lỗi xóa danh mục: " + (err instanceof Error ? err.message : String(err)));
+        void refetch();
+      });
   }
 
   const filteredCategories = categories.filter((c) =>

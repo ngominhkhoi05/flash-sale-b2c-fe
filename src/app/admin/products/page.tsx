@@ -5,10 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 import {
-  getAdminProducts,
   updateAdminProductStatus,
   type AdminProduct,
 } from "@/lib/api/admin";
+import { useAdminProductsQuery } from "@/hooks/useAdminQueries";
+import { useQueryClient } from "@tanstack/react-query";
 
 type ProductTabKey = "ALL" | "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK" | "BANNED";
 
@@ -44,18 +45,14 @@ interface ProductActionModalState {
   reason: string;
 }
 
-// Bộ nhớ đệm module-level theo tab cho sản phẩm (0ms transition)
-const cachedProducts: Record<string, AdminProduct[]> = {};
-
 export default function AdminProductsPage() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ProductTabKey>("ALL");
-  const [products, setProducts] = useState<AdminProduct[]>(() => cachedProducts["ALL"] || []);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [selectedStore, setSelectedStore] = useState<string>("ALL");
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("ALL");
   const [selectedSort, setSelectedSort] = useState<string>("DEFAULT");
-  const [isLoading, setIsLoading] = useState(!cachedProducts["ALL"]);
 
   // Phân trang
   const [pageNumber, setPageNumber] = useState(0);
@@ -70,40 +67,32 @@ export default function AdminProductsPage() {
   });
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
+  const { data: rawProducts = [], isLoading, isFetching, refetch } = useAdminProductsQuery(undefined);
+
+  const [localProducts, setLocalProducts] = useState<AdminProduct[] | null>(null);
+  const products = localProducts ?? rawProducts;
+
   useEffect(() => {
-    let isMounted = true;
-    if (cachedProducts[activeTab]) {
-      setProducts(cachedProducts[activeTab]);
-      setIsLoading(false);
-    } else {
-      setIsLoading(true);
-    }
+    setLocalProducts(null);
+  }, [rawProducts]);
 
-    const params = activeTab === "ALL" ? undefined : { status: activeTab };
-    getAdminProducts(params)
-      .then((data) => {
-        if (isMounted) {
-          cachedProducts[activeTab] = data;
-          setProducts(data);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Lỗi tải sản phẩm:", err);
-        if (isMounted) {
-          setIsLoading(false);
-          if (!cachedProducts[activeTab]) {
-            toast.error(
-              "Lỗi tải danh sách sản phẩm: " + (err instanceof Error ? err.message : String(err))
-            );
-          }
-        }
-      });
-
-    return () => {
-      isMounted = false;
+  // Tính số lượng sản phẩm cho từng tab ngay lập tức (0ms)
+  const tabCounts = useMemo(() => {
+    const counts: Record<ProductTabKey, number> = {
+      ALL: products.length,
+      ACTIVE: 0,
+      INACTIVE: 0,
+      OUT_OF_STOCK: 0,
+      BANNED: 0,
     };
-  }, [activeTab]);
+    for (const p of products) {
+      if (p.status === "ACTIVE") counts.ACTIVE++;
+      else if (p.status === "INACTIVE") counts.INACTIVE++;
+      else if (p.status === "OUT_OF_STOCK") counts.OUT_OF_STOCK++;
+      else if (p.status === "BANNED") counts.BANNED++;
+    }
+    return counts;
+  }, [products]);
 
   // Trích xuất danh sách ngành hàng duy nhất từ dữ liệu sản phẩm
   const uniqueCategories = useMemo(() => {
@@ -121,11 +110,16 @@ export default function AdminProductsPage() {
     return stores.sort((a, b) => a.localeCompare(b, "vi"));
   }, [products]);
 
-  // Bộ lọc sản phẩm đa tiêu chí nhanh chóng
+  // Bộ lọc sản phẩm đa tiêu chí siêu tốc 0ms
   const filteredProducts = useMemo(() => {
     let list = Array.isArray(products) ? [...products] : [];
 
-    // 1. Lọc theo ô tìm kiếm
+    // 0. Lọc theo Tab trạng thái tức thì 0ms
+    if (activeTab !== "ALL") {
+      list = list.filter((p) => p.status === activeTab);
+    }
+
+    // 1. Lọc theo ô tìm kiếm tức thì
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter((p) => {
@@ -139,17 +133,17 @@ export default function AdminProductsPage() {
       });
     }
 
-    // 2. Lọc theo Ngành hàng
+    // 2. Lọc theo Ngành hàng tức thì
     if (selectedCategory !== "ALL") {
       list = list.filter((p) => p.categoryName === selectedCategory);
     }
 
-    // 3. Lọc theo Gian hàng
+    // 3. Lọc theo Gian hàng tức thì
     if (selectedStore !== "ALL") {
       list = list.filter((p) => p.storeName === selectedStore);
     }
 
-    // 4. Lọc theo Khoảng giá
+    // 4. Lọc theo Khoảng giá tức thì
     if (selectedPriceRange === "UNDER_100K") {
       list = list.filter((p) => p.minPrice < 100000);
     } else if (selectedPriceRange === "100K_500K") {
@@ -160,7 +154,7 @@ export default function AdminProductsPage() {
       list = list.filter((p) => p.minPrice > 2000000);
     }
 
-    // 5. Sắp xếp
+    // 5. Sắp xếp tức thì
     if (selectedSort === "PRICE_ASC") {
       list.sort((a, b) => a.minPrice - b.minPrice);
     } else if (selectedSort === "PRICE_DESC") {
@@ -176,6 +170,7 @@ export default function AdminProductsPage() {
     return list;
   }, [
     products,
+    activeTab,
     searchQuery,
     selectedCategory,
     selectedStore,
@@ -257,29 +252,23 @@ export default function AdminProductsPage() {
 
     // 3. Cập nhật trạng thái trực tiếp trong state và cache ngay lập tức (Optimistic update)
     const updatedProduct = { ...product, status: targetStatus };
-    setProducts((prev) => {
-      const next = prev.map((p) => (p.id === product.id ? updatedProduct : p));
-      cachedProducts[activeTab] = next;
-      if (cachedProducts["ALL"]) {
-        cachedProducts["ALL"] = cachedProducts["ALL"].map((p) =>
-          p.id === product.id ? updatedProduct : p
-        );
-      }
-      return next;
+    setLocalProducts((prev) => {
+      const base = prev ?? rawProducts;
+      return base.map((p) => (p.id === product.id ? updatedProduct : p));
     });
 
-    // 4. Đồng bộ ngầm với máy chủ BE
-    updateAdminProductStatus(product.id, targetStatus, reason.trim() || undefined).catch((err) => {
-      console.error("Lỗi cập nhật sản phẩm:", err);
-      toast.error(
-        "Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err))
-      );
-      const params = activeTab === "ALL" ? undefined : { status: activeTab };
-      getAdminProducts(params).then((data) => {
-        cachedProducts[activeTab] = data;
-        setProducts(data);
+    // 4. Đồng bộ ngầm với máy chủ BE và invalidate React Query Cache
+    updateAdminProductStatus(product.id, targetStatus, reason.trim() || undefined)
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+      })
+      .catch((err) => {
+        console.error("Lỗi cập nhật sản phẩm:", err);
+        toast.error(
+          "Lỗi đồng bộ máy chủ: " + (err instanceof Error ? err.message : String(err))
+        );
+        void refetch();
       });
-    });
   };
 
   return (
@@ -327,6 +316,19 @@ export default function AdminProductsPage() {
                   <span className="material-symbols-outlined text-[14px]">block</span>
                 )}
                 <span>{tab.label}</span>
+                {tabCounts[tab.key] > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      activeTab === tab.key
+                        ? "bg-white/20 text-on-primary"
+                        : tab.key === "BANNED"
+                        ? "bg-rose-200 text-rose-800"
+                        : "bg-surface-container text-secondary"
+                    }`}
+                  >
+                    {tabCounts[tab.key]}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -350,9 +352,21 @@ export default function AdminProductsPage() {
                 setSearchQuery(e.target.value);
                 setPageNumber(0);
               }}
-              placeholder="Tìm theo tên SP, gian hàng, ngành, ID..."
-              className="w-full h-9 pl-9 pr-3 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+              placeholder="Tìm theo tên SP, gian hàng, ngành, ID... (0ms)"
+              className="w-full h-9 pl-9 pr-8 rounded-lg bg-surface-container-low text-xs text-on-surface placeholder-secondary focus:outline-none focus:ring-1 focus:ring-primary shadow-sm transition-all"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setPageNumber(0);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            )}
           </div>
 
           {/* Dropdown lọc theo Ngành hàng */}
