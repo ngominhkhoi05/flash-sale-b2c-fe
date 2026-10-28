@@ -35,7 +35,6 @@ import { FlashSaleCategoryFilter } from "./FlashSaleCategoryFilter";
 import { FlashSaleDealCard } from "./FlashSaleDealCard";
 import { FlashSaleDealsGrid } from "./FlashSaleDealsGrid";
 import { FlashSaleUpcomingSection } from "./FlashSaleUpcomingSection";
-import { FlashSaleLiveIndicator } from "./FlashSaleLiveIndicator";
 import { ErrorState } from "@/components/common/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -202,11 +201,6 @@ function FlashSalePageContentBody({ slots, className }: FlashSalePageContentBody
           items={upcomingSlot.items}
         />
       )}
-
-      <FlashSaleLiveIndicator
-        activeSlotId={activeSlotId}
-        liveViewers={1240}
-      />
     </div>
   );
 }

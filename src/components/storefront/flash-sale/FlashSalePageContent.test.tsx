@@ -86,14 +86,14 @@ describe("FlashSalePageContent", () => {
       expect(filter).toBeInTheDocument();
     });
 
-    it("renders LiveIndicator pill", () => {
+    it("does not render LiveIndicator pill", () => {
       render(
         <TestWrapper>
           <FlashSalePageContent />
         </TestWrapper>,
       );
 
-      expect(screen.getByTestId("flash-sale-live-indicator")).toBeInTheDocument();
+      expect(screen.queryByTestId("flash-sale-live-indicator")).not.toBeInTheDocument();
     });
   });
 
