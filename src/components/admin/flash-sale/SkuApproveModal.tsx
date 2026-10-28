@@ -24,6 +24,7 @@ export function SkuApproveModal({
   batchCount = 0,
 }: SkuApproveModalProps) {
   const [commission, setCommission] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
   if (!isOpen) return null;
 
@@ -31,13 +32,25 @@ export function SkuApproveModal({
 
   const handleClose = () => {
     setCommission("");
+    setError("");
     onClose();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const val = commission.trim() === "" ? undefined : parseFloat(commission);
+    const trimmed = commission.trim();
+    if (!trimmed) {
+      setError("Vui lòng nhập tỷ lệ hoa hồng sàn cho phiên này");
+      return;
+    }
+    const val = parseFloat(trimmed);
+    if (isNaN(val) || val <= 0 || val > 100) {
+      setError("Tỷ lệ hoa hồng không hợp lệ (phải từ 0.1% đến 100%)");
+      return;
+    }
+
     setCommission("");
+    setError("");
     onConfirm(val);
   };
 
@@ -123,34 +136,47 @@ export function SkuApproveModal({
               </div>
             </div>
 
-            {/* Commission Override Form */}
+            {/* Commission Input Form */}
             <div className="flex flex-col gap-1.5">
               <label
-                className="font-body-md text-body-md font-semibold text-on-surface"
+                className="font-body-md text-body-md font-semibold text-on-surface flex items-center justify-between"
                 htmlFor="commissionInput"
               >
-                Hoa hồng sàn riêng cho phiên này (tùy chọn)
+                <span>
+                  Hoa hồng sàn áp dụng cho phiên này <span className="text-rose-500 font-bold">*</span>
+                </span>
               </label>
               <div className="relative">
                 <input
                   id="commissionInput"
                   type="number"
                   step="0.1"
-                  min="0"
+                  min="0.1"
                   max="100"
+                  required
                   value={commission}
-                  onChange={(e) => setCommission(e.target.value)}
-                  placeholder="Ví dụ: 3.5"
-                  className="w-full h-11 px-3.5 pr-10 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  onChange={(e) => {
+                    setCommission(e.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="Ví dụ: 5.0"
+                  className={`w-full h-11 px-3.5 pr-10 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all border ${
+                    error ? "border-rose-500 ring-1 ring-rose-500" : "border-outline-variant/30"
+                  }`}
                 />
                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-headline-md font-semibold text-secondary">
                   %
                 </span>
               </div>
-              <span className="font-body-sm text-body-sm text-secondary">
-                Để trống = kế thừa hoa hồng danh mục hiện tại (5.0%). Phí giao
-                dịch sàn không đổi.
-              </span>
+              {error ? (
+                <span className="font-body-sm text-body-sm text-rose-600 font-medium">
+                  {error}
+                </span>
+              ) : (
+                <span className="font-body-sm text-body-sm text-secondary">
+                  Bắt buộc nhập tỷ lệ hoa hồng sàn áp dụng (0.1% - 100%). Phí giao dịch sàn giữ nguyên.
+                </span>
+              )}
             </div>
           </div>
 
