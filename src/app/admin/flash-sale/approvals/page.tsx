@@ -22,11 +22,7 @@ import {
   batchRejectFlashSaleSkus,
   undoFlashSaleSku,
 } from "@/lib/api/admin";
-import {
-  getMockSkuApprovals,
-  getApprovalCounts,
-} from "@/lib/mocks/sku-approvals.mock";
-import { getMockFlashSaleSessions } from "@/lib/mocks/flash-sessions.mock";
+import { useFlashSaleWs } from "@/hooks/useFlashSaleWs";
 import {
   SkuApproveModal,
   SkuRejectModal,
@@ -58,157 +54,150 @@ function sortSessions(slots: AdminFlashSaleSession[]): AdminFlashSaleSession[] {
   });
 }
 
+import {
+  useAdminSlotsQuery,
+  useAdminApprovalsQuery,
+  useAdminApprovalCountsQuery,
+  ADMIN_QUERY_KEYS,
+} from "@/hooks/useAdminQueries";
+import { useQueryClient } from "@tanstack/react-query";
+
 export default function AdminSkuApprovalsPage() {
-  // 1. Sessions List & Selected Session
-  const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() =>
-    isMockMode() ? getMockFlashSaleSessions() : []
-  );
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(() =>
-    isMockMode() ? 3 : null
-  );
-  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
-  const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
-  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  const queryClient = useQueryClient();
 
-  // Load sessions from BE API
-  useEffect(() => {
-    let cancelled = false;
-    async function loadSessions() {
-      setIsLoadingSessions(true);
-      try {
-        const slots = await getAdminFlashSaleSlots();
-        if (!cancelled) {
-          if (slots.length > 0) {
-            const sorted = sortSessions(slots);
-            setSessions(sorted);
-            setSelectedSessionId((currentSelected) => {
-              if (currentSelected && sorted.some((s) => s.id === currentSelected)) {
-                return currentSelected;
-              }
-              const active = sorted.find((s) => s.status === "ACTIVE");
-              if (active) return active.id;
-              const upcoming = sorted.find(
-                (s) => s.status === "UPCOMING" || s.status === "REGISTRATION_OPEN"
-              );
-              if (upcoming) return upcoming.id;
-              return sorted[0].id;
-            });
-          } else {
-            setSessions([]);
-            setSelectedSessionId(null);
-          }
-        }
-      } catch (err) {
-        if (!cancelled) {
-          if (isMockMode()) {
-            const mocks = getMockFlashSaleSessions();
-            setSessions(mocks);
-            setSelectedSessionId(3);
-          } else {
-            setSessions([]);
-            setSelectedSessionId(null);
-            toast.error(
-              err instanceof Error
-                ? err.message
-                : "Không thể tải danh sách phiên Flash Sale"
-            );
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingSessions(false);
-        }
-      }
+  // 1. Nạp Slots từ React Query Cache (có sẵn 0ms do Sidebar prefetch)
+  const { data: rawSlots = [], isLoading: isLoadingSessions } = useAdminSlotsQuery();
+
+  // CHỈ LẤY CÁC PHIÊN CHƯA BẮT ĐẦU / SẮP DIỄN RA (UPCOMING / REGISTRATION_OPEN)
+  // Tuyệt đối không lấy phiên đang diễn ra (ACTIVE) hay đã kết thúc (ENDED)
+  const sessions = useMemo(() => {
+    return rawSlots
+      .filter((s) => s.status === "UPCOMING" || s.status === "REGISTRATION_OPEN")
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [rawSlots]);
+
+  const upcomingSessions = sessions;
+
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+
+  // Tự động chọn phiên chưa bắt đầu (ưu tiên phiên có sản phẩm chờ duyệt)
+  const activeSessionId = useMemo(() => {
+    if (selectedSessionId && sessions.some((s) => s.id === selectedSessionId)) {
+      return selectedSessionId;
     }
-    void loadSessions();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const currentSession = useMemo(() => {
-    if (!selectedSessionId) return sessions[0] || null;
-    return sessions.find((s) => s.id === selectedSessionId) || sessions[0] || null;
+    const withPending = sessions.find((s) => (s.pendingSkusCount || 0) > 0);
+    if (withPending) return withPending.id;
+    return sessions[0]?.id ?? null;
   }, [sessions, selectedSessionId]);
 
-  // Danh sách phiên lọc theo ô search trong dropdown
+  const effectiveSlotId = activeSessionId ?? undefined;
+
+  const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
+  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  const [sessionFilterTab, setSessionFilterTab] = useState<"ALL" | "PENDING_ONLY">("ALL");
+
+  const totalPendingAcrossAllSlots = useMemo(() => {
+    return upcomingSessions.reduce((sum, s) => sum + (s.pendingSkusCount || 0), 0);
+  }, [upcomingSessions]);
+
+  const slotsWithPendingCount = useMemo(() => {
+    return upcomingSessions.filter((s) => (s.pendingSkusCount || 0) > 0).length;
+  }, [upcomingSessions]);
+
+  const currentSession = useMemo(() => {
+    if (!activeSessionId) return sessions[0] || null;
+    return sessions.find((s) => s.id === activeSessionId) || sessions[0] || null;
+  }, [sessions, activeSessionId]);
+
+  // Danh sách phiên lọc theo ô search và tab "Cần duyệt" trong dropdown (0ms)
   const dropdownFilteredSessions = useMemo(() => {
-    if (!sessionSearchQuery.trim()) return sessions;
-    const q = sessionSearchQuery.toLowerCase().trim();
-    return sessions.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.timeRangeDisplay.toLowerCase().includes(q) ||
-        s.date.includes(q) ||
-        s.code.toLowerCase().includes(q)
-    );
-  }, [sessions, sessionSearchQuery]);
+    let list = sessions;
+    if (sessionFilterTab === "PENDING_ONLY") {
+      list = list.filter((s) => (s.pendingSkusCount || 0) > 0);
+    }
+    if (sessionSearchQuery.trim()) {
+      const q = sessionSearchQuery.toLowerCase().trim();
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.timeRangeDisplay.toLowerCase().includes(q) ||
+          s.date.includes(q) ||
+          s.code.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [sessions, sessionSearchQuery, sessionFilterTab]);
 
-  // 2. SKU items & counts
-  const [items, setItems] = useState<SkuApprovalItem[]>(() =>
-    isMockMode() ? getMockSkuApprovals() : []
-  );
-  const [counts, setCounts] = useState<SkuApprovalCounts>(() =>
-    isMockMode() ? getApprovalCounts() : { pending: 0, approved: 0, rejected: 0 }
-  );
-  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  // 2. Nạp SKU items & counts từ React Query Cache (có sẵn 0ms do Sidebar prefetch)
+  const {
+    data: rawItems = [],
+    isLoading: isLoadingItems,
+    refetch: refetchItems,
+  } = useAdminApprovalsQuery(effectiveSlotId);
 
-  const [reloadTrigger, setReloadTrigger] = useState(0);
+  const { data: rawCounts, refetch: refetchCounts } = useAdminApprovalCountsQuery(effectiveSlotId);
 
-  const refreshData = useCallback(() => {
-    setReloadTrigger((prev) => prev + 1);
-  }, []);
+  const [localItems, setLocalItems] = useState<SkuApprovalItem[] | null>(null);
+  const items = localItems ?? rawItems;
 
   useEffect(() => {
-    if (selectedSessionId === null) return;
+    setLocalItems(null);
+  }, [rawItems]);
 
-    let cancelled = false;
-    async function loadItems() {
-      setIsLoadingItems(true);
-      try {
-        const [itemsData, countsData] = await Promise.all([
-          getAdminSkuApprovals(selectedSessionId),
-          getAdminApprovalCounts(selectedSessionId),
-        ]);
-        if (!cancelled) {
-          setItems(itemsData);
-          setCounts(countsData);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          if (isMockMode()) {
-            setItems(getMockSkuApprovals(selectedSessionId));
-            setCounts(getApprovalCounts(selectedSessionId));
-          } else {
-            setItems([]);
-            setCounts({ pending: 0, approved: 0, rejected: 0 });
-            toast.error(
-              err instanceof Error ? err.message : "Lỗi khi tải danh sách SKU"
+  const counts: SkuApprovalCounts = rawCounts ?? {
+    pending: items.filter((i) => i.status === "PENDING" || (i.status as string) === "PENDING_APPROVAL").length,
+    approved: items.filter((i) => i.status === "APPROVED").length,
+    rejected: items.filter((i) => i.status === "REJECTED").length,
+  };
+
+  const refreshData = useCallback(() => {
+    void refetchItems();
+    void refetchCounts();
+    void queryClient.invalidateQueries({ queryKey: ["admin", "flash-sale"] });
+  }, [refetchItems, refetchCounts, queryClient]);
+
+
+  // Realtime WebSocket: tự động cập nhật tồn kho biến thể và trạng thái slot
+  useFlashSaleWs({
+    enabled: typeof effectiveSlotId === "number" && effectiveSlotId > 0,
+    subscribeSlotIds: effectiveSlotId ? [effectiveSlotId] : [],
+    onMessage: (event) => {
+      if ("slotId" in event && event.slotId === effectiveSlotId) {
+        if (
+          event.eventType === "STOCK_DECREMENTED" ||
+          event.eventType === "STOCK_RESTORED"
+        ) {
+          const { flashSaleItemId, availableStock } = event;
+          setLocalItems((prev) => {
+            const base = prev ?? rawItems;
+            return base.map((item) =>
+              item.id === flashSaleItemId
+                ? { ...item, originalStock: availableStock }
+                : item
             );
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingItems(false);
+          });
+        } else if (event.eventType === "SLOT_CLOSED" || event.eventType === "SLOT_ACTIVATED") {
+          refreshData();
         }
       }
-    }
-
-    void loadItems();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedSessionId, reloadTrigger]);
+    },
+  });
 
   // 3. Tab State
   const [activeTab, setActiveTab] = useState<SkuApprovalStatus>("PENDING");
 
   // 4. Filters State
   const [searchQuery, setSearchQuery] = useState("");
+  const [storeNameFilter, setStoreNameFilter] = useState("");
   const [shopTypeFilter, setShopTypeFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [discountFilter, setDiscountFilter] = useState("");
+
+  // Unique store names from fetched items for store name filter
+  const uniqueStores = useMemo(() => {
+    const names = items.map((i) => i.storeName).filter(Boolean);
+    return Array.from(new Set(names)).sort();
+  }, [items]);
 
   // 5. Selection State for Batch Actions
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -225,6 +214,12 @@ export default function AdminSkuApprovalsPage() {
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
+
+  const handleStoreNameChange = (val: string) => {
+    setStoreNameFilter(val);
     setCurrentPage(1);
     setSelectedIds([]);
   };
@@ -262,6 +257,11 @@ export default function AdminSkuApprovalsPage() {
         if (!matchName && !matchSku && !matchStore) return false;
       }
 
+      // Store name filter
+      if (storeNameFilter && item.storeName !== storeNameFilter) {
+        return false;
+      }
+
       // Shop type filter
       if (shopTypeFilter) {
         if (shopTypeFilter === "mall" && item.storeBadge !== "MALL") return false;
@@ -294,6 +294,7 @@ export default function AdminSkuApprovalsPage() {
     items,
     activeTab,
     searchQuery,
+    storeNameFilter,
     shopTypeFilter,
     categoryFilter,
     discountFilter,
@@ -330,28 +331,28 @@ export default function AdminSkuApprovalsPage() {
     setRejectModalOpen(true);
   };
 
-  const handleConfirmApprove = async () => {
+  const handleConfirmApprove = async (commission?: number) => {
     try {
       if (isBatchApprove) {
-        const result = await batchApproveFlashSaleSkus(selectedIds);
+        const result = await batchApproveFlashSaleSkus(selectedIds, commission);
         if (result && result.failedReasons && result.failedReasons.length > 0) {
           const approvedCount = result.approvedItemIds?.length || 0;
           const failedDetails = result.failedReasons
             .map((f) => `#${f.itemId}: ${f.reason}`)
             .join("; ");
           toast.warning(
-            `Đã duyệt ${approvedCount}/${selectedIds.length} SKU. Thất bại ${result.failedReasons.length} SKU (${failedDetails})`
+            `Đã duyệt ${approvedCount}/${selectedIds.length} SKU (Hoa hồng: ${commission}%). Thất bại ${result.failedReasons.length} SKU (${failedDetails})`
           );
         } else {
           toast.success(
-            `Đã duyệt thành công toàn bộ ${selectedIds.length} SKU và tự động khóa kho!`
+            `Đã duyệt thành công toàn bộ ${selectedIds.length} SKU với hoa hồng ${commission}% và tự động khóa kho!`
           );
         }
         setSelectedIds([]);
       } else if (targetApproveItem) {
-        await approveFlashSaleSku(targetApproveItem.id);
+        await approveFlashSaleSku(targetApproveItem.id, commission);
         toast.success(
-          `Đã duyệt "${targetApproveItem.productName}" vào Flash Sale!`
+          `Đã duyệt "${targetApproveItem.productName}" (Hoa hồng: ${commission}%) vào Flash Sale!`
         );
       }
     } catch (err) {
@@ -360,7 +361,17 @@ export default function AdminSkuApprovalsPage() {
       );
     }
     setApproveModalOpen(false);
-    void refreshData();
+    refreshData();
+    try {
+      const totalCounts = await getAdminApprovalCounts();
+      if (typeof window !== "undefined" && typeof totalCounts?.pending === "number") {
+        window.dispatchEvent(
+          new CustomEvent("admin:sku-pending-count", { detail: totalCounts.pending })
+        );
+      }
+    } catch {
+      // ignore
+    }
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature match với modal callback
@@ -384,7 +395,17 @@ export default function AdminSkuApprovalsPage() {
       );
     }
     setRejectModalOpen(false);
-    void refreshData();
+    refreshData();
+    try {
+      const totalCounts = await getAdminApprovalCounts();
+      if (typeof window !== "undefined" && typeof totalCounts?.pending === "number") {
+        window.dispatchEvent(
+          new CustomEvent("admin:sku-pending-count", { detail: totalCounts.pending })
+        );
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleUndo = async (item: SkuApprovalItem) => {
@@ -396,7 +417,17 @@ export default function AdminSkuApprovalsPage() {
         err instanceof Error ? err.message : "Hoàn tác trạng thái thất bại"
       );
     }
-    void refreshData();
+    refreshData();
+    try {
+      const totalCounts = await getAdminApprovalCounts();
+      if (typeof window !== "undefined" && typeof totalCounts?.pending === "number") {
+        window.dispatchEvent(
+          new CustomEvent("admin:sku-pending-count", { detail: totalCounts.pending })
+        );
+      }
+    } catch {
+      // ignore
+    }
   };
 
   // Handlers for batch actions
@@ -513,12 +544,23 @@ export default function AdminSkuApprovalsPage() {
                       : "Chưa có phiên Flash Sale"}
                   </span>
                 </div>
+
+                {/* Badge thông báo số lượng SKU cần duyệt của phiên đang chọn */}
+                {currentSession && typeof currentSession.pendingSkusCount === "number" && currentSession.pendingSkusCount > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white font-label-sm text-[11px] font-bold shadow-xs animate-pulse ml-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                    <span>{currentSession.pendingSkusCount} cần duyệt</span>
+                  </span>
+                )}
+
                 {currentSession && (
                   <span
                     className={cn(
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-sm text-[11px] font-bold leading-none ml-1",
                       currentSession.status === "ACTIVE"
                         ? "bg-rose-100 text-rose-700"
+                        : currentSession.status === "PAUSED"
+                        ? "bg-amber-100 text-amber-800 border border-amber-300 font-semibold"
                         : currentSession.status === "ENDED"
                         ? "bg-slate-100 text-slate-600"
                         : "bg-sky-100 text-sky-700"
@@ -529,6 +571,8 @@ export default function AdminSkuApprovalsPage() {
                     )}
                     {currentSession.status === "ACTIVE"
                       ? "Đang diễn ra"
+                      : currentSession.status === "PAUSED"
+                      ? "Tạm dừng"
                       : currentSession.status === "ENDED"
                       ? "Đã kết thúc"
                       : "Sắp diễn ra"}
@@ -549,76 +593,134 @@ export default function AdminSkuApprovalsPage() {
                       setSessionSearchQuery("");
                     }}
                   />
-                  <div className="absolute left-0 top-12 z-50 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 p-2 flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
-                      <span className="font-label-sm text-[11px] font-semibold text-secondary uppercase tracking-wider">
-                        Chọn phiên Flash Sale ({sessions.length})
+                  <div className="absolute left-0 top-12 z-50 w-[420px] max-w-[95vw] bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/40 p-2.5 flex flex-col gap-2">
+                    <div className="flex items-center justify-between px-1 pt-0.5">
+                      <span className="font-label-sm text-[11px] font-bold text-on-surface uppercase tracking-wider">
+                        Phiên chưa bắt đầu ({upcomingSessions.length})
                       </span>
+                      {totalPendingAcrossAllSlots > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-label-sm text-[11px] font-bold">
+                          {totalPendingAcrossAllSlots} SKU chờ duyệt
+                        </span>
+                      )}
                     </div>
 
-                    {/* Search inside dropdown if > 5 sessions */}
-                    {sessions.length > 5 && (
-                      <div className="px-2 py-1">
-                        <div className="relative">
-                          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary text-[16px]">
-                            search
-                          </span>
-                          <input
-                            type="text"
-                            value={sessionSearchQuery}
-                            onChange={(e) => setSessionSearchQuery(e.target.value)}
-                            placeholder="Tìm phiên Flash Sale..."
-                            className="w-full h-8 pl-8 pr-2.5 rounded-md bg-surface-bright text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30 text-[12px]"
-                            autoFocus
-                          />
-                        </div>
-                      </div>
-                    )}
+                    {/* Filter Tabs trong Dropdown: CHỈ LỌC CÁC PHIÊN CHƯA BẮT ĐẦU */}
+                    <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-surface-container-low border border-outline-variant/30">
+                      <button
+                        type="button"
+                        onClick={() => setSessionFilterTab("ALL")}
+                        className={cn(
+                          "py-1 px-2 rounded-md font-label-sm text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                          sessionFilterTab === "ALL"
+                            ? "bg-primary text-on-primary shadow-xs font-bold"
+                            : "text-secondary hover:text-on-surface"
+                        )}
+                      >
+                        <span>Chưa bắt đầu ({upcomingSessions.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSessionFilterTab("PENDING_ONLY")}
+                        className={cn(
+                          "py-1 px-2 rounded-md font-label-sm text-[11px] font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                          sessionFilterTab === "PENDING_ONLY"
+                            ? "bg-amber-600 text-white shadow-xs font-bold"
+                            : "text-amber-800 hover:text-on-surface"
+                        )}
+                      >
+                        {slotsWithPendingCount > 0 && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-current animate-ping" />
+                        )}
+                        <span>Chờ duyệt ({slotsWithPendingCount})</span>
+                      </button>
+                    </div>
 
-                    <div className="max-h-72 overflow-y-auto flex flex-col gap-1 pr-1">
-                      {dropdownFilteredSessions.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedSessionId(s.id);
-                            setIsSessionDropdownOpen(false);
-                            setSessionSearchQuery("");
-                          }}
-                          className={cn(
-                            "w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-body-sm transition-colors",
-                            s.id === selectedSessionId
-                              ? "bg-primary-fixed text-primary font-semibold"
-                              : "hover:bg-surface-container-low text-on-surface"
-                          )}
-                        >
-                          <div className="flex flex-col min-w-0 pr-2">
-                            <span className="font-medium truncate">{s.name}</span>
-                            <span className="text-secondary text-[11px]">
-                              {s.timeRangeDisplay} · {s.date}
-                            </span>
-                          </div>
-                          <span
+                    {/* Search inside dropdown */}
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary text-[16px]">
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        value={sessionSearchQuery}
+                        onChange={(e) => setSessionSearchQuery(e.target.value)}
+                        placeholder="Tìm theo tên phiên, giờ, ngày..."
+                        className="w-full h-8 pl-8 pr-2.5 rounded-md bg-surface-bright text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30 text-[12px]"
+                        autoFocus
+                      />
+                    </div>
+
+                    {/* Danh sách phiên với số lượng SKU cần duyệt */}
+                    <div className="max-h-80 overflow-y-auto flex flex-col gap-1 pr-1 divide-y divide-outline-variant/20">
+                      {dropdownFilteredSessions.map((s) => {
+                        const hasPending = (s.pendingSkusCount || 0) > 0;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSessionId(s.id);
+                              setIsSessionDropdownOpen(false);
+                              setSessionSearchQuery("");
+                            }}
                             className={cn(
-                              "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase shrink-0",
-                              s.status === "ACTIVE"
-                                ? "bg-rose-100 text-rose-700"
-                                : s.status === "ENDED"
-                                ? "bg-slate-100 text-slate-600"
-                                : "bg-sky-100 text-sky-700"
+                              "w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-body-sm transition-colors cursor-pointer mt-1",
+                              s.id === selectedSessionId
+                                ? "bg-primary-fixed text-primary font-semibold border border-primary/30"
+                                : "hover:bg-surface-container-low text-on-surface"
                             )}
                           >
-                            {s.status === "ACTIVE"
-                              ? "Live"
-                              : s.status === "ENDED"
-                              ? "Kết thúc"
-                              : "Sắp tới"}
-                          </span>
-                        </button>
-                      ))}
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <span className="font-semibold truncate">{s.name}</span>
+                              <span className="text-secondary text-[11px]">
+                                {s.timeRangeDisplay} · {s.date}
+                              </span>
+                            </div>
+
+                            {/* Cột thông báo số lượng sản phẩm cần duyệt & trạng thái phiên */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {hasPending ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                                  <span>{s.pendingSkusCount} cần duyệt</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-secondary bg-surface-container">
+                                  0 cần duyệt
+                                </span>
+                              )}
+
+                              <span
+                                className={cn(
+                                  "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0",
+                                  s.status === "ACTIVE"
+                                    ? "bg-rose-100 text-rose-700 animate-pulse border border-rose-300"
+                                    : s.status === "PAUSED"
+                                    ? "bg-amber-100 text-amber-800 border border-amber-300 font-semibold"
+                                    : s.status === "ENDED"
+                                    ? "bg-slate-100 text-slate-600"
+                                    : "bg-sky-100 text-sky-700"
+                                )}
+                              >
+                                {s.status === "ACTIVE"
+                                  ? "Live"
+                                  : s.status === "PAUSED"
+                                  ? "Tạm dừng"
+                                  : s.status === "ENDED"
+                                  ? "Kết thúc"
+                                  : "Sắp tới"}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
                       {dropdownFilteredSessions.length === 0 && (
-                        <div className="py-6 text-center text-secondary text-[12px]">
-                          Không tìm thấy phiên phù hợp
+                        <div className="py-6 text-center text-secondary text-[12px] flex flex-col items-center gap-1">
+                          <span className="material-symbols-outlined text-[24px] text-secondary">
+                            event_busy
+                          </span>
+                          <span>Không có phiên Flash Sale nào chưa bắt đầu</span>
                         </div>
                       )}
                     </div>
@@ -770,7 +872,7 @@ export default function AdminSkuApprovalsPage() {
         {/* Filters Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-space-sm p-space-md bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/20">
           {/* Search Field */}
-          <div className="sm:col-span-2 lg:col-span-4 relative">
+          <div className="sm:col-span-2 lg:col-span-3 relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
               search
             </span>
@@ -783,14 +885,35 @@ export default function AdminSkuApprovalsPage() {
             />
           </div>
 
+          {/* Store Name Filter */}
+          <div className="sm:col-span-1 lg:col-span-3 relative">
+            <select
+              value={storeNameFilter}
+              onChange={(e) => handleStoreNameChange(e.target.value)}
+              className="w-full h-10 px-3 pr-8 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer border border-outline-variant/30"
+            >
+              <option value="">
+                Tất cả tên gian hàng {uniqueStores.length > 0 ? `(${uniqueStores.length})` : ""}
+              </option>
+              {uniqueStores.map((store) => (
+                <option key={store} value={store}>
+                  {store}
+                </option>
+              ))}
+            </select>
+            <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none text-[18px]">
+              storefront
+            </span>
+          </div>
+
           {/* Shop Type Filter */}
-          <div className="lg:col-span-3 relative">
+          <div className="sm:col-span-1 lg:col-span-2 relative">
             <select
               value={shopTypeFilter}
               onChange={(e) => handleShopTypeChange(e.target.value)}
               className="w-full h-10 px-3 pr-8 rounded-lg bg-surface-bright font-body-md text-body-md text-on-surface appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer border border-outline-variant/30"
             >
-              <option value="">Tất cả gian hàng (Mall &amp; Thường)</option>
+              <option value="">Loại gian hàng</option>
               <option value="mall">Chỉ Vibe Mall</option>
               <option value="favorite">Shop Yêu thích</option>
               <option value="normal">Shop Thường</option>
@@ -801,7 +924,7 @@ export default function AdminSkuApprovalsPage() {
           </div>
 
           {/* Category Filter */}
-          <div className="lg:col-span-3 relative">
+          <div className="sm:col-span-1 lg:col-span-2 relative">
             <select
               value={categoryFilter}
               onChange={(e) => handleCategoryChange(e.target.value)}
@@ -819,7 +942,7 @@ export default function AdminSkuApprovalsPage() {
           </div>
 
           {/* Discount Filter */}
-          <div className="lg:col-span-2 relative">
+          <div className="sm:col-span-1 lg:col-span-2 relative">
             <select
               value={discountFilter}
               onChange={(e) => handleDiscountChange(e.target.value)}
