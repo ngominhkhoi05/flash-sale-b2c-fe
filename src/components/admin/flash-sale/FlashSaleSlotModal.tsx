@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,6 +35,28 @@ function parseLocalDateTime(dateTimeStr: string): number {
     return NaN;
   }
   return new Date(year, month - 1, day, hour, minute, second, 0).getTime();
+}
+
+/**
+ * Tự động tính hạn cuối đăng ký sản phẩm: trước thời điểm mở bán 1 giờ
+ * Ví dụ: ngày 29/12/2026 08:00 -> hạn cuối đăng ký là 29/12/2026 07:00
+ */
+function computeDefaultDeadline(dateStr: string, startTimeStr: string): string {
+  if (!dateStr || !startTimeStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hour, minute] = startTimeStr.split(":").map(Number);
+  if (
+    isNaN(year) || isNaN(month) || isNaN(day) ||
+    isNaN(hour) || isNaN(minute)
+  ) {
+    return "";
+  }
+  const startDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (isNaN(startDate.getTime())) return "";
+
+  // Trừ đúng 1 giờ (60 phút) trước giờ bắt đầu
+  const deadlineDate = new Date(startDate.getTime() - 60 * 60 * 1000);
+  return getLocalISOString(deadlineDate);
 }
 
 const slotFormSchema = z
@@ -170,7 +192,7 @@ function FlashSaleSlotModalDialog({
         holdSeconds: initialData.holdSeconds || 300,
         registrationDeadline: initialData.registrationDeadline
           ? initialData.registrationDeadline.substring(0, 16)
-          : `${initialData.date}T10:00`,
+          : computeDefaultDeadline(initialData.date, sh || "12:00"),
       };
     }
 
@@ -190,7 +212,7 @@ function FlashSaleSlotModalDialog({
           startTime: "10:00",
           endTime: "12:00",
           holdSeconds: 300,
-          registrationDeadline: `${tomorrowStr}T08:00`,
+          registrationDeadline: computeDefaultDeadline(tomorrowStr, "10:00"),
         };
       } else {
         startTime = `${String(nextHour).padStart(2, "0")}:00`;
@@ -201,8 +223,8 @@ function FlashSaleSlotModalDialog({
     const endHour = String(Math.min(h + 2, 23)).padStart(2, "0");
     const endTime = `${endHour}:${String(m).padStart(2, "0")}`;
 
-    // Deadline mặc định 2 tiếng trước giờ mở bán
-    const deadlineHour = String(Math.max(h - 2, 0)).padStart(2, "0");
+    // Deadline mặc định 1 tiếng trước giờ mở bán (tính từ ngày & giờ bắt đầu đã chọn)
+    const defDeadline = computeDefaultDeadline(today, startTime);
 
     return {
       name: "",
@@ -211,7 +233,7 @@ function FlashSaleSlotModalDialog({
       startTime,
       endTime,
       holdSeconds: 300,
-      registrationDeadline: `${today}T${deadlineHour}:00`,
+      registrationDeadline: defDeadline,
     };
   }, [initialData, defaultDate, defaultTime]);
 
@@ -219,6 +241,8 @@ function FlashSaleSlotModalDialog({
     register,
     handleSubmit,
     watch,
+    setValue,
+    clearErrors,
     setError,
     trigger,
     formState: { errors, isSubmitting, isDirty },
@@ -227,6 +251,11 @@ function FlashSaleSlotModalDialog({
     defaultValues,
     mode: "onChange",
   });
+
+  // Đánh dấu người dùng đã chủ động tự chỉnh sửa hạn chót đăng ký
+  const [userHasCustomDeadline, setUserHasCustomDeadline] = useState(isEditing);
+  const prevDateRef = useRef(defaultValues.date);
+  const prevStartTimeRef = useRef(defaultValues.startTime);
 
   // React Hook Form's watch() không tương thích với React Compiler
   // memoization, nhưng đây là pattern hợp lệ của RHF (xem rule
@@ -246,6 +275,76 @@ function FlashSaleSlotModalDialog({
       if (startTimeVal) trigger("startTime");
     }
   }, [dateVal, startTimeVal, endTimeVal, regDeadlineVal, isDirty, trigger]);
+
+  // Tự động tính và gán hạn cuối đăng ký khi ngày hoặc giờ mở bán thay đổi
+  // Ví dụ: người dùng chọn 29/12/2026 8:00 -> tự động gán là 29/12/2026 7:00
+  useEffect(() => {
+    const dateChanged = prevDateRef.current !== dateVal;
+    const timeChanged = prevStartTimeRef.current !== startTimeVal;
+    prevDateRef.current = dateVal;
+    prevStartTimeRef.current = startTimeVal;
+
+    if (!dateVal || !startTimeVal) return;
+
+    const currentDeadlineTime = parseLocalDateTime(regDeadlineVal);
+    const startDateTime = parseLocalDateTime(`${dateVal}T${startTimeVal}`);
+
+    const isCurrentDeadlineBroken =
+      !regDeadlineVal ||
+      isNaN(currentDeadlineTime) ||
+      currentDeadlineTime <= Date.now() ||
+      (!isNaN(startDateTime) && currentDeadlineTime >= startDateTime);
+
+    // Khi người dùng chưa chỉnh sửa thủ công,
+    // HOẶC khi ngày mở bán vừa thay đổi (chuyển sang ngày mới),
+    // HOẶC khi deadline hiện tại không còn hợp lệ so với giờ bắt đầu:
+    // => Tự động gán là trước giờ mở bán 1 giờ
+    if (!userHasCustomDeadline || dateChanged || isCurrentDeadlineBroken) {
+      const autoDeadline = computeDefaultDeadline(dateVal, startTimeVal);
+      if (autoDeadline && autoDeadline !== regDeadlineVal) {
+        setValue("registrationDeadline", autoDeadline, {
+          shouldValidate: isDirty,
+        });
+        if (dateChanged || isCurrentDeadlineBroken) {
+          setUserHasCustomDeadline(false);
+        }
+      }
+    }
+  }, [dateVal, startTimeVal, regDeadlineVal, userHasCustomDeadline, setValue, isDirty]);
+
+  // Tự động điều chỉnh endTime nếu startTime lớn hơn hoặc bằng endTime
+  useEffect(() => {
+    if (startTimeVal && endTimeVal) {
+      const [sh, sm] = startTimeVal.split(":").map(Number);
+      const [eh, em] = endTimeVal.split(":").map(Number);
+      if (!isNaN(sh) && !isNaN(sm) && !isNaN(eh) && !isNaN(em)) {
+        if (eh * 60 + em <= sh * 60 + sm) {
+          const nextEndHour = String(Math.min(sh + 2, 23)).padStart(2, "0");
+          setValue("endTime", `${nextEndHour}:${String(sm).padStart(2, "0")}`, {
+            shouldValidate: isDirty,
+          });
+        }
+      }
+    }
+  }, [startTimeVal, endTimeVal, setValue, isDirty]);
+
+  // Hàm xử lý nút Tự động điền hạn đăng ký (trước 1 giờ mở bán)
+  const handleAutoFillDeadline = () => {
+    if (!dateVal || !startTimeVal) {
+      toast.warning("Vui lòng chọn ngày tổ chức và giờ bắt đầu trước!");
+      return;
+    }
+    const autoDeadline = computeDefaultDeadline(dateVal, startTimeVal);
+    if (!autoDeadline) return;
+
+    setUserHasCustomDeadline(false);
+    setValue("registrationDeadline", autoDeadline, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    clearErrors("registrationDeadline");
+    toast.success("Đã tự động điền hạn đăng ký (trước giờ mở bán 1 giờ)");
+  };
 
   // Tính thời lượng
   const durationText = useMemo(() => {
@@ -533,30 +632,62 @@ function FlashSaleSlotModalDialog({
 
             {/* Field 5: Hạn cuối đăng ký sản phẩm */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-label-md text-label-md font-semibold text-on-surface flex items-center justify-between">
-                <span>
-                  Hạn cuối đăng ký sản phẩm cho người bán <span className="text-red-500">*</span>
-                </span>
-                <span className="font-label-sm text-label-sm text-secondary">
-                  (Khuyến nghị trước 2 giờ mở bán)
-                </span>
-              </label>
-              <input
-                type="datetime-local"
-                min={getLocalISOString()}
-                {...register("registrationDeadline")}
-                className={cn(
-                  "h-10 px-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
-                  errors.registrationDeadline
-                    ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
-                    : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
-                )}
-              />
-              {errors.registrationDeadline && (
-                <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
-                  <span className="material-symbols-outlined text-[15px] shrink-0">error</span>
-                  <span>{errors.registrationDeadline.message}</span>
+              <div className="flex items-center justify-between">
+                <label className="font-label-md text-label-md font-semibold text-on-surface">
+                  Hạn cuối đăng ký cho người bán <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoFillDeadline}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-semibold transition-colors cursor-pointer"
+                  title="Tự động đặt hạn đăng ký trước giờ mở bán 1 giờ"
+                >
+                  <span className="material-symbols-outlined text-[15px]">auto_fix_high</span>
+                  <span>Tự động điền (-1h)</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="datetime-local"
+                  min={getLocalISOString()}
+                  max={dateVal && startTimeVal ? `${dateVal}T${startTimeVal}` : undefined}
+                  {...register("registrationDeadline", {
+                    onChange: () => {
+                      setUserHasCustomDeadline(true);
+                    },
+                  })}
+                  className={cn(
+                    "w-full h-10 px-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
+                    errors.registrationDeadline
+                      ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
+                      : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
+                  )}
+                />
+              </div>
+
+              {/* Thông báo lỗi kèm NÚT TỰ ĐỘNG ĐIỀN khi người dùng chọn sai ngày */}
+              {errors.registrationDeadline ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 mt-1">
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <span className="material-symbols-outlined text-[17px] shrink-0 text-red-600 dark:text-red-400">
+                      error
+                    </span>
+                    <span>{errors.registrationDeadline.message}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoFillDeadline}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-on-primary font-label-md text-xs font-semibold shadow-xs transition-all active:scale-[0.98] cursor-pointer shrink-0 self-start sm:self-auto"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">auto_fix_high</span>
+                    <span>Tự động điền</span>
+                  </button>
                 </div>
+              ) : (
+                <span className="font-body-sm text-[12px] text-secondary">
+                  Hạn chót shop nộp sản phẩm tham gia. Mặc định tự động điền trước 1 giờ mở bán (bạn có thể tùy chỉnh lại).
+                </span>
               )}
             </div>
 
