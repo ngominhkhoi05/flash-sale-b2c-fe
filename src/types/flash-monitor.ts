@@ -17,6 +17,7 @@ export interface LiveSkuInventoryItem {
   productName: string;
   variantName: string;
   storeName: string;
+  categoryName?: string;
   allocatedStock: number;
   availableStock: number;
   holdingStock: number;
