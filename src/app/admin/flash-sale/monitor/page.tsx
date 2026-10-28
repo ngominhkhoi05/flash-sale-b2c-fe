@@ -339,29 +339,29 @@ function MonitorContent() {
   };
 
   // 4. Real Countdown & Heartbeat State
-  const countdownSeconds = useMemo(() => {
-    if (!currentSession) return 0;
-    const now = Date.now();
-    if (currentSession.status === "ACTIVE") {
-      const end = new Date(currentSession.endTime).getTime();
-      return Math.max(0, Math.floor((end - now) / 1000));
-    } else if (
-      currentSession.status === "UPCOMING" ||
-      currentSession.status === "REGISTRATION_OPEN"
-    ) {
-      const start = new Date(currentSession.startTime).getTime();
-      return Math.max(0, Math.floor((start - now) / 1000));
-    }
-    return 0;
-  }, [currentSession]);
-
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [lastHeartbeatSec, setLastHeartbeatSec] = useState(1);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
 
   useEffect(() => {
-    setSecondsLeft(countdownSeconds);
-  }, [countdownSeconds]);
+    if (!currentSession) {
+      setSecondsLeft(0);
+      return;
+    }
+    const now = Date.now();
+    if (currentSession.status === "ACTIVE") {
+      const end = new Date(currentSession.endTime).getTime();
+      setSecondsLeft(Math.max(0, Math.floor((end - now) / 1000)));
+    } else if (
+      currentSession.status === "UPCOMING" ||
+      currentSession.status === "REGISTRATION_OPEN"
+    ) {
+      const start = new Date(currentSession.startTime).getTime();
+      setSecondsLeft(Math.max(0, Math.floor((start - now) / 1000)));
+    } else {
+      setSecondsLeft(0);
+    }
+  }, [currentSession]);
 
   // Countdown timer effect
   useEffect(() => {
