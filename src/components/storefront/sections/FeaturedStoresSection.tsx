@@ -166,21 +166,35 @@ export function FeaturedStoresSection() {
           const props = mapToProductCardProps(product, index);
           const hasDiscount = product.minPrice < product.maxPrice;
 
+          const rawLabel = product.label?.trim();
+          const isTabSlug =
+            rawLabel &&
+            ["for_you", "best_seller", "all"].includes(rawLabel.toLowerCase());
+          const effectiveLabel = isTabSlug ? null : rawLabel;
+
           // Chọn variant theo Stitch design
-          if (product.label === "Freeship") {
+          if (effectiveLabel?.toLowerCase() === "freeship") {
             return (
               <Link key={product.id} href={`/products/${product.id}`}>
                 <ProductCard variant="freeship" {...props} />
               </Link>
             );
           }
-          if (product.label && product.label !== "Freeship") {
+          if (effectiveLabel) {
+            const displayLabel =
+              effectiveLabel.toLowerCase() === "hot_deal"
+                ? "Hot Deal"
+                : effectiveLabel.toLowerCase() === "flash_sale"
+                  ? "Flash Sale"
+                  : effectiveLabel.toLowerCase() === "voucher"
+                    ? "Voucher"
+                    : effectiveLabel;
             return (
               <Link key={product.id} href={`/products/${product.id}`}>
                 <ProductCard
                   variant="voucher"
                   {...props}
-                  voucherLabel={product.label}
+                  voucherLabel={displayLabel}
                 />
               </Link>
             );

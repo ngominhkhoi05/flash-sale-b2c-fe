@@ -94,6 +94,26 @@ describe("RecommendedSection (using useRecommendedProducts)", () => {
     expect(screen.getByText("Product 2")).toBeInTheDocument();
   });
 
+  it("does not display 'for_you' badge on product cards even if label is 'for_you'", async () => {
+    mockData.value = {
+      forYou: [
+        {
+          ...buildProduct(1, "Product With for_you Label"),
+          label: "for_you",
+        },
+      ],
+      bestSellers: [],
+      hotDeals: [],
+    };
+    renderWithProviders(<RecommendedSection />);
+    await waitFor(() => {
+      expect(
+        screen.getByText("Product With for_you Label"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText("for_you")).not.toBeInTheDocument();
+  });
+
   it("switches to bestSellers tab and renders correct products", async () => {
     mockData.value = {
       forYou: [buildProduct(1, "Product 1")],
