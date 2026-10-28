@@ -1,5 +1,5 @@
 /**
- * FlashSaleSlotNav – sticky nav hiển thị 5 slot theo giờ.
+ * FlashSaleSlotNav – thanh điều hướng hiển thị 5 slot theo giờ.
  *
  * 4 trạng thái slot:
  * - ENDED (đã kết thúc) – bg surface-container-low, text outline
@@ -58,7 +58,7 @@ export function FlashSaleSlotNav({
       aria-label="Khung giờ Flash Sale"
       data-testid="flash-sale-slot-nav"
       className={cn(
-        "sticky top-40 z-30 mb-6 rounded-xl bg-surface-container-lowest p-2 shadow-md backdrop-blur-md",
+        "mb-6 rounded-xl bg-surface-container-lowest p-2 shadow-md",
         className,
       )}
     >

@@ -3,7 +3,7 @@
  *
  * 6 section theo Stitch:
  *  1. FlashSaleHeroBanner
- *  2. FlashSaleSlotNav (sticky)
+ *  2. FlashSaleSlotNav
  *  3. FlashSaleCountdownBar + FlashSaleCategoryFilter
  *  4. FlashSaleDealsGrid (slot ACTIVE)
  *  5. FlashSaleUpcomingSection (slot UPCOMING)
