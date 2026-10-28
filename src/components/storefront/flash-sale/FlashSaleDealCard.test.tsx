@@ -67,10 +67,10 @@ describe("FlashSaleDealCard – default variant", () => {
     expect(screen.getByText(/Giới hạn 2 sản phẩm\/khách/i)).toBeInTheDocument();
   });
 
-  it("renders 'Mua ngay' button linking to product detail with variantId", () => {
+  it("renders 'Mua ngay' button linking to dedicated flash sale item page", () => {
     withProviders(<FlashSaleDealCard item={mkItem({ id: 42, productId: 6, variantId: 10 })} />);
     const link = screen.getByRole("link", { name: /mua ngay/i });
-    expect(link).toHaveAttribute("href", "/products/6?variantId=10");
+    expect(link).toHaveAttribute("href", "/flash-sale/42");
   });
 
   it("renders variant label when variantName is provided", () => {

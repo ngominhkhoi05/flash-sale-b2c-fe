@@ -12,6 +12,7 @@
  */
 
 import { apiFetch, ApiError } from "@/lib/api";
+import type { PublicFlashSaleItemDetailResponse } from "./types";
 
 // ─── Request/Response Types ───────────────────────────────────────────────────
 
@@ -206,4 +207,22 @@ export async function getActiveFlashSaleItems(): Promise<
     | PublicFlashSaleItemResponse[]
   >("/api/v1/flash-sales/items/active");
   return Array.isArray(res) ? res : res.data;
+}
+
+/**
+ * GET /api/v1/flash-sales/items/{itemId}
+ *
+ * Lấy chi tiết sản phẩm Flash Sale theo ID phiên bán cố định phân loại (SKU).
+ */
+export async function getFlashSaleItemDetail(
+  itemId: number | string
+): Promise<PublicFlashSaleItemDetailResponse> {
+  const res = await apiFetch<
+    | { data: PublicFlashSaleItemDetailResponse }
+    | PublicFlashSaleItemDetailResponse
+  >(`/api/v1/flash-sales/items/${itemId}`);
+  if (res && typeof res === "object" && "data" in res && (res as { data: PublicFlashSaleItemDetailResponse }).data) {
+    return (res as { data: PublicFlashSaleItemDetailResponse }).data;
+  }
+  return res as PublicFlashSaleItemDetailResponse;
 }

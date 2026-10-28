@@ -69,8 +69,7 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
   const soldPercent = computeSoldPercent(item);
   const discountPercent = computeDiscountPercent(item);
   const soldCount = item.allocatedStock - item.availableStock;
-  const variantParam = item.variantId ? `?variantId=${item.variantId}` : "";
-  const productHref = `/products/${item.productId ?? item.id}${variantParam}`;
+  const productHref = `/flash-sale/${item.id}`;
   const isSoldOutCard = variant === "sold-out";
   const isAlmostSoldOutCard = variant === "almost-sold-out";
   const variantLabel = formatVariantLabel(item);

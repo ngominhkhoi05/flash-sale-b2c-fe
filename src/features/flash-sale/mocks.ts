@@ -267,3 +267,71 @@ export function getMockUpcomingSlot(): PublicFlashSaleSlotResponse {
   if (!slot) throw new Error("Mock: no UPCOMING slot");
   return slot;
 }
+
+/** Lấy mock chi tiết 1 Flash Sale Item. */
+export function getMockFlashSaleItemDetail(
+  itemId: number
+): import("./types").PublicFlashSaleItemDetailResponse {
+  let foundSlot = mockFlashSaleSlots.find((s) =>
+    s.items.some((i) => i.id === itemId)
+  );
+  let foundItem = foundSlot?.items.find((i) => i.id === itemId);
+
+  if (!foundItem) {
+    foundSlot = activeSlot;
+    foundItem = activeSlot.items[0];
+  }
+
+  const discountPercent = Math.round(
+    ((foundItem.originalPrice - foundItem.flashSalePrice) /
+      foundItem.originalPrice) *
+      100
+  );
+
+  return {
+    id: itemId,
+    slotId: foundSlot?.id ?? 101,
+    slotTitle: foundSlot?.title ?? "Flash Sale Hôm Nay",
+    slotStartTime: foundSlot?.startTime ?? relativeIso(-1000 * 60 * 60),
+    slotEndTime: foundSlot?.endTime ?? relativeIso(1000 * 60 * 90),
+    slotStatus: foundSlot?.status ?? "ACTIVE",
+    reservationTtlSeconds: foundSlot?.reservationTtlSeconds ?? 300,
+    originalPrice: foundItem.originalPrice,
+    flashSalePrice: foundItem.flashSalePrice,
+    discountPercent,
+    allocatedStock: foundItem.allocatedStock,
+    availableStock: foundItem.availableStock,
+    userPurchaseLimit: foundItem.userPurchaseLimit,
+    status: foundItem.status,
+    productId: foundItem.productId ?? 1,
+    productName: foundItem.productName,
+    productDescription:
+      "Sản phẩm chính hãng với tiêu chuẩn chất lượng cao. Được bảo hành chính hãng và hỗ trợ đổi trả trong vòng 7 ngày nếu có lỗi từ nhà sản xuất. Ưu đãi độc quyền chỉ có trong khung giờ Flash Sale này.",
+    productSlug: "san-pham-flash-sale",
+    totalSold: 124,
+    ratingAvg: 4.9,
+    ratingCount: 88,
+    categoryId: foundItem.categoryId ?? 1,
+    categoryName: foundItem.categoryName ?? "Công nghệ",
+    categorySlug: foundItem.categorySlug ?? "cong-nghe",
+    storeId: 1,
+    storeName: "Official Flagship Store",
+    storeTier: "OFFICIAL_MALL",
+    storeLogoUrl: "https://picsum.photos/seed/store-1/120/120",
+    variantId: foundItem.variantId ?? 16,
+    sku: foundItem.sku ?? "FS-SKU-001",
+    variantName: foundItem.variantName || "Size S - Green",
+    attributes: {
+      "Kích cỡ": "Size S",
+      "Màu sắc": foundItem.variantName || "Green",
+      "Quy cách": "Tiêu chuẩn phiên Flash Sale",
+    },
+    primaryImageUrl: foundItem.imageUrl,
+    imageUrls: [
+      foundItem.imageUrl,
+      "https://picsum.photos/seed/gallery-1/600/600",
+      "https://picsum.photos/seed/gallery-2/600/600",
+      "https://picsum.photos/seed/gallery-3/600/600",
+    ],
+  };
+}

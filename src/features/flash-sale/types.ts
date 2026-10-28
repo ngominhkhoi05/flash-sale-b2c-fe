@@ -147,3 +147,40 @@ export type WsEvent =
   | OrderCancelledTimeoutEvent
   | OrderStatusChangedEvent
   | PaymentStatusChangedEvent;
+
+export interface PublicFlashSaleItemDetailResponse {
+  id: number;
+  slotId: number;
+  slotTitle: string;
+  slotStartTime: string;
+  slotEndTime: string;
+  slotStatus: string;
+  reservationTtlSeconds: number;
+  originalPrice: number;
+  flashSalePrice: number;
+  discountPercent: number;
+  allocatedStock: number;
+  availableStock: number;
+  userPurchaseLimit: number;
+  status: string;
+  productId: number;
+  productName: string;
+  productDescription?: string | null;
+  productSlug?: string | null;
+  totalSold?: number;
+  ratingAvg?: number;
+  ratingCount?: number;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
+  storeId: number;
+  storeName: string;
+  storeTier?: string;
+  storeLogoUrl?: string | null;
+  variantId: number;
+  sku: string;
+  variantName: string;
+  attributes?: Record<string, string> | null;
+  primaryImageUrl?: string | null;
+  imageUrls: string[];
+}

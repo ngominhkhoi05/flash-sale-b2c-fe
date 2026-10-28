@@ -77,8 +77,7 @@ export function FlashSaleUpcomingSection({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
         {items.map((item) => {
-          const variantParam = item.variantId ? `?variantId=${item.variantId}` : "";
-          const productHref = `/products/${item.productId ?? item.id}${variantParam}`;
+          const productHref = `/flash-sale/${item.id}`;
           return (
             <div
               key={item.id}
