@@ -4,7 +4,7 @@
  * RecommendedSection – Stitch "GỢI Ý HÔM NAY" (Section #7).
  *
  * Gồm:
- * - Sticky tabs (Dành cho bạn / Bán chạy / Ưu đãi sốc) – UI only
+ * - Tabs (Dành cho bạn / Bán chạy / Ưu đãi sốc) – UI only
  * - Lưới sản phẩm (2-5 cols responsive) load từ API
  *
  * Data (ưu tiên):
@@ -128,21 +128,35 @@ export function RecommendedSection() {
             // ngoài ý muốn khi 2 tab có chung id nhưng nội dung khác nhau).
             const cardKey = `${activeTab}-${product.id}`;
 
+            const rawLabel = product.label?.trim();
+            const isTabSlug =
+              rawLabel &&
+              ["for_you", "best_seller", "all"].includes(rawLabel.toLowerCase());
+            const effectiveLabel = isTabSlug ? null : rawLabel;
+
             // Chọn variant theo Stitch design
-            if (product.label === "Freeship") {
+            if (effectiveLabel?.toLowerCase() === "freeship") {
               return (
                 <Link key={cardKey} href={`/products/${product.id}`}>
                   <ProductCard variant="freeship" {...props} />
                 </Link>
               );
             }
-            if (product.label && product.label !== "Freeship") {
+            if (effectiveLabel) {
+              const displayLabel =
+                effectiveLabel.toLowerCase() === "hot_deal"
+                  ? "Hot Deal"
+                  : effectiveLabel.toLowerCase() === "flash_sale"
+                    ? "Flash Sale"
+                    : effectiveLabel.toLowerCase() === "voucher"
+                      ? "Voucher"
+                      : effectiveLabel;
               return (
                 <Link key={cardKey} href={`/products/${product.id}`}>
                   <ProductCard
                     variant="voucher"
                     {...props}
-                    voucherLabel={product.label}
+                    voucherLabel={displayLabel}
                   />
                 </Link>
               );

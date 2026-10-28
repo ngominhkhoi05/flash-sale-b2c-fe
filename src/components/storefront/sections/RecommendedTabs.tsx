@@ -3,7 +3,6 @@
 /**
  * RecommendedTabs – Internal tabs cho RecommendedSection.
  * - 3 tab: "Dành cho bạn" (mặc định), "Bán chạy", "Ưu đãi sốc"
- * - Sticky dưới flash sale strip + vouchers
  * - Gọi API /api/v1/products/recommended với tab tương ứng
  */
 import { cn } from "@/lib/utils";
@@ -32,7 +31,7 @@ const TABS: { key: RecommendedTab; labelKey: string; icon: Parameters<typeof Mat
 export function RecommendedTabs({ activeTab, onTabChange, t }: RecommendedTabsProps) {
   return (
     <div
-      className="sticky top-20 z-30 bg-surface-container-lowest rounded-xl p-2 shadow-sm flex items-center justify-around sm:justify-start gap-2 border-b border-surface-container"
+      className="bg-surface-container-lowest rounded-xl p-2 shadow-sm flex items-center justify-around sm:justify-start gap-2 border-b border-surface-container"
       role="tablist"
       aria-label="Recommended product tabs"
     >

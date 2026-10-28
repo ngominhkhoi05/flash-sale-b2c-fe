@@ -69,19 +69,25 @@ export function SearchProductGrid({
         //  - default → default variant
         let variant: "default" | "discount" | "voucher" | "freeship" = "default";
         let voucherLabel: string | undefined;
-        if (item.label === "freeship") {
+        const rawLabel = item.label?.trim();
+        const isTabSlug =
+          rawLabel &&
+          ["for_you", "best_seller", "all"].includes(rawLabel.toLowerCase());
+        const effectiveLabel = isTabSlug ? null : rawLabel;
+
+        if (effectiveLabel?.toLowerCase() === "freeship") {
           variant = "freeship";
-        } else if (item.label) {
+        } else if (effectiveLabel) {
           variant = "voucher";
           // Map label thành text tiếng Việt cho corner tag
           voucherLabel =
-            item.label === "voucher"
+            effectiveLabel.toLowerCase() === "voucher"
               ? "Voucher"
-              : item.label === "flash_sale"
+              : effectiveLabel.toLowerCase() === "flash_sale"
                 ? "Flash Sale"
-                : item.label === "hot_deal"
+                : effectiveLabel.toLowerCase() === "hot_deal"
                   ? "Hot Deal"
-                  : item.label;
+                  : effectiveLabel;
         } else if (hasDiscount && cardProps.discountPercent) {
           variant = "discount";
         }
