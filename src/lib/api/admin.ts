@@ -112,6 +112,11 @@ interface FlashSaleSlotResponse {
   reservationTtlSeconds: number;
   status: string;
   createdAt?: string;
+  approvedSkusCount?: number;
+  pendingSkusCount?: number;
+  totalSkusCount?: number;
+  allocatedQuantity?: number;
+  soldQuantity?: number;
 }
 
 /**
@@ -136,11 +141,11 @@ function mapSlotToSession(slot: FlashSaleSlotResponse): AdminFlashSaleSession {
     timeRangeDisplay,
     holdSeconds: slot.reservationTtlSeconds || 300,
     registrationDeadline: slot.startTime,
-    approvedSkusCount: 0,
-    pendingSkusCount: 0,
-    totalSkusCount: 0,
-    soldQuantity: 0,
-    allocatedQuantity: 0,
+    approvedSkusCount: Number(slot.approvedSkusCount ?? 0),
+    pendingSkusCount: Number(slot.pendingSkusCount ?? 0),
+    totalSkusCount: Number(slot.totalSkusCount ?? 0),
+    soldQuantity: Number(slot.soldQuantity ?? 0),
+    allocatedQuantity: Number(slot.allocatedQuantity ?? 0),
     status: (slot.status as FlashSaleSlotStatus) || "UPCOMING",
     createdAt: slot.createdAt,
   };
@@ -269,10 +274,18 @@ export async function deleteAdminFlashSaleSlot(id: number): Promise<void> {
 /**
  * 5. Duyệt một SKU Flash Sale (KHỚP BE: PATCH /api/v1/admin/flash-sales/items/{id}/approve)
  */
-export async function approveFlashSaleSku(id: number): Promise<void> {
+export async function approveFlashSaleSku(id: number, commission?: number): Promise<void> {
+  const normalizedCommission =
+    typeof commission === "number"
+      ? commission > 1
+        ? Number((commission / 100).toFixed(4))
+        : commission
+      : undefined;
+
   try {
     await apiFetch<unknown>(`/admin/flash-sales/items/${id}/approve`, {
       method: "PATCH",
+      json: normalizedCommission !== undefined ? { commissionRateOverride: normalizedCommission } : undefined,
     });
   } catch (err) {
     if (isMockMode()) {
@@ -329,7 +342,9 @@ interface RawFlashSaleSlotItem {
 export async function getAdminSkuApprovals(slotId?: number): Promise<SkuApprovalItem[]> {
   try {
     const endpoint = slotId ? `/admin/flash-sales/slots/${slotId}/items` : "/admin/flash-sales/items";
-    const res = await apiFetch<unknown>(endpoint);
+    const res = await apiFetch<unknown>(endpoint, {
+      query: { size: 100 },
+    });
     const rawItems = extractItems<RawFlashSaleSlotItem>(res);
     return rawItems.map((item: RawFlashSaleSlotItem) => ({
       id: item.id,
@@ -403,14 +418,26 @@ export async function getAdminApprovalCounts(slotId?: number): Promise<SkuApprov
  * 9. Batch duyệt SKU
  */
 export async function batchApproveFlashSaleSkus(
-  ids: number[]
+  ids: number[],
+  commission?: number
 ): Promise<BatchApproveFlashSaleItemsResult> {
+  const normalizedCommission =
+    typeof commission === "number"
+      ? commission > 1
+        ? Number((commission / 100).toFixed(4))
+        : commission
+      : undefined;
+
   try {
     return await apiFetch<BatchApproveFlashSaleItemsResult>(
       "/admin/flash-sales/items/batch-approve",
       {
         method: "POST",
-        json: { itemIds: ids, ids },
+        json: {
+          itemIds: ids,
+          ids,
+          ...(normalizedCommission !== undefined ? { commissionRateOverride: normalizedCommission } : {}),
+        },
       }
     );
   } catch (err) {
@@ -516,8 +543,20 @@ export async function getAdminRealtimeTelemetry(slotId: number): Promise<Realtim
       lastUpdated: res.lastUpdated ?? new Date().toLocaleTimeString("vi-VN"),
     };
   } catch (err) {
-    console.warn("[getAdminRealtimeTelemetry] Backend API call failed, falling back to mock telemetry:", err);
-    return getMockTelemetry();
+    console.warn("[getAdminRealtimeTelemetry] Backend API call failed:", err);
+    if (isMockMode()) {
+      return getMockTelemetry();
+    }
+    return {
+      rps: 0,
+      activeLocks: 0,
+      completedOrders: 0,
+      totalRevenue: 0,
+      expiredReleases: 0,
+      p99LatencyMs: 0,
+      isPaused: false,
+      lastUpdated: new Date().toLocaleTimeString("vi-VN"),
+    };
   }
 }
 
@@ -527,12 +566,13 @@ export async function getAdminRealtimeTelemetry(slotId: number): Promise<Realtim
 export async function getAdminLiveSkus(slotId: number): Promise<LiveSkuInventoryItem[]> {
   try {
     const res = await apiFetch<unknown>(`/admin/flash-sales/slots/${slotId}/skus`);
-    const items = extractItems<LiveSkuInventoryItem>(res);
-    if (items.length === 0) return getMockLiveSkus();
-    return items;
+    return extractItems<LiveSkuInventoryItem>(res);
   } catch (err) {
-    console.warn("[getAdminLiveSkus] Backend API call failed, falling back to mock live skus:", err);
-    return getMockLiveSkus();
+    console.warn("[getAdminLiveSkus] Backend API call failed:", err);
+    if (isMockMode()) {
+      return getMockLiveSkus();
+    }
+    return [];
   }
 }
 
@@ -542,12 +582,13 @@ export async function getAdminLiveSkus(slotId: number): Promise<LiveSkuInventory
 export async function getAdminLiveLogs(slotId: number): Promise<LiveLogEvent[]> {
   try {
     const res = await apiFetch<unknown>(`/admin/flash-sales/slots/${slotId}/logs`);
-    const items = extractItems<LiveLogEvent>(res);
-    if (items.length === 0) return getMockLiveLogs();
-    return items;
+    return extractItems<LiveLogEvent>(res);
   } catch (err) {
-    console.warn("[getAdminLiveLogs] Backend API call failed, falling back to mock live logs:", err);
-    return getMockLiveLogs();
+    console.warn("[getAdminLiveLogs] Backend API call failed:", err);
+    if (isMockMode()) {
+      return getMockLiveLogs();
+    }
+    return [];
   }
 }
 
@@ -594,16 +635,41 @@ export async function emergencyPauseFlashSaleSlot(
 }
 
 /**
+ * Tiếp tục phiên Flash Sale đang tạm dừng
+ */
+export async function resumeFlashSaleSlot(slotId: number): Promise<boolean> {
+  try {
+    await apiFetch(`/admin/flash-sales/slots/${slotId}/resume`, {
+      method: "POST",
+    });
+    return true;
+  } catch (err) {
+    if (isMockMode()) {
+      toggleSessionPause(false);
+      return true;
+    }
+    throw err;
+  }
+}
+
+/**
  * Wrapper tương thích ngược cho toggleAdminEmergencyPause
  */
 export async function toggleAdminEmergencyPause(
   slotId: number,
   reason: string,
-  rollbackStock: boolean = true
+  rollbackStock: boolean = true,
+  isCurrentlyPaused: boolean = false
 ): Promise<boolean> {
-  const result = await emergencyPauseFlashSaleSlot(slotId, reason, rollbackStock);
-  return result.isPaused;
+  if (isCurrentlyPaused) {
+    await resumeFlashSaleSlot(slotId);
+    return false;
+  } else {
+    const result = await emergencyPauseFlashSaleSlot(slotId, reason, rollbackStock);
+    return result.isPaused;
+  }
 }
+
 
 interface BeVoucherResponse {
   id: number;
