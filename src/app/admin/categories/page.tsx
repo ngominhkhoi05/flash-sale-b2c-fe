@@ -27,7 +27,7 @@ export default function AdminCategoriesPage() {
     return rawCategories.length > 0 ? rawCategories[0] : null;
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const isSaving = false;
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   // Form state
