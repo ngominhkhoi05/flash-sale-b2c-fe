@@ -18,8 +18,9 @@ export interface FlashSaleSlotNavSlot {
   id: number;
   startTime: string;
   endTime: string;
-  status: "UPCOMING" | "ACTIVE" | "ENDED";
+  status: "UPCOMING" | "ACTIVE" | "ENDED" | "PAUSED";
 }
+
 
 export interface FlashSaleSlotNavProps {
   slots: FlashSaleSlotNavSlot[];
@@ -66,6 +67,7 @@ export function FlashSaleSlotNav({
         {slots.slice(0, 5).map((slot) => {
           const isActive = slot.id === activeSlotId;
           const isEnded = slot.status === "ENDED";
+          const isPaused = slot.status === "PAUSED";
           const isUpcomingToday = slot.status === "UPCOMING" && !isTomorrowSlot(slot.startTime);
           const isUpcomingTomorrow = slot.status === "UPCOMING" && isTomorrowSlot(slot.startTime);
 
@@ -73,8 +75,12 @@ export function FlashSaleSlotNav({
           const containerCls = cn(
             "flex flex-col items-center justify-center rounded-lg py-2.5 px-1 text-center transition-all",
             isActive
-              ? "relative bg-tertiary text-on-tertiary shadow-sm active:scale-[0.99] overflow-hidden"
-              : isEnded
+              ? isPaused
+                ? "relative bg-amber-600 text-white shadow-sm active:scale-[0.99] overflow-hidden"
+                : "relative bg-tertiary text-on-tertiary shadow-sm active:scale-[0.99] overflow-hidden"
+              : isPaused
+                ? "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+                : isEnded
                 ? "bg-surface-container-low hover:bg-surface-container"
                 : isUpcomingToday
                   ? "bg-primary-fixed/40 hover:bg-primary-fixed"
@@ -87,7 +93,9 @@ export function FlashSaleSlotNav({
             "text-headline-sm font-semibold transition-colors",
             isActive
               ? "text-on-tertiary"
-              : isEnded
+              : isPaused
+                ? "text-amber-900"
+                : isEnded
                 ? "text-outline group-hover:text-on-surface"
                 : isUpcomingToday
                   ? "text-primary"
@@ -96,9 +104,13 @@ export function FlashSaleSlotNav({
 
           const subLabelCls = cn(
             "mt-0.5 text-label-sm font-medium",
-            isActive ? "font-bold uppercase tracking-wider text-on-tertiary/90" : "text-outline",
+            isActive
+              ? "font-bold uppercase tracking-wider text-on-tertiary/90"
+              : isPaused
+                ? "text-amber-700 font-semibold"
+                : "text-outline",
             !isActive && isUpcomingToday && "text-primary",
-            !isActive && !isEnded && !isUpcomingToday && "text-on-surface-variant",
+            !isActive && !isEnded && !isPaused && !isUpcomingToday && "text-on-surface-variant",
           );
 
           return (
@@ -120,7 +132,11 @@ export function FlashSaleSlotNav({
                 <span className={labelCls}>{formatHHmm(slot.startTime)}</span>
               </div>
               <span className={subLabelCls}>
-                {isActive
+                {isPaused
+                  ? isActive
+                    ? "Đang tạm dừng"
+                    : "Tạm dừng"
+                  : isActive
                   ? "Đang diễn ra"
                   : isEnded
                     ? "Đã kết thúc"
@@ -134,6 +150,7 @@ export function FlashSaleSlotNav({
             </button>
           );
         })}
+
       </div>
     </nav>
   );
