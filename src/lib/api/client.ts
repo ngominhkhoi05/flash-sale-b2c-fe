@@ -125,9 +125,12 @@ export function setMockUserId(userId: string): void {
   }
 }
 
-/** Kiểm tra chế độ Mock data (chỉ bật khi NEXT_PUBLIC_USE_MOCKS === "true") */
+/** Kiểm tra chế độ Mock data (chỉ bật khi NEXT_PUBLIC_USE_MOCKS === "true" hoặc NEXT_PUBLIC_USE_MOCK === "true") */
 export function isMockMode(): boolean {
-  return process.env.NEXT_PUBLIC_USE_MOCKS === "true";
+  return (
+    process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
+    process.env.NEXT_PUBLIC_USE_MOCK === "true"
+  );
 }
 
 export type ApiFetchOptions = Omit<RequestInit, "body"> & {

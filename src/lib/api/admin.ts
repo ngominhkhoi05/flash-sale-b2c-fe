@@ -331,9 +331,6 @@ export async function getAdminSkuApprovals(slotId?: number): Promise<SkuApproval
     const endpoint = slotId ? `/admin/flash-sales/slots/${slotId}/items` : "/admin/flash-sales/items";
     const res = await apiFetch<unknown>(endpoint);
     const rawItems = extractItems<RawFlashSaleSlotItem>(res);
-    if (rawItems.length === 0) {
-      return getMockSkuApprovals(slotId);
-    }
     return rawItems.map((item: RawFlashSaleSlotItem) => ({
       id: item.id,
       slotId: item.slotId ?? slotId ?? 1,
@@ -360,8 +357,11 @@ export async function getAdminSkuApprovals(slotId?: number): Promise<SkuApproval
       commissionOverride: item.commissionRateOverride ? Number(item.commissionRateOverride) : undefined,
     }));
   } catch (err) {
-    console.warn("Chưa tải được duyệt SKU từ BE, sử dụng mock data fallback:", err);
-    return getMockSkuApprovals(slotId);
+    console.warn("[getAdminSkuApprovals] Backend API call failed:", err);
+    if (isMockMode()) {
+      return getMockSkuApprovals(slotId);
+    }
+    return [];
   }
 }
 
@@ -392,7 +392,10 @@ export async function getAdminApprovalCounts(slotId?: number): Promise<SkuApprov
     const rejected = items.filter((i) => i.status === "REJECTED").length;
     return { pending, approved, rejected };
   } catch {
-    return getApprovalCounts(slotId);
+    if (isMockMode()) {
+      return getApprovalCounts(slotId);
+    }
+    return { pending: 0, approved: 0, rejected: 0 };
   }
 }
 
@@ -432,6 +435,15 @@ export async function batchRejectFlashSaleSkus(ids: number[], reason: string): P
       json: { ids, reason },
     });
   } catch (err) {
+    // Nếu BE chưa hỗ trợ endpoint batch-reject, từ chối tuần tự qua PATCH /items/{id}/reject
+    if (!isMockMode()) {
+      try {
+        await Promise.all(ids.map((id) => rejectFlashSaleSku(id, reason)));
+        return;
+      } catch (subErr) {
+        throw subErr;
+      }
+    }
     if (isMockMode()) {
       batchRejectSkus(ids, reason);
       return;
