@@ -115,9 +115,14 @@ export async function fetchCategoryBySlug(slug: string): Promise<CategoryRespons
 export interface PublicFlashSaleItemResponse {
   id: number;
   slotId: number;
+  productId?: number;
   variantId: number;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
   sku: string;
   variantName: string;
+  attributes?: Record<string, string> | null;
   productName: string;
   imageUrl: string;
   originalPrice: number;

@@ -10,7 +10,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -19,12 +19,14 @@ import type { ProductImage } from "@/features/products";
 export interface ProductGalleryProps {
   images: ProductImage[];
   productName: string;
+  selectedImageUrl?: string | null;
   className?: string;
 }
 
 export function ProductGallery({
   images,
   productName,
+  selectedImageUrl,
   className,
 }: ProductGalleryProps) {
   const t = useTranslations("productDetail.gallery");
@@ -35,6 +37,14 @@ export function ProductGallery({
     ),
   );
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    if (!selectedImageUrl) return;
+    const foundIdx = images.findIndex((img) => img.url === selectedImageUrl);
+    if (foundIdx !== -1) {
+      setActiveIdx(foundIdx);
+    }
+  }, [selectedImageUrl, images]);
 
   const active = images[activeIdx] ?? images[0];
   if (!active) {

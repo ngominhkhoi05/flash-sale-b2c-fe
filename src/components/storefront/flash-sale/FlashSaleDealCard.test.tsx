@@ -67,10 +67,30 @@ describe("FlashSaleDealCard – default variant", () => {
     expect(screen.getByText(/Giới hạn 2 sản phẩm\/khách/i)).toBeInTheDocument();
   });
 
-  it("renders 'Mua ngay' button linking to product detail", () => {
-    withProviders(<FlashSaleDealCard item={mkItem({ id: 42 })} />);
+  it("renders 'Mua ngay' button linking to dedicated flash sale item page", () => {
+    withProviders(<FlashSaleDealCard item={mkItem({ id: 42, productId: 6, variantId: 10 })} />);
     const link = screen.getByRole("link", { name: /mua ngay/i });
-    expect(link).toHaveAttribute("href", "/products/42");
+    expect(link).toHaveAttribute("href", "/flash-sale/42");
+  });
+
+  it("renders variant label when variantName is provided", () => {
+    withProviders(<FlashSaleDealCard item={mkItem({ variantName: "L, Green" })} />);
+    const label = screen.getByTestId("flash-sale-variant-label");
+    expect(label).toHaveTextContent(/Phân loại:\s*L, Green/i);
+  });
+
+  it("renders formatted attributes when attributes map is provided", () => {
+    withProviders(
+      <FlashSaleDealCard
+        item={mkItem({
+          variantName: "L, Green",
+          attributes: { Size: "L", Color: "Green" },
+        })}
+      />,
+    );
+    const label = screen.getByTestId("flash-sale-variant-label");
+    expect(label).toHaveTextContent(/Size: L/i);
+    expect(label).toHaveTextContent(/Color: Green/i);
   });
 });
 

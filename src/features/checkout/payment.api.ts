@@ -126,3 +126,18 @@ export async function queryZaloPayPaymentByCode(
   );
   return extractPaymentResponse(res);
 }
+
+/**
+ * POST /api/v1/orders/by-code/{orderCode}/payment/cod
+ *
+ * Chuyển đơn sang phương thức COD theo mã đơn hàng.
+ */
+export async function confirmCodPaymentByCode(
+  orderCode: string,
+): Promise<PaymentResponse> {
+  const res = await apiFetch<PaymentResponse | ApiResponse<PaymentResponse>>(
+    `/api/v1/orders/by-code/${encodeURIComponent(orderCode)}/payment/cod`,
+    { method: "POST" },
+  );
+  return extractPaymentResponse(res);
+}

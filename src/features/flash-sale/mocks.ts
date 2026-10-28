@@ -27,12 +27,20 @@ function mockItem(
     allocatedStock: number;
     availableStock: number;
     userPurchaseLimit: number;
+    productId?: number;
+    categoryId?: number;
+    categoryName?: string;
+    categorySlug?: string;
   },
 ): PublicFlashSaleSlotResponse["items"][number] {
   return {
     id,
     slotId,
+    productId: opts.productId ?? id,
     variantId: id * 10,
+    categoryId: opts.categoryId ?? 1,
+    categoryName: opts.categoryName ?? "Điện tử",
+    categorySlug: opts.categorySlug ?? "dien-tu",
     sku: `MOCK-${id.toString().padStart(4, "0")}`,
     variantName: opts.variantName,
     productName: opts.productName,
@@ -58,6 +66,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(1, 101, {
       productName: "Tai nghe Bluetooth chống ồn ANC AirPro không dây",
       variantName: "Đen",
+      categoryName: "Điện tử",
+      categorySlug: "dien-tu",
       imageUrl: "https://picsum.photos/seed/flash-1/600/600",
       originalPrice: 1_450_000,
       flashSalePrice: 790_000,
@@ -68,6 +78,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(2, 101, {
       productName: "Nồi chiên không dầu điện tử VibeCook 5.5L công nghệ nhiệt 360",
       variantName: "Đen",
+      categoryName: "Gia dụng",
+      categorySlug: "gia-dung",
       imageUrl: "https://picsum.photos/seed/flash-2/600/600",
       originalPrice: 1_990_000,
       flashSalePrice: 999_000,
@@ -78,6 +90,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(3, 101, {
       productName: "Bình giữ nhiệt Inox 304 dung tích 750ml khóa nhiệt 24h",
       variantName: "Xanh mint",
+      categoryName: "Nhà cửa & Đời sống",
+      categorySlug: "nha-cua",
       imageUrl: "https://picsum.photos/seed/flash-3/600/600",
       originalPrice: 320_000,
       flashSalePrice: 199_000,
@@ -88,6 +102,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(4, 101, {
       productName: "Đồng hồ thông minh thể thao VibeFit Active đo SpO2 chống nước",
       variantName: "Đen",
+      categoryName: "Điện tử",
+      categorySlug: "dien-tu",
       imageUrl: "https://picsum.photos/seed/flash-4/600/600",
       originalPrice: 1_190_000,
       flashSalePrice: 589_000,
@@ -98,6 +114,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(5, 101, {
       productName: "Giày chạy bộ siêu nhẹ Runner Pro Foam đệm khí êm ái",
       variantName: "Xanh neon",
+      categoryName: "Thời trang",
+      categorySlug: "thoi-trang",
       imageUrl: "https://picsum.photos/seed/flash-5/600/600",
       originalPrice: 799_000,
       flashSalePrice: 465_000,
@@ -108,6 +126,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(6, 101, {
       productName: "Bàn chải điện sóng âm Sonic 5 mode rung 42000 lần/phút",
       variantName: "Trắng",
+      categoryName: "Làm đẹp & Sức khỏe",
+      categorySlug: "lam-dep",
       imageUrl: "https://picsum.photos/seed/flash-6/600/600",
       originalPrice: 550_000,
       flashSalePrice: 299_000,
@@ -118,6 +138,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(7, 101, {
       productName: "Nước tẩy trang dịu nhẹ Ceramide 500ml cấp ẩm da nhạy cảm",
       variantName: "500ml",
+      categoryName: "Làm đẹp & Sức khỏe",
+      categorySlug: "lam-dep",
       imageUrl: "https://picsum.photos/seed/flash-7/600/600",
       originalPrice: 280_000,
       flashSalePrice: 145_000,
@@ -128,6 +150,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(8, 101, {
       productName: "Pin sạc dự phòng 20000mAh 65W sạc nhanh laptop & smartphone",
       variantName: "Đen",
+      categoryName: "Điện tử",
+      categorySlug: "dien-tu",
       imageUrl: "https://picsum.photos/seed/flash-8/600/600",
       originalPrice: 690_000,
       flashSalePrice: 449_000,
@@ -138,6 +162,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(9, 101, {
       productName: "Áo khoác dù chống nước 2 lớp thoáng khí cản gió du lịch",
       variantName: "Xanh navy / L",
+      categoryName: "Thời trang",
+      categorySlug: "thoi-trang",
       imageUrl: "https://picsum.photos/seed/flash-9/600/600",
       originalPrice: 499_000,
       flashSalePrice: 279_000,
@@ -148,6 +174,8 @@ const activeSlot: PublicFlashSaleSlotResponse = {
     mockItem(10, 101, {
       productName: "Bàn phím cơ không dây RGB switch hot-swap 3 chế độ kết nối",
       variantName: "Mint",
+      categoryName: "Điện tử",
+      categorySlug: "dien-tu",
       imageUrl: "https://picsum.photos/seed/flash-10/600/600",
       originalPrice: 1_060_000,
       flashSalePrice: 650_000,
@@ -238,4 +266,72 @@ export function getMockUpcomingSlot(): PublicFlashSaleSlotResponse {
   const slot = mockFlashSaleSlots.find((s) => s.status === "UPCOMING");
   if (!slot) throw new Error("Mock: no UPCOMING slot");
   return slot;
+}
+
+/** Lấy mock chi tiết 1 Flash Sale Item. */
+export function getMockFlashSaleItemDetail(
+  itemId: number
+): import("./types").PublicFlashSaleItemDetailResponse {
+  let foundSlot = mockFlashSaleSlots.find((s) =>
+    s.items.some((i) => i.id === itemId)
+  );
+  let foundItem = foundSlot?.items.find((i) => i.id === itemId);
+
+  if (!foundItem) {
+    foundSlot = activeSlot;
+    foundItem = activeSlot.items[0];
+  }
+
+  const discountPercent = Math.round(
+    ((foundItem.originalPrice - foundItem.flashSalePrice) /
+      foundItem.originalPrice) *
+      100
+  );
+
+  return {
+    id: itemId,
+    slotId: foundSlot?.id ?? 101,
+    slotTitle: foundSlot?.title ?? "Flash Sale Hôm Nay",
+    slotStartTime: foundSlot?.startTime ?? relativeIso(-1000 * 60 * 60),
+    slotEndTime: foundSlot?.endTime ?? relativeIso(1000 * 60 * 90),
+    slotStatus: foundSlot?.status ?? "ACTIVE",
+    reservationTtlSeconds: foundSlot?.reservationTtlSeconds ?? 300,
+    originalPrice: foundItem.originalPrice,
+    flashSalePrice: foundItem.flashSalePrice,
+    discountPercent,
+    allocatedStock: foundItem.allocatedStock,
+    availableStock: foundItem.availableStock,
+    userPurchaseLimit: foundItem.userPurchaseLimit,
+    status: foundItem.status,
+    productId: foundItem.productId ?? 1,
+    productName: foundItem.productName,
+    productDescription:
+      "Sản phẩm chính hãng với tiêu chuẩn chất lượng cao. Được bảo hành chính hãng và hỗ trợ đổi trả trong vòng 7 ngày nếu có lỗi từ nhà sản xuất. Ưu đãi độc quyền chỉ có trong khung giờ Flash Sale này.",
+    productSlug: "san-pham-flash-sale",
+    totalSold: 124,
+    ratingAvg: 4.9,
+    ratingCount: 88,
+    categoryId: foundItem.categoryId ?? 1,
+    categoryName: foundItem.categoryName ?? "Công nghệ",
+    categorySlug: foundItem.categorySlug ?? "cong-nghe",
+    storeId: 1,
+    storeName: "Official Flagship Store",
+    storeTier: "OFFICIAL_MALL",
+    storeLogoUrl: "https://picsum.photos/seed/store-1/120/120",
+    variantId: foundItem.variantId ?? 16,
+    sku: foundItem.sku ?? "FS-SKU-001",
+    variantName: foundItem.variantName || "Size S - Green",
+    attributes: {
+      "Kích cỡ": "Size S",
+      "Màu sắc": foundItem.variantName || "Green",
+      "Quy cách": "Tiêu chuẩn phiên Flash Sale",
+    },
+    primaryImageUrl: foundItem.imageUrl,
+    imageUrls: [
+      foundItem.imageUrl,
+      "https://picsum.photos/seed/gallery-1/600/600",
+      "https://picsum.photos/seed/gallery-2/600/600",
+      "https://picsum.photos/seed/gallery-3/600/600",
+    ],
+  };
 }

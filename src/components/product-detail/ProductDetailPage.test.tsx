@@ -849,6 +849,56 @@ describe("ProductDetailPage - auto-switch UX (2026-10-18)", () => {
     // Giá lập tức cập nhật sang 100.000₫ của biến thể M - Red
     expect(priceEl).toHaveTextContent("100.000₫");
   });
+
+  test("khởi tạo đúng biến thể được chỉ định qua initialVariantId (vd từ trang Flash Sale)", () => {
+    const product: ProductDetail = {
+      ...mockProductDetail,
+      tierVariationConfigs: [
+        { name: "Size", options: ["L", "M"] },
+        { name: "Color", options: ["Green", "Red"] },
+      ],
+      variants: [
+        {
+          id: 1,
+          productId: 1,
+          sku: "VAR-L-GREEN",
+          variantName: "L, Green",
+          attributes: { Size: "L", Color: "Green" },
+          originalPrice: 9000,
+          stockQuantity: 10,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+        {
+          id: 2,
+          productId: 1,
+          sku: "VAR-M-RED",
+          variantName: "M, Red",
+          attributes: { Size: "M", Color: "Red" },
+          originalPrice: 100000,
+          stockQuantity: 30,
+          imageUrl: null,
+          status: "ACTIVE",
+          isDisabled: false,
+          version: 0,
+          createdAt: "2026-10-18T14:36:04Z",
+        },
+      ],
+    };
+
+    // Truyền initialVariantId = 2 (M, Red)
+    render(<ProductDetailPage product={product} initialVariantId={2} />, { wrapper: TestWrapper });
+
+    const priceEl = screen.getByTestId("standard-price");
+    expect(priceEl).toHaveTextContent("100.000₫");
+    expect(screen.getByRole("button", { name: "M" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Red/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("30")).toBeInTheDocument();
+  });
 });
+
 
 

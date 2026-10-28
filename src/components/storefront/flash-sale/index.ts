@@ -11,3 +11,4 @@ export { FlashSaleDealsGrid } from "./FlashSaleDealsGrid";
 export { FlashSaleUpcomingSection } from "./FlashSaleUpcomingSection";
 export { FlashSaleReminderButton } from "./FlashSaleReminderButton";
 export { FlashSaleLiveIndicator } from "./FlashSaleLiveIndicator";
+export { FlashSaleItemDetailPage } from "./FlashSaleItemDetailPage";

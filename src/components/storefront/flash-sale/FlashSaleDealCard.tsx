@@ -49,16 +49,32 @@ export function getDealVariant(
   return "default";
 }
 
+/** Trích xuất nhãn phân loại của biến thể sản phẩm (vd: "Size: L, Color: Green" hoặc "L, Green"). */
+export function formatVariantLabel(item: {
+  variantName?: string | null;
+  attributes?: Record<string, string> | null;
+}): string | null {
+  if (item.attributes && Object.keys(item.attributes).length > 0) {
+    return Object.entries(item.attributes)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+  }
+  if (item.variantName && item.variantName.trim().length > 0) {
+    return item.variantName.trim();
+  }
+  return null;
+}
+
 export function FlashSaleDealCard({ item, className, isPaused }: FlashSaleDealCardProps) {
   const variant = getDealVariant(item);
   const soldPercent = computeSoldPercent(item);
   const discountPercent = computeDiscountPercent(item);
   const soldCount = item.allocatedStock - item.availableStock;
-  const productHref = `/products/${item.id}`;
+  const productHref = `/flash-sale/${item.id}`;
   const isSoldOutCard = variant === "sold-out";
   const isAlmostSoldOutCard = variant === "almost-sold-out";
+  const variantLabel = formatVariantLabel(item);
   const isCardPaused = Boolean(isPaused || item.status === "PAUSED");
-
 
   return (
     <div
@@ -73,68 +89,90 @@ export function FlashSaleDealCard({ item, className, isPaused }: FlashSaleDealCa
     >
       <div>
         {/* Image + badges */}
-        <div className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-t-xl rounded-b-lg bg-surface-container-high">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt={item.productName}
-            src={item.imageUrl}
-            className={cn(
-              "h-full w-full object-cover transition-transform duration-300",
-              isSoldOutCard ? "grayscale" : "group-hover:scale-105",
+        <Link href={productHref} className="block">
+          <div className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-t-xl rounded-b-lg bg-surface-container-high">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt={item.productName}
+              src={item.imageUrl}
+              className={cn(
+                "h-full w-full object-cover transition-transform duration-300",
+                isSoldOutCard ? "grayscale" : "group-hover:scale-105",
+              )}
+            />
+            {/* Badge FLASH SALE (góc trên trái) */}
+            {!isSoldOutCard && (
+              isCardPaused ? (
+                <span
+                  data-testid="flash-sale-paused-badge"
+                  className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm"
+                >
+                  <MaterialSymbol name="pause_circle" size="[12px]" fill />
+                  TẠM DỪNG
+                </span>
+              ) : (
+                <span
+                  data-testid="flash-sale-badge"
+                  className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-tertiary shadow-sm"
+                >
+                  <MaterialSymbol name="bolt" size="[12px]" fill />
+                  FLASH SALE
+                </span>
+              )
             )}
-          />
-          {/* Badge FLASH SALE (góc trên trái) */}
-          {!isSoldOutCard && (
-            isCardPaused ? (
-              <span
-                data-testid="flash-sale-paused-badge"
-                className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm"
-              >
-                <MaterialSymbol name="pause_circle" size="[12px]" fill />
-                TẠM DỪNG
-              </span>
-            ) : (
-              <span
-                data-testid="flash-sale-badge"
-                className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-tertiary shadow-sm"
-              >
-                <MaterialSymbol name="bolt" size="[12px]" fill />
-                FLASH SALE
-              </span>
-            )
-          )}
 
-          {/* Badge giảm giá (góc trên phải) */}
-          {discountPercent > 0 && (
-            <span className="absolute right-2 top-2 rounded bg-tertiary-soft px-2 py-0.5 text-[11px] font-bold text-tertiary shadow-sm">
-              -{discountPercent}%
-            </span>
-          )}
-          {/* Overlay "HẾT HÀNG" nếu sold-out */}
-          {isSoldOutCard && (
-            <div className="absolute inset-0 flex items-center justify-center bg-inverse-surface/60">
-              <div
-                data-testid="sold-out-overlay"
-                className="flex h-16 w-16 flex-col items-center justify-center rounded-full border border-outline bg-inverse-surface/90 text-center text-[11px] font-bold uppercase leading-tight text-surface-container-lowest shadow-lg"
-              >
-                <ShoppingCart className="mb-0.5 h-4 w-4" aria-hidden />
-                <span>HẾT HÀNG</span>
+            {/* Badge giảm giá (góc trên phải) */}
+            {discountPercent > 0 && (
+              <span className="absolute right-2 top-2 rounded bg-tertiary-soft px-2 py-0.5 text-[11px] font-bold text-tertiary shadow-sm">
+                -{discountPercent}%
+              </span>
+            )}
+            {/* Overlay "HẾT HÀNG" nếu sold-out */}
+            {isSoldOutCard && (
+              <div className="absolute inset-0 flex items-center justify-center bg-inverse-surface/60">
+                <div
+                  data-testid="sold-out-overlay"
+                  className="flex h-16 w-16 flex-col items-center justify-center rounded-full border border-outline bg-inverse-surface/90 text-center text-[11px] font-bold uppercase leading-tight text-surface-container-lowest shadow-lg"
+                >
+                  <ShoppingCart className="mb-0.5 h-4 w-4" aria-hidden />
+                  <span>HẾT HÀNG</span>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </Link>
 
         {/* Tên sản phẩm */}
-        <h3
-          className={cn(
-            "line-clamp-2 min-h-[40px] text-[14px] font-normal leading-[20px]",
-            isSoldOutCard
-              ? "text-on-surface-variant"
-              : "text-on-surface group-hover:text-primary",
-          )}
-        >
-          {item.productName}
-        </h3>
+        <Link href={productHref} className="block">
+          <h3
+            className={cn(
+              "line-clamp-2 min-h-[40px] text-[14px] font-normal leading-[20px]",
+              isSoldOutCard
+                ? "text-on-surface-variant"
+                : "text-on-surface group-hover:text-primary",
+            )}
+            title={item.productName}
+          >
+            {item.productName}
+          </h3>
+        </Link>
+
+        {/* Phân loại biến thể */}
+        {variantLabel && (
+          <div className="mt-1 flex items-center">
+            <span
+              data-testid="flash-sale-variant-label"
+              className="inline-flex max-w-full items-center gap-1 rounded bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant"
+              title={`Phân loại: ${variantLabel}`}
+            >
+              <MaterialSymbol name="tune" size="[12px]" className="shrink-0 text-outline" />
+              <span className="truncate">
+                <span className="text-outline">Phân loại: </span>
+                <span className="font-semibold text-on-surface">{variantLabel}</span>
+              </span>
+            </span>
+          </div>
+        )}
 
         {/* Giá */}
         <div className="mt-2 flex items-baseline gap-1.5">

@@ -35,6 +35,8 @@ interface QrPaymentModuleProps {
   order: QrOrderDetail;
   /** Called khi user click "Tôi đã hoàn tất thanh toán". */
   onComplete: () => void;
+  /** Called khi user click "Thanh toán khi nhận hàng (COD)". */
+  onSelectCod?: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -165,7 +167,7 @@ function CircularCountdown({
 
 // ─── Main component ──────────────────────────────────────────────────────
 
-export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
+export function QrPaymentModule({ order, onComplete, onSelectCod }: QrPaymentModuleProps) {
   const t = useTranslations("storefront.checkout.qrPayment");
 
   // Tính msLeft dựa trên expiresAt (server time) – rule §8 mục 1.
@@ -442,6 +444,22 @@ export function QrPaymentModule({ order, onComplete }: QrPaymentModuleProps) {
               <MaterialSymbol name="task_alt" size="[20px]" />
               <span>{t("completedCta")}</span>
             </button>
+            {onSelectCod && (
+              <button
+                type="button"
+                onClick={onSelectCod}
+                disabled={expired}
+                data-testid="qr-cod-button"
+                className={cn(
+                  "w-full py-2.5 px-4 rounded-lg font-semibold text-label-md transition-all border border-outline-variant flex items-center justify-center gap-2",
+                  "text-on-surface hover:bg-surface-container active:scale-[0.98]",
+                  expired && "opacity-60 cursor-not-allowed hover:bg-transparent",
+                )}
+              >
+                <MaterialSymbol name="local_shipping" size="[18px]" />
+                <span>Thanh toán khi nhận hàng (COD)</span>
+              </button>
+            )}
             <a
               href="/checkout"
               className="w-full py-2 block text-center font-semibold text-primary hover:underline transition-colors text-label-md"

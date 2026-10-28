@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ import type {
 
 export interface ProductDetailPageProps {
   product: ProductDetail;
+  initialVariantId?: number;
 }
 
 /** Case-insensitive attribute lookup */
@@ -230,7 +231,7 @@ function computeDiscountPercent(
   return Math.round((1 - flashPrice / originalPrice) * 100);
 }
 
-export function ProductDetailPage({ product }: ProductDetailPageProps) {
+export function ProductDetailPage({ product, initialVariantId }: ProductDetailPageProps) {
   const t = useTranslations("productDetail");
   const tErr = useTranslations("error");
 
@@ -247,8 +248,14 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   const colors = useMemo(() => deriveColors(tierConfigs, product.variants), [tierConfigs, product.variants]);
   const sizes = useMemo(() => deriveSizes(tierConfigs, product.variants), [tierConfigs, product.variants]);
 
-  // Pick variant ACTIVE đầu tiên để khởi tạo selection khớp nhất
-  const initialPick = useMemo(() => pickActiveVariant(product.variants), [product.variants]);
+  // Pick variant theo initialVariantId nếu được chỉ định, hoặc variant ACTIVE đầu tiên
+  const initialPick = useMemo(() => {
+    if (initialVariantId) {
+      const matched = product.variants.find((v) => v.id === initialVariantId);
+      if (matched) return matched;
+    }
+    return pickActiveVariant(product.variants);
+  }, [product.variants, initialVariantId]);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -259,6 +266,22 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     }
     return initial;
   });
+
+  // Đồng bộ lại selectedOptions khi initialVariantId thay đổi
+  useEffect(() => {
+    if (!initialVariantId) return;
+    const matched = product.variants.find((v) => v.id === initialVariantId);
+    if (!matched) return;
+    setSelectedOptions((prev) => {
+      const next: Record<string, string> = { ...prev };
+      for (const tier of tierConfigs) {
+        const attr = getAttr(matched.attributes, tier.name);
+        const opt = tier.options.find((o) => matchesAttrValue(attr, o));
+        if (opt) next[tier.name] = opt;
+      }
+      return next;
+    });
+  }, [initialVariantId, product.variants, tierConfigs]);
 
   const [quantity, setQuantity] = useState<number>(1);
 
@@ -361,12 +384,17 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     "";
 
   // Derived: variant cho selectedOptions hiện tại.
-  const variantForCurrent = product.variants.find((v) =>
-    Object.entries(selectedOptions).every(([tName, opt]) => {
-      const val = getAttr(v.attributes, tName);
-      return matchesAttrValue(val, opt);
-    }),
-  );
+  const variantForCurrent = useMemo(() => {
+    if (Object.keys(selectedOptions).length === 0) {
+      return initialPick ?? product.variants[0];
+    }
+    return product.variants.find((v) =>
+      Object.entries(selectedOptions).every(([tName, opt]) => {
+        const val = getAttr(v.attributes, tName);
+        return matchesAttrValue(val, opt);
+      }),
+    );
+  }, [product.variants, selectedOptions, initialPick]);
 
   // Subplan B (2026-10-18) — auto-switch khi combo không match variant ACTIVE nào.
   // Trả về variant ACTIVE để CTA dùng thay vì undefined → user vẫn mua được.
@@ -536,7 +564,9 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
     );
   }, [currentVariant, product.flashSales, activeFlashSale]);
 
-  const activeFlashForCurrent = currentVariantFlashSale ?? activeFlashSale;
+  const activeFlashForCurrent = currentVariantFlashSale ?? (currentVariant ? null : activeFlashSale);
+  const isCurrentVariantInFlashSale = activeFlashForCurrent !== null;
+  const pricingVariant: "standard" | "flash" = isCurrentVariantInFlashSale ? "flash" : "standard";
 
   // Pricing for box:
   // - Khi có Flash Sale: hiển thị flashSalePrice + gạch ngang originalPrice + % giảm.
@@ -545,17 +575,17 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
   //     nếu chưa chọn hoặc không có variant thì fallback về product.minPrice.
   //   + originalPrice: null (tránh gạch ngang sai lệch giá giữa các variant khác nhau).
   //   + discountPercent: 0.
-  const pricingMinPrice = isFlashSale && activeFlashForCurrent
+  const pricingMinPrice = isCurrentVariantInFlashSale && activeFlashForCurrent
     ? activeFlashForCurrent.flashSalePrice
     : currentVariant?.originalPrice != null
       ? currentVariant.originalPrice
       : displayMinPrice;
 
-  const pricingOriginalPrice = isFlashSale && activeFlashForCurrent
+  const pricingOriginalPrice = isCurrentVariantInFlashSale && activeFlashForCurrent
     ? activeFlashForCurrent.originalPrice
     : null;
 
-  const pricingDiscount = isFlashSale && activeFlashForCurrent
+  const pricingDiscount = isCurrentVariantInFlashSale && activeFlashForCurrent
     ? computeDiscountPercent(
         activeFlashForCurrent.originalPrice,
         activeFlashForCurrent.flashSalePrice,
@@ -574,7 +604,11 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left: Gallery (1/3) */}
         <div className="lg:col-span-1 flex flex-col gap-3">
-          <ProductGallery images={product.images} productName={product.name} />
+          <ProductGallery
+            images={product.images}
+            productName={product.name}
+            selectedImageUrl={currentVariant?.imageUrl}
+          />
           <ProductCommitments commitments={product.commitments} />
         </div>
 
@@ -596,7 +630,7 @@ export function ProductDetailPage({ product }: ProductDetailPageProps) {
 
           {/* Section 4: Pricing box (auto-select flash/standard) */}
           <ProductPricingBox
-            variant={variant}
+            variant={pricingVariant}
             minPrice={pricingMinPrice}
             originalPrice={pricingOriginalPrice}
             discountPercent={pricingDiscount}

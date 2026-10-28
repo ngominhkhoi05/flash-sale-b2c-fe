@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 
 export interface FlashSaleCountdownBarProps {
   endsAt: string;
+  startsAt?: string;
+  status?: "UPCOMING" | "ACTIVE" | "ENDED";
   liveViewers: number;
   /** Độ lệch server time (ms) – Date.now() + serverOffsetMs = serverTime. */
   serverOffsetMs?: number;
@@ -55,11 +57,16 @@ function pad(n: number): string {
 
 export function FlashSaleCountdownBar({
   endsAt,
+  startsAt,
+  status = "ACTIVE",
   liveViewers,
   serverOffsetMs = 0,
   className,
 }: FlashSaleCountdownBarProps) {
-  const target = Date.parse(endsAt);
+  const isUpcoming = status === "UPCOMING";
+  const isEnded = status === "ENDED";
+  const targetIso = isUpcoming && startsAt ? startsAt : endsAt;
+  const target = Date.parse(targetIso);
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
     calcTimeLeft(target, Date.now() + serverOffsetMs),
   );
@@ -72,6 +79,16 @@ export function FlashSaleCountdownBar({
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [target, serverOffsetMs]);
+
+  const countdownTitle = isEnded
+    ? "Phiên đã kết thúc"
+    : isUpcoming
+      ? timeLeft.expired
+        ? "Đang diễn ra"
+        : "Bắt đầu sau"
+      : timeLeft.expired
+        ? "Phiên đã kết thúc"
+        : "Kết thúc sau";
 
   return (
     <div
@@ -87,14 +104,14 @@ export function FlashSaleCountdownBar({
 
       <div className="flex-1">
         <h2 className="mb-1 text-label-lg font-bold uppercase tracking-wider text-tertiary">
-          {timeLeft.expired ? "Phiên đã kết thúc" : "Kết thúc sau"}
+          {countdownTitle}
         </h2>
         <div
           className="flex items-baseline gap-1.5 font-mono text-headline-md font-bold tabular-nums text-on-surface"
           role="timer"
           aria-live="polite"
         >
-          {timeLeft.expired ? (
+          {timeLeft.expired && !isUpcoming ? (
             <span className="text-on-surface-variant">Kết thúc</span>
           ) : (
             <>
@@ -119,7 +136,8 @@ export function FlashSaleCountdownBar({
       <div className="hidden shrink-0 items-center gap-1.5 rounded-full bg-tertiary/10 px-3 py-1.5 sm:flex">
         <MaterialSymbol name="remove_red_eye" size="[16px]" className="text-tertiary" aria-hidden />
         <span className="text-label-md font-bold text-tertiary">
-          {formatViewers(liveViewers)} đang xem
+          {formatViewers(liveViewers)}{" "}
+          {isUpcoming ? "đang chờ săn deal" : "đang xem"}
         </span>
         <span className="relative ml-1 flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary opacity-75" />
