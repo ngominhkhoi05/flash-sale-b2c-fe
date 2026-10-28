@@ -45,16 +45,31 @@ export interface FlashSalePageContentProps {
 
 const ALL_CATEGORIES_KEY = "all";
 
-/** Group items by a synthetic category key (variant) cho filter chip. */
+/** Lấy key và tên danh mục thực tế của sản phẩm Flash Sale */
+export function getItemCategoryKey(item: PublicFlashSaleItemResponse): { key: string; label: string } {
+  if (item.categoryName && item.categoryName.trim().length > 0) {
+    const label = item.categoryName.trim();
+    const key = item.categorySlug?.trim() || label;
+    return { key, label };
+  }
+  return { key: "other", label: "Khác" };
+}
+
+/** Nhóm sản phẩm theo Danh mục thực tế (Category) cho filter chip. */
 function buildCategories(items: PublicFlashSaleItemResponse[]) {
-  const map = new Map<string, number>();
+  const map = new Map<string, { label: string; count: number }>();
   for (const it of items) {
-    const key = it.variantName || "Khác";
-    map.set(key, (map.get(key) ?? 0) + 1);
+    const { key, label } = getItemCategoryKey(it);
+    const existing = map.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      map.set(key, { label, count: 1 });
+    }
   }
   return [
     { key: ALL_CATEGORIES_KEY, label: "Tất cả", count: items.length },
-    ...[...map.entries()].map(([key, count]) => ({ key, label: key, count })),
+    ...[...map.entries()].map(([key, val]) => ({ key, label: val.label, count: val.count })),
   ];
 }
 
@@ -134,7 +149,7 @@ function FlashSalePageContentBody({ slots, className }: FlashSalePageContentBody
   const filteredItems = useMemo(() => {
     if (!activeSlot) return [];
     if (activeCategory === ALL_CATEGORIES_KEY) return activeSlot.items;
-    return activeSlot.items.filter((it) => (it.variantName || "Khác") === activeCategory);
+    return activeSlot.items.filter((it) => getItemCategoryKey(it).key === activeCategory);
   }, [activeSlot, activeCategory]);
 
   if (!activeSlot) return null;
