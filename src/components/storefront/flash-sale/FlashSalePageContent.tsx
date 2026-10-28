@@ -148,11 +148,27 @@ function FlashSalePageContentBody({ slots, className }: FlashSalePageContentBody
           id: s.id,
           startTime: s.startTime,
           endTime: s.endTime,
-          status: s.status as "UPCOMING" | "ACTIVE" | "ENDED",
+          status: s.status as "UPCOMING" | "ACTIVE" | "ENDED" | "PAUSED",
         }))}
         activeSlotId={activeSlotId}
         onSelect={setActiveSlotId}
       />
+
+      {activeSlot.status === "PAUSED" && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm flex items-center gap-3">
+          <span className="material-symbols-outlined text-amber-600 text-3xl shrink-0">
+            pause_circle
+          </span>
+          <div>
+            <h4 className="font-bold text-body-md">
+              Phiên Flash Sale này hiện đang tạm dừng
+            </h4>
+            <p className="text-body-sm text-amber-800 mt-0.5">
+              Hệ thống tạm ngưng nhận đơn đặt mua cho khung giờ này theo yêu cầu điều phối của Ban Quản Trị. Xin vui lòng quay lại sau!
+            </p>
+          </div>
+        </div>
+      )}
 
       <FlashSaleCountdownBar
         endsAt={activeSlot.endTime}
@@ -167,8 +183,14 @@ function FlashSalePageContentBody({ slots, className }: FlashSalePageContentBody
 
       <FlashSaleDealsGrid
         items={filteredItems}
-        renderItem={(item) => <FlashSaleDealCard item={item} />}
+        renderItem={(item) => (
+          <FlashSaleDealCard
+            item={item}
+            isPaused={activeSlot.status === "PAUSED"}
+          />
+        )}
       />
+
 
       {upcomingSlot && (
         <FlashSaleUpcomingSection

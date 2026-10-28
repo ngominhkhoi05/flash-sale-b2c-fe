@@ -37,6 +37,7 @@ export type FlashSaleDealVariant = "default" | "almost-sold-out" | "sold-out";
 export interface FlashSaleDealCardProps {
   item: PublicFlashSaleItemResponse;
   className?: string;
+  isPaused?: boolean;
 }
 
 /** Suy ra variant từ item. */
@@ -48,7 +49,7 @@ export function getDealVariant(
   return "default";
 }
 
-export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
+export function FlashSaleDealCard({ item, className, isPaused }: FlashSaleDealCardProps) {
   const variant = getDealVariant(item);
   const soldPercent = computeSoldPercent(item);
   const discountPercent = computeDiscountPercent(item);
@@ -56,6 +57,8 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
   const productHref = `/products/${item.id}`;
   const isSoldOutCard = variant === "sold-out";
   const isAlmostSoldOutCard = variant === "almost-sold-out";
+  const isCardPaused = Boolean(isPaused || item.status === "PAUSED");
+
 
   return (
     <div
@@ -82,14 +85,25 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
           />
           {/* Badge FLASH SALE (góc trên trái) */}
           {!isSoldOutCard && (
-            <span
-              data-testid="flash-sale-badge"
-              className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-tertiary shadow-sm"
-            >
-              <MaterialSymbol name="bolt" size="[12px]" fill />
-              FLASH SALE
-            </span>
+            isCardPaused ? (
+              <span
+                data-testid="flash-sale-paused-badge"
+                className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm"
+              >
+                <MaterialSymbol name="pause_circle" size="[12px]" fill />
+                TẠM DỪNG
+              </span>
+            ) : (
+              <span
+                data-testid="flash-sale-badge"
+                className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-tertiary shadow-sm"
+              >
+                <MaterialSymbol name="bolt" size="[12px]" fill />
+                FLASH SALE
+              </span>
+            )
           )}
+
           {/* Badge giảm giá (góc trên phải) */}
           {discountPercent > 0 && (
             <span className="absolute right-2 top-2 rounded bg-tertiary-soft px-2 py-0.5 text-[11px] font-bold text-tertiary shadow-sm">
@@ -170,6 +184,10 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
           <p className="text-center text-[11px] leading-tight text-on-surface-variant">
             Khung giờ mở bán đã kết thúc suất
           </p>
+        ) : isCardPaused ? (
+          <p className="text-center text-[11px] font-semibold leading-tight text-amber-700">
+            Phiên tạm dừng nhận đơn
+          </p>
         ) : isAlmostSoldOutCard ? (
           <p className="flex items-center justify-center gap-1 text-center text-[11px] font-semibold leading-tight text-tertiary">
             <span>⚠️ Chỉ còn lại {item.availableStock} suất sale!</span>
@@ -187,6 +205,15 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
           >
             Đã hết
           </button>
+        ) : isCardPaused ? (
+          <button
+            type="button"
+            disabled
+            className="flex h-9 w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 text-[13px] font-semibold text-amber-800"
+          >
+            <MaterialSymbol name="pause_circle" size="[16px]" />
+            Tạm dừng
+          </button>
         ) : (
           <Link
             href={productHref}
@@ -196,6 +223,7 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
             Mua ngay
           </Link>
         )}
+
       </div>
     </div>
   );
