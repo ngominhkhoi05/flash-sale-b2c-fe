@@ -28,16 +28,22 @@ import { setRequestLocale } from "next-intl/server";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ variantId?: string; [key: string]: string | string[] | undefined }>;
 }
 
-export default async function ProductDetailRoute({ params }: PageProps) {
+export default async function ProductDetailRoute({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const rawVariantId = resolvedSearchParams?.variantId;
+  const variantIdStr = typeof rawVariantId === "string" ? rawVariantId : undefined;
+  const initialVariantId =
+    variantIdStr && /^\d+$/.test(variantIdStr) ? Number(variantIdStr) : undefined;
 
   // Locale for static rendering
   setRequestLocale("vi");
 
   // Tách fetch ra ngoài try/catch để tránh "JSX in try/catch" warning.
-  const result = await loadProduct(slug);
+  const result = await loadProduct(slug, variantIdStr);
 
   if (result.type === "notFound") {
     notFound();
@@ -62,7 +68,7 @@ export default async function ProductDetailRoute({ params }: PageProps) {
 
   return (
     <main className="pt-4 md:pt-6">
-      <ProductDetailPage product={result.data} />
+      <ProductDetailPage product={result.data} initialVariantId={initialVariantId} />
     </main>
   );
 }
@@ -73,13 +79,14 @@ type LoadResult =
   | { type: "notFound" }
   | { type: "networkError"; message?: string };
 
-async function loadProduct(slug: string): Promise<LoadResult> {
+async function loadProduct(slug: string, variantIdStr?: string): Promise<LoadResult> {
   try {
     // Trường hợp 1: slug là numeric id → resolve sang slug SEO và redirect.
     if (/^\d+$/.test(slug)) {
       const id = Number(slug);
       const product = await fetchProductDetailById(id);
-      redirect(`/products/${product.slug}`);
+      const query = variantIdStr ? `?variantId=${variantIdStr}` : "";
+      redirect(`/products/${product.slug}${query}`);
       return { type: "redirect" }; // unreachable, redirect() throws
     }
 

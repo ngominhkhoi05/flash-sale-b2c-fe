@@ -176,7 +176,8 @@ export function FlashSaleStripSection() {
                     100
                 )
               : 0;
-          const dealHref = `/products/${deal.productId ?? deal.id}`;
+          const variantParam = deal.variantId ? `?variantId=${deal.variantId}` : "";
+          const dealHref = `/products/${deal.productId ?? deal.id}${variantParam}`;
           const variantLabel = formatVariantLabel(deal);
 
           return (

@@ -69,7 +69,8 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
   const soldPercent = computeSoldPercent(item);
   const discountPercent = computeDiscountPercent(item);
   const soldCount = item.allocatedStock - item.availableStock;
-  const productHref = `/products/${item.productId ?? item.id}`;
+  const variantParam = item.variantId ? `?variantId=${item.variantId}` : "";
+  const productHref = `/products/${item.productId ?? item.id}${variantParam}`;
   const isSoldOutCard = variant === "sold-out";
   const isAlmostSoldOutCard = variant === "almost-sold-out";
   const variantLabel = formatVariantLabel(item);
@@ -87,58 +88,62 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
     >
       <div>
         {/* Image + badges */}
-        <div className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-t-xl rounded-b-lg bg-surface-container-high">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt={item.productName}
-            src={item.imageUrl}
-            className={cn(
-              "h-full w-full object-cover transition-transform duration-300",
-              isSoldOutCard ? "grayscale" : "group-hover:scale-105",
-            )}
-          />
-          {/* Badge FLASH SALE (góc trên trái) */}
-          {!isSoldOutCard && (
-            <span
-              data-testid="flash-sale-badge"
-              className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-tertiary shadow-sm"
-            >
-              <MaterialSymbol name="bolt" size="[12px]" fill />
-              FLASH SALE
-            </span>
-          )}
-          {/* Badge giảm giá (góc trên phải) */}
-          {discountPercent > 0 && (
-            <span className="absolute right-2 top-2 rounded bg-tertiary-soft px-2 py-0.5 text-[11px] font-bold text-tertiary shadow-sm">
-              -{discountPercent}%
-            </span>
-          )}
-          {/* Overlay "HẾT HÀNG" nếu sold-out */}
-          {isSoldOutCard && (
-            <div className="absolute inset-0 flex items-center justify-center bg-inverse-surface/60">
-              <div
-                data-testid="sold-out-overlay"
-                className="flex h-16 w-16 flex-col items-center justify-center rounded-full border border-outline bg-inverse-surface/90 text-center text-[11px] font-bold uppercase leading-tight text-surface-container-lowest shadow-lg"
+        <Link href={productHref} className="block">
+          <div className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-t-xl rounded-b-lg bg-surface-container-high">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt={item.productName}
+              src={item.imageUrl}
+              className={cn(
+                "h-full w-full object-cover transition-transform duration-300",
+                isSoldOutCard ? "grayscale" : "group-hover:scale-105",
+              )}
+            />
+            {/* Badge FLASH SALE (góc trên trái) */}
+            {!isSoldOutCard && (
+              <span
+                data-testid="flash-sale-badge"
+                className="absolute left-2 top-2 inline-flex items-center gap-0.5 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-tertiary shadow-sm"
               >
-                <ShoppingCart className="mb-0.5 h-4 w-4" aria-hidden />
-                <span>HẾT HÀNG</span>
+                <MaterialSymbol name="bolt" size="[12px]" fill />
+                FLASH SALE
+              </span>
+            )}
+            {/* Badge giảm giá (góc trên phải) */}
+            {discountPercent > 0 && (
+              <span className="absolute right-2 top-2 rounded bg-tertiary-soft px-2 py-0.5 text-[11px] font-bold text-tertiary shadow-sm">
+                -{discountPercent}%
+              </span>
+            )}
+            {/* Overlay "HẾT HÀNG" nếu sold-out */}
+            {isSoldOutCard && (
+              <div className="absolute inset-0 flex items-center justify-center bg-inverse-surface/60">
+                <div
+                  data-testid="sold-out-overlay"
+                  className="flex h-16 w-16 flex-col items-center justify-center rounded-full border border-outline bg-inverse-surface/90 text-center text-[11px] font-bold uppercase leading-tight text-surface-container-lowest shadow-lg"
+                >
+                  <ShoppingCart className="mb-0.5 h-4 w-4" aria-hidden />
+                  <span>HẾT HÀNG</span>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </Link>
 
         {/* Tên sản phẩm */}
-        <h3
-          className={cn(
-            "line-clamp-2 min-h-[40px] text-[14px] font-normal leading-[20px]",
-            isSoldOutCard
-              ? "text-on-surface-variant"
-              : "text-on-surface group-hover:text-primary",
-          )}
-          title={item.productName}
-        >
-          {item.productName}
-        </h3>
+        <Link href={productHref} className="block">
+          <h3
+            className={cn(
+              "line-clamp-2 min-h-[40px] text-[14px] font-normal leading-[20px]",
+              isSoldOutCard
+                ? "text-on-surface-variant"
+                : "text-on-surface group-hover:text-primary",
+            )}
+            title={item.productName}
+          >
+            {item.productName}
+          </h3>
+        </Link>
 
         {/* Phân loại biến thể */}
         {variantLabel && (

@@ -76,27 +76,34 @@ export function FlashSaleUpcomingSection({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            data-testid={`upcoming-item-${item.id}`}
-            className="flex flex-col rounded-xl border border-outline-variant bg-surface-container-lowest p-3 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-surface-container">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.imageUrl}
-                alt={item.productName}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-              <span className="absolute right-1.5 top-1.5 rounded-md bg-tertiary px-1.5 py-0.5 text-label-sm font-bold text-on-tertiary shadow-sm">
-                -{Math.round(((item.originalPrice - item.flashSalePrice) / item.originalPrice) * 100)}%
-              </span>
-            </div>
-            <h3 className="line-clamp-2 min-h-[2.5rem] text-body-sm font-medium text-on-surface">
-              {item.productName}
-            </h3>
+        {items.map((item) => {
+          const variantParam = item.variantId ? `?variantId=${item.variantId}` : "";
+          const productHref = `/products/${item.productId ?? item.id}${variantParam}`;
+          return (
+            <div
+              key={item.id}
+              data-testid={`upcoming-item-${item.id}`}
+              className="flex flex-col rounded-xl border border-outline-variant bg-surface-container-lowest p-3 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <Link href={productHref} className="block">
+                <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-surface-container">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.imageUrl}
+                    alt={item.productName}
+                    className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                    loading="lazy"
+                  />
+                  <span className="absolute right-1.5 top-1.5 rounded-md bg-tertiary px-1.5 py-0.5 text-label-sm font-bold text-on-tertiary shadow-sm">
+                    -{Math.round(((item.originalPrice - item.flashSalePrice) / item.originalPrice) * 100)}%
+                  </span>
+                </div>
+              </Link>
+              <Link href={productHref} className="block">
+                <h3 className="line-clamp-2 min-h-[2.5rem] text-body-sm font-medium text-on-surface hover:text-primary transition-colors">
+                  {item.productName}
+                </h3>
+              </Link>
             {(() => {
               const vLabel = formatVariantLabel(item);
               if (!vLabel) return null;
@@ -125,7 +132,8 @@ export function FlashSaleUpcomingSection({
               <FlashSaleReminderButton />
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
     </section>
   );

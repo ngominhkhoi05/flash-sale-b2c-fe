@@ -65,6 +65,16 @@ describe("ProductDetailRoute - redirect numeric id to slug", () => {
     expect(mockFetchById).toHaveBeenCalledWith(1);
     expect(redirect).toHaveBeenCalledWith("/products/ao-thun-unisex-cotton-utc-basic");
   });
+
+  it("redirects /products/1?variantId=10 to /products/<slug>?variantId=10", async () => {
+    mockFetchById.mockResolvedValueOnce(sampleProduct);
+    const params = Promise.resolve({ slug: "1" });
+    const searchParams = Promise.resolve({ variantId: "10" });
+
+    await expect(ProductDetailRoute({ params, searchParams })).rejects.toThrow("NEXT_REDIRECT");
+    expect(mockFetchById).toHaveBeenCalledWith(1);
+    expect(redirect).toHaveBeenCalledWith("/products/ao-thun-unisex-cotton-utc-basic?variantId=10");
+  });
 });
 
 describe("ProductDetailRoute - fetch by slug", () => {
