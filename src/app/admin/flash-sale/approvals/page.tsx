@@ -11,6 +11,7 @@ import type {
 } from "@/types/sku-approval";
 import type { AdminFlashSaleSession } from "@/types/flash-sale";
 import { useEffect, useCallback } from "react";
+import { isMockMode } from "@/lib/api/client";
 import {
   getAdminFlashSaleSlots,
   getAdminSkuApprovals,
@@ -36,28 +37,87 @@ const formatVnd = (amount: number) => {
   return amount.toLocaleString("vi-VN") + "₫";
 };
 
+/** Sắp xếp phiên logic: ACTIVE lên đầu -> UPCOMING theo thời gian gần nhất -> ENDED kết thúc gần nhất */
+function sortSessions(slots: AdminFlashSaleSession[]): AdminFlashSaleSession[] {
+  return [...slots].sort((a, b) => {
+    // 1. ACTIVE lên trước
+    if (a.status === "ACTIVE" && b.status !== "ACTIVE") return -1;
+    if (b.status === "ACTIVE" && a.status !== "ACTIVE") return 1;
+
+    // 2. UPCOMING / REGISTRATION_OPEN: sắp xếp theo startTime tăng dần
+    const isUpcomingA = a.status === "UPCOMING" || a.status === "REGISTRATION_OPEN";
+    const isUpcomingB = b.status === "UPCOMING" || b.status === "REGISTRATION_OPEN";
+    if (isUpcomingA && !isUpcomingB) return -1;
+    if (isUpcomingB && !isUpcomingA) return 1;
+    if (isUpcomingA && isUpcomingB) {
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    }
+
+    // 3. ENDED: sắp xếp theo endTime giảm dần
+    return new Date(b.endTime).getTime() - new Date(a.endTime).getTime();
+  });
+}
+
 export default function AdminSkuApprovalsPage() {
   // 1. Sessions List & Selected Session
   const [sessions, setSessions] = useState<AdminFlashSaleSession[]>(() =>
-    getMockFlashSaleSessions()
+    isMockMode() ? getMockFlashSaleSessions() : []
   );
-  const [selectedSessionId, setSelectedSessionId] = useState<number>(3);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(() =>
+    isMockMode() ? 3 : null
+  );
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
+  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
 
   // Load sessions from BE API
   useEffect(() => {
     let cancelled = false;
     async function loadSessions() {
+      setIsLoadingSessions(true);
       try {
         const slots = await getAdminFlashSaleSlots();
-        if (!cancelled && slots.length > 0) {
-          setSessions(slots);
-          const active = slots.find((s) => s.status === "ACTIVE");
-          if (active) setSelectedSessionId(active.id);
-          else setSelectedSessionId(slots[0].id);
+        if (!cancelled) {
+          if (slots.length > 0) {
+            const sorted = sortSessions(slots);
+            setSessions(sorted);
+            setSelectedSessionId((currentSelected) => {
+              if (currentSelected && sorted.some((s) => s.id === currentSelected)) {
+                return currentSelected;
+              }
+              const active = sorted.find((s) => s.status === "ACTIVE");
+              if (active) return active.id;
+              const upcoming = sorted.find(
+                (s) => s.status === "UPCOMING" || s.status === "REGISTRATION_OPEN"
+              );
+              if (upcoming) return upcoming.id;
+              return sorted[0].id;
+            });
+          } else {
+            setSessions([]);
+            setSelectedSessionId(null);
+          }
         }
-      } catch {
-        // fallback to default sessions
+      } catch (err) {
+        if (!cancelled) {
+          if (isMockMode()) {
+            const mocks = getMockFlashSaleSessions();
+            setSessions(mocks);
+            setSelectedSessionId(3);
+          } else {
+            setSessions([]);
+            setSelectedSessionId(null);
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Không thể tải danh sách phiên Flash Sale"
+            );
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingSessions(false);
+        }
       }
     }
     void loadSessions();
@@ -67,16 +127,31 @@ export default function AdminSkuApprovalsPage() {
   }, []);
 
   const currentSession = useMemo(() => {
-    return sessions.find((s) => s.id === selectedSessionId) || sessions[0];
+    if (!selectedSessionId) return sessions[0] || null;
+    return sessions.find((s) => s.id === selectedSessionId) || sessions[0] || null;
   }, [sessions, selectedSessionId]);
+
+  // Danh sách phiên lọc theo ô search trong dropdown
+  const dropdownFilteredSessions = useMemo(() => {
+    if (!sessionSearchQuery.trim()) return sessions;
+    const q = sessionSearchQuery.toLowerCase().trim();
+    return sessions.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.timeRangeDisplay.toLowerCase().includes(q) ||
+        s.date.includes(q) ||
+        s.code.toLowerCase().includes(q)
+    );
+  }, [sessions, sessionSearchQuery]);
 
   // 2. SKU items & counts
   const [items, setItems] = useState<SkuApprovalItem[]>(() =>
-    getMockSkuApprovals()
+    isMockMode() ? getMockSkuApprovals() : []
   );
   const [counts, setCounts] = useState<SkuApprovalCounts>(() =>
-    getApprovalCounts()
+    isMockMode() ? getApprovalCounts() : { pending: 0, approved: 0, rejected: 0 }
   );
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
 
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
@@ -85,23 +160,41 @@ export default function AdminSkuApprovalsPage() {
   }, []);
 
   useEffect(() => {
+    if (selectedSessionId === null) return;
+
     let cancelled = false;
-    Promise.all([
-      getAdminSkuApprovals(selectedSessionId),
-      getAdminApprovalCounts(selectedSessionId),
-    ])
-      .then(([itemsData, countsData]) => {
+    async function loadItems() {
+      setIsLoadingItems(true);
+      try {
+        const [itemsData, countsData] = await Promise.all([
+          getAdminSkuApprovals(selectedSessionId),
+          getAdminApprovalCounts(selectedSessionId),
+        ]);
         if (!cancelled) {
           setItems(itemsData);
           setCounts(countsData);
         }
-      })
-      .catch(() => {
+      } catch (err) {
         if (!cancelled) {
-          setItems(getMockSkuApprovals(selectedSessionId));
-          setCounts(getApprovalCounts(selectedSessionId));
+          if (isMockMode()) {
+            setItems(getMockSkuApprovals(selectedSessionId));
+            setCounts(getApprovalCounts(selectedSessionId));
+          } else {
+            setItems([]);
+            setCounts({ pending: 0, approved: 0, rejected: 0 });
+            toast.error(
+              err instanceof Error ? err.message : "Lỗi khi tải danh sách SKU"
+            );
+          }
         }
-      });
+      } finally {
+        if (!cancelled) {
+          setIsLoadingItems(false);
+        }
+      }
+    }
+
+    void loadItems();
 
     return () => {
       cancelled = true;
@@ -345,6 +438,45 @@ export default function AdminSkuApprovalsPage() {
     paginatedItems.some((item) => selectedIds.includes(item.id)) &&
     !isAllPageSelected;
 
+  const registrationDeadlineInfo = useMemo(() => {
+    if (!currentSession) return null;
+    const deadlineStr =
+      currentSession.registrationDeadline || currentSession.startTime;
+    if (!deadlineStr) return null;
+    try {
+      const deadline = new Date(deadlineStr);
+      if (isNaN(deadline.getTime())) return null;
+      const now = new Date();
+      const isPast = deadline.getTime() <= now.getTime();
+      const diffMs = deadline.getTime() - now.getTime();
+      const diffMins = Math.round(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMins / 60);
+      const remainingMins = diffMins % 60;
+
+      const timeDisplay = `${String(deadline.getHours()).padStart(2, "0")}:${String(
+        deadline.getMinutes()
+      ).padStart(2, "0")} (${String(deadline.getDate()).padStart(2, "0")}/${String(
+        deadline.getMonth() + 1
+      ).padStart(2, "0")})`;
+
+      let countdownText = "";
+      if (isPast) {
+        countdownText = "Đã khóa đăng ký";
+      } else if (diffHours > 24) {
+        const days = Math.floor(diffHours / 24);
+        countdownText = `còn ${days} ngày`;
+      } else if (diffHours > 0) {
+        countdownText = `còn ${diffHours}h ${remainingMins}p`;
+      } else {
+        countdownText = `còn ${diffMins} phút`;
+      }
+
+      return { timeDisplay, countdownText, isPast };
+    } catch {
+      return null;
+    }
+  }, [currentSession]);
+
   return (
     <div className="flex flex-col gap-space-lg">
       {/* Top Bar: Navigation, Session Selector & Summary Metrics */}
@@ -365,24 +497,43 @@ export default function AdminSkuApprovalsPage() {
             <div className="relative inline-flex items-center">
               <button
                 type="button"
+                disabled={isLoadingSessions || sessions.length === 0}
                 onClick={() => setIsSessionDropdownOpen(!isSessionDropdownOpen)}
-                className="flex items-center gap-space-sm h-10 px-3.5 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-sm hover:bg-surface-container-low transition-colors text-left"
+                className="flex items-center gap-space-sm h-10 px-3.5 bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-sm hover:bg-surface-container-low transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <span className="text-tertiary-container font-bold text-base leading-none">
                   ⚡
                 </span>
                 <div className="flex flex-col">
                   <span className="font-headline-md text-[13px] font-semibold text-on-surface leading-tight">
-                    {currentSession?.name || "Giờ Vàng 12:00"} –{" "}
-                    {currentSession?.timeRangeDisplay || "12:00 - 14:00"}
+                    {isLoadingSessions
+                      ? "Đang tải phiên..."
+                      : currentSession
+                      ? `${currentSession.name} – ${currentSession.timeRangeDisplay}`
+                      : "Chưa có phiên Flash Sale"}
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-sm text-[11px] bg-tertiary-fixed text-on-tertiary-fixed font-bold leading-none ml-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-tertiary-container animate-pulse" />
-                  {currentSession?.status === "ACTIVE"
-                    ? "Đang diễn ra"
-                    : "Sắp diễn ra"}
-                </span>
+                {currentSession && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-sm text-[11px] font-bold leading-none ml-1",
+                      currentSession.status === "ACTIVE"
+                        ? "bg-rose-100 text-rose-700"
+                        : currentSession.status === "ENDED"
+                        ? "bg-slate-100 text-slate-600"
+                        : "bg-sky-100 text-sky-700"
+                    )}
+                  >
+                    {currentSession.status === "ACTIVE" && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-rose-600 animate-pulse" />
+                    )}
+                    {currentSession.status === "ACTIVE"
+                      ? "Đang diễn ra"
+                      : currentSession.status === "ENDED"
+                      ? "Đã kết thúc"
+                      : "Sắp diễn ra"}
+                  </span>
+                )}
                 <span className="material-symbols-outlined text-[18px] text-secondary ml-1">
                   unfold_more
                 </span>
@@ -393,51 +544,84 @@ export default function AdminSkuApprovalsPage() {
                 <>
                   <div
                     className="fixed inset-0 z-40"
-                    onClick={() => setIsSessionDropdownOpen(false)}
+                    onClick={() => {
+                      setIsSessionDropdownOpen(false);
+                      setSessionSearchQuery("");
+                    }}
                   />
-                  <div className="absolute left-0 top-12 z-50 w-80 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 p-2 flex flex-col gap-1">
-                    <span className="px-3 py-1.5 font-label-sm text-[11px] font-semibold text-secondary uppercase tracking-wider">
-                      Chọn phiên Flash Sale
-                    </span>
-                    {sessions.slice(0, 6).map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSessionId(s.id);
-                          setIsSessionDropdownOpen(false);
-                        }}
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-body-sm transition-colors",
-                          s.id === selectedSessionId
-                            ? "bg-primary-fixed text-primary font-semibold"
-                            : "hover:bg-surface-container-low text-on-surface"
-                        )}
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium">{s.name}</span>
-                          <span className="text-secondary text-[11px]">
-                            {s.timeRangeDisplay} · {s.date}
+                  <div className="absolute left-0 top-12 z-50 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/30 p-2 flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
+                      <span className="font-label-sm text-[11px] font-semibold text-secondary uppercase tracking-wider">
+                        Chọn phiên Flash Sale ({sessions.length})
+                      </span>
+                    </div>
+
+                    {/* Search inside dropdown if > 5 sessions */}
+                    {sessions.length > 5 && (
+                      <div className="px-2 py-1">
+                        <div className="relative">
+                          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary text-[16px]">
+                            search
                           </span>
+                          <input
+                            type="text"
+                            value={sessionSearchQuery}
+                            onChange={(e) => setSessionSearchQuery(e.target.value)}
+                            placeholder="Tìm phiên Flash Sale..."
+                            className="w-full h-8 pl-8 pr-2.5 rounded-md bg-surface-bright text-body-sm text-on-surface placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30 text-[12px]"
+                            autoFocus
+                          />
                         </div>
-                        <span
+                      </div>
+                    )}
+
+                    <div className="max-h-72 overflow-y-auto flex flex-col gap-1 pr-1">
+                      {dropdownFilteredSessions.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSessionId(s.id);
+                            setIsSessionDropdownOpen(false);
+                            setSessionSearchQuery("");
+                          }}
                           className={cn(
-                            "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase",
-                            s.status === "ACTIVE"
-                              ? "bg-rose-100 text-rose-700"
-                              : s.status === "ENDED"
-                              ? "bg-slate-100 text-slate-600"
-                              : "bg-sky-100 text-sky-700"
+                            "w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-body-sm transition-colors",
+                            s.id === selectedSessionId
+                              ? "bg-primary-fixed text-primary font-semibold"
+                              : "hover:bg-surface-container-low text-on-surface"
                           )}
                         >
-                          {s.status === "ACTIVE"
-                            ? "Live"
-                            : s.status === "ENDED"
-                            ? "Kết thúc"
-                            : "Sắp tới"}
-                        </span>
-                      </button>
-                    ))}
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="font-medium truncate">{s.name}</span>
+                            <span className="text-secondary text-[11px]">
+                              {s.timeRangeDisplay} · {s.date}
+                            </span>
+                          </div>
+                          <span
+                            className={cn(
+                              "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase shrink-0",
+                              s.status === "ACTIVE"
+                                ? "bg-rose-100 text-rose-700"
+                                : s.status === "ENDED"
+                                ? "bg-slate-100 text-slate-600"
+                                : "bg-sky-100 text-sky-700"
+                            )}
+                          >
+                            {s.status === "ACTIVE"
+                              ? "Live"
+                              : s.status === "ENDED"
+                              ? "Kết thúc"
+                              : "Sắp tới"}
+                          </span>
+                        </button>
+                      ))}
+                      {dropdownFilteredSessions.length === 0 && (
+                        <div className="py-6 text-center text-secondary text-[12px]">
+                          Không tìm thấy phiên phù hợp
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -560,15 +744,27 @@ export default function AdminSkuApprovalsPage() {
             </button>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 text-secondary font-body-sm text-body-sm shrink-0">
-            <span className="material-symbols-outlined text-[18px]">info</span>
-            <span>
-              Khóa đăng ký lúc:{" "}
-              <strong className="text-on-surface font-medium">
-                11:30 (còn 45 phút)
-              </strong>
-            </span>
-          </div>
+          {registrationDeadlineInfo && (
+            <div className="hidden lg:flex items-center gap-2 text-secondary font-body-sm text-body-sm shrink-0">
+              <span className="material-symbols-outlined text-[18px]">info</span>
+              <span>
+                Khóa đăng ký:{" "}
+                <strong className="text-on-surface font-medium">
+                  {registrationDeadlineInfo.timeDisplay}{" "}
+                  <span
+                    className={cn(
+                      "font-semibold ml-1",
+                      registrationDeadlineInfo.isPast
+                        ? "text-rose-600"
+                        : "text-amber-700"
+                    )}
+                  >
+                    ({registrationDeadlineInfo.countdownText})
+                  </span>
+                </strong>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Filters Strip */}
@@ -679,17 +875,70 @@ export default function AdminSkuApprovalsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-container">
-              {paginatedItems.length === 0 ? (
+              {isLoadingItems ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={`loading-${idx}`} className="animate-pulse">
+                    <td className="px-4 py-4 text-center">
+                      <div className="w-4 h-4 bg-surface-container rounded mx-auto" />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-surface-container shrink-0" />
+                        <div className="flex flex-col gap-1.5 flex-1">
+                          <div className="w-3/4 h-3.5 bg-surface-container rounded" />
+                          <div className="w-1/2 h-3 bg-surface-container-low rounded" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="w-24 h-3.5 bg-surface-container rounded mb-1" />
+                      <div className="w-16 h-3 bg-surface-container-low rounded" />
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="w-16 h-3.5 bg-surface-container rounded ml-auto" />
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="w-20 h-4 bg-surface-container rounded ml-auto" />
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <div className="w-16 h-3.5 bg-surface-container rounded mx-auto" />
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <div className="w-14 h-3.5 bg-surface-container rounded mx-auto" />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="w-20 h-3 bg-surface-container rounded" />
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="w-24 h-7 bg-surface-container rounded ml-auto" />
+                    </td>
+                  </tr>
+                ))
+              ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-secondary">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-[36px] text-outline">
-                        inventory_2
-                      </span>
-                      <p className="font-medium text-body-md">
-                        Không tìm thấy SKU nào phù hợp với bộ lọc hiện tại.
-                      </p>
-                    </div>
+                  <td colSpan={9} className="py-14 text-center text-secondary">
+                    {items.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                        <span className="material-symbols-outlined text-[44px] text-primary/40">
+                          inventory_2
+                        </span>
+                        <p className="font-bold text-body-lg text-on-surface">
+                          Chưa có sản phẩm nào đăng ký
+                        </p>
+                        <p className="font-normal text-body-sm text-secondary">
+                          Phiên Flash Sale này chưa có SKU nào được gửi từ các Nhà bán hàng (Seller). Khi có lượt đăng ký mới, danh sách kiểm duyệt sẽ hiển thị tại đây.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-[36px] text-outline">
+                          filter_alt_off
+                        </span>
+                        <p className="font-medium text-body-md text-on-surface">
+                          Không tìm thấy SKU nào phù hợp với bộ lọc hiện tại.
+                        </p>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -1026,24 +1275,38 @@ export default function AdminSkuApprovalsPage() {
         <div className="p-space-lg rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] text-white shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <span className="font-label-sm text-label-sm font-bold tracking-wider uppercase text-slate-400">
-                Tình trạng slot phiên 12:00
+              <span className="font-label-sm text-label-sm font-bold tracking-wider uppercase text-slate-400 truncate max-w-[220px]">
+                {currentSession ? currentSession.name : "Phiên Flash Sale"}
               </span>
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  currentSession?.status === "ACTIVE"
+                    ? "bg-rose-400 animate-ping"
+                    : currentSession?.status === "ENDED"
+                    ? "bg-slate-400"
+                    : "bg-emerald-400"
+                )}
+              />
             </div>
             <div className="mt-4">
               <span className="font-display-sm text-display-sm font-bold tabular-nums">
-                {counts.approved} / 50
+                {counts.approved} / {Math.max(50, counts.approved + counts.pending)}
               </span>
               <span className="text-slate-400 font-body-sm text-body-sm block mt-0.5">
-                SKU đã sẵn sàng lên kệ
+                SKU đã duyệt lên kệ ({counts.pending} SKU chờ duyệt)
               </span>
             </div>
             <div className="w-full bg-slate-700/60 rounded-full h-2 mt-3 overflow-hidden">
               <div
                 className="bg-primary-container h-2 rounded-full transition-all duration-300"
                 style={{
-                  width: `${Math.min(100, (counts.approved / 50) * 100)}%`,
+                  width: `${Math.min(
+                    100,
+                    (counts.approved /
+                      Math.max(1, Math.max(50, counts.approved + counts.pending))) *
+                      100
+                  )}%`,
                 }}
               />
             </div>
@@ -1051,13 +1314,19 @@ export default function AdminSkuApprovalsPage() {
 
           <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
             <span>
-              Còn trống:{" "}
+              Tổng đã duyệt:{" "}
               <strong className="text-white">
-                {Math.max(0, 50 - counts.approved)} slots
+                {counts.approved} SKU
               </strong>
             </span>
             <span className="text-tertiary-fixed-dim font-medium">
-              Đóng cổng sau 45m
+              {currentSession?.status === "ACTIVE"
+                ? "Đang mở bán"
+                : currentSession?.status === "ENDED"
+                ? "Đã kết thúc"
+                : registrationDeadlineInfo
+                ? registrationDeadlineInfo.countdownText
+                : "Sắp diễn ra"}
             </span>
           </div>
         </div>
