@@ -48,14 +48,31 @@ export function getDealVariant(
   return "default";
 }
 
+/** Trích xuất nhãn phân loại của biến thể sản phẩm (vd: "Size: L, Color: Green" hoặc "L, Green"). */
+export function formatVariantLabel(item: {
+  variantName?: string | null;
+  attributes?: Record<string, string> | null;
+}): string | null {
+  if (item.attributes && Object.keys(item.attributes).length > 0) {
+    return Object.entries(item.attributes)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+  }
+  if (item.variantName && item.variantName.trim().length > 0) {
+    return item.variantName.trim();
+  }
+  return null;
+}
+
 export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
   const variant = getDealVariant(item);
   const soldPercent = computeSoldPercent(item);
   const discountPercent = computeDiscountPercent(item);
   const soldCount = item.allocatedStock - item.availableStock;
-  const productHref = `/products/${item.id}`;
+  const productHref = `/products/${item.productId ?? item.id}`;
   const isSoldOutCard = variant === "sold-out";
   const isAlmostSoldOutCard = variant === "almost-sold-out";
+  const variantLabel = formatVariantLabel(item);
 
   return (
     <div
@@ -118,9 +135,27 @@ export function FlashSaleDealCard({ item, className }: FlashSaleDealCardProps) {
               ? "text-on-surface-variant"
               : "text-on-surface group-hover:text-primary",
           )}
+          title={item.productName}
         >
           {item.productName}
         </h3>
+
+        {/* Phân loại biến thể */}
+        {variantLabel && (
+          <div className="mt-1 flex items-center">
+            <span
+              data-testid="flash-sale-variant-label"
+              className="inline-flex max-w-full items-center gap-1 rounded bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant"
+              title={`Phân loại: ${variantLabel}`}
+            >
+              <MaterialSymbol name="tune" size="[12px]" className="shrink-0 text-outline" />
+              <span className="truncate">
+                <span className="text-outline">Phân loại: </span>
+                <span className="font-semibold text-on-surface">{variantLabel}</span>
+              </span>
+            </span>
+          </div>
+        )}
 
         {/* Giá */}
         <div className="mt-2 flex items-baseline gap-1.5">

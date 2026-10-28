@@ -15,6 +15,7 @@ import { ArrowRight } from "lucide-react";
 import { formatVND, formatVNDCompact } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FlashSaleReminderButton } from "./FlashSaleReminderButton";
+import { formatVariantLabel } from "./FlashSaleDealCard";
 import type { PublicFlashSaleItemResponse } from "@/features/flash-sale";
 
 export interface FlashSaleUpcomingSlotMeta {
@@ -96,6 +97,22 @@ export function FlashSaleUpcomingSection({
             <h3 className="line-clamp-2 min-h-[2.5rem] text-body-sm font-medium text-on-surface">
               {item.productName}
             </h3>
+            {(() => {
+              const vLabel = formatVariantLabel(item);
+              if (!vLabel) return null;
+              return (
+                <div className="mt-1 flex items-center">
+                  <span
+                    data-testid={`upcoming-variant-${item.id}`}
+                    className="inline-flex max-w-full items-center gap-1 rounded bg-surface-container px-1.5 py-0.5 text-[11px] font-medium text-on-surface-variant"
+                    title={`Phân loại: ${vLabel}`}
+                  >
+                    <span className="text-outline">Phân loại: </span>
+                    <span className="truncate font-semibold text-on-surface">{vLabel}</span>
+                  </span>
+                </div>
+              );
+            })()}
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-headline-sm font-bold text-tertiary">
                 {formatVNDCompact(item.flashSalePrice)}

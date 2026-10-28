@@ -24,9 +24,11 @@ export const flashSaleItemStatusSchema = z.enum([
 export const publicFlashSaleItemResponseSchema = z.object({
   id: z.number().int().positive(),
   slotId: z.number().int().positive(),
+  productId: z.number().int().positive().optional(),
   variantId: z.number().int().positive(),
   sku: z.string().min(1),
   variantName: z.string().min(1),
+  attributes: z.record(z.string()).nullable().optional(),
   productName: z.string().min(1),
   imageUrl: z.string().url(),
   originalPrice: z.number().nonnegative(),

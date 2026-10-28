@@ -25,6 +25,7 @@ import type {
   PublicFlashSaleItemResponse,
   PublicFlashSaleSlotResponse,
 } from "@/features/homepage/api";
+import { formatVariantLabel } from "@/components/storefront/flash-sale/FlashSaleDealCard";
 
 function defaultEndsAt(): string {
   return new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
@@ -175,7 +176,8 @@ export function FlashSaleStripSection() {
                     100
                 )
               : 0;
-          const dealHref = `/flash-sale/${deal.id}`;
+          const dealHref = `/products/${deal.productId ?? deal.id}`;
+          const variantLabel = formatVariantLabel(deal);
 
           return (
             <Link
@@ -212,6 +214,14 @@ export function FlashSaleStripSection() {
                   >
                     {deal.productName}
                   </h3>
+                  {variantLabel && (
+                    <div className="flex items-center">
+                      <span className="inline-flex max-w-full items-center gap-1 rounded bg-surface-container px-1.5 py-0.5 text-[11px] font-medium text-on-surface-variant truncate">
+                        <span className="text-outline">Phân loại: </span>
+                        <span className="font-semibold text-on-surface truncate">{variantLabel}</span>
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-baseline gap-1.5 flex-wrap">
                     <span className="text-[18px] font-semibold text-tertiary leading-none">
                       {formatVNDShort(deal.flashSalePrice)}
