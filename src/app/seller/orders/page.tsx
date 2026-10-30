@@ -43,6 +43,32 @@ const TABS: TabItem[] = [
   { key: "CANCELLED", label: "Đã hủy" },
 ];
 
+function isOrderPaid(order: { paymentStatus?: string; status?: string; paymentMethod?: string }) {
+  const pStatus = (order.paymentStatus || "").toUpperCase();
+  if (pStatus === "PAID" || pStatus === "SUCCESS") return true;
+  if (
+    order.status &&
+    ["PROCESSING", "SHIPPING", "DELIVERED", "COMPLETED"].includes(order.status.toUpperCase())
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function canAdvanceOrder(order: { paymentStatus?: string; status?: string; paymentMethod?: string }) {
+  if (
+    ["CANCELLED", "CANCELLED_TIMEOUT", "CANCELLED_USER"].includes(
+      (order.status || "").toUpperCase()
+    )
+  ) {
+    return false;
+  }
+  // Đơn COD thu tiền khi nhận nên được phép xác nhận chuẩn bị hàng
+  if (order.paymentMethod === "COD") return true;
+  // Các hình thức thanh toán trực tuyến (ZaloPay...) bắt buộc phải đã thanh toán thành công
+  return isOrderPaid(order);
+}
+
 function SellerOrdersContent() {
   const searchParams = useSearchParams();
   const initialCode = searchParams.get("code") || "";
@@ -238,9 +264,23 @@ function SellerOrdersContent() {
       CANCELLED: 0,
     };
     list.forEach((o) => {
-      const st = (o.status || "").toUpperCase() as TabKey;
-      if (st in counts) {
-        counts[st]++;
+      const st = (o.status || "").toUpperCase();
+      if (st === "PENDING_PAYMENT") {
+        counts.PENDING_PAYMENT++;
+      } else if (st === "PENDING" || st === "CONFIRMED" || st === "PENDING_CONFIRMATION") {
+        counts.PENDING++;
+      } else if (st === "PROCESSING") {
+        counts.PROCESSING++;
+      } else if (st === "SHIPPING") {
+        counts.SHIPPING++;
+      } else if (st === "COMPLETED" || st === "DELIVERED") {
+        counts.COMPLETED++;
+      } else if (
+        st === "CANCELLED" ||
+        st === "CANCELLED_TIMEOUT" ||
+        st === "CANCELLED_USER"
+      ) {
+        counts.CANCELLED++;
       }
     });
     return counts;
@@ -250,8 +290,35 @@ function SellerOrdersContent() {
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       // Tab filter
-      if (currentTab !== "ALL" && o.status !== currentTab) {
-        return false;
+      if (currentTab !== "ALL") {
+        const st = (o.status || "").toUpperCase();
+        if (currentTab === "PENDING_PAYMENT" && st !== "PENDING_PAYMENT") {
+          return false;
+        }
+        if (
+          currentTab === "PENDING" &&
+          !["PENDING", "CONFIRMED", "PENDING_CONFIRMATION"].includes(st)
+        ) {
+          return false;
+        }
+        if (currentTab === "PROCESSING" && st !== "PROCESSING") {
+          return false;
+        }
+        if (currentTab === "SHIPPING" && st !== "SHIPPING") {
+          return false;
+        }
+        if (
+          currentTab === "COMPLETED" &&
+          !["COMPLETED", "DELIVERED"].includes(st)
+        ) {
+          return false;
+        }
+        if (
+          currentTab === "CANCELLED" &&
+          !["CANCELLED", "CANCELLED_TIMEOUT", "CANCELLED_USER"].includes(st)
+        ) {
+          return false;
+        }
       }
       // Search filter (code, name, phone)
       if (searchTerm.trim()) {
@@ -341,13 +408,16 @@ function SellerOrdersContent() {
 
     const exportRows = filteredOrders.map((o, index) => {
       let statusLabel = o.status;
-      if (o.status === "PENDING") statusLabel = "Chờ xác nhận";
+      if (o.status === "PENDING" || o.status === "PENDING_CONFIRMATION") statusLabel = "Chờ xác nhận";
+      else if (o.status === "CONFIRMED") statusLabel = "Đã xác nhận";
       else if (o.status === "PROCESSING") statusLabel = "Đang chuẩn bị hàng";
       else if (o.status === "SHIPPING") statusLabel = "Đang giao hàng";
+      else if (o.status === "DELIVERED") statusLabel = "Đã giao hàng";
       else if (o.status === "COMPLETED") statusLabel = "Giao thành công";
       else if (o.status === "CANCELLED") statusLabel = "Đã hủy";
+      else if (o.status === "CANCELLED_TIMEOUT") statusLabel = "Hết hạn thanh toán";
+      else if (o.status === "CANCELLED_USER") statusLabel = "Người mua đã hủy";
       else if (o.status === "PENDING_PAYMENT") statusLabel = "Chờ thanh toán";
-      else if (o.status === "CONFIRMED") statusLabel = "Đã xác nhận";
 
       const paymentStatusLabel =
         o.paymentStatus === "PAID"
@@ -555,7 +625,7 @@ function SellerOrdersContent() {
             <option value="COD">Thanh toán COD</option>
           </select>
 
-          {/* Reset button */}
+          {/* Xóa bộ lọc (icon close - chỉ giữ duy nhất 1 nút Làm mới trên header) */}
           {(searchTerm || orderTypeFilter !== "ALL" || paymentFilter !== "ALL") && (
             <button
               type="button"
@@ -564,9 +634,11 @@ function SellerOrdersContent() {
                 setOrderTypeFilter("ALL");
                 setPaymentFilter("ALL");
               }}
-              className="px-3 py-2 text-xs font-semibold text-secondary hover:text-on-surface bg-surface-container hover:bg-surface-container-high rounded-xl transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-secondary hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+              title="Xóa tất cả bộ lọc tìm kiếm"
             >
-              Đặt lại
+              <MaterialSymbol name="close" size="[16px]" />
+              <span>Xóa bộ lọc</span>
             </button>
           )}
         </div>
@@ -746,17 +818,27 @@ function SellerOrdersContent() {
                       <td className="py-3.5 px-4">
                         <div className="flex flex-col gap-0.5">
                           <span className="font-semibold text-on-surface">
-                            {order.paymentMethod === "ZALOPAY" ? "ZaloPay QR" : "COD"}
+                            {order.paymentMethod === "ZALOPAY"
+                              ? "ZaloPay QR"
+                              : order.paymentMethod === "COD"
+                              ? "Thanh toán COD"
+                              : order.paymentMethod || "ZaloPay QR"}
                           </span>
-                          <span
-                            className={`text-[10px] font-bold ${
-                              order.paymentStatus === "PAID"
-                                ? "text-emerald-700"
-                                : "text-amber-600"
-                            }`}
-                          >
-                            {order.paymentStatus === "PAID" ? "Đã thanh toán" : "Chưa thanh toán"}
-                          </span>
+                          {order.paymentMethod === "COD" ? (
+                            <span className="text-[10px] font-bold text-slate-600">
+                              Thu tiền khi nhận
+                            </span>
+                          ) : (
+                            <span
+                              className={`text-[10px] font-bold ${
+                                isOrderPaid(order)
+                                  ? "text-emerald-700"
+                                  : "text-amber-600"
+                              }`}
+                            >
+                              {isOrderPaid(order) ? "Đã thanh toán" : "Chưa thanh toán"}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -771,22 +853,23 @@ function SellerOrdersContent() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1.5">
-                          {order.status === "PENDING" && (
+                          {canAdvanceOrder(order) &&
+                            (order.status === "PENDING" || order.status === "CONFIRMED") && (
                             <button
                               type="button"
                               disabled={actionLoading}
                               onClick={() => handleUpdateStatus(order.id, "PROCESSING")}
-                              className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors"
+                              className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors cursor-pointer"
                             >
-                              Xác nhận
+                              Chuẩn bị hàng
                             </button>
                           )}
-                          {order.status === "PROCESSING" && (
+                          {canAdvanceOrder(order) && order.status === "PROCESSING" && (
                             <button
                               type="button"
                               disabled={actionLoading}
                               onClick={() => handleUpdateStatus(order.id, "SHIPPING")}
-                              className="px-2.5 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
+                              className="px-2.5 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors cursor-pointer"
                             >
                               Giao hàng
                             </button>
@@ -1046,22 +1129,23 @@ function SellerOrdersContent() {
                 >
                   Đóng
                 </button>
-                {selectedOrder.status === "PENDING" && (
+                {canAdvanceOrder(selectedOrder) &&
+                  (selectedOrder.status === "PENDING" || selectedOrder.status === "CONFIRMED") && (
                   <button
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleUpdateStatus(selectedOrder.id, "PROCESSING")}
-                    className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors"
+                    className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
                     Xác nhận chuẩn bị hàng
                   </button>
                 )}
-                {selectedOrder.status === "PROCESSING" && (
+                {canAdvanceOrder(selectedOrder) && selectedOrder.status === "PROCESSING" && (
                   <button
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleUpdateStatus(selectedOrder.id, "SHIPPING")}
-                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors"
+                    className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors cursor-pointer"
                   >
                     Bàn giao vận chuyển
                   </button>
