@@ -41,6 +41,7 @@ import type {
   VoucherKpis,
   VoucherStatus,
   VoucherFilterParams,
+  VoucherUsageHistoryItem,
 } from "@/types/voucher";
 import { voucherMockService } from "@/lib/mocks/vouchers.mock";
 import type {
