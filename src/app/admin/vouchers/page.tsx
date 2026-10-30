@@ -11,6 +11,7 @@ import {
   deleteAdminPlatformVoucher,
   toggleAdminPlatformVoucherStatus,
   getAdminVoucherKpis,
+  getAdminVoucherUsageHistory,
 } from "@/lib/api/admin";
 import {
   VoucherFormDrawer,
@@ -45,6 +46,7 @@ export default function AdminVouchersPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedVoucherForDetail, setSelectedVoucherForDetail] =
     useState<AdminVoucher | null>(null);
+  const [detailUsageHistory, setDetailUsageHistory] = useState<import("@/types/voucher").VoucherUsageHistoryItem[]>([]);
 
   const [voucherToDelete, setVoucherToDelete] = useState<AdminVoucher | null>(
     null
@@ -114,6 +116,30 @@ export default function AdminVouchersPage() {
     void refreshKey;
     return voucherMockService.getUsageHistory();
   }, [refreshKey]);
+
+
+  // Load voucher usage history when a voucher detail is opened
+  useEffect(() => {
+    if (!selectedVoucherForDetail) {
+      setDetailUsageHistory([]);
+      return;
+    }
+    let cancelled = false;
+    getAdminVoucherUsageHistory(selectedVoucherForDetail.id)
+      .then((history) => {
+        if (!cancelled) {
+          setDetailUsageHistory(history);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDetailUsageHistory(voucherMockService.getUsageHistory(selectedVoucherForDetail.id));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVoucherForDetail]);
 
   // Handlers
   const handleExportCsv = () => {
@@ -1179,11 +1205,7 @@ export default function AdminVouchersPage() {
           setSelectedVoucherForEdit(v);
           setIsFormOpen(true);
         }}
-        usageHistory={
-          selectedVoucherForDetail
-            ? voucherMockService.getUsageHistory(selectedVoucherForDetail.id)
-            : []
-        }
+        usageHistory={detailUsageHistory}
         voucher={selectedVoucherForDetail}
       />
 
