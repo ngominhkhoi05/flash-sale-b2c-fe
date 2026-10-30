@@ -41,6 +41,7 @@ import type {
   VoucherKpis,
   VoucherStatus,
   VoucherFilterParams,
+  VoucherUsageHistoryItem,
 } from "@/types/voucher";
 import { voucherMockService } from "@/lib/mocks/vouchers.mock";
 import type {
@@ -963,6 +964,31 @@ export async function updateAdminPlatformVoucher(
     return mapBeVoucherToAdmin(res);
   } catch {
     return voucherMockService.update(idStr, data);
+  }
+}
+
+
+/**
+ * 18.1. Lấy lịch sử sử dụng của mã giảm giá sàn (GET /api/v1/admin/vouchers/{id}/usages)
+ */
+export async function getAdminVoucherUsageHistory(
+  voucherId: string | number
+): Promise<VoucherUsageHistoryItem[]> {
+  const idStr = String(voucherId);
+  const isMockId = idStr.startsWith("v-") || isNaN(Number(idStr));
+  if (isMockId || isMockMode()) {
+    return voucherMockService.getUsageHistory(idStr);
+  }
+  try {
+    const raw = await apiFetch<unknown>(`/admin/vouchers/${voucherId}/usages`);
+    const list = extractItems<VoucherUsageHistoryItem>(raw);
+    if (!list || list.length === 0) {
+      return voucherMockService.getUsageHistory(idStr);
+    }
+    return list;
+  } catch (err) {
+    console.warn("[getAdminVoucherUsageHistory] Backend API failed, falling back to mock:", err);
+    return voucherMockService.getUsageHistory(idStr);
   }
 }
 
