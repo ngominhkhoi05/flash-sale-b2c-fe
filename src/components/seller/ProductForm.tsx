@@ -284,20 +284,11 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   const { isBanned } = useMyStore();
 
   // Basic Information (SPU)
-  const [name, setName] = useState(
-    mode === "create"
-      ? "Áo thun nam Cotton Compact Vibe UTC cao cấp form rộng thoáng khí"
-      : ""
-  );
+  const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<number>(1);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
-  const [description, setDescription] = useState(
-    "✔ **Chất liệu cao cấp**: 100% Cotton Compact chải kỹ định lượng 220gsm, sợi dệt mật độ cao hạn chế xù lông tối đa.\n" +
-      "✔ **Khả năng thấm hút**: Mồ hôi vượt trội, bề mặt mát mịn, co giãn 4 chiều vận động thoải mái suốt cả ngày.\n" +
-      "✔ **Đường may 2 kim**: Gia cố vai và cổ áo chắc chắn, bo cổ dệt Spandex co giãn hồi form chuẩn không bị dão sau nhiều lần giặt.\n" +
-      "✔ **Form Regular-fit**: Hiện đại phù hợp mọi dáng người nam giới Việt Nam, dễ phối đồ dạo phố, đi học, đi làm."
-  );
+  const [description, setDescription] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [descTab, setDescTab] = useState<"write" | "preview">("write");
 
@@ -498,11 +489,7 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   };
 
   // Images
-  const [images, setImages] = useState<string[]>([
-    "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
-  ]);
+  const [images, setImages] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [isAddingImage, setIsAddingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -514,15 +501,11 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
   );
   const [hasVariations, setHasVariations] = useState(true);
   const [tier1Name, setTier1Name] = useState("Màu sắc");
-  const [tier1Options, setTier1Options] = useState<string[]>([
-    "Đen",
-    "Trắng",
-    "Vàng mù tạt",
-  ]);
+  const [tier1Options, setTier1Options] = useState<string[]>([]);
   const [newTier1Input, setNewTier1Input] = useState("");
 
   const [tier2Name, setTier2Name] = useState("Kích thước");
-  const [tier2Options, setTier2Options] = useState<string[]>(["S", "M", "L", "XL"]);
+  const [tier2Options, setTier2Options] = useState<string[]>([]);
   const [newTier2Input, setNewTier2Input] = useState("");
 
   // SKU Matrix & Overrides
@@ -540,8 +523,8 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       }
     >
   >({});
-  const [batchPrice, setBatchPrice] = useState("149000");
-  const [batchStock, setBatchStock] = useState("60");
+  const [batchPrice, setBatchPrice] = useState("");
+  const [batchStock, setBatchStock] = useState("");
   const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
 
   // Shipping & Dimensions
@@ -625,10 +608,23 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
           }
         > = {};
 
+        const collectedT1: string[] = configs[0]?.options ? [...configs[0].options] : [];
+        const collectedT2: string[] = configs[1]?.options ? [...configs[1].options] : [];
+
         detail.variants.forEach((v) => {
           const attrs = v.attributes || {};
-          const t1Val = extractTierOptionValue(configs[0], attrs);
-          const t2Val = extractTierOptionValue(configs[1], attrs);
+          let t1Val = extractTierOptionValue(configs[0], attrs);
+          let t2Val = extractTierOptionValue(configs[1], attrs);
+
+          // Fallback trích xuất từ variantName nếu attributes chưa map chuẩn
+          if ((!t1Val || (configs.length > 1 && !t2Val)) && v.variantName) {
+            const parts = v.variantName.split(/[,/-]/).map((s) => s.trim());
+            if (!t1Val && parts.length >= 1) t1Val = parts[0];
+            if (!t2Val && parts.length >= 2) t2Val = parts[1];
+          }
+
+          if (t1Val && !collectedT1.includes(t1Val)) collectedT1.push(t1Val);
+          if (t2Val && configs.length > 1 && !collectedT2.includes(t2Val)) collectedT2.push(t2Val);
 
           const rowKey =
             configs.length > 1
@@ -651,6 +647,9 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
             isMarkedForRemoval: false,
           };
         });
+
+        if (collectedT1.length > 0) setTier1Options(collectedT1);
+        if (collectedT2.length > 0) setTier2Options(collectedT2);
 
         setSkuOverrides(initialOverrides);
       }
@@ -1080,31 +1079,124 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
     setIsSubmitting(true);
 
     try {
-      const tierVariationConfigs = hasVariations
-        ? [
-            { name: tier1Name, options: tier1Options },
-            ...(tier2Options.length > 0
-              ? [{ name: tier2Name, options: tier2Options }]
-              : []),
-          ]
-        : [];
+      // 1. Chuẩn hóa cấu hình phân loại tierVariationConfigs
+      let tierVariationConfigs: { name: string; options: string[] }[] = [];
 
-      // GỬI CẢ CÁC BIẾN THỂ ĐANG BÁN VÀ BIẾN THỂ BỊ ĐÁNH DẤU ĐỎ (VỚI STATUS INACTIVE)
-      const variants: CreateProductVariantDto[] = existingSkuRows.map((r) => ({
-        id: r.id,
-        sku: r.sku,
-        variantName:
-          r.tier2Val && r.tier2Val !== "-"
-            ? `${r.tier1Val}, ${r.tier2Val}`
-            : r.tier1Val,
-        originalPrice: r.originalPrice,
-        stockQuantity: r.isMarkedForRemoval ? 0 : r.stockQuantity,
-        status: r.isMarkedForRemoval ? "INACTIVE" : r.isActive ? "ACTIVE" : "INACTIVE",
-        attributes: {
-          [tier1Name]: r.tier1Val,
-          ...(r.tier2Val && r.tier2Val !== "-" ? { [tier2Name]: r.tier2Val } : {}),
-        },
-      }));
+      if (hasVariations) {
+        const cleanT1Options = Array.from(
+          new Set(tier1Options.map((o) => o.trim()).filter((o) => o.length > 0))
+        );
+        const cleanT2Options = Array.from(
+          new Set(tier2Options.map((o) => o.trim()).filter((o) => o.length > 0))
+        );
+
+        if (cleanT1Options.length > 0) {
+          tierVariationConfigs.push({
+            name: tier1Name.trim() || "Phân loại 1",
+            options: cleanT1Options,
+          });
+        }
+        if (cleanT2Options.length > 0) {
+          tierVariationConfigs.push({
+            name: tier2Name.trim() || "Phân loại 2",
+            options: cleanT2Options,
+          });
+        }
+      }
+
+      // 2. Xây dựng danh sách biến thể gửi lên máy chủ
+      let variants: CreateProductVariantDto[] = [];
+
+      if (!hasVariations || tierVariationConfigs.length === 0) {
+        // Backend quy định: nếu tierVariationConfigs rỗng thì variantCount bắt buộc = 1
+        tierVariationConfigs = [];
+        const primaryRow = existingSkuRows[0];
+        variants = [
+          {
+            id: primaryRow?.id,
+            sku: primaryRow?.sku || (mode === "edit" ? "SKU-DEFAULT" : `SKU-${skuSeed}`),
+            variantName: "Mặc định",
+            originalPrice: primaryRow?.originalPrice || Number(batchPrice) || 149000,
+            stockQuantity: primaryRow?.stockQuantity ?? Number(batchStock) ?? 50,
+            status: "ACTIVE",
+            attributes: {},
+          },
+        ];
+      } else {
+        // Tự động kiểm tra nếu có tầng 2 từ dữ liệu các biến thể thực tế
+        const distinctT2Vals = Array.from(
+          new Set(
+            existingSkuRows
+              .map((r) => (r.tier2Val || "").trim())
+              .filter((v) => v && v !== "-" && v !== "Mặc định")
+          )
+        );
+
+        if (distinctT2Vals.length > 0 && tierVariationConfigs.length === 1) {
+          tierVariationConfigs.push({
+            name: tier2Name.trim() || "Phân loại 2",
+            options: distinctT2Vals,
+          });
+        }
+
+        const t1Config = tierVariationConfigs[0];
+        const t2Config = tierVariationConfigs.length > 1 ? tierVariationConfigs[1] : undefined;
+
+        // Tự động kiểm tra và bổ sung các option còn thiếu từ existingSkuRows
+        // để đảm bảo 100% không bao giờ bị lỗi INVALID_TIER_VARIATION từ backend
+        existingSkuRows.forEach((r) => {
+          const t1Val = (r.tier1Val || "").trim();
+          if (t1Val && t1Val !== "Mặc định" && !t1Config.options.includes(t1Val)) {
+            t1Config.options.push(t1Val);
+          }
+          if (t2Config) {
+            const t2Val = (r.tier2Val || "").trim();
+            if (t2Val && t2Val !== "-" && t2Val !== "Mặc định" && !t2Config.options.includes(t2Val)) {
+              t2Config.options.push(t2Val);
+            }
+          }
+        });
+
+        // Đảm bảo không có option rỗng
+        tierVariationConfigs.forEach((cfg) => {
+          cfg.options = Array.from(new Set(cfg.options.map((o) => o.trim()).filter(Boolean)));
+          if (cfg.options.length === 0) {
+            cfg.options = ["Mặc định"];
+          }
+        });
+
+        variants = existingSkuRows.map((r) => ({
+          id: r.id,
+          sku: r.sku,
+          variantName:
+            r.tier2Val && r.tier2Val !== "-"
+              ? `${r.tier1Val}, ${r.tier2Val}`
+              : r.tier1Val,
+          originalPrice: r.originalPrice,
+          stockQuantity: r.isMarkedForRemoval ? 0 : r.stockQuantity,
+          status: r.isMarkedForRemoval ? "INACTIVE" : r.isActive ? "ACTIVE" : "INACTIVE",
+          attributes: {
+            [t1Config.name]: r.tier1Val,
+            ...(t2Config && r.tier2Val && r.tier2Val !== "-"
+              ? { [t2Config.name]: r.tier2Val }
+              : {}),
+          },
+        }));
+
+        // Đảm bảo số lượng biến thể không vượt quá giới hạn tích số phân loại (maxPossibleVariants)
+        let maxPossible = tierVariationConfigs.reduce(
+          (acc, c) => acc * Math.max(1, c.options.length),
+          1
+        );
+        const lastConfig = tierVariationConfigs[tierVariationConfigs.length - 1];
+        while (variants.length > maxPossible && lastConfig) {
+          lastConfig.options.push(`Tùy chọn ${lastConfig.options.length + 1}`);
+          maxPossible = tierVariationConfigs.reduce(
+            (acc, c) => acc * Math.max(1, c.options.length),
+            1
+          );
+        }
+      }
 
       let savedId = productId;
       if (mode === "create") {
@@ -1179,10 +1271,18 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (err: unknown) {
-      const errObj = err as { message?: string };
-      const msg =
+      const errObj = err as { message?: string; errorCode?: string };
+      let msg =
         errObj?.message ||
         "Có lỗi xảy ra khi lưu sản phẩm. Vui lòng kiểm tra lại.";
+      if (
+        msg.includes("tier_variation_configs") ||
+        msg.includes("PROD_400_INVALID_TIER_VARIATION") ||
+        errObj?.errorCode === "PROD_400_INVALID_TIER_VARIATION"
+      ) {
+        msg =
+          "Cấu hình nhóm phân loại (Màu sắc / Kích thước) chưa khớp với danh sách biến thể SKU. Vui lòng kiểm tra lại các tùy chọn phân loại.";
+      }
       setErrorMessage(msg);
       toast.error(msg);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1201,8 +1301,6 @@ export function ProductForm({ mode, productId }: ProductFormProps) {
       </div>
     );
   }
-
-  const visibleMatrixRows = isMatrixExpanded ? skuMatrix : skuMatrix.slice(0, 6);
 
   return (
     <div className="flex flex-col w-full pb-28">
