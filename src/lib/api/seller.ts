@@ -34,48 +34,24 @@ import type {
 } from "@/types/seller";
 
 /**
- * Fallback dữ liệu giả lập cho biểu đồ doanh thu 7 ngày khi BE chưa có API time-series.
- */
-function getMockRevenuePoints(): SellerRevenueDayPoint[] {
-  return [
-    { date: "2026-10-12", dayLabel: "T2", revenue: 5200000, previousWeekRevenue: 4800000, ordersCount: 38 },
-    { date: "2026-10-13", dayLabel: "T3", revenue: 6450000, previousWeekRevenue: 5900000, ordersCount: 44 },
-    { date: "2026-10-14", dayLabel: "T4", revenue: 7800000, previousWeekRevenue: 6200000, ordersCount: 52 },
-    { date: "2026-10-15", dayLabel: "T5", revenue: 6100000, previousWeekRevenue: 5800000, ordersCount: 41 },
-    { date: "2026-10-16", dayLabel: "T6", revenue: 8900000, previousWeekRevenue: 7500000, ordersCount: 65 },
-    { date: "2026-10-17", dayLabel: "T7", revenue: 10400000, previousWeekRevenue: 9100000, ordersCount: 78 },
-    { date: "2026-10-18", dayLabel: "CN", revenue: 11200000, previousWeekRevenue: 9800000, ordersCount: 82 },
-  ];
-}
-
-/**
- * Fallback dữ liệu mẫu KPI cho Seller Dashboard khi shop mới tinh hoặc mock mode.
- */
-function getMockStoreSummary(): SidebarSummaryResponse {
-  return {
-    totalProducts: 48,
-    pendingOrders: 12,
-    todayOrders: 14,
-    todayRevenue: 4850000,
-    monthRevenue: 68400000,
-    ratingAvg: 4.8,
-    ratingCount: 120,
-    lowStockProducts: 3,
-    storeStatus: "APPROVED",
-  };
-}
-
-/**
  * 1. Lấy thống kê KPI tổng hợp của shop (KHỚP BE: GET /api/v1/stores/sidebar/summary)
  */
 export async function getStoreSidebarSummary(): Promise<SidebarSummaryResponse> {
   try {
     return await apiFetch<SidebarSummaryResponse>("/stores/sidebar/summary");
   } catch (err) {
-    if (isMockMode()) {
-      return getMockStoreSummary();
-    }
-    throw err;
+    console.warn("[getStoreSidebarSummary] Error fetching summary from BE, returning real zero metrics:", err);
+    return {
+      totalProducts: 0,
+      pendingOrders: 0,
+      todayOrders: 0,
+      todayRevenue: 0,
+      monthRevenue: 0,
+      ratingAvg: 0,
+      ratingCount: 0,
+      lowStockProducts: 0,
+      storeStatus: "APPROVED",
+    };
   }
 }
 
@@ -86,14 +62,7 @@ export async function getSellerRecentOrders(
   page: number = 0,
   size: number = 5
 ): Promise<PageResponse<SellerOrderResponse>> {
-  try {
-    return await getSellerOrders(page, size);
-  } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerOrders(page, size);
-    }
-    throw err;
-  }
+  return await getSellerOrders(page, size);
 }
 
 /**
@@ -173,10 +142,19 @@ export async function getSellerOrders(
       hasPrevious: pageObj.hasPrevious ?? false,
     };
   } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerOrders(page, size, status);
-    }
-    throw err;
+    console.warn("[getSellerOrders] Error fetching orders from BE, returning empty page:", err);
+    return {
+      content: [],
+      items: [],
+      totalElements: 0,
+      totalPages: 0,
+      pageNumber: page,
+      pageSize: size,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   }
 }
 
@@ -184,23 +162,7 @@ export async function getSellerOrders(
  * Lấy chi tiết đơn hàng (KHỚP BE: GET /api/v1/seller/orders/{id})
  */
 export async function getSellerOrderById(id: number): Promise<SellerOrderResponse> {
-  try {
-    return await apiFetch<SellerOrderResponse>(`/seller/orders/${id}`);
-  } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerOrders(0, 50).content.find((o) => o.id === id) || {
-        id,
-        orderCode: `ORD-${id}`,
-        recipientName: "Khách hàng",
-        recipientPhone: "0901234567",
-        recipientAddress: "123 Lê Lợi, Q.1, TP. Hồ Chí Minh",
-        paymentMethod: "ZALOPAY",
-        status: "PENDING",
-        createdAt: new Date().toISOString(),
-      };
-    }
-    throw err;
-  }
+  return await apiFetch<SellerOrderResponse>(`/seller/orders/${id}`);
 }
 
 /**
@@ -811,10 +773,19 @@ export async function getSellerTopProducts(
       items: sorted.slice(0, size),
     };
   } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerProducts(page, size);
-    }
-    throw err;
+    console.warn("[getSellerTopProducts] Error fetching top products from BE:", err);
+    return {
+      content: [],
+      items: [],
+      totalElements: 0,
+      totalPages: 0,
+      pageNumber: page,
+      pageSize: size,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   }
 }
 
@@ -847,9 +818,6 @@ export async function getSellerRevenueChart(
       const orders = ordersRes.content || ordersRes.items || [];
       return aggregateRevenuePoints(orders, period);
     } catch {
-      if (isMockMode()) {
-        return getMockRevenuePoints();
-      }
       return aggregateRevenuePoints([], period);
     }
   }
@@ -1006,25 +974,19 @@ export async function getSellerProducts(
       hasNext: pageObj.hasNext ?? false,
       hasPrevious: pageObj.hasPrevious ?? false,
     };
-  } catch {
-    // Luôn fallback về mock data khi Backend chưa chạy hoặc lỗi kết nối
-    let filtered = mockSellerProductStore;
-    if (status && status !== "ALL") {
-      filtered = filtered.filter((p) => p.status === status);
-    }
-    const start = page * size;
-    const paginated = filtered.slice(start, start + size);
+  } catch (err) {
+    console.warn("[getSellerProducts] Error fetching products from BE, returning empty page:", err);
     return {
-      content: paginated,
-      items: paginated,
-      totalElements: filtered.length,
-      totalPages: Math.ceil(filtered.length / size) || 1,
+      content: [],
+      items: [],
+      totalElements: 0,
+      totalPages: 0,
       pageNumber: page,
       pageSize: size,
-      isFirst: page === 0,
-      isLast: start + size >= filtered.length,
-      hasNext: start + size < filtered.length,
-      hasPrevious: page > 0,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
     };
   }
 }
@@ -1035,59 +997,16 @@ export async function getSellerProducts(
 export async function getSellerProductDetail(
   productId: number
 ): Promise<SellerProductDetailResponse> {
-  try {
-    const res = await apiFetch<SellerProductDetailResponse>(
-      `/seller/products/${productId}`
-    );
-    const configs = res.tierVariationConfigs || res.tierVariations || [];
-    return {
-      ...res,
-      tierVariationConfigs: configs,
-      tierVariations: configs,
-      variants: Array.isArray(res.variants) ? res.variants : [],
-    };
-  } catch (err) {
-    if (isMockMode()) {
-      const summary = mockSellerProductStore.find((p) => p.id === productId);
-      return {
-        id: productId,
-        storeId: summary?.storeId || 1,
-        storeName: summary?.storeName || "UTC Fashion",
-        categoryId: summary?.categoryId || 1,
-        categoryName: summary?.categoryName || "Thời trang nam",
-        name: summary?.name || "Áo thun nam Cotton Compact Vibe UTC cao cấp",
-        slug: summary?.slug || "ao-thun-nam",
-        description:
-          "✔ **Chất liệu**: 100% Cotton Compact chải kỹ định lượng 220gsm.\n✔ **Đường may 2 kim**: Gia cố chắc chắn.",
-        imageUrl:
-          summary?.imageUrl ||
-          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
-        status: summary?.status || "ACTIVE",
-        tierVariations: [
-          { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
-          { name: "Kích thước", options: ["S", "M", "L", "XL"] },
-        ],
-        tierVariationConfigs: [
-          { name: "Màu sắc", options: ["Đen", "Trắng", "Vàng"] },
-          { name: "Kích thước", options: ["S", "M", "L", "XL"] },
-        ],
-        variants: [
-          {
-            id: productId * 10 + 1,
-            sku: "AT-DEN-S",
-            skuCode: "AT-DEN-S",
-            variantName: "Đen, Size S",
-            originalPrice: summary?.minPrice || 149000,
-            salePrice: summary?.minPrice || 149000,
-            stockQuantity: 50,
-            status: "ACTIVE",
-            attributes: { "Màu sắc": "Đen", "Kích thước": "S" },
-          },
-        ],
-      };
-    }
-    throw err;
-  }
+  const res = await apiFetch<SellerProductDetailResponse>(
+    `/seller/products/${productId}`
+  );
+  const configs = res.tierVariationConfigs || res.tierVariations || [];
+  return {
+    ...res,
+    tierVariationConfigs: configs,
+    tierVariations: configs,
+    variants: Array.isArray(res.variants) ? res.variants : [],
+  };
 }
 
 /**
@@ -1139,16 +1058,9 @@ export async function deleteProduct(productId: number): Promise<void> {
 export async function getCategories(): Promise<CategoryItem[]> {
   try {
     return await apiFetch<CategoryItem[]>("/categories");
-  } catch {
-    // Dự phòng fallback danh mục mặc định khi offline / demo
-    return [
-      { id: 1, name: "Thời trang nam", slug: "thoi-trang-nam" },
-      { id: 2, name: "Thời trang nữ", slug: "thoi-trang-nu" },
-      { id: 3, name: "Điện thoại & Phụ kiện", slug: "dien-thoai-phu-kien" },
-      { id: 4, name: "Thiết bị điện tử", slug: "thiet-bi-dien-tu" },
-      { id: 5, name: "Nhà cửa & Đời sống", slug: "nha-cua-doi-song" },
-      { id: 6, name: "Sắc đẹp & Sức khỏe", slug: "sac-dep-suc-khoe" },
-    ];
+  } catch (error) {
+    console.warn("Lỗi khi tải danh mục từ máy chủ:", error);
+    return [];
   }
 }
 
@@ -1281,6 +1193,58 @@ export async function updateSellerProduct(
 }
 
 /**
+ * 11b. Sửa nhanh số lượng tồn kho của một biến thể SKU (Quick Stock Edit)
+ */
+export async function updateProductVariantStock(
+  productId: number,
+  variantId: number,
+  newStock: number
+): Promise<SellerProductDetailResponse> {
+  const current = await getSellerProductDetail(productId);
+
+  const updatedVariants = (current.variants || []).map((v) => ({
+    id: v.id,
+    sku: v.skuCode || v.sku || `SKU-${v.id}`,
+    variantName: v.variantName || "Mặc định",
+    originalPrice: Number(v.salePrice || v.originalPrice) || 0,
+    stockQuantity: v.id === variantId ? newStock : Number(v.stockQuantity) || 0,
+    status: v.status || "ACTIVE",
+    attributes: v.attributes || {},
+  }));
+
+  let configs = current.tierVariationConfigs || current.tierVariations || [];
+  if (configs && configs.length > 0) {
+    // Đảm bảo options bao quát tất cả variants
+    configs = configs.map((c) => {
+      const distinctVals = Array.from(
+        new Set([
+          ...(c.options || []),
+          ...updatedVariants
+            .map((v) => (v.attributes ? String(v.attributes[c.name] || "") : ""))
+            .filter((val) => val.trim().length > 0),
+        ])
+      );
+      return {
+        name: c.name,
+        options: distinctVals.length > 0 ? distinctVals : ["Mặc định"],
+      };
+    });
+  }
+
+  const payload: UpdateProductPayload = {
+    name: current.name,
+    categoryId: current.categoryId,
+    description: current.description || "",
+    imageUrl: current.imageUrl,
+    status: current.status || "ACTIVE",
+    tierVariationConfigs: configs,
+    variants: updatedVariants,
+  };
+
+  return await updateSellerProduct(productId, payload);
+}
+
+/**
  * 12. Upload ảnh cho sản phẩm SPU (KHỚP BE: POST /api/v1/seller/products/{id}/images)
  */
 export async function uploadSellerProductImage(
@@ -1319,48 +1283,16 @@ export async function getFlashSaleSlots(): Promise<FlashSaleSlotItem[]> {
     if (res && res.length > 0) {
       return res.map((s) => ({
         ...s,
-        participatingStoresCount: 32,
-        availableProductSlots: 64,
+        participatingStoresCount: 0,
+        availableProductSlots: 0,
         badgeLabel: s.title.includes("HOT") ? "HOT" : undefined,
       }));
     }
-  } catch {
-    // fallback below if mock mode or BE empty
+    return [];
+  } catch (err) {
+    console.warn("[getFlashSaleSlots] Error fetching slots from BE:", err);
+    return [];
   }
-
-  return [
-    {
-      id: 1,
-      title: "Flash Sale Giờ Vàng 12:00 – 14:00",
-      startTime: "2026-10-05T12:00:00Z",
-      endTime: "2026-10-05T14:00:00Z",
-      status: "UPCOMING",
-      reservationTtlSeconds: 300,
-      participatingStoresCount: 48,
-      availableProductSlots: 18,
-      badgeLabel: "HOT",
-    },
-    {
-      id: 2,
-      title: "Đại Tiệc Tối 20:00 – 22:00",
-      startTime: "2026-10-05T20:00:00Z",
-      endTime: "2026-10-05T22:00:00Z",
-      status: "UPCOMING",
-      reservationTtlSeconds: 300,
-      participatingStoresCount: 32,
-      availableProductSlots: 64,
-    },
-    {
-      id: 3,
-      title: "Siêu Khuyến Mãi Cuối Tuần 09:00 – 11:30",
-      startTime: "2026-10-06T09:00:00Z",
-      endTime: "2026-10-06T11:30:00Z",
-      status: "UPCOMING",
-      reservationTtlSeconds: 300,
-      participatingStoresCount: 15,
-      availableProductSlots: 82,
-    },
-  ];
 }
 
 /**
@@ -1511,72 +1443,6 @@ export async function getRegisteredFlashSaleHistory(): Promise<
     return [...pendingLocal, ...serverItems];
   }
 
-  // Nếu API lỗi và ở chế độ mock thì trả về mock data + local items
-  if (isMockMode()) {
-    const existingIds = new Set(localItems.map((l) => l.id));
-    const fallbackMocks: RegisteredFlashSaleHistoryItem[] = [
-      {
-        id: 101,
-        productName: "Áo thun Đen M",
-        sku: "AT-DEN-M",
-        imageUrl:
-          "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
-        slotTitle: "Giờ Vàng 12:00 – 14:00",
-        slotDate: "05/10/2026",
-        slotTime: "12:00 – 14:00",
-        flashSalePrice: 89000,
-        allocatedStock: 30,
-        soldStock: 24,
-        status: "APPROVED",
-      },
-      {
-        id: 102,
-        productName: "Áo sơ mi Trắng L",
-        sku: "SM-TRANG-L",
-        imageUrl:
-          "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&auto=format&fit=crop&q=60",
-        slotTitle: "Đại Tiệc Tối 20:00",
-        slotDate: "05/10/2026",
-        slotTime: "20:00 – 22:00",
-        flashSalePrice: 199000,
-        allocatedStock: 15,
-        soldStock: 0,
-        status: "PENDING",
-      },
-      {
-        id: 103,
-        productName: "Quần Jean Slim 32",
-        sku: "QJ-SLIM-32",
-        imageUrl:
-          "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
-        slotTitle: "Giờ Vàng 12:00 – 14:00",
-        slotDate: "05/10/2026",
-        slotTime: "12:00 – 14:00",
-        flashSalePrice: 299000,
-        allocatedStock: 10,
-        soldStock: 0,
-        status: "REJECTED",
-        rejectReason: "Giá sale chưa đủ hấp dẫn (giảm dưới 20% so với giá niêm yết).",
-      },
-      {
-        id: 104,
-        productName: "Áo Polo Navy M",
-        sku: "PL-NAVY-M",
-        imageUrl:
-          "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
-        slotTitle: "Phiên 01/10/2026",
-        slotDate: "01/10/2026",
-        slotTime: "18:00 – 20:00",
-        flashSalePrice: 139000,
-        allocatedStock: 50,
-        soldStock: 50,
-        status: "ENDED",
-      },
-    ].filter((m) => !existingIds.has(m.id));
-
-    return [...localItems, ...fallbackMocks];
-  }
-
   return localItems;
 }
 
@@ -1596,10 +1462,19 @@ export async function getSellerWallet(): Promise<SellerWalletResponse> {
   try {
     return await apiFetch<SellerWalletResponse>("/seller/wallet");
   } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerWallet();
-    }
-    throw err;
+    console.warn("[getSellerWallet] Error fetching wallet from BE, returning zero balance:", err);
+    return {
+      balance: 0,
+      pendingBalance: 0,
+      totalWithdrawn: 0,
+      bankAccount: {
+        bankName: "",
+        accountNumber: "",
+        accountHolder: "",
+        branch: "",
+        isVerified: false,
+      },
+    };
   }
 }
 
@@ -1689,21 +1564,6 @@ export async function requestSellerWithdrawal(
     }
     throw err;
   }
-}
-
-function getMockSellerWallet(): SellerWalletResponse {
-  return {
-    balance: 48250000,
-    pendingBalance: 5420000,
-    totalWithdrawn: 126800000,
-    bankAccount: {
-      bankName: "Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)",
-      accountNumber: "1029 8839 1204",
-      accountHolder: "NGUYEN VAN AN - UTC FASHION",
-      branch: "Chi nhánh Thủ Đức, TP. Hồ Chí Minh",
-      isVerified: true,
-    },
-  };
 }
 
 function getMockSellerWalletTransactions(
@@ -1883,8 +1743,19 @@ export async function getSellerVouchers(
       hasPrevious: false,
     };
   } catch (err) {
-    console.warn("[getSellerVouchers] Backend API call failed, falling back to mock vouchers:", err);
-    return getMockSellerVouchers(page, size, status);
+    console.warn("[getSellerVouchers] Backend API call failed, returning empty vouchers list:", err);
+    return {
+      content: [],
+      items: [],
+      totalElements: 0,
+      totalPages: 0,
+      pageNumber: page,
+      pageSize: size,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   }
 }
 
@@ -2102,130 +1973,6 @@ export async function deleteSellerVoucher(
   }
 }
 
-function getMockSellerVouchers(
-  page: number = 0,
-  size: number = 10,
-  statusFilter?: string
-): PageResponse<SellerVoucherItem> {
-  const allVouchers: SellerVoucherItem[] = [
-    {
-      id: 1,
-      code: "UTC10K",
-      name: "Giảm 10% Tối đa 30k",
-      discountType: "PERCENTAGE",
-      discountValue: 10,
-      maxDiscountAmount: 30000,
-      minOrderAmount: 150000,
-      totalUsageLimit: 100,
-      currentUsageCount: 45,
-      userUsageLimit: 1,
-      startDate: "2026-10-10",
-      endDate: "2026-10-31",
-      status: "ACTIVE",
-      createdAt: "2026-10-10T08:00:00Z",
-    },
-    {
-      id: 2,
-      code: "UTC50K",
-      name: "Giảm 50k Đơn từ 350k",
-      discountType: "FIXED_AMOUNT",
-      discountValue: 50000,
-      minOrderAmount: 350000,
-      totalUsageLimit: 50,
-      currentUsageCount: 50,
-      userUsageLimit: 1,
-      startDate: "2026-10-12",
-      endDate: "2026-10-25",
-      status: "ACTIVE",
-      createdAt: "2026-10-12T09:00:00Z",
-    },
-    {
-      id: 3,
-      code: "FLASHOCT",
-      name: "Đại tiệc Flash Sale 15%",
-      discountType: "PERCENTAGE",
-      discountValue: 15,
-      maxDiscountAmount: 50000,
-      minOrderAmount: 200000,
-      totalUsageLimit: 200,
-      currentUsageCount: 18,
-      userUsageLimit: 2,
-      startDate: "2026-10-15",
-      endDate: "2026-10-20",
-      status: "ACTIVE",
-      createdAt: "2026-10-15T00:00:00Z",
-    },
-    {
-      id: 4,
-      code: "NEWBUYER",
-      name: "Chào mừng bạn mới 20k",
-      discountType: "FIXED_AMOUNT",
-      discountValue: 20000,
-      minOrderAmount: 99000,
-      totalUsageLimit: 500,
-      currentUsageCount: 124,
-      userUsageLimit: 1,
-      startDate: "2026-10-01",
-      endDate: "2026-10-31",
-      status: "ACTIVE",
-      createdAt: "2026-10-01T00:00:00Z",
-    },
-    {
-      id: 5,
-      code: "PAYDAY11",
-      name: "Siêu tiệc lương về 25%",
-      discountType: "PERCENTAGE",
-      discountValue: 25,
-      maxDiscountAmount: 70000,
-      minOrderAmount: 400000,
-      totalUsageLimit: 150,
-      currentUsageCount: 0,
-      userUsageLimit: 1,
-      startDate: "2026-10-25",
-      endDate: "2026-10-28",
-      status: "UPCOMING",
-      createdAt: "2026-10-16T10:00:00Z",
-    },
-    {
-      id: 6,
-      code: "MIDMONTH",
-      name: "Giữa tháng săn sale 30k",
-      discountType: "FIXED_AMOUNT",
-      discountValue: 30000,
-      minOrderAmount: 180000,
-      totalUsageLimit: 100,
-      currentUsageCount: 100,
-      userUsageLimit: 1,
-      startDate: "2026-10-01",
-      endDate: "2026-10-15",
-      status: "EXPIRED",
-      createdAt: "2026-10-01T00:00:00Z",
-    },
-  ];
-
-  let filtered = allVouchers;
-  if (statusFilter && statusFilter !== "ALL") {
-    filtered = allVouchers.filter((v) => v.status === statusFilter);
-  }
-
-  const start = page * size;
-  const content = filtered.slice(start, start + size);
-  const totalElements = filtered.length;
-  const totalPages = Math.ceil(totalElements / size) || 1;
-
-  return {
-    content,
-    pageNumber: page,
-    pageSize: size,
-    totalElements,
-    totalPages,
-    isFirst: page === 0,
-    isLast: start + size >= totalElements,
-    hasNext: start + size < totalElements,
-    hasPrevious: page > 0,
-  };
-}
-
 /**
  * Lấy thống kê tổng quan đánh giá của shop (GET /api/v1/seller/reviews/summary)
  */
@@ -2233,10 +1980,14 @@ export async function getSellerReviewSummary(): Promise<SellerReviewSummaryRespo
   try {
     return await apiFetch<SellerReviewSummaryResponse>("/seller/reviews/summary");
   } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerReviewSummary();
-    }
-    throw err;
+    console.warn("[getSellerReviewSummary] Error fetching review summary from BE, returning zero metrics:", err);
+    return {
+      averageRating: 0,
+      totalReviews: 0,
+      responseRate: 0,
+      unrepliedCount: 0,
+      ratingBreakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    };
   }
 }
 
@@ -2261,10 +2012,19 @@ export async function getSellerReviews(
       query,
     });
   } catch (err) {
-    if (isMockMode()) {
-      return getMockSellerReviews(page, size, rating, replyStatus);
-    }
-    throw err;
+    console.warn("[getSellerReviews] Error fetching reviews from BE, returning empty list:", err);
+    return {
+      content: [],
+      items: [],
+      totalElements: 0,
+      totalPages: 0,
+      pageNumber: page,
+      pageSize: size,
+      isFirst: true,
+      isLast: true,
+      hasNext: false,
+      hasPrevious: false,
+    };
   }
 }
 
@@ -2301,149 +2061,6 @@ export async function replySellerReview(
     }
     throw err;
   }
-}
-
-function getMockSellerReviewSummary(): SellerReviewSummaryResponse {
-  return {
-    averageRating: 4.8,
-    totalReviews: 1326,
-    responseRate: 99.7,
-    unrepliedCount: 3,
-    ratingBreakdown: {
-      5: 1150,
-      4: 120,
-      3: 35,
-      2: 13,
-      1: 8,
-    },
-  };
-}
-
-function getMockSellerReviews(
-  page: number = 0,
-  size: number = 10,
-  ratingFilter?: number,
-  replyStatusFilter?: "ALL" | "UNREPLIED" | "REPLIED"
-): PageResponse<SellerReviewItem> {
-  const allReviews: SellerReviewItem[] = [
-    {
-      id: 1,
-      productId: 1,
-      productName: "Áo Hoodie Unisex Oversize Nỉ Bông",
-      productImage:
-        "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=60",
-      variantSku: "HD-DEN-L",
-      variantName: "Đen / Size L",
-      orderCode: "FS-261001-A7K2Q",
-      buyerName: "Nguyễn Văn Tuấn",
-      rating: 5,
-      comment:
-        "Chất vải nỉ dày dặn ấm áp, form oversize chuẩn đẹp. Mua trong Flash Sale giá hời bất ngờ!",
-      sellerReply: {
-        id: 11,
-        replyText:
-          "Cảm ơn bạn Tuấn đã tin tưởng ủng hộ UTC Fashion ạ! Chúc bạn luôn có trải nghiệm tuyệt vời cùng shop nhé ❤️",
-        repliedAt: "2026-10-02T14:15:00Z",
-      },
-      createdAt: "2026-10-02T10:00:00Z",
-    },
-    {
-      id: 2,
-      productId: 2,
-      productName: "Áo thun Basic Cotton Organic",
-      productImage:
-        "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
-      variantSku: "AT-TRANG-M",
-      variantName: "Trắng ngà / Size M",
-      orderCode: "ORD-261004-R2X9",
-      buyerName: "Lê Minh Trang",
-      rating: 3,
-      comment:
-        "Áo đẹp nhưng size M hơi rộng so với mình nghĩ, shop có hỗ trợ đổi sang size S không ạ?",
-      sellerReply: null,
-      createdAt: "2026-10-18T02:30:00Z",
-    },
-    {
-      id: 3,
-      productId: 3,
-      productName: "Quần Jean Slimfit Co Giãn 4 Chiều",
-      productImage:
-        "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop&q=60",
-      variantSku: "QJ-XANH-XL",
-      variantName: "Xanh Navy / Size XL",
-      orderCode: "FS-260928-V9L1P",
-      buyerName: "Trần Hoàng Long",
-      rating: 5,
-      comment:
-        "Giao hàng siêu nhanh, đóng gói hộp carton cứng cáp rất chỉn chu. Đường may tỉ mỉ, đáng tiền 10/10.",
-      sellerReply: {
-        id: 12,
-        replyText:
-          "Dạ shop cảm ơn anh Long rất nhiều ạ! Mong anh tiếp tục ủng hộ các bộ sưu tập mới của UTC Fashion ạ!",
-        repliedAt: "2026-09-30T09:00:00Z",
-      },
-      createdAt: "2026-09-29T19:40:00Z",
-    },
-    {
-      id: 4,
-      productId: 4,
-      productName: "Áo Polo Thể Thao Quick-Dry",
-      productImage:
-        "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&auto=format&fit=crop&q=60",
-      variantSku: "PL-XAM-M",
-      variantName: "Xám / Size M",
-      orderCode: "ORD-261003-P4Y7",
-      buyerName: "Đặng Mỹ Linh",
-      rating: 4,
-      comment:
-        "Màu sắc bên ngoài nhạt hơn hình một chút nhưng chất vải mềm mát, thấm hút mồ hôi tốt khi tập thể thao.",
-      sellerReply: null,
-      createdAt: "2026-10-17T11:00:00Z",
-    },
-    {
-      id: 5,
-      productId: 5,
-      productName: "Vớ Cổ Cao Dệt Kim Thể Thao",
-      productImage:
-        "https://images.unsplash.com/photo-1582966772680-860e372bb558?w=500&auto=format&fit=crop&q=60",
-      variantSku: "VO-TRANG-FREESIZE",
-      variantName: "Trắng / Freesize",
-      orderCode: "ORD-261002-L1K0",
-      buyerName: "Phạm Hải Đăng",
-      rating: 2,
-      comment:
-        "Vớ bị xước sợi chỉ ngay đường may mũi chân, hơi thất vọng vì mua combo 3 đôi.",
-      sellerReply: null,
-      createdAt: "2026-10-18T04:10:00Z",
-    },
-  ];
-
-  let filtered = allReviews;
-  if (ratingFilter && ratingFilter > 0) {
-    filtered = filtered.filter((r) => r.rating === ratingFilter);
-  }
-  if (replyStatusFilter === "UNREPLIED") {
-    filtered = filtered.filter((r) => !r.sellerReply);
-  } else if (replyStatusFilter === "REPLIED") {
-    filtered = filtered.filter((r) => !!r.sellerReply);
-  }
-
-  const start = page * size;
-  const content = filtered.slice(start, start + size);
-  const totalElements = filtered.length;
-  const totalPages = Math.ceil(totalElements / size) || 1;
-
-  return {
-    content,
-    pageNumber: page,
-    pageSize: size,
-    totalElements,
-    totalPages,
-    isFirst: page === 0,
-    isLast: start + size >= totalElements,
-    hasNext: start + size < totalElements,
-    hasPrevious: page > 0,
-  };
 }
 
 /**
