@@ -183,7 +183,6 @@ export function QrPaymentModule({ order, onComplete, onSelectCod }: QrPaymentMod
 
   useEffect(() => {
     setMounted(true);
-    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
