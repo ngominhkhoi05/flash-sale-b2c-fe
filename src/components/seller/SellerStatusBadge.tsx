@@ -25,11 +25,14 @@ const STATUS_MAP: Record<string, { label: string; variant: SellerBadgeVariant }>
   // Order Statuses
   PENDING_PAYMENT: { label: "Chờ thanh toán", variant: "warning" },
   PENDING_CONFIRMATION: { label: "Chờ xác nhận", variant: "warning" },
-  PROCESSING: { label: "Đang chuẩn bị", variant: "info" },
+  CONFIRMED: { label: "Đã xác nhận", variant: "info" },
+  PROCESSING: { label: "Chờ lấy hàng", variant: "info" },
   SHIPPING: { label: "Đang giao", variant: "info" },
   DELIVERED: { label: "Đã giao hàng", variant: "success" },
   COMPLETED: { label: "Hoàn tất", variant: "success" },
   CANCELLED: { label: "Đã hủy", variant: "danger" },
+  CANCELLED_TIMEOUT: { label: "Hết hạn thanh toán", variant: "danger" },
+  CANCELLED_USER: { label: "Người mua đã hủy", variant: "danger" },
   REFUNDED: { label: "Đã hoàn tiền", variant: "neutral" },
 
   // Flash Sale Registration Item Statuses
