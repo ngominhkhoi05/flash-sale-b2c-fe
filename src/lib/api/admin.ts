@@ -72,6 +72,9 @@ import type {
   AdminWithdrawalResponse,
   ApproveWithdrawalPayload,
   RejectWithdrawalPayload,
+  SearchReindexResponse,
+  ImageReindexResponse,
+  ImageSearchStatusResponse,
 } from "@/types/admin";
 
 
@@ -1703,6 +1706,77 @@ export async function getAdminDashboardSummary(
     throw err;
   }
 }
+
+// ==========================================
+// SEARCH & IMAGE SEARCH REINDEX API
+// ==========================================
+
+/**
+ * Khởi chạy full reindex OpenSearch (Full-Text Search).
+ * Quét lại toàn bộ sản phẩm ACTIVE (thuộc store APPROVED) và nạp vào OpenSearch index.
+ */
+export async function triggerSearchReindex(): Promise<SearchReindexResponse> {
+  if (isMockMode()) {
+    await new Promise((r) => setTimeout(r, 600));
+    return {
+      indexedCount: 1250,
+      indexCount: 1250,
+    };
+  }
+  return apiFetch<SearchReindexResponse>("/admin/search/reindex", {
+    method: "POST",
+  });
+}
+
+/**
+ * Lấy trạng thái hiện tại của OpenSearch index.
+ */
+export async function getSearchIndexStatus(): Promise<SearchReindexResponse> {
+  if (isMockMode()) {
+    return {
+      indexedCount: 0,
+      indexCount: 1250,
+    };
+  }
+  return apiFetch<SearchReindexResponse>("/admin/search/status", {
+    method: "GET",
+  });
+}
+
+/**
+ * Khởi chạy đồng bộ vector cho toàn bộ ảnh sản phẩm (pgvector).
+ * Quét toàn bộ ảnh sản phẩm ACTIVE, gọi AI embedding service và lưu vào pgvector.
+ */
+export async function triggerImageSearchReindex(): Promise<ImageReindexResponse> {
+  if (isMockMode()) {
+    await new Promise((r) => setTimeout(r, 1200));
+    return {
+      totalScanned: 3420,
+      successCount: 3420,
+      failedCount: 0,
+      durationMs: 4520,
+    };
+  }
+  return apiFetch<ImageReindexResponse>("/admin/image-search/reindex", {
+    method: "POST",
+  });
+}
+
+/**
+ * Lấy trạng thái hệ thống vector search (AI service healthy & số lượng vector trong DB).
+ */
+export async function getImageSearchStatus(): Promise<ImageSearchStatusResponse> {
+  if (isMockMode()) {
+    return {
+      aiServiceHealthy: true,
+      totalVectorsInDb: 3420,
+    };
+  }
+  return apiFetch<ImageSearchStatusResponse>("/admin/image-search/status", {
+    method: "GET",
+  });
+}
+
 
 
 

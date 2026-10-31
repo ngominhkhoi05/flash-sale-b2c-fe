@@ -88,6 +88,16 @@ function handleAuthPages(ctx: GuardContext): NextResponse | null {
   const { req, role, pathname } = ctx;
   if (!role) return null;
   if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+    // Cho phép force vào trang login/register khi người dùng chủ động muốn đổi tài khoản hoặc đăng xuất
+    if (
+      req.nextUrl.searchParams.get("force") === "true" ||
+      req.nextUrl.searchParams.get("logout") === "true"
+    ) {
+      const res = NextResponse.next();
+      res.cookies.delete(COOKIE_KEYS.ACCESS_TOKEN);
+      return res;
+    }
+
     const url = req.nextUrl.clone();
     url.pathname =
       role === ROLES.ADMIN

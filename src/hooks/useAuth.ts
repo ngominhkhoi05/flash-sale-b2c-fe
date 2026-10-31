@@ -2,6 +2,8 @@
 
 import { useAuthStore } from "@/stores/auth.store";
 import { ROLES, type Role } from "@/lib/constants";
+import { clearAccessToken, clearRefreshToken } from "@/lib/api/client";
+import { clearAccessTokenCookie } from "@/providers/SessionCookieBridge";
 
 /**
  * useAuth – selector gọn cho component (rule auth-jwt).
@@ -13,13 +15,20 @@ export function useAuth() {
   const setUser = useAuthStore((s) => s.setUser);
   const reset = useAuthStore((s) => s.reset);
 
+  const logout = () => {
+    clearAccessToken();
+    clearRefreshToken();
+    clearAccessTokenCookie();
+    reset();
+  };
+
   return {
     user,
     role: user?.role,
     isAuthenticated: !!user,
     isHydrated,
     setUser,
-    logout: reset,
+    logout,
     isBuyer: user?.role === ROLES.BUYER,
     isSeller: user?.role === ROLES.SELLER,
     isAdmin: user?.role === ROLES.ADMIN,
