@@ -83,6 +83,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "HỆ THỐNG",
     items: [
+      { key: "reindex-search", label: "Reindex Search", href: "/admin/reindex-search", icon: "manage_search" },
       { key: "permissions", label: "Phân quyền & tính năng", href: "/admin/permissions", icon: "verified_user" },
     ],
   },

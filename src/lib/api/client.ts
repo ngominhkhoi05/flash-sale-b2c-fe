@@ -58,7 +58,7 @@ export function setAccessToken(token: string): void {
 export function clearAccessToken(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-  document.cookie = `${COOKIE_KEYS.ACCESS_TOKEN}=; Path=/; Max-Age=0`;
+  document.cookie = `${COOKIE_KEYS.ACCESS_TOKEN}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 /** Refresh token – lưu localStorage đồng bộ cùng access_token */
@@ -195,8 +195,8 @@ function buildUrl(path: string, query?: ApiFetchOptions["query"]): string {
     if (typeof window === "undefined") {
       throw new Error(
         "buildUrl: NEXT_PUBLIC_API_URL is relative but called from a " +
-          "server context. Use an absolute URL (e.g. https://api.example.com) " +
-          "for SSR, or call apiFetch from a Client Component."
+        "server context. Use an absolute URL (e.g. https://api.example.com) " +
+        "for SSR, or call apiFetch from a Client Component."
       );
     }
     fullBase = window.location.origin;

@@ -27,7 +27,7 @@ export function setAccessTokenCookie(token: string | null): boolean {
 /** Xoá cookie `access_token`. Pure function — exported for testing. */
 export function clearAccessTokenCookie(): void {
   if (typeof document === "undefined") return;
-  document.cookie = `${COOKIE_KEYS.ACCESS_TOKEN}=; Path=${COOKIE_PATH}; Max-Age=0`;
+  document.cookie = `${COOKIE_KEYS.ACCESS_TOKEN}=; Path=${COOKIE_PATH}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 /**

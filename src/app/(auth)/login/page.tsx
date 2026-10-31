@@ -3,6 +3,7 @@
 import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
+import { getAccessToken } from "@/lib/api/client";
 import { ROUTES, ROLES } from "@/lib/constants";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { AuthBrandPanel } from "@/components/auth/AuthBrandPanel";
@@ -26,9 +27,19 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
+  const reset = useAuthStore((s) => s.reset);
   const redirect = searchParams.get("redirect");
 
   useEffect(() => {
+    // Chỉ tự động chuyển hướng khi thực sự còn token hợp lệ
+    const token = getAccessToken();
+    if (!token) {
+      if (user) {
+        reset();
+      }
+      return;
+    }
+
     if (!user) return;
     // Ưu tiên redirect param nếu có (từ proxy redirect)
     if (redirect) {
@@ -40,7 +51,7 @@ function LoginContent() {
     } else {
       router.replace(ROUTES.HOME);
     }
-  }, [user, router, redirect]);
+  }, [user, router, redirect, reset]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1240px] flex-col items-stretch justify-center gap-6 px-4 py-4 md:flex-row md:gap-8 md:px-8 md:py-8 lg:gap-10 min-h-[640px]">

@@ -167,3 +167,20 @@ export interface RejectWithdrawalPayload {
   reason: string;
 }
 
+export interface SearchReindexResponse {
+  indexedCount: number;
+  indexCount: number;
+}
+
+export interface ImageReindexResponse {
+  totalScanned: number;
+  successCount: number;
+  failedCount: number;
+  durationMs: number;
+}
+
+export interface ImageSearchStatusResponse {
+  aiServiceHealthy: boolean;
+  totalVectorsInDb: number;
+}
+
