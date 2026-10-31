@@ -55,9 +55,9 @@ export interface SearchFacetItem {
 /** Toàn bộ facet trả về từ API (BE) hoặc compute từ mock. */
 export interface SearchFacets {
   subcategories: SearchFacetItem[];
-  cities?: SearchFacetItem[];
+  cities: SearchFacetItem[];
   ratings: SearchFacetItem[];
-  services?: SearchFacetItem[];
+  services: SearchFacetItem[];
 }
 
 /** Mall banner (Sony như Stitch) — hiển thị khi query match brand. */
