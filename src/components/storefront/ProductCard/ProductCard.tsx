@@ -19,6 +19,7 @@ import { Star, MapPin, ShoppingCart, Bell, Heart, Truck, Tag, Zap, Flame } from 
 import { cn } from "@/lib/utils";
 import { formatVND, formatShortNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
+import { imageUrlWithFallback } from "@/lib/images/with-fallback";
 import type {
   ProductCardProps,
   ProductCardBaseProps,
@@ -69,7 +70,7 @@ function ProductImage({
     <div className={cn("relative w-full aspect-square overflow-hidden bg-page", className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={imageUrl}
+        src={imageUrlWithFallback(imageUrl, "product")}
         alt={imageAlt ?? ""}
         className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
       />
@@ -216,7 +217,7 @@ export function ProductCardDiscount(props: ProductCardBaseProps & { discountPerc
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -243,7 +244,7 @@ export function ProductCardVoucher(props: ProductCardBaseProps & { voucherLabel:
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -270,7 +271,7 @@ export function ProductCardFreeship(props: ProductCardBaseProps) {
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -310,7 +311,7 @@ export function ProductCardSaleVoucher(
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -455,7 +456,7 @@ export function ProductCardFlashSale(props: ProductCardFlashSaleProps) {
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -498,7 +499,7 @@ export function ProductCardAlmostSoldOut(props: ProductCardFlashSaleProps) {
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -536,7 +537,7 @@ export function ProductCardSoldOut(
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover grayscale-[30%]"
         />
@@ -581,7 +582,7 @@ export function ProductCardUpcoming(props: ProductCardUpcomingProps) {
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
@@ -645,7 +646,7 @@ export function ProductCardHover(props: ProductCardBaseProps) {
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={imageUrlWithFallback(imageUrl, "product")}
           alt={imageAlt ?? ""}
           className="w-full h-full object-cover scale-105 transition-transform duration-300"
         />
@@ -692,7 +693,7 @@ export function ProductCardFocus(props: ProductCardBaseProps) {
     >
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
+        <img src={imageUrlWithFallback(imageUrl, "product")} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
         <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-brand shadow-sm">
           Focused (Tab)
         </span>
@@ -734,7 +735,7 @@ export function ProductCardMobile({
     >
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
+        <img src={imageUrlWithFallback(imageUrl, "product")} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
         {voucherLabel && (
           <div className="absolute bottom-2 left-2 flex items-center gap-0.5 h-[19px] px-2 rounded-full text-[10px] font-semibold text-white bg-brand shadow-sm">
             <span>{voucherLabel}</span>
@@ -787,7 +788,7 @@ export function ProductCardMobileHorizontal({
     >
       <div className="relative w-[100px] h-[100px] flex-shrink-0 rounded-xl overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
+        <img src={imageUrlWithFallback(imageUrl, "product")} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
         {originalPrice !== undefined && price < originalPrice && (
           <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold text-white bg-sale shadow-sm">
             -
@@ -857,7 +858,7 @@ export function ProductCardMini({
     >
       <div className="relative w-[160px] h-[160px] overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
+        <img src={imageUrlWithFallback(imageUrl, "product")} alt={imageAlt ?? ""} className="w-full h-full object-cover" />
       </div>
       <div className="p-3 flex flex-col gap-1">
         <h4 className="text-[13px] font-medium truncate text-ink-2" title={title}>

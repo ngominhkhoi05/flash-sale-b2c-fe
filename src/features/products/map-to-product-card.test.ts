@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { RecommendedProductResponse } from "@/features/homepage/api";
+import { PLACEHOLDER_PRODUCT } from "@/lib/images/placeholders";
 
 import { mapToProductCardProps } from "./map-to-product-card";
 
@@ -72,9 +73,9 @@ describe("mapToProductCardProps", () => {
     expect(props.imageAlt).toBe("Sony WF-C500");
   });
 
-  it("falls back to empty string when imageUrl is empty", () => {
+  it("falls back to placeholder image when imageUrl is empty", () => {
     const props = mapToProductCardProps({ ...baseProduct, imageUrl: "" });
-    expect(props.imageUrl).toBe("");
+    expect(props.imageUrl).toBe(PLACEHOLDER_PRODUCT);
   });
 
   it("does not set rating (BE chưa trả)", () => {

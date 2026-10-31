@@ -30,6 +30,7 @@ import {
 import {
   ProductCard,
 } from "@/components/storefront/ProductCard";
+import { PLACEHOLDER_PRODUCT } from "@/lib/images/placeholders";
 
 const INITIAL_TAB: UiTab = "forYou";
 
@@ -92,7 +93,7 @@ export function RecommendedSection() {
             <ProductCard
               key={`skel-${i}`}
               variant="skeleton"
-              imageUrl=""
+              imageUrl={PLACEHOLDER_PRODUCT}
               title=""
               price={0}
             />

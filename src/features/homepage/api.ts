@@ -310,12 +310,22 @@ export async function fetchRecommendedProducts(
   limit = 10
 ): Promise<RecommendedProductsResponse> {
   try {
-    return await apiFetch<RecommendedProductsResponse>(
+    const res = await apiFetch<RecommendedProductsResponse>(
       "/api/v1/products/recommended",
       {
         query: { tab, ...(categoryId ? { categoryId } : {}), limit },
       },
     );
+    const normalizeList = (list?: RecommendedProductResponse[]) =>
+      (list ?? []).map((item) => ({
+        ...item,
+        imageUrl: imageUrlWithFallback(item.imageUrl, "product"),
+      }));
+    return {
+      forYou: normalizeList(res.forYou),
+      bestSellers: normalizeList(res.bestSellers),
+      hotDeals: normalizeList(res.hotDeals),
+    };
   } catch (err) {
     // Backend chưa có endpoint /products/recommended → trả 3 list rỗng.
     if (err instanceof ApiError && err.status === 404) {

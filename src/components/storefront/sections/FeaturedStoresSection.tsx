@@ -23,6 +23,7 @@ import {
   useFeaturedProducts,
 } from "@/features/homepage/hooks";
 import type { RecommendedProductResponse } from "@/features/homepage/api";
+import { imageUrlWithFallback } from "@/lib/images/with-fallback";
 import {
   ProductCard,
   type ProductCardBaseProps,
@@ -50,7 +51,7 @@ function mapToProductCardProps(
   }
 
   return {
-    imageUrl: product.imageUrl,
+    imageUrl: imageUrlWithFallback(product.imageUrl, "product"),
     imageAlt: product.name,
     title: product.name,
     price: product.minPrice,
