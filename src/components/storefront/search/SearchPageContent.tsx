@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { SearchActiveFilterChips } from "./SearchActiveFilterChips";
 import { SearchEmptyState } from "./SearchEmptyState";
 import { SearchFilterSidebar } from "./SearchFilterSidebar";
+import { SearchHorizontalFilterBar } from "./SearchHorizontalFilterBar";
 import { SearchHeading } from "./SearchHeading";
 import { SearchMallBanner } from "./SearchMallBanner";
 import { SearchPagination } from "./SearchPagination";
@@ -72,10 +73,9 @@ export function SearchPageContent({
         <SearchMallBanner mall={result.mall} />
       )}
 
-      {/* Two-column main */}
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
-        {/* Sidebar */}
-        <SearchFilterSidebar
+      {/* Filters, Sort & Active Chips */}
+      <div className="flex flex-col gap-3">
+        <SearchHorizontalFilterBar
           facets={result?.facets ?? {
             subcategories: [],
             cities: [],
@@ -83,32 +83,29 @@ export function SearchPageContent({
             services: [],
           }}
           current={query.filters}
-          className="lg:col-span-3"
         />
 
-        {/* Right column */}
-        <section className="flex flex-col gap-4 lg:col-span-9">
-          <SearchSortBar
-            currentSort={query.sort}
-            page={query.page}
-            totalPages={totalPages}
-          />
+        <SearchSortBar
+          currentSort={query.sort}
+          page={query.page}
+          totalPages={totalPages}
+        />
 
-          <SearchActiveFilterChips filters={query.filters} />
-
-          {showEmpty ? (
-            <SearchEmptyState
-              query={query.q}
-              onClearFilters={() => router.push("/search")}
-            />
-          ) : (
-            <>
-              <SearchProductGrid items={items} isLoading={isLoading} />
-              <SearchPagination current={query.page} totalPages={totalPages} />
-            </>
-          )}
-        </section>
+        <SearchActiveFilterChips filters={query.filters} />
       </div>
+
+      {/* Main Results or Empty State */}
+      {showEmpty ? (
+        <SearchEmptyState
+          query={query.q}
+          onClearFilters={() => router.push("/search")}
+        />
+      ) : (
+        <section className="flex flex-col gap-6">
+          <SearchProductGrid items={items} isLoading={isLoading} />
+          <SearchPagination current={query.page} totalPages={totalPages} />
+        </section>
+      )}
 
       {/* Loading hint for screen reader */}
       {isLoading && (

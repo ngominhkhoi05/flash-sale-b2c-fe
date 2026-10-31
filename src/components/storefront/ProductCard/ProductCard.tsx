@@ -191,9 +191,9 @@ function CardBody({ children }: { children: React.ReactNode }) {
  * ====================================================================== */
 
 export function ProductCardDefault(props: ProductCardBaseProps) {
-  const { imageUrl, imageAlt, title, price, rating, soldCount, location } = props;
+  const { imageUrl, imageAlt, title, price, rating, soldCount, location, className } = props;
   return (
-    <CardShell>
+    <CardShell className={className}>
       <ProductImage imageUrl={imageUrl} imageAlt={imageAlt} />
       <CardBody>
         <div className="flex flex-col gap-1.5">
@@ -210,10 +210,10 @@ export function ProductCardDefault(props: ProductCardBaseProps) {
 }
 
 export function ProductCardDiscount(props: ProductCardBaseProps & { discountPercent: number }) {
-  const { imageUrl, imageAlt, title, price, originalPrice, discountPercent, rating, soldCount, location } =
+  const { imageUrl, imageAlt, title, price, originalPrice, discountPercent, rating, soldCount, location, className } =
     props;
   return (
-    <CardShell>
+    <CardShell className={className}>
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -238,9 +238,9 @@ export function ProductCardDiscount(props: ProductCardBaseProps & { discountPerc
 }
 
 export function ProductCardVoucher(props: ProductCardBaseProps & { voucherLabel: string }) {
-  const { imageUrl, imageAlt, title, price, voucherLabel, rating, soldCount, location } = props;
+  const { imageUrl, imageAlt, title, price, voucherLabel, rating, soldCount, location, className } = props;
   return (
-    <CardShell>
+    <CardShell className={className}>
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -265,9 +265,9 @@ export function ProductCardVoucher(props: ProductCardBaseProps & { voucherLabel:
 }
 
 export function ProductCardFreeship(props: ProductCardBaseProps) {
-  const { imageUrl, imageAlt, title, price, rating, soldCount, location } = props;
+  const { imageUrl, imageAlt, title, price, rating, soldCount, location, className } = props;
   return (
-    <CardShell>
+    <CardShell className={className}>
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -305,9 +305,10 @@ export function ProductCardSaleVoucher(
     rating,
     soldCount,
     location,
+    className,
   } = props;
   return (
-    <CardShell>
+    <CardShell className={className}>
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -526,12 +527,13 @@ export function ProductCardAlmostSoldOut(props: ProductCardFlashSaleProps) {
 export function ProductCardSoldOut(
   props: ProductCardBaseProps & { discountPercent: number; purchaseLimit: number },
 ) {
-  const { imageUrl, imageAlt, title, price, originalPrice, purchaseLimit } = props;
+  const { imageUrl, imageAlt, title, price, originalPrice, purchaseLimit, className } = props;
   return (
     <div
       className={cn(
         "w-[220px] rounded-2xl overflow-hidden flex flex-col bg-card border border-line/80",
         "shadow-[0_2px_8px_rgba(15,23,42,0.03)] opacity-85",
+        className,
       )}
     >
       <div className="relative w-full aspect-square overflow-hidden bg-page">
@@ -575,10 +577,10 @@ export function ProductCardSoldOut(
 }
 
 export function ProductCardUpcoming(props: ProductCardUpcomingProps) {
-  const { imageUrl, imageAlt, title, price, originalPrice, discountPercent, startsAt, onRemind } =
+  const { imageUrl, imageAlt, title, price, originalPrice, discountPercent, startsAt, onRemind, className } =
     props;
   return (
-    <CardShell>
+    <CardShell className={className}>
       <div className="relative w-full aspect-square overflow-hidden bg-page">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

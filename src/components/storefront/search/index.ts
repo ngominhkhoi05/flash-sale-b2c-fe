@@ -7,6 +7,7 @@ export { SearchBreadcrumb } from "./SearchBreadcrumb";
 export { SearchHeading } from "./SearchHeading";
 export { SearchMallBanner } from "./SearchMallBanner";
 export { SearchFilterSidebar } from "./SearchFilterSidebar";
+export { SearchHorizontalFilterBar } from "./SearchHorizontalFilterBar";
 export { SearchSortBar } from "./SearchSortBar";
 export { SearchActiveFilterChips } from "./SearchActiveFilterChips";
 export { SearchProductGrid } from "./SearchProductGrid";
