@@ -28,6 +28,14 @@ import {
 import { useMyStore } from "@/hooks/useMyStore";
 import { useMeQuery } from "@/features/auth/hooks";
 import { createFlashSaleStompClient } from "@/lib/stomp";
+import {
+  setCachedOrders,
+  setCachedFlashSaleHistory,
+  getCachedOrders,
+  getCachedFlashSaleHistory,
+  getCachedWallet,
+} from "@/lib/sellerCache";
+import { ORDER_EVENT_NEW } from "@/hooks/useSellerOrderNotifications";
 
 type FilterMode = "MONTH" | "DAY" | "YEAR" | "PRESET";
 type PeriodPreset = "today" | "7days" | "30days";
@@ -57,13 +65,13 @@ export default function SellerDashboardPage() {
 
   const availableYears = useMemo(() => [2026, 2025, 2024], []);
 
+  const cachedOrders = getCachedOrders();
   const [summary, setSummary] = useState<SidebarSummaryResponse | null>(null);
-  const [recentOrders, setRecentOrders] = useState<SellerOrderResponse[]>([]);
+  const [recentOrders, setRecentOrders] = useState<SellerOrderResponse[]>(() => cachedOrders || []);
   const [topProducts, setTopProducts] = useState<SellerProductSummaryResponse[]>([]);
-  const [revenuePoints, setRevenuePoints] = useState<SellerRevenueDayPoint[]>([]);
-  const [wallet, setWallet] = useState<SellerWalletResponse | null>(null);
-  const [flashSaleItems, setFlashSaleItems] = useState<RegisteredFlashSaleHistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [wallet, setWallet] = useState<SellerWalletResponse | null>(() => getCachedWallet()?.wallet || null);
+  const [flashSaleItems, setFlashSaleItems] = useState<RegisteredFlashSaleHistoryItem[]>(() => getCachedFlashSaleHistory() || []);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !cachedOrders);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,8 +112,8 @@ export default function SellerDashboardPage() {
   const periodDisplayLabel = useMemo(() => {
     if (filterMode === "PRESET") {
       if (periodPreset === "today") return "Hôm nay";
-      if (periodPreset === "7days") return "7 ngày qua";
-      return "30 ngày qua";
+      if (periodPreset === "7days") return "7 ngày";
+      return "30 ngày";
     }
     if (filterMode === "DAY") {
       const parts = selectedDate.split("-");
@@ -116,9 +124,105 @@ export default function SellerDashboardPage() {
     return `Tháng ${String(selectedMonth).padStart(2, "0")}/${selectedYear}`;
   }, [filterMode, periodPreset, selectedDate, selectedMonth, selectedYear]);
 
-  // Nạp dữ liệu
+  // TÍNH TOÁN DỮ LIỆU DOANH THU & BIỂU ĐỒ THỜI GIAN THỰC (0ms latency khi bấm lọc)
+  const revenuePoints = useMemo<SellerRevenueDayPoint[]>(() => {
+    if (filterMode === "MONTH") {
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const points: SellerRevenueDayPoint[] = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        let dayRev = 0;
+        let dayOrders = 0;
+        recentOrders.forEach((o) => {
+          if (!o.createdAt || !isSellerOrderPaid(o)) return;
+          const od = new Date(o.createdAt);
+          if (
+            od.getFullYear() === selectedYear &&
+            od.getMonth() + 1 === selectedMonth &&
+            od.getDate() === d
+          ) {
+            dayRev += Number(o.finalAmount || o.totalAmount) || 0;
+            dayOrders++;
+          }
+        });
+        points.push({
+          date: dateStr,
+          dayLabel: `N${d}`,
+          revenue: dayRev,
+          ordersCount: dayOrders,
+          previousWeekRevenue: 0,
+        });
+      }
+      return points;
+    }
+
+    if (filterMode === "YEAR") {
+      const points: SellerRevenueDayPoint[] = [];
+      for (let m = 1; m <= 12; m++) {
+        let monthRev = 0;
+        let monthOrders = 0;
+        recentOrders.forEach((o) => {
+          if (!o.createdAt || !isSellerOrderPaid(o)) return;
+          const od = new Date(o.createdAt);
+          if (od.getFullYear() === selectedYear && od.getMonth() + 1 === m) {
+            monthRev += Number(o.finalAmount || o.totalAmount) || 0;
+            monthOrders++;
+          }
+        });
+        points.push({
+          date: `${selectedYear}-${String(m).padStart(2, "0")}`,
+          dayLabel: `Th ${m}`,
+          revenue: monthRev,
+          ordersCount: monthOrders,
+          previousWeekRevenue: 0,
+        });
+      }
+      return points;
+    }
+
+    if (filterMode === "DAY") {
+      const hours = [0, 4, 8, 12, 16, 20];
+      const parts = selectedDate.split("-").map(Number);
+      const selY = parts[0] || today.getFullYear();
+      const selM = parts[1] || today.getMonth() + 1;
+      const selD = parts[2] || today.getDate();
+
+      return hours.map((h) => {
+        const label = `${String(h).padStart(2, "0")}:00`;
+        const nextH = h + 4;
+        let hRev = 0;
+        let hCount = 0;
+        recentOrders.forEach((o) => {
+          if (!o.createdAt || !isSellerOrderPaid(o)) return;
+          const od = new Date(o.createdAt);
+          if (
+            od.getFullYear() === selY &&
+            od.getMonth() + 1 === selM &&
+            od.getDate() === selD &&
+            od.getHours() >= h &&
+            od.getHours() < nextH
+          ) {
+            hRev += Number(o.finalAmount || o.totalAmount) || 0;
+            hCount++;
+          }
+        });
+        return {
+          date: `${selectedDate} ${label}`,
+          dayLabel: label,
+          revenue: hRev,
+          ordersCount: hCount,
+          previousWeekRevenue: 0,
+        };
+      });
+    }
+
+    // PRESET: today | 7days | 30days
+    return aggregateRevenuePoints(recentOrders, periodPreset);
+  }, [recentOrders, filterMode, periodPreset, selectedYear, selectedMonth, selectedDate, today]);
+
+  // Nạp dữ liệu nền
   const loadDashboardData = useCallback((silent = false) => {
-    if (!silent) {
+    if (!silent && !getCachedOrders()) {
       setIsLoading(true);
     }
     setError(null);
@@ -138,128 +242,54 @@ export default function SellerDashboardPage() {
       getSellerWallet(),
       getRegisteredFlashSaleHistory(),
     ])
-      .then(([summaryRes, ordersRes, productsRes, chartRes, walletRes, fsRes]) => {
+      .then(([summaryRes, ordersRes, productsRes, _chartRes, walletRes, fsRes]) => {
         if (summaryRes.status === "fulfilled") setSummary(summaryRes.value);
-        let allOrders: SellerOrderResponse[] = [];
         if (ordersRes.status === "fulfilled") {
           const val = ordersRes.value as { content?: SellerOrderResponse[]; items?: SellerOrderResponse[] };
-          allOrders = val?.content || val?.items || (Array.isArray(val) ? val : []);
+          const allOrders = val?.content || val?.items || (Array.isArray(val) ? val : []);
           setRecentOrders(allOrders);
-        } else {
-          setRecentOrders([]);
+          if (allOrders.length > 0) setCachedOrders(allOrders);
+        }
+        if (fsRes.status === "fulfilled" && fsRes.value) {
+          setFlashSaleItems(fsRes.value || []);
+          setCachedFlashSaleHistory(fsRes.value);
         }
         if (productsRes.status === "fulfilled") {
           const val = productsRes.value as { content?: SellerProductSummaryResponse[]; items?: SellerProductSummaryResponse[] };
           const list = val?.content || val?.items || (Array.isArray(val) ? val : []);
           setTopProducts(list);
-        } else {
-          setTopProducts([]);
         }
-
-        // TÍNH TOÁN DỮ LIỆU DOANH THU THỰC 100% TỪ ĐƠN HÀNG CỦA SHOP
-        if (filterMode === "MONTH") {
-          const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-          const points: SellerRevenueDayPoint[] = [];
-          for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-            let dayRev = 0;
-            let dayOrders = 0;
-            allOrders.forEach((o) => {
-              if (!o.createdAt || !isSellerOrderPaid(o)) return;
-              const od = new Date(o.createdAt);
-              if (
-                od.getFullYear() === selectedYear &&
-                od.getMonth() + 1 === selectedMonth &&
-                od.getDate() === d
-              ) {
-                dayRev += Number(o.finalAmount || o.totalAmount) || 0;
-                dayOrders++;
-              }
-            });
-            points.push({
-              date: dateStr,
-              dayLabel: `N${d}`,
-              revenue: dayRev,
-              ordersCount: dayOrders,
-              previousWeekRevenue: 0,
-            });
-          }
-          setRevenuePoints(points);
-        } else if (filterMode === "YEAR") {
-          const points: SellerRevenueDayPoint[] = [];
-          for (let m = 1; m <= 12; m++) {
-            let monthRev = 0;
-            let monthOrders = 0;
-            allOrders.forEach((o) => {
-              if (!o.createdAt || !isSellerOrderPaid(o)) return;
-              const od = new Date(o.createdAt);
-              if (od.getFullYear() === selectedYear && od.getMonth() + 1 === m) {
-                monthRev += Number(o.finalAmount || o.totalAmount) || 0;
-                monthOrders++;
-              }
-            });
-            points.push({
-              date: `${selectedYear}-${String(m).padStart(2, "0")}`,
-              dayLabel: `Th ${m}`,
-              revenue: monthRev,
-              ordersCount: monthOrders,
-              previousWeekRevenue: 0,
-            });
-          }
-          setRevenuePoints(points);
-        } else if (filterMode === "DAY") {
-          const hours = [0, 4, 8, 12, 16, 20];
-          const parts = selectedDate.split("-").map(Number);
-          const selY = parts[0] || today.getFullYear();
-          const selM = parts[1] || today.getMonth() + 1;
-          const selD = parts[2] || today.getDate();
-
-          const points: SellerRevenueDayPoint[] = hours.map((h) => {
-            const label = `${String(h).padStart(2, "0")}:00`;
-            const nextH = h + 4;
-            let hRev = 0;
-            let hCount = 0;
-            allOrders.forEach((o) => {
-              if (!o.createdAt || !isSellerOrderPaid(o)) return;
-              const od = new Date(o.createdAt);
-              if (
-                od.getFullYear() === selY &&
-                od.getMonth() + 1 === selM &&
-                od.getDate() === selD &&
-                od.getHours() >= h &&
-                od.getHours() < nextH
-              ) {
-                hRev += Number(o.finalAmount || o.totalAmount) || 0;
-                hCount++;
-              }
-            });
-            return {
-              date: `${selectedDate} ${label}`,
-              dayLabel: label,
-              revenue: hRev,
-              ordersCount: hCount,
-              previousWeekRevenue: 0,
-            };
-          });
-          setRevenuePoints(points);
-        } else if (chartRes.status === "fulfilled" && Array.isArray(chartRes.value) && chartRes.value.length > 0) {
-          setRevenuePoints(chartRes.value);
-        } else {
-          setRevenuePoints(aggregateRevenuePoints(allOrders, apiPeriod));
-        }
-
         if (walletRes.status === "fulfilled") setWallet(walletRes.value);
-        if (fsRes.status === "fulfilled") setFlashSaleItems(fsRes.value || []);
         setIsLoading(false);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Có lỗi xảy ra khi nạp dữ liệu.");
         setIsLoading(false);
       });
-  }, [filterMode, periodPreset, selectedYear, selectedMonth, selectedDate, today]);
+  }, [filterMode, periodPreset]);
 
   useEffect(() => {
-    loadDashboardData();
+    const hasCached = !!getCachedOrders();
+    loadDashboardData(hasCached);
+  }, [loadDashboardData]);
+
+  // Lắng nghe realtime order event được bắn từ useSellerOrderNotifications
+  useEffect(() => {
+    const handleNewOrder = (e: Event) => {
+      const custom = e as CustomEvent<SellerOrderResponse>;
+      if (custom.detail) {
+        setRecentOrders((prev) => {
+          const exists = prev.some((o) => o.id === custom.detail.id);
+          if (exists) return prev;
+          return [custom.detail, ...prev];
+        });
+        loadDashboardData(true);
+      }
+    };
+    window.addEventListener(ORDER_EVENT_NEW, handleNewOrder);
+    return () => {
+      window.removeEventListener(ORDER_EVENT_NEW, handleNewOrder);
+    };
   }, [loadDashboardData]);
 
   // ── KẾT NỐI REALTIME (WEBSOCKET STOMP) ──────────────────────────────────
@@ -1020,7 +1050,7 @@ export default function SellerDashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="font-display-sm text-display-sm text-on-surface font-bold tracking-tight">
-              {isLoading ? "..." : formatVND(displayRevenue)}
+              {isLoading && recentOrders.length === 0 ? "..." : formatVND(displayRevenue)}
             </span>
           </div>
           <div className="mt-3 flex items-center gap-2">
@@ -1047,7 +1077,7 @@ export default function SellerDashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="font-display-sm text-display-sm text-on-surface font-bold tracking-tight">
-              {isLoading ? "..." : displayOrders}
+              {isLoading && recentOrders.length === 0 ? "..." : displayOrders}
             </span>
             <span className="font-body-md text-body-sm text-secondary">đơn</span>
           </div>
