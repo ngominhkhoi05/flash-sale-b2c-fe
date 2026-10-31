@@ -57,6 +57,16 @@ const SELLER_NAV_GROUPS: SellerNavGroup[] = [
 
 import { useMyStore } from "@/hooks/useMyStore";
 import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
+import {
+  prefetchAllSellerData,
+  prefetchSellerOrders,
+  prefetchSellerProducts,
+  prefetchFlashSaleData,
+  prefetchSellerProfile,
+  prefetchSellerReviews,
+  prefetchSellerVouchers,
+  prefetchSellerWallet,
+} from "@/lib/sellerCache";
 
 interface SellerSidebarProps {
   storeName?: string;
@@ -84,6 +94,11 @@ export function SellerSidebar({
   const avatarInitials = initials || "VM";
   const logoUrl = storeLogoUrl || store?.logoUrl;
   const isApproved = store?.status === "APPROVED" || store?.status === "ACTIVE";
+
+  // Tự động kích hoạt nạp trước (Prefetching) toàn bộ dữ liệu Kênh người bán trong thời gian rảnh
+  React.useEffect(() => {
+    prefetchAllSellerData();
+  }, []);
 
   const activeHref = React.useMemo(() => {
     if (!pathname) return "/seller";
@@ -116,6 +131,9 @@ export function SellerSidebar({
       <div className="px-space-md py-space-sm flex-shrink-0">
         <Link
           href="/seller/profile"
+          onMouseEnter={() => {
+            void prefetchSellerProfile();
+          }}
           className="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container-normal border border-outline-variant/30 flex items-center gap-space-sm transition-colors group cursor-pointer block"
           title="Xem hồ sơ gian hàng"
         >
@@ -184,6 +202,15 @@ export function SellerSidebar({
                   <Link
                     key={item.key}
                     href={item.href}
+                    onMouseEnter={() => {
+                      if (item.key === "orders") void prefetchSellerOrders();
+                      else if (item.key === "products") void prefetchSellerProducts(0, 10, "ALL");
+                      else if (item.key === "flash-sale") void prefetchFlashSaleData();
+                      else if (item.key === "vouchers") void prefetchSellerVouchers();
+                      else if (item.key === "profile") void prefetchSellerProfile();
+                      else if (item.key === "reviews") void prefetchSellerReviews();
+                      else if (item.key === "wallet") void prefetchSellerWallet();
+                    }}
                     onClick={() => {
                       if (isOrdersItem) {
                         markAllAsSeen();

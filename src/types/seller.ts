@@ -209,14 +209,22 @@ export interface RegisterFlashSaleItemDto {
 
 export interface RegisteredFlashSaleHistoryItem {
   id: number;
+  productId?: number;
+  variantId?: number;
+  variantName?: string;
+  originalPrice?: number;
   productName: string;
   sku: string;
   imageUrl?: string;
+  slotId?: number;
   slotTitle: string;
+  slotStartTime?: string;
+  slotEndTime?: string;
   slotDate: string;
   slotTime: string;
   flashSalePrice: number;
   allocatedStock: number;
+  availableStock?: number;
   soldStock: number;
   status: "APPROVED" | "PENDING" | "REJECTED" | "ENDED" | string;
   rejectReason?: string;
