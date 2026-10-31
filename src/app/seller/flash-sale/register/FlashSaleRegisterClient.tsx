@@ -509,9 +509,10 @@ export function FlashSaleRegisterClient() {
     }
   };
 
+  const [now] = useState(() => Date.now());
+
   // Tự động lọc bỏ các đơn đăng ký chưa duyệt thuộc các phiên đã qua giờ
   const validHistory = useMemo(() => {
-    const now = Date.now();
     return history.filter((item) => {
       if (item.status === "PENDING" || item.status === "PENDING_APPROVAL") {
         if (item.slotStartTime && new Date(item.slotStartTime).getTime() <= now) {
@@ -520,7 +521,7 @@ export function FlashSaleRegisterClient() {
       }
       return true;
     });
-  }, [history]);
+  }, [history, now]);
 
   // Danh sách các phiên duy nhất để đưa vào dropdown lọc
   const uniqueHistorySlots = useMemo(() => {
