@@ -49,12 +49,6 @@ export function buildSearchQueryString(query: SearchQuery): string {
   if (query.filters.categories?.length) {
     for (const c of query.filters.categories) params.append("subcategory", c);
   }
-  if (query.filters.cities?.length) {
-    for (const c of query.filters.cities) params.append("city", c);
-  }
-  if (query.filters.services?.length) {
-    for (const s of query.filters.services) params.append("service", s);
-  }
   if (query.filters.priceMin !== undefined) {
     params.set("priceMin", String(query.filters.priceMin));
   }
@@ -78,12 +72,20 @@ async function searchProductsApi(query: SearchQuery): Promise<SearchResult> {
   const data = await apiFetch<SearchResponseEnvelope>(
     `/api/v1/products/search?${qs}`,
   );
+  const page = typeof data.page === "number" ? data.page + 1 : (query.page ?? DEFAULT_SEARCH_PAGE);
+  const pageSize = data.pageSize || DEFAULT_SEARCH_PAGE_SIZE;
   return {
-    items: data.items,
-    total: data.total,
-    page: data.page + 1, // convert BE 0-based back to FE 1-based
-    pageSize: data.pageSize,
-    facets: data.facets,
+    items: data.items ?? [],
+    total: data.total ?? 0,
+    page,
+    pageSize,
+    facets: {
+      subcategories: data.facets?.subcategories ?? [],
+      cities: data.facets?.cities ?? [],
+      ratings: data.facets?.ratings ?? [],
+      services: data.facets?.services ?? [],
+    },
+    mall: data.mall,
   };
 }
 

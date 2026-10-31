@@ -12,19 +12,20 @@
 
 import type { RecommendedProductResponse } from "@/features/homepage/api";
 
-/** Subcategory key cho filter "Danh mục con". */
+/** Subcategory key cho filter "Danh mục" (hỗ trợ category slug động từ backend). */
 export type SearchSubcategoryKey =
   | "true-wireless"
   | "over-ear"
   | "sport-waterproof"
   | "gaming-mic"
-  | "accessories";
+  | "accessories"
+  | (string & {});
 
-/** Thành phố nơi bán (filter "Nơi bán"). */
-export type SearchCityKey = "HCM" | "HN" | "DN" | "BD";
+/** Thành phố nơi bán (tuỳ chọn tương thích ngược). */
+export type SearchCityKey = "HCM" | "HN" | "DN" | "BD" | (string & {});
 
-/** Service flag filter. */
-export type SearchServiceKey = "flash-sale" | "voucher" | "freeship" | "official";
+/** Service flag filter (tuỳ chọn tương thích ngược). */
+export type SearchServiceKey = "flash-sale" | "voucher" | "freeship" | "official" | (string & {});
 
 /** Sort options (theo Stitch sort bar). */
 export type SearchSortKey =
@@ -36,7 +37,7 @@ export type SearchSortKey =
 
 /** Tập filter hiện tại. Tất cả optional, URL-driven. */
 export interface SearchFilters {
-  categories?: SearchSubcategoryKey[];
+  categories?: string[];
   cities?: SearchCityKey[];
   priceMin?: number;
   priceMax?: number;

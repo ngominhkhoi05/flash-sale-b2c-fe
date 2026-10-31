@@ -46,19 +46,17 @@ const FACETS: SearchFacets = {
 const EMPTY_FILTERS: SearchFilters = {};
 
 describe("SearchFilterSidebar", () => {
-  it("renders all 5 sections", () => {
+  it("renders core 3 filter sections (category, price, rating)", () => {
     render(
       <TestWrapper>
         <SearchFilterSidebar facets={FACETS} current={EMPTY_FILTERS} />
       </TestWrapper>,
     );
     expect(screen.getByTestId("search-filter-sidebar")).toBeInTheDocument();
-    // Subcategory + city + price + rating + services headers
+    // Subcategory + price + rating headers
     expect(screen.getAllByText(/Danh mục con/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Nơi bán/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Khoảng giá/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Đánh giá sao/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Dịch vụ/i).length).toBeGreaterThan(0);
   });
 
   it("checks current subcategory checkboxes", () => {

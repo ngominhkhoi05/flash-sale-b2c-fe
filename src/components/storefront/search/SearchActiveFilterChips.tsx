@@ -3,10 +3,9 @@
 /**
  * SearchActiveFilterChips – các chip filter đang active.
  *
- * Stitch: "Đang lọc: [TP.HCM ✕] [True Wireless ✕] [200.000 - 1.500.000 ✕] [⚡ Flash Sale ✕]"
- * + "Xóa tất cả" ở cuối.
- *
- * Click ✕ → navigate URL bỏ filter đó.
+ * Hiển thị các tiêu chí đang lọc: Danh mục, Khoảng giá, Đánh giá sao.
+ * Nhấn ✕ trên chip để bỏ riêng tiêu chí đó.
+ * Nhấn "Xóa tất cả" để bỏ toàn bộ filter (giữ nguyên từ khoá tìm kiếm `q`).
  */
 
 import { useTranslations } from "next-intl";
@@ -19,27 +18,13 @@ import { cn } from "@/lib/utils";
 
 import type { SearchFilters } from "@/features/search/types";
 
-const SUBCATEGORY_LABEL_KEYS = {
+const SUBCATEGORY_LABEL_KEYS: Record<string, string> = {
   "true-wireless": "filter.subcategoryOptions.true-wireless",
   "over-ear": "filter.subcategoryOptions.over-ear",
   "sport-waterproof": "filter.subcategoryOptions.sport-waterproof",
   "gaming-mic": "filter.subcategoryOptions.gaming-mic",
   accessories: "filter.subcategoryOptions.accessories",
-} as const;
-
-const CITY_LABEL_KEYS = {
-  HCM: "filter.cityOptions.HCM",
-  HN: "filter.cityOptions.HN",
-  DN: "filter.cityOptions.DN",
-  BD: "filter.cityOptions.BD",
-} as const;
-
-const SERVICE_LABEL_KEYS = {
-  "flash-sale": "filter.serviceOptions.flash-sale",
-  voucher: "filter.serviceOptions.voucher",
-  freeship: "filter.serviceOptions.freeship",
-  official: "filter.serviceOptions.official",
-} as const;
+};
 
 export interface SearchActiveFilterChipsProps {
   filters: SearchFilters;
@@ -59,13 +44,16 @@ export function SearchActiveFilterChips({
     (key: string, value?: string) => {
       const next = new URLSearchParams(searchParams.toString());
       if (key === "all") {
-        // Xoá hết filter liên quan: category, city, service, priceMin, priceMax, rating
+        // Xoá hết filter: category, priceMin, priceMax, rating, city, service
         next.delete("category");
-        next.delete("city");
-        next.delete("service");
         next.delete("priceMin");
         next.delete("priceMax");
         next.delete("rating");
+        next.delete("city");
+        next.delete("service");
+      } else if (key === "price") {
+        next.delete("priceMin");
+        next.delete("priceMax");
       } else if (value && next.getAll(key).length > 1) {
         // Mảng — bỏ phần tử này
         const remaining = next.getAll(key).filter((v) => v !== value);
@@ -83,25 +71,30 @@ export function SearchActiveFilterChips({
   const chips: Array<{ key: string; value?: string; label: string; tone?: "sale" | "primary" }> = [];
 
   filters.categories?.forEach((c) => {
+    let label = c;
+    if (SUBCATEGORY_LABEL_KEYS[c]) {
+      try {
+        label = t(SUBCATEGORY_LABEL_KEYS[c] as Parameters<typeof t>[0]);
+      } catch {
+        label = c;
+      }
+    } else {
+      // Chuyển slug thành chuỗi dễ đọc (ví dụ: thoi-trang-nam -> Thoi Trang Nam)
+      label = c
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    }
     chips.push({
       key: "category",
       value: c,
-      label: t(SUBCATEGORY_LABEL_KEYS[c] as Parameters<typeof t>[0]),
-      tone: "primary",
-    });
-  });
-
-  filters.cities?.forEach((c) => {
-    chips.push({
-      key: "city",
-      value: c,
-      label: t(CITY_LABEL_KEYS[c] as Parameters<typeof t>[0]),
+      label,
       tone: "primary",
     });
   });
 
   if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
-    const min = filters.priceMin ? formatVND(filters.priceMin) : "0";
+    const min = filters.priceMin ? formatVND(filters.priceMin) : "0đ";
     const max = filters.priceMax ? formatVND(filters.priceMax) : "∞";
     chips.push({
       key: "price",
@@ -123,15 +116,6 @@ export function SearchActiveFilterChips({
     });
   }
 
-  filters.services?.forEach((s) => {
-    chips.push({
-      key: "service",
-      value: s,
-      label: t(SERVICE_LABEL_KEYS[s] as Parameters<typeof t>[0]),
-      tone: s === "flash-sale" ? "sale" : "primary",
-    });
-  });
-
   if (chips.length === 0) return null;
 
   return (
@@ -146,7 +130,7 @@ export function SearchActiveFilterChips({
         <span
           key={`${c.key}-${c.value ?? c.label}`}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold",
+            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
             c.tone === "sale"
               ? "bg-tertiary-soft text-on-tertiary"
               : "bg-primary-fixed text-on-primary-fixed-variant",

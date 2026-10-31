@@ -27,7 +27,18 @@ export interface SearchProductGridProps {
   className?: string;
 }
 
-const SKELETON_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"];
+const SKELETON_KEYS = [
+  "s1",
+  "s2",
+  "s3",
+  "s4",
+  "s5",
+  "s6",
+  "s7",
+  "s8",
+  "s9",
+  "s10",
+];
 
 export function SearchProductGrid({
   items,
@@ -38,7 +49,7 @@ export function SearchProductGrid({
     return (
       <div
         className={cn(
-          "grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-4",
+          "grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 md:gap-4",
           className,
         )}
         data-testid="search-grid-skeleton"
@@ -53,7 +64,7 @@ export function SearchProductGrid({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-4",
+        "grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 md:gap-4",
         className,
       )}
       data-testid="search-grid"
@@ -96,11 +107,12 @@ export function SearchProductGrid({
           <Link
             key={item.id}
             href={`/products/${item.id}`}
-            className="contents"
+            className="block h-full w-full"
           >
             <ProductCard
               variant={variant}
               {...cardProps}
+              className="w-full h-full"
               voucherLabel={voucherLabel}
             />
           </Link>
@@ -112,7 +124,7 @@ export function SearchProductGrid({
 
 function ProductCardSkeleton() {
   return (
-    <div className="flex h-full flex-col gap-2 rounded-2xl border border-line bg-card p-3.5">
+    <div className="flex h-full w-full flex-col gap-2 rounded-2xl border border-line bg-card p-3.5">
       <Skeleton className="aspect-square w-full rounded-lg" />
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-4 w-1/2" />

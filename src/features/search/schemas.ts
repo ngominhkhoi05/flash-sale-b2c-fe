@@ -20,14 +20,8 @@ import {
   type SearchSubcategoryKey,
 } from "./types";
 
-/** Subcategory keys cho phép (URL phải match enum). */
-const subcategoryEnum = z.enum([
-  "true-wireless",
-  "over-ear",
-  "sport-waterproof",
-  "gaming-mic",
-  "accessories",
-]) satisfies z.ZodType<SearchSubcategoryKey>;
+/** Subcategory keys cho phép (chấp nhận dynamic category slug từ DB). */
+const subcategoryEnum = z.string().trim().min(1);
 
 const cityEnum = z.enum(["HCM", "HN", "DN", "BD"]) satisfies z.ZodType<SearchCityKey>;
 
@@ -101,8 +95,6 @@ export type ParsedSearchParams = z.infer<typeof searchParamsSchema>;
 export function toSearchFilters(parsed: ParsedSearchParams): SearchFilters {
   const filters: SearchFilters = {};
   if (parsed.category.length > 0) filters.categories = parsed.category;
-  if (parsed.city.length > 0) filters.cities = parsed.city;
-  if (parsed.service.length > 0) filters.services = parsed.service;
   if (parsed.priceMin !== undefined) filters.priceMin = parsed.priceMin;
   if (parsed.priceMax !== undefined) filters.priceMax = parsed.priceMax;
   if (parsed.rating !== undefined) filters.minRating = parsed.rating;
@@ -112,7 +104,8 @@ export function toSearchFilters(parsed: ParsedSearchParams): SearchFilters {
 /**
  * Chuẩn hoá raw searchParams (Next 16) trước khi parse.
  *  - Bỏ undefined
- *  - Lấy phần tử đầu nếu là array (Next cho phép `?q=a&q=b`)
+ *  - Giữ nguyên mảng cho category (hỗ trợ lọc nhiều danh mục)
+ *  - Lấy phần tử đầu nếu là array cho các params đơn lẻ khác
  *  - Trim string
  */
 export function normalizeRawSearchParams(
@@ -122,7 +115,11 @@ export function normalizeRawSearchParams(
   const out: Record<string, string | string[] | undefined> = {};
   for (const [k, v] of Object.entries(raw)) {
     if (v === undefined) continue;
-    out[k] = Array.isArray(v) ? v[0] : v;
+    if (k === "category" && Array.isArray(v)) {
+      out[k] = v;
+    } else {
+      out[k] = Array.isArray(v) ? v[0] : v;
+    }
   }
   return out;
 }

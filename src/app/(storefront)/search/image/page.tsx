@@ -101,6 +101,23 @@ export default function ImageSearchPage() {
           </div>
         )}
 
+        {/* ── Loading Skeleton ────────────────────────────────────────── */}
+        {isLoading && (
+          <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 md:gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex h-full flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5 shadow-sm"
+              >
+                <div className="aspect-square w-full rounded-lg bg-surface-container-high animate-pulse" />
+                <div className="h-4 w-3/4 rounded bg-surface-container-high animate-pulse mt-2" />
+                <div className="h-4 w-1/2 rounded bg-surface-container-high animate-pulse" />
+                <div className="h-3 w-2/3 rounded bg-surface-container-high animate-pulse" />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── Empty State ─────────────────────────────────────────────── */}
         {!isLoading && items.length === 0 && (
           <div className="text-center py-16 px-4 bg-surface-container-low/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center gap-4">
@@ -140,7 +157,7 @@ export default function ImageSearchPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 md:gap-5 xl:grid-cols-4">
+            <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 md:gap-4">
               {items.map((item) => {
                 const cardProps = mapToProductCardProps(item.product);
                 const percentMatch = Math.round(item.similarityScore * 100);

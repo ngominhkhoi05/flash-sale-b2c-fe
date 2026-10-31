@@ -1,23 +1,17 @@
 "use client";
 
 /**
- * SearchFilterSidebar – sidebar filter cho /search.
+ * SearchFilterSidebar – sidebar filter tinh gọn cho /search.
  *
- * Mỗi filter là một form `<form>` riêng để submit URL params qua `useRouter`.
- * Cấu trúc:
- *   1. Subcategories (checkbox)
- *   2. Cities (checkbox)
- *   3. Price range (min/max)
- *   4. Rating (radio)
- *   5. Services (checkbox)
- *   6. Clear all (ghost)
+ * Cấu trúc 3 bộ lọc cốt lõi:
+ *   1. Danh mục sản phẩm (Subcategories - checkbox)
+ *   2. Khoảng giá (Price range - min/max)
+ *   3. Đánh giá (Rating - radio)
+ *   4. Xóa tất cả bộ lọc (Clear all)
  *
  * Props:
- *   - facets: count cho mỗi filter (để hiển thị số)
- *   - current: filter hiện tại (để check default checkbox)
- *   - onFilterChange: callback khi user thay đổi (để parent navigate)
- *
- * Plan: docs/superpowers/plans/2026-10-13-search-page-ui-stitch.md (Subplan B)
+ *   - facets: count cho mỗi filter (danh mục thật, đánh giá thật)
+ *   - current: filter hiện tại
  */
 
 import { Star } from "lucide-react";
@@ -29,10 +23,6 @@ import { Button } from "@/components/ui/button";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import type { SearchFacets, SearchFilters } from "@/features/search/types";
 import { cn } from "@/lib/utils";
-
-const CITY_KEYS = ["HCM", "HN", "DN", "BD"] as const;
-
-const SERVICE_KEYS = ["flash-sale", "voucher", "freeship", "official"] as const;
 
 const RATING_VALUES = [5, 4, 3] as const;
 
@@ -90,16 +80,12 @@ export function SearchFilterSidebar({
     [router],
   );
 
-  const toggleArray = (
-    key: "category" | "city" | "service",
-    value: string,
-    currentArray: string[] | undefined,
-  ) => {
-    const arr = currentArray ?? [];
+  const toggleCategory = (value: string) => {
+    const arr = current.categories ?? [];
     const next = arr.includes(value)
       ? arr.filter((v) => v !== value)
       : [...arr, value];
-    navigate(buildHref({ [key]: next.length > 0 ? next : null }));
+    navigate(buildHref({ category: next.length > 0 ? next : null }));
   };
 
   const setMinRating = (rating: 5 | 4 | 3 | null) => {
@@ -108,16 +94,29 @@ export function SearchFilterSidebar({
 
   const applyPrice = (e: React.FormEvent) => {
     e.preventDefault();
+    let minVal = priceMin ? parseInt(priceMin.replace(/\D/g, ""), 10) : undefined;
+    let maxVal = priceMax ? parseInt(priceMax.replace(/\D/g, ""), 10) : undefined;
+
+    // Tự động hoán đổi nếu nhập min > max
+    if (minVal !== undefined && maxVal !== undefined && minVal > maxVal) {
+      const temp = minVal;
+      minVal = maxVal;
+      maxVal = temp;
+      setPriceMin(String(minVal));
+      setPriceMax(String(maxVal));
+    }
+
     navigate(
       buildHref({
-        priceMin: priceMin || null,
-        priceMax: priceMax || null,
+        priceMin: minVal ? minVal.toString() : null,
+        priceMax: maxVal ? maxVal.toString() : null,
       }),
     );
   };
 
   const clearAll = () => {
-    navigate("/search");
+    const q = searchParams.get("q");
+    navigate(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
   };
 
   return (
@@ -143,63 +142,45 @@ export function SearchFilterSidebar({
         </button>
       </div>
 
-      {/* 1. Subcategories */}
+      {/* 1. Danh mục sản phẩm (Dynamic Categories from Facets) */}
       <Section title={t("subcategory")}>
-        {facets.subcategories.map((f) => {
-          const checked =
-            current.categories?.includes(
-              f.key as (typeof current.categories)[number],
-            ) ?? false;
-          return (
-            <label
-              key={f.key}
-              className="flex cursor-pointer items-center justify-between gap-1 text-sm text-ink hover:text-primary"
-            >
-              <span className="flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded text-primary accent-primary"
-                  checked={checked}
-                  onChange={() =>
-                    toggleArray("category", f.key, current.categories)
-                  }
-                />
-                {t(`subcategoryOptions.${f.key}` as const)}
-              </span>
-              <span className="text-xs text-outline">{f.count}</span>
-            </label>
-          );
-        })}
-      </Section>
+        {facets.subcategories && facets.subcategories.length > 0 ? (
+          facets.subcategories.map((f) => {
+            const checked = current.categories?.includes(f.key) ?? false;
+            // Ưu tiên hiển thị f.label từ Backend, nếu không có thì thử translation
+            let label = f.label;
+            if (!label || label === f.key) {
+              try {
+                label = t(`subcategoryOptions.${f.key}` as Parameters<typeof t>[0]);
+              } catch {
+                label = f.key;
+              }
+            }
 
-      {/* 2. Cities */}
-      <Section title={t("city")}>
-        {CITY_KEYS.map((c) => {
-          const checked = current.cities?.includes(c) ?? false;
-          const facet = facets.cities.find((f) => f.key === c);
-          return (
-            <label
-              key={c}
-              className="flex cursor-pointer items-center gap-1 text-sm text-ink hover:text-primary"
-            >
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded text-primary accent-primary"
-                checked={checked}
-                onChange={() => toggleArray("city", c, current.cities)}
-              />
-              {t(`cityOptions.${c}` as const)}
-              {facet && (
-                <span className="ml-auto text-xs text-outline">
-                  {facet.count}
+            return (
+              <label
+                key={f.key}
+                className="flex cursor-pointer items-center justify-between gap-1 text-sm text-ink hover:text-primary"
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded text-primary accent-primary"
+                    checked={checked}
+                    onChange={() => toggleCategory(f.key)}
+                  />
+                  <span>{label}</span>
                 </span>
-              )}
-            </label>
-          );
-        })}
+                <span className="text-xs text-outline">{f.count}</span>
+              </label>
+            );
+          })
+        ) : (
+          <p className="text-xs text-outline">Không có danh mục phù hợp</p>
+        )}
       </Section>
 
-      {/* 3. Price range */}
+      {/* 2. Khoảng giá (Price Range) */}
       <Section title={t("price")}>
         <form
           onSubmit={applyPrice}
@@ -211,7 +192,7 @@ export function SearchFilterSidebar({
               type="text"
               inputMode="numeric"
               value={priceMin}
-              onChange={(e) => setPriceMin(e.target.value)}
+              onChange={(e) => setPriceMin(e.target.value.replace(/\D/g, ""))}
               placeholder={t("pricePlaceholderMin")}
               className="h-9 w-full rounded-lg bg-page px-2 text-center text-sm text-ink focus:bg-surface-container focus:outline-none"
             />
@@ -220,7 +201,7 @@ export function SearchFilterSidebar({
               type="text"
               inputMode="numeric"
               value={priceMax}
-              onChange={(e) => setPriceMax(e.target.value)}
+              onChange={(e) => setPriceMax(e.target.value.replace(/\D/g, ""))}
               placeholder={t("pricePlaceholderMax")}
               className="h-9 w-full rounded-lg bg-page px-2 text-center text-sm text-ink focus:bg-surface-container focus:outline-none"
             />
@@ -231,88 +212,51 @@ export function SearchFilterSidebar({
         </form>
       </Section>
 
-      {/* 4. Rating */}
+      {/* 3. Đánh giá (Rating) */}
       <Section title={t("rating")}>
         {RATING_VALUES.map((r) => {
           const checked = current.minRating === r;
+          const facet = facets.ratings?.find((f) => f.key === String(r));
           return (
             <button
               key={r}
               type="button"
               onClick={() => setMinRating(checked ? null : r)}
               className={cn(
-                "flex items-center gap-1 text-left text-sm hover:text-primary",
-                checked ? "text-primary" : "text-ink-2",
+                "flex w-full items-center justify-between text-left text-sm hover:text-primary",
+                checked ? "font-medium text-primary" : "text-ink-2",
               )}
             >
-              <span className="flex text-amber-500">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className={cn(
-                      "h-4 w-4",
-                      i < r ? "fill-amber-500" : "fill-transparent text-outline",
-                    )}
-                    aria-hidden
-                  />
-                ))}
+              <span className="flex items-center gap-1">
+                <span className="flex text-amber-500">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={cn(
+                        "h-4 w-4",
+                        i < r ? "fill-amber-500" : "fill-transparent text-outline",
+                      )}
+                      aria-hidden
+                    />
+                  ))}
+                </span>
+                <span>
+                  {r === 5
+                    ? t("ratingFive")
+                    : r === 4
+                      ? t("ratingFour")
+                      : t("ratingThree")}
+                </span>
               </span>
-              {r === 5
-                ? t("ratingFive")
-                : r === 4
-                  ? t("ratingFour")
-                  : t("ratingThree")}
+              {facet && facet.count > 0 && (
+                <span className="text-xs text-outline">{facet.count}</span>
+              )}
             </button>
           );
         })}
       </Section>
 
-      {/* 5. Services */}
-      <Section title={t("services")}>
-        {SERVICE_KEYS.map((s) => {
-          const checked = current.services?.includes(s) ?? false;
-          const iconName =
-            s === "flash-sale"
-              ? "bolt"
-              : s === "voucher"
-                ? "confirmation_number"
-                : s === "freeship"
-                  ? "local_shipping"
-                  : "verified";
-          const iconColor =
-            s === "flash-sale"
-              ? "text-sale"
-              : s === "voucher"
-                ? "text-primary"
-                : s === "freeship"
-                  ? "text-seller"
-                  : "text-primary";
-          return (
-            <label
-              key={s}
-              className={cn("group flex cursor-pointer items-center gap-1 text-sm text-ink hover:text-primary")}
-            >
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded accent-primary"
-                checked={checked}
-                onChange={() => toggleArray("service", s, current.services)}
-              />
-              <span className="flex items-center gap-1">
-                <MaterialSymbol
-                  name={iconName}
-                  size="base"
-                  className={cn(iconColor)}
-                  fill={s === "flash-sale" ? true : undefined}
-                />
-                {t(`serviceOptions.${s}` as const)}
-              </span>
-            </label>
-          );
-        })}
-      </Section>
-
-      {/* Clear all */}
+      {/* 4. Xóa tất cả bộ lọc */}
       <div className="pt-2">
         <Button
           type="button"
