@@ -166,10 +166,7 @@ export async function getAdminFlashSaleSlots(): Promise<AdminFlashSaleSession[]>
     return slots.map(mapSlotToSession);
   } catch (err) {
     console.error("[getAdminFlashSaleSlots] Backend API call failed:", err);
-    if (isMockMode()) {
-      return getMockFlashSaleSessions();
-    }
-    throw err;
+    return [];
   }
 }
 
@@ -377,9 +374,6 @@ export async function getAdminSkuApprovals(slotId?: number): Promise<SkuApproval
     }));
   } catch (err) {
     console.warn("[getAdminSkuApprovals] Backend API call failed:", err);
-    if (isMockMode()) {
-      return getMockSkuApprovals(slotId);
-    }
     return [];
   }
 }
@@ -406,14 +400,23 @@ export async function getAdminApprovalCounts(slotId?: number): Promise<SkuApprov
 
   try {
     const items = await getAdminSkuApprovals(slotId);
-    const pending = items.filter((i) => i.status === "PENDING" || (i.status as string) === "PENDING_APPROVAL").length;
-    const approved = items.filter((i) => i.status === "APPROVED").length;
-    const rejected = items.filter((i) => i.status === "REJECTED").length;
-    return { pending, approved, rejected };
+    const pendingProducts = new Set(
+      items
+        .filter((i) => i.status === "PENDING" || (i.status as string) === "PENDING_APPROVAL")
+        .map((i) => i.productId || i.id)
+    );
+    const approvedProducts = new Set(
+      items.filter((i) => i.status === "APPROVED").map((i) => i.productId || i.id)
+    );
+    const rejectedProducts = new Set(
+      items.filter((i) => i.status === "REJECTED").map((i) => i.productId || i.id)
+    );
+    return {
+      pending: pendingProducts.size,
+      approved: approvedProducts.size,
+      rejected: rejectedProducts.size,
+    };
   } catch {
-    if (isMockMode()) {
-      return getApprovalCounts(slotId);
-    }
     return { pending: 0, approved: 0, rejected: 0 };
   }
 }
@@ -548,9 +551,6 @@ export async function getAdminRealtimeTelemetry(slotId: number): Promise<Realtim
     };
   } catch (err) {
     console.warn("[getAdminRealtimeTelemetry] Backend API call failed:", err);
-    if (isMockMode()) {
-      return getMockTelemetry();
-    }
     return {
       rps: 0,
       activeLocks: 0,
@@ -573,9 +573,6 @@ export async function getAdminLiveSkus(slotId: number): Promise<LiveSkuInventory
     return extractItems<LiveSkuInventoryItem>(res);
   } catch (err) {
     console.warn("[getAdminLiveSkus] Backend API call failed:", err);
-    if (isMockMode()) {
-      return getMockLiveSkus();
-    }
     return [];
   }
 }
@@ -589,9 +586,6 @@ export async function getAdminLiveLogs(slotId: number): Promise<LiveLogEvent[]> 
     return extractItems<LiveLogEvent>(res);
   } catch (err) {
     console.warn("[getAdminLiveLogs] Backend API call failed:", err);
-    if (isMockMode()) {
-      return getMockLiveLogs();
-    }
     return [];
   }
 }

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import type { AdminFlashSaleSession } from "@/types/flash-sale";
 import { getMonday, formatDate, formatDayMonth } from "@/lib/mocks/flash-sessions.mock";
 
-const BASE_TIME_ROWS = ["00:00", "09:00", "12:00", "15:00", "18:00", "20:00"];
+const BASE_TIME_ROWS = ["00:00", "02:00", "09:00", "12:00", "15:00", "18:00", "20:00", "22:00"];
 
 interface FlashSaleCalendarProps {
   sessions: AdminFlashSaleSession[];

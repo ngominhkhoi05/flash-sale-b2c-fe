@@ -8,6 +8,26 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { AdminFlashSaleSession, CreateFlashSaleSessionInput } from "@/types/flash-sale";
 
+// Danh sách các mốc giờ 24h chuẩn (cách nhau 30 phút)
+const TIME_OPTIONS_24H: string[] = [];
+for (let h = 0; h < 24; h++) {
+  const hh = String(h).padStart(2, "0");
+  TIME_OPTIONS_24H.push(`${hh}:00`);
+  TIME_OPTIONS_24H.push(`${hh}:30`);
+}
+const END_TIME_OPTIONS_24H = [...TIME_OPTIONS_24H, "23:59"];
+
+// Các khung giờ vàng 24h phổ biến trong TMĐT
+const POPULAR_24H_PRESETS = [
+  { label: "00:00 - 02:00", start: "00:00", end: "02:00" },
+  { label: "09:00 - 11:00", start: "09:00", end: "11:00" },
+  { label: "12:00 - 14:00", start: "12:00", end: "14:00" },
+  { label: "15:00 - 17:00", start: "15:00", end: "17:00" },
+  { label: "18:00 - 20:00", start: "18:00", end: "20:00" },
+  { label: "20:00 - 22:00", start: "20:00", end: "22:00" },
+  { label: "22:00 - 23:59", start: "22:00", end: "23:59" },
+];
+
 function getLocalDateStr(d: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -346,6 +366,50 @@ function FlashSaleSlotModalDialog({
     toast.success("Đã tự động điền hạn đăng ký (trước giờ mở bán 1 giờ)");
   };
 
+  // Tách hạn cuối đăng ký thành ngày và giờ 24h để hiển thị độc lập
+  const deadlineDatePart = useMemo(() => {
+    if (!regDeadlineVal) return "";
+    return regDeadlineVal.split("T")[0] || "";
+  }, [regDeadlineVal]);
+
+  const deadlineTimePart = useMemo(() => {
+    if (!regDeadlineVal) return "09:00";
+    const parts = regDeadlineVal.split("T");
+    return parts[1] ? parts[1].substring(0, 5) : "09:00";
+  }, [regDeadlineVal]);
+
+  const handleDeadlineDateChange = (newDate: string) => {
+    const t = deadlineTimePart || "09:00";
+    setValue("registrationDeadline", `${newDate}T${t}`, {
+      shouldValidate: isDirty,
+      shouldDirty: true,
+    });
+    setUserHasCustomDeadline(true);
+  };
+
+  const handleDeadlineTimeChange = (newTime: string) => {
+    const d = deadlineDatePart || dateVal || getLocalDateStr();
+    setValue("registrationDeadline", `${d}T${newTime}`, {
+      shouldValidate: isDirty,
+      shouldDirty: true,
+    });
+    setUserHasCustomDeadline(true);
+  };
+
+  const handleApplyPreset = (preset: { start: string; end: string }) => {
+    setValue("startTime", preset.start, { shouldValidate: true, shouldDirty: true });
+    setValue("endTime", preset.end, { shouldValidate: true, shouldDirty: true });
+    if (dateVal) {
+      const defDeadline = computeDefaultDeadline(dateVal, preset.start);
+      if (defDeadline) {
+        setValue("registrationDeadline", defDeadline, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+      }
+    }
+  };
+
   // Tính thời lượng
   const durationText = useMemo(() => {
     if (!startTimeVal || !endTimeVal) return "";
@@ -522,6 +586,33 @@ function FlashSaleSlotModalDialog({
               )}
             </div>
 
+            {/* Gợi ý khung giờ phổ biến */}
+            <div className="flex flex-col gap-1.5 p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30">
+              <span className="font-label-sm text-xs text-secondary font-medium">
+                Khung giờ mở bán gợi ý:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {POPULAR_24H_PRESETS.map((p) => {
+                  const isSelected = startTimeVal === p.start && endTimeVal === p.end;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => handleApplyPreset(p)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all border cursor-pointer",
+                        isSelected
+                          ? "bg-primary text-on-primary border-primary shadow-xs"
+                          : "bg-surface-container-lowest text-secondary hover:text-on-surface hover:bg-surface-container border-outline-variant/30"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Field 3: Giờ bắt đầu & Kết thúc */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
               <div className="flex flex-col gap-1.5">
@@ -529,19 +620,27 @@ function FlashSaleSlotModalDialog({
                   Giờ bắt đầu <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
                     schedule
                   </span>
-                  <input
-                    type="time"
+                  <select
                     {...register("startTime")}
                     className={cn(
-                      "w-full h-10 pl-10 pr-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
+                      "w-full h-10 pl-10 pr-8 rounded-lg border font-mono text-body-md transition-all focus:outline-none appearance-none bg-surface-container-lowest cursor-pointer",
                       errors.startTime
                         ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
-                        : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
+                        : "border-outline-variant/60 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                     )}
-                  />
+                  >
+                    {TIME_OPTIONS_24H.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                    expand_more
+                  </span>
                 </div>
                 {errors.startTime && (
                   <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
@@ -563,19 +662,27 @@ function FlashSaleSlotModalDialog({
                   )}
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
                     update
                   </span>
-                  <input
-                    type="time"
+                  <select
                     {...register("endTime")}
                     className={cn(
-                      "w-full h-10 pl-10 pr-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
+                      "w-full h-10 pl-10 pr-8 rounded-lg border font-mono text-body-md transition-all focus:outline-none appearance-none bg-surface-container-lowest cursor-pointer",
                       errors.endTime
                         ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
-                        : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
+                        : "border-outline-variant/60 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
                     )}
-                  />
+                  >
+                    {END_TIME_OPTIONS_24H.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                    expand_more
+                  </span>
                 </div>
                 {errors.endTime && (
                   <div className="flex items-center gap-1 text-red-600 text-xs font-semibold mt-1">
@@ -647,23 +754,51 @@ function FlashSaleSlotModalDialog({
                 </button>
               </div>
 
-              <div className="relative">
-                <input
-                  type="datetime-local"
-                  min={getLocalISOString()}
-                  max={dateVal && startTimeVal ? `${dateVal}T${startTimeVal}` : undefined}
-                  {...register("registrationDeadline", {
-                    onChange: () => {
-                      setUserHasCustomDeadline(true);
-                    },
-                  })}
-                  className={cn(
-                    "w-full h-10 px-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
-                    errors.registrationDeadline
-                      ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900 focus:border-red-500 focus:ring-red-500"
-                      : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
-                  )}
-                />
+              {/* Tách Ngày và Giờ độc lập */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                    event
+                  </span>
+                  <input
+                    type="date"
+                    min={getLocalDateStr()}
+                    max={dateVal || undefined}
+                    value={deadlineDatePart}
+                    onChange={(e) => handleDeadlineDateChange(e.target.value)}
+                    className={cn(
+                      "w-full h-10 pl-10 pr-3 rounded-lg border font-body-md text-body-md transition-all focus:outline-none",
+                      errors.registrationDeadline
+                        ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900"
+                        : "border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
+                    )}
+                  />
+                </div>
+
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                    schedule
+                  </span>
+                  <select
+                    value={deadlineTimePart}
+                    onChange={(e) => handleDeadlineTimeChange(e.target.value)}
+                    className={cn(
+                      "w-full h-10 pl-10 pr-8 rounded-lg border font-mono text-body-md transition-all focus:outline-none appearance-none bg-surface-container-lowest cursor-pointer",
+                      errors.registrationDeadline
+                        ? "border-red-500 ring-1 ring-red-500 bg-red-50/20 text-red-900"
+                        : "border-outline-variant/60 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
+                    )}
+                  >
+                    {TIME_OPTIONS_24H.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+                    expand_more
+                  </span>
+                </div>
               </div>
 
               {/* Thông báo lỗi kèm NÚT TỰ ĐỘNG ĐIỀN khi người dùng chọn sai ngày */}
