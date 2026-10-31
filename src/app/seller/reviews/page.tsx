@@ -13,6 +13,7 @@ import type {
   SellerReviewSummaryResponse,
 } from "@/types/seller";
 import { useMyStore } from "@/hooks/useMyStore";
+import { getCachedReviews, setCachedReviews } from "@/lib/sellerCache";
 
 type ReplyFilterKey = "ALL" | "UNREPLIED" | "REPLIED";
 
@@ -42,9 +43,10 @@ export default function SellerReviewsPage() {
     [shopName]
   );
 
-  const [summary, setSummary] = useState<SellerReviewSummaryResponse | null>(null);
-  const [reviews, setReviews] = useState<SellerReviewItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const cached = getCachedReviews();
+  const [summary, setSummary] = useState<SellerReviewSummaryResponse | null>(() => cached?.summary || null);
+  const [reviews, setReviews] = useState<SellerReviewItem[]>(() => cached?.reviews || []);
+  const [loading, setLoading] = useState<boolean>(() => !cached?.reviews);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
@@ -62,7 +64,7 @@ export default function SellerReviewsPage() {
   };
 
   const fetchReviews = useCallback(async (silent = false) => {
-    if (!silent && reviews.length === 0) setLoading(true);
+    if (!silent && !getCachedReviews()?.reviews) setLoading(true);
     try {
       const [summaryData, reviewsData] = await Promise.all([
         getSellerReviewSummary(),
@@ -74,19 +76,21 @@ export default function SellerReviewsPage() {
         (reviewsData as unknown as { items?: SellerReviewItem[] }).items ||
         (Array.isArray(reviewsData) ? reviewsData : []);
       setReviews(list);
+      setCachedReviews(list, summaryData);
       setError(null);
     } catch (err: unknown) {
-      if (!silent && reviews.length === 0) {
+      if (!silent && !getCachedReviews()?.reviews) {
         const msg = err instanceof Error ? err.message : "Không thể tải danh sách đánh giá";
         setError(msg);
       }
     } finally {
       setLoading(false);
     }
-  }, [reviews.length]);
+  }, []);
 
   useEffect(() => {
-    void fetchReviews(false);
+    const hasCached = !!getCachedReviews()?.reviews;
+    void fetchReviews(hasCached);
   }, [fetchReviews]);
 
   // Filtered reviews
@@ -210,7 +214,7 @@ export default function SellerReviewsPage() {
             Chăm sóc khách hàng & Trải nghiệm
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-0.5">
-            Đánh giá của khách ({summary?.totalReviews || reviews.length})
+            Đánh giá của khách ({summary?.totalReviews ?? reviews.length})
           </h1>
         </div>
 
@@ -219,7 +223,7 @@ export default function SellerReviewsPage() {
             <span className="material-symbols-outlined text-[16px] text-emerald-600">
               verified
             </span>
-            Tỷ lệ phản hồi: {summary?.responseRate || 99.8}% • Chuẩn SLA &lt; 2h
+            Tỷ lệ phản hồi: {summary?.responseRate != null ? `${Number(summary.responseRate).toFixed(1)}%` : "0%"} • Chuẩn SLA &lt; 2h
           </span>
         </div>
       </div>
@@ -233,16 +237,28 @@ export default function SellerReviewsPage() {
           </p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-4xl font-extrabold tracking-tight text-slate-900">
-              {summary?.averageRating ? Number(summary.averageRating).toFixed(1) : "4.9"}
+              {summary?.averageRating != null && (summary?.totalReviews ?? 0) > 0
+                ? Number(summary.averageRating).toFixed(1)
+                : "0.0"}
             </span>
             <span className="text-sm font-semibold text-slate-400">/ 5.0</span>
           </div>
-          <div className="flex items-center gap-1 mt-2 text-amber-400">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <span key={s} className="material-symbols-outlined text-[20px] fill-current">
-                star
-              </span>
-            ))}
+          <div className="flex items-center gap-1 mt-2">
+            {[1, 2, 3, 4, 5].map((s) => {
+              const avg = (summary?.totalReviews ?? 0) > 0 ? (summary?.averageRating ?? 0) : 0;
+              const isFilled = avg >= s;
+              const isHalf = !isFilled && avg >= s - 0.5;
+              return (
+                <span
+                  key={s}
+                  className={`material-symbols-outlined text-[20px] ${
+                    isFilled || isHalf ? "text-amber-400 fill-current" : "text-slate-200"
+                  }`}
+                >
+                  {isFilled ? "star" : isHalf ? "star_half" : "star"}
+                </span>
+              );
+            })}
           </div>
           <p className="text-xs text-slate-500 mt-2">
             Dựa trên {summary?.totalReviews != null ? summary.totalReviews.toLocaleString("vi-VN") : reviews.length} lượt đánh giá thực tế
@@ -251,40 +267,39 @@ export default function SellerReviewsPage() {
 
         {/* Col 2: Star Breakdown */}
         <div className="lg:col-span-5 flex flex-col justify-center space-y-2 border-b lg:border-b-0 lg:border-r border-slate-100 pb-5 lg:pb-0 lg:pr-5">
-          {[
-            { star: 5, count: summary?.ratingBreakdown?.[5] ?? 1150, pct: 88 },
-            { star: 4, count: summary?.ratingBreakdown?.[4] ?? 120, pct: 8 },
-            { star: 3, count: summary?.ratingBreakdown?.[3] ?? 35, pct: 2 },
-            { star: 2, count: summary?.ratingBreakdown?.[2] ?? 13, pct: 1 },
-            { star: 1, count: summary?.ratingBreakdown?.[1] ?? 8, pct: 1 },
-          ].map((row) => (
-            <div key={row.star} className="flex items-center gap-2.5 text-xs text-slate-600">
-              <span className="w-8 flex items-center gap-0.5 font-bold">
-                {row.star}
-                <span className="material-symbols-outlined text-[13px] text-amber-400">
-                  star
+          {([5, 4, 3, 2, 1] as const).map((star) => {
+            const count = (summary?.ratingBreakdown as Record<number, number> | undefined)?.[star] ?? 0;
+            const total = summary?.totalReviews ?? reviews.length;
+            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+            return (
+              <div key={star} className="flex items-center gap-2.5 text-xs text-slate-600">
+                <span className="w-8 flex items-center gap-0.5 font-bold">
+                  {star}
+                  <span className="material-symbols-outlined text-[13px] text-amber-400">
+                    star
+                  </span>
                 </span>
-              </span>
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    row.star >= 4
-                      ? "bg-emerald-500"
-                      : row.star === 3
-                      ? "bg-amber-500"
-                      : "bg-rose-500"
-                  }`}
-                  style={{ width: `${row.pct}%` }}
-                />
+                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      star >= 4
+                        ? "bg-emerald-500"
+                        : star === 3
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="w-10 text-right text-slate-400 text-[11px] font-mono">
+                  {count}
+                </span>
+                <span className="w-8 text-right font-medium text-[11px] text-slate-500">
+                  {pct}%
+                </span>
               </div>
-              <span className="w-10 text-right text-slate-400 text-[11px] font-mono">
-                {row.count}
-              </span>
-              <span className="w-8 text-right font-medium text-[11px] text-slate-500">
-                {row.pct}%
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Col 3: Urgent Warning Box */}

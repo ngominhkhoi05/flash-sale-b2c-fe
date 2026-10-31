@@ -16,6 +16,7 @@ import type {
   CreateSellerVoucherPayload,
   UpdateSellerVoucherPayload,
 } from "@/types/seller";
+import { getCachedVouchers, setCachedVouchers } from "@/lib/sellerCache";
 
 type VoucherTabKey = "ALL" | "ACTIVE" | "UPCOMING" | "EXPIRED";
 
@@ -146,8 +147,9 @@ function validateVoucherInput(data: {
 
 export default function SellerVouchersPage() {
   const { isBanned } = useMyStore();
-  const [vouchers, setVouchers] = useState<SellerVoucherItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const cachedVouchers = getCachedVouchers();
+  const [vouchers, setVouchers] = useState<SellerVoucherItem[]>(() => cachedVouchers || []);
+  const [loading, setLoading] = useState<boolean>(() => !cachedVouchers);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
@@ -191,24 +193,26 @@ export default function SellerVouchersPage() {
   };
 
   const fetchVouchers = useCallback(async (silent = false) => {
-    if (!silent && vouchers.length === 0) setLoading(true);
+    if (!silent && !getCachedVouchers()) setLoading(true);
     try {
       const res = await getSellerVouchers(0, 100);
       const list = res.content || [];
       setVouchers(list);
+      setCachedVouchers(list);
       setError(null);
     } catch (err: unknown) {
-      if (!silent && vouchers.length === 0) {
+      if (!silent && !getCachedVouchers()) {
         const msg = err instanceof Error ? err.message : "Không thể tải danh sách voucher";
         setError(msg);
       }
     } finally {
       setLoading(false);
     }
-  }, [vouchers.length]);
+  }, []);
 
   useEffect(() => {
-    void fetchVouchers(false);
+    const hasCached = !!getCachedVouchers();
+    void fetchVouchers(hasCached);
   }, [fetchVouchers]);
 
   // Tab counts

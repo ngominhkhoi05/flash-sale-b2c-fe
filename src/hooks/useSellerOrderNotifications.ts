@@ -5,9 +5,12 @@ import { getSellerOrders } from "@/lib/api/seller";
 import type { SellerOrderResponse } from "@/types/seller";
 import { toast } from "sonner";
 import { formatVND } from "@/lib/utils";
+import { createFlashSaleStompClient } from "@/lib/stomp";
+import { getAccessToken } from "@/lib/api/client";
 
 const SEEN_STORAGE_KEY = "seller_seen_order_ids";
 const EVENT_NAME = "seller-order-notifications-changed";
+export const ORDER_EVENT_NEW = "seller_new_order_received";
 
 function getSeenIds(): Set<number> {
   if (typeof window === "undefined") return new Set();
@@ -71,7 +74,7 @@ export function useSellerOrderNotifications() {
         if (typeof window !== "undefined" && !sessionStorage.getItem(toastKey)) {
           sessionStorage.setItem(toastKey, "1");
           toast.info(`🔔 Đơn hàng mới #${latest.orderCode}!`, {
-            description: `Khách hàng ${latest.recipientName} vừa đặt đơn ${formatVND(
+            description: `Khách hàng ${latest.recipientName || "người mua"} vừa đặt đơn ${formatVND(
               latest.totalAmount || 0
             )}`,
             duration: 5000,
@@ -98,15 +101,75 @@ export function useSellerOrderNotifications() {
     };
     window.addEventListener(EVENT_NAME, handleSync);
 
-    // Polling ngầm kiểm tra đơn hàng mới mỗi 8 giây
+    // Kết nối WebSocket STOMP nhận thông báo đơn hàng theo thời gian thực (0ms latency)
+    let stomp: { disconnect: () => void } | null = null;
+    try {
+      const token = getAccessToken();
+      const client = createFlashSaleStompClient(token);
+      stomp = client;
+
+      const handleRealtimeOrder = (payload: any) => {
+        const order: SellerOrderResponse = payload.data || payload;
+        if (!order || (!order.id && !order.orderCode)) return;
+
+        const code = order.orderCode || (order as any).code || (order.id ? `#${order.id}` : "");
+        const toastKey = `notified_toast_${order.id || code}`;
+        if (typeof window !== "undefined" && !sessionStorage.getItem(toastKey)) {
+          sessionStorage.setItem(toastKey, "1");
+          toast.info(`🔔 Đơn hàng mới #${code}!`, {
+            description: `Khách hàng ${order.recipientName || "Người mua"} vừa đặt đơn ${formatVND(
+              order.totalAmount || 0
+            )}`,
+            duration: 6000,
+          });
+        }
+
+        // Bắn CustomEvent để trang Quản lý đơn hàng và Dashboard nạp ngay dữ liệu
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent(ORDER_EVENT_NEW, { detail: order })
+          );
+        }
+
+        // Cập nhật lại danh sách đơn hàng ngầm và unread count
+        void checkOrders(false);
+      };
+
+      client.subscribe("/topic/seller/orders", (msg) => {
+        try {
+          const body = JSON.parse(msg.body);
+          handleRealtimeOrder(body);
+        } catch (e) {
+          console.warn("WS parse /topic/seller/orders error:", e);
+        }
+      });
+
+      client.subscribe("/topic/orders", (msg) => {
+        try {
+          const body = JSON.parse(msg.body);
+          handleRealtimeOrder(body);
+        } catch (e) {
+          console.warn("WS parse /topic/orders error:", e);
+        }
+      });
+    } catch (wsErr) {
+      console.warn("WS init error in useSellerOrderNotifications:", wsErr);
+    }
+
+    // Polling ngầm kiểm tra đơn hàng mới mỗi 15 giây dự phòng
     const timer = setInterval(() => {
       void checkOrders(false);
-    }, 8000);
+    }, 15000);
 
     return () => {
       clearTimeout(initialTimer);
       window.removeEventListener(EVENT_NAME, handleSync);
       clearInterval(timer);
+      if (stomp) {
+        try {
+          stomp.disconnect();
+        } catch {}
+      }
     };
   }, [checkOrders]);
 

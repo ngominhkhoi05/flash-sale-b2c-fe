@@ -17,6 +17,8 @@ import { SellerStatusBadge } from "@/components/seller/SellerStatusBadge";
 import { useSellerOrderNotifications } from "@/hooks/useSellerOrderNotifications";
 import { useMyStore } from "@/hooks/useMyStore";
 import { createFlashSaleStompClient } from "@/lib/stomp";
+import { getAccessToken } from "@/lib/api/client";
+import { getCachedOrders, setCachedOrders, prependCachedOrder } from "@/lib/sellerCache";
 import * as XLSX from "xlsx";
 
 type TabKey =
@@ -74,9 +76,11 @@ function SellerOrdersContent() {
   const initialCode = searchParams.get("code") || "";
   const initialStatus = searchParams.get("status") || "";
 
-  const [orders, setOrders] = useState<SellerOrderResponse[]>([]);
-  const [allOrders, setAllOrders] = useState<SellerOrderResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  // Sử dụng Persistent Global Cache: Khởi tạo dữ liệu tức thì 0ms, không hiển thị skeleton khi chuyển trang
+  const cached = getCachedOrders();
+  const [orders, setOrders] = useState<SellerOrderResponse[]>(() => cached || []);
+  const [allOrders, setAllOrders] = useState<SellerOrderResponse[]>(() => cached || []);
+  const [loading, setLoading] = useState<boolean>(() => !cached || cached.length === 0);
   const [isManualRefreshing, setIsManualRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,6 +140,7 @@ function SellerOrdersContent() {
       try {
         const res = await getSellerOrders(0, 100);
         const list = res.items || res.content || [];
+        setCachedOrders(list);
 
         // Cập nhật mượt mà khi có dữ liệu mới
         setAllOrders((prev) => (!silent || hasOrdersChanged(prev, list) ? list : prev));
@@ -178,32 +183,43 @@ function SellerOrdersContent() {
   // Tự động kết nối WebSocket STOMP để đón nhận đơn hàng mới tức thì (Event-Driven Realtime)
   useEffect(() => {
     let stomp: { disconnect: () => void } | null = null;
-    try {
-      const client = createFlashSaleStompClient(null);
-      stomp = client;
 
-      const handleIncomingOrder = (newOrder: SellerOrderResponse) => {
-        if (!newOrder || (!newOrder.id && !newOrder.orderCode)) return;
-        setAllOrders((prev) => {
-          const exists = prev.some(
-            (o) => o.id === newOrder.id || (newOrder.orderCode && o.orderCode === newOrder.orderCode)
-          );
-          if (exists) {
-            return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
-          }
-          return [newOrder, ...prev];
-        });
-        setOrders((prev) => {
-          const exists = prev.some(
-            (o) => o.id === newOrder.id || (newOrder.orderCode && o.orderCode === newOrder.orderCode)
-          );
-          if (exists) {
-            return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
-          }
-          return [newOrder, ...prev];
-        });
-        toast.info(`🔔 Đơn hàng mới #${newOrder.orderCode}!`);
-      };
+    const handleIncomingOrder = (newOrder: SellerOrderResponse) => {
+      if (!newOrder || (!newOrder.id && !newOrder.orderCode)) return;
+      prependCachedOrder(newOrder);
+      setAllOrders((prev) => {
+        const exists = prev.some(
+          (o) => o.id === newOrder.id || (newOrder.orderCode && o.orderCode === newOrder.orderCode)
+        );
+        if (exists) {
+          return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
+        }
+        return [newOrder, ...prev];
+      });
+      setOrders((prev) => {
+        const exists = prev.some(
+          (o) => o.id === newOrder.id || (newOrder.orderCode && o.orderCode === newOrder.orderCode)
+        );
+        if (exists) {
+          return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
+        }
+        return [newOrder, ...prev];
+      });
+    };
+
+    // Lắng nghe CustomEvent từ hook useSellerOrderNotifications
+    const handleGlobalNewOrder = (e: Event) => {
+      const custom = e as CustomEvent<SellerOrderResponse>;
+      if (custom.detail) {
+        handleIncomingOrder(custom.detail);
+      }
+    };
+    window.addEventListener("seller_new_order_received", handleGlobalNewOrder);
+
+    try {
+      const token = getAccessToken();
+      const client = createFlashSaleStompClient(token);
+      stomp = client;
 
       // Subscribe topic chung của seller
       client.subscribe("/topic/seller/orders", (msg) => {
@@ -231,6 +247,7 @@ function SellerOrdersContent() {
     }
 
     return () => {
+      window.removeEventListener("seller_new_order_received", handleGlobalNewOrder);
       stomp?.disconnect();
     };
   }, [store?.id]);

@@ -40,26 +40,31 @@ export function useAdminRealtime(): { connectionState: ConnectionState } {
     try {
       client = ensureClient();
 
-      // 1. Kênh đếm số lượng & thông báo duyệt SKU admin
+      // 1. Kênh đếm số lượng & thông báo duyệt sản phẩm admin
       const offCounts = client.subscribe("/topic/admin/flash-sale/counts", (msg) => {
         try {
           const envelope = JSON.parse(msg.body) as { data?: AdminRealtimeEvent };
           const data = envelope.data || (JSON.parse(msg.body) as AdminRealtimeEvent);
 
-          // Cập nhật số pending nếu có
+          // Cập nhật số pending nếu có (số sản phẩm)
           if (typeof data.pendingCount === "number") {
             window.dispatchEvent(
               new CustomEvent("admin:sku-pending-count", { detail: data.pendingCount })
             );
           }
 
-          // Invalidate cache để load số lượng mới nhất
-          void qcRef.current.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.counts() });
+          // Kích hoạt realtime cập nhật cho trang duyệt sản phẩm
+          window.dispatchEvent(
+            new CustomEvent("admin:sku-approvals-updated", { detail: data })
+          );
+
+          // Invalidate cache toàn bộ counts & approvals (mọi slotId)
+          void qcRef.current.invalidateQueries({ queryKey: ["admin", "flash-sale", "counts"] });
           void qcRef.current.invalidateQueries({ queryKey: ["admin", "flash-sale", "approvals"] });
 
           if (data.eventType === "ITEM_REGISTERED") {
-            toast.info("⚡ SKU Flash Sale mới cần duyệt!", {
-              description: `Gian hàng ${data.storeName || "Shop"} vừa đăng ký SKU ${data.productName ? `"${data.productName}"` : ""} vào phiên.`,
+            toast.info("⚡ Sản phẩm Flash Sale mới cần duyệt!", {
+              description: `Gian hàng ${data.storeName || "Shop"} vừa đăng ký sản phẩm ${data.productName ? `"${data.productName}"` : ""} vào phiên.`,
               duration: 5000,
             });
           }
@@ -68,6 +73,30 @@ export function useAdminRealtime(): { connectionState: ConnectionState } {
         }
       });
       unsubs.push(offCounts);
+
+      // Kênh cập nhật danh sách duyệt SKU admin
+      const offApprovals = client.subscribe("/topic/admin/flash-sale/approvals", (msg) => {
+        try {
+          const envelope = JSON.parse(msg.body) as { data?: AdminRealtimeEvent };
+          const data = envelope.data || (JSON.parse(msg.body) as AdminRealtimeEvent);
+
+          if (typeof data.pendingCount === "number") {
+            window.dispatchEvent(
+              new CustomEvent("admin:sku-pending-count", { detail: data.pendingCount })
+            );
+          }
+
+          window.dispatchEvent(
+            new CustomEvent("admin:sku-approvals-updated", { detail: data })
+          );
+
+          void qcRef.current.invalidateQueries({ queryKey: ["admin", "flash-sale", "counts"] });
+          void qcRef.current.invalidateQueries({ queryKey: ["admin", "flash-sale", "approvals"] });
+        } catch {
+          // ignore
+        }
+      });
+      unsubs.push(offApprovals);
 
       // 2. Kênh cập nhật slot Flash Sale (kích hoạt, kết thúc, tạm dừng)
       const offSlots = client.subscribe("/topic/flash-sale/slot/+/status", () => {

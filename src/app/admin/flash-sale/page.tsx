@@ -16,7 +16,6 @@ import {
   preWarmAdminFlashSaleSlot,
   deleteAdminFlashSaleSlot,
 } from "@/lib/api/admin";
-import { cancelMockFlashSaleSession } from "@/lib/mocks/flash-sessions.mock";
 import { useAdminSlotsQuery, ADMIN_QUERY_KEYS } from "@/hooks/useAdminQueries";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";

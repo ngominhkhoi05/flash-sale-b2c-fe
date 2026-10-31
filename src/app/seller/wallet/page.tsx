@@ -14,13 +14,15 @@ import type {
 } from "@/types/seller";
 import { VIETNAM_BANKS } from "@/lib/constants/vietnam-banks";
 import * as XLSX from "xlsx";
+import { getCachedWallet, setCachedWallet } from "@/lib/sellerCache";
 
 type TxTabKey = "ALL" | "ORDER_SETTLEMENT" | "WITHDRAWAL";
 
 export default function SellerWalletPage() {
-  const [wallet, setWallet] = useState<SellerWalletResponse | null>(null);
+  const cachedWallet = getCachedWallet();
+  const [wallet, setWallet] = useState<SellerWalletResponse | null>(() => cachedWallet?.wallet || null);
   const [transactions, setTransactions] = useState<SellerWalletTransaction[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(() => !cachedWallet?.wallet);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
@@ -190,6 +192,7 @@ export default function SellerWalletPage() {
       .then(([walletData, txData]) => {
         if (active) {
           setWallet(walletData);
+          setCachedWallet(walletData, walletData.bankAccount);
           setTransactions(txData.content || []);
           setError(null);
           setLoading(false);

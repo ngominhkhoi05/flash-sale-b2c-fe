@@ -1279,12 +1279,14 @@ export async function getFlashSaleSlots(): Promise<FlashSaleSlotItem[]> {
       endTime: string;
       status: string;
       reservationTtlSeconds?: number;
+      participatingStoresCount?: number;
+      totalItemsCount?: number;
     }>>("/flash-sales/slots");
     if (res && res.length > 0) {
       return res.map((s) => ({
         ...s,
-        participatingStoresCount: 0,
-        availableProductSlots: 0,
+        participatingStoresCount: s.participatingStoresCount ?? 0,
+        availableProductSlots: undefined,
         badgeLabel: s.title.includes("HOT") ? "HOT" : undefined,
       }));
     }
@@ -1320,24 +1322,27 @@ export async function registerFlashSaleItem(
 export async function registerFlashSaleItems(
   items: RegisterFlashSaleItemDto[]
 ): Promise<void> {
-  const errors: string[] = [];
-  let successCount = 0;
+  if (!items || items.length === 0) return;
 
-  for (const item of items) {
-    try {
-      await registerFlashSaleItem(item);
-      successCount++;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Đăng ký biến thể thất bại";
-      errors.push(msg);
+  // 1. Thử gọi API batch siêu tốc (chỉ 1 request duy nhất)
+  try {
+    await apiFetch<unknown>("/seller/flash-sales/items/batch", {
+      method: "POST",
+      json: items,
+    });
+    return;
+  } catch (batchErr) {
+    // Nếu batch endpoint chưa khả dụng, thực thi song song toàn bộ biến thể (Promise.allSettled)
+    console.warn("Batch register API fallback to parallel requests:", batchErr);
+    const results = await Promise.allSettled(
+      items.map((item) => registerFlashSaleItem(item))
+    );
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+    if (successCount === 0) {
+      const firstRejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+      const msg = firstRejected?.reason instanceof Error ? firstRejected.reason.message : "Đăng ký biến thể thất bại";
+      throw new Error(msg);
     }
-  }
-
-  // Nếu toàn bộ biến thể đều lỗi thì ném ngoại lệ thông báo
-  if (successCount === 0 && errors.length > 0) {
-    // Lấy thông điệp lỗi duy nhất đầu tiên
-    const firstMsg = errors[0];
-    throw new Error(firstMsg);
   }
 }
 
@@ -1351,7 +1356,7 @@ export async function getRegisteredFlashSaleHistory(): Promise<
   let isApiSuccess = false;
 
   try {
-    const raw = await apiFetch<unknown>("/seller/flash-sales/items");
+    const raw = await apiFetch<unknown>("/seller/flash-sales/items?size=1000");
     const rawObj = raw as
       | { items?: unknown[]; content?: unknown[] }
       | unknown[];
@@ -1367,6 +1372,8 @@ export async function getRegisteredFlashSaleHistory(): Promise<
       id: number;
       productId?: number;
       variantId?: number;
+      variantName?: string;
+      originalPrice?: number;
       productName?: string;
       skuCode?: string;
       sku?: string;
@@ -1386,11 +1393,16 @@ export async function getRegisteredFlashSaleHistory(): Promise<
       isApiSuccess = true;
       serverItems = items.map((item) => ({
         id: item.id,
+        productId: item.productId,
+        variantId: item.variantId,
+        variantName: item.variantName,
+        originalPrice: item.originalPrice,
         productName: item.productName || `Sản phẩm #${item.productId || item.variantId}`,
         sku: item.skuCode || item.sku || `SKU-${item.variantId}`,
         imageUrl:
           item.imageUrl ||
           "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=500&auto=format&fit=crop&q=60",
+        slotId: item.slotId,
         slotTitle: item.slotTitle || `Phiên #${item.slotId}`,
         slotDate: item.slotStartTime
           ? new Date(item.slotStartTime).toLocaleDateString("vi-VN")
@@ -1410,6 +1422,7 @@ export async function getRegisteredFlashSaleHistory(): Promise<
           : "12:00 – 14:00",
         flashSalePrice: item.flashSalePrice ?? 0,
         allocatedStock: item.allocatedStock ?? 0,
+        availableStock: item.availableStock ?? item.allocatedStock ?? 0,
         soldStock:
           (item.allocatedStock ?? 0) - (item.availableStock ?? item.allocatedStock ?? 0),
         status:
@@ -1423,27 +1436,12 @@ export async function getRegisteredFlashSaleHistory(): Promise<
     console.warn("Failed to fetch registered flash sale items from API:", err);
   }
 
-  // Đọc thêm các đơn đăng ký mới tạo gần đây từ sessionStorage để đảm bảo không bị mất
-  let localItems: RegisteredFlashSaleHistoryItem[] = [];
-  try {
-    if (typeof window !== "undefined") {
-      const saved = window.sessionStorage.getItem("fs_local_registered_items");
-      if (saved) {
-        localItems = JSON.parse(saved);
-      }
-    }
-  } catch {
-    // ignore
-  }
-
+  // Luôn trả về dữ liệu thật từ Backend (không nạp dữ liệu ảo / mock)
   if (isApiSuccess) {
-    // Gộp đơn vừa đăng ký (nếu chưa có trong serverItems theo variant/id) lên đầu danh sách
-    const existingIds = new Set(serverItems.map((s) => s.id));
-    const pendingLocal = localItems.filter((l) => !existingIds.has(l.id));
-    return [...pendingLocal, ...serverItems];
+    return serverItems;
   }
 
-  return localItems;
+  return [];
 }
 
 /**

@@ -18,6 +18,7 @@ import {
 import { getAccessToken } from "@/lib/api/client";
 import { createFlashSaleStompClient } from "@/lib/stomp";
 import { useMyStore } from "@/hooks/useMyStore";
+import { getCachedProducts, setCachedProducts } from "@/lib/sellerCache";
 import * as XLSX from "xlsx";
 import type { PageResponse } from "@/types/api";
 import type {
@@ -62,9 +63,13 @@ function SellerProductsContent() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
-  const [pageData, setPageData] = useState<PageResponse<SellerProductSummaryResponse> | null>(null);
-  const [tabDataCache, setTabDataCache] = useState<Record<string, PageResponse<SellerProductSummaryResponse>>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const initialCacheKey = `${activeTab}_${page}_${pageSize}`;
+  const initialCached = getCachedProducts(initialCacheKey);
+  const [pageData, setPageData] = useState<PageResponse<SellerProductSummaryResponse> | null>(() => initialCached || null);
+  const [tabDataCache, setTabDataCache] = useState<Record<string, PageResponse<SellerProductSummaryResponse>>>(() => {
+    return initialCached ? { [initialCacheKey]: initialCached } : {};
+  });
+  const [isLoading, setIsLoading] = useState(() => !initialCached);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +101,7 @@ function SellerProductsContent() {
         .then((res) => {
           setPageData(res);
           setTabDataCache((prev) => ({ ...prev, [cacheKey]: res }));
+          setCachedProducts(cacheKey, res);
         })
         .catch((err) => {
           setError(err instanceof Error ? err.message : "Không thể nạp danh sách sản phẩm.");
@@ -119,8 +125,13 @@ function SellerProductsContent() {
     const cacheKey = `${activeTab}_${page}_${pageSize}`;
 
     // Nếu đã có dữ liệu trong cache của tab này, hiển thị ngay lập tức (0ms latency)!
+    const cachedFromStore = getCachedProducts(cacheKey);
     if (tabDataCache[cacheKey]) {
       setPageData(tabDataCache[cacheKey]);
+      setIsRefreshing(true);
+    } else if (cachedFromStore) {
+      setPageData(cachedFromStore);
+      setTabDataCache((prev) => ({ ...prev, [cacheKey]: cachedFromStore }));
       setIsRefreshing(true);
     } else if (!pageData) {
       setIsLoading(true);
@@ -133,6 +144,7 @@ function SellerProductsContent() {
         if (!ignore) {
           setPageData(res);
           setTabDataCache((prev) => ({ ...prev, [cacheKey]: res }));
+          setCachedProducts(cacheKey, res);
         }
       })
       .catch((err) => {

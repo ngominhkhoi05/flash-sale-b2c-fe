@@ -8,10 +8,10 @@ import type {
   SkuApprovalItem,
   SkuApprovalStatus,
   SkuApprovalCounts,
+  StoreBadgeType,
 } from "@/types/sku-approval";
 import type { AdminFlashSaleSession } from "@/types/flash-sale";
 import { useEffect, useCallback } from "react";
-import { isMockMode } from "@/lib/api/client";
 import {
   getAdminFlashSaleSlots,
   getAdminSkuApprovals,
@@ -144,17 +144,54 @@ export default function AdminSkuApprovalsPage() {
     setLocalItems(null);
   }, [rawItems]);
 
-  const counts: SkuApprovalCounts = rawCounts ?? {
-    pending: items.filter((i) => i.status === "PENDING" || (i.status as string) === "PENDING_APPROVAL").length,
-    approved: items.filter((i) => i.status === "APPROVED").length,
-    rejected: items.filter((i) => i.status === "REJECTED").length,
-  };
+  // Đếm theo số SẢN PHẨM (SPU) duy nhất, không đếm số lượng SKU hay tồn kho
+  const counts: SkuApprovalCounts = useMemo(() => {
+    if (rawCounts && typeof rawCounts.pending === "number") {
+      return rawCounts;
+    }
+    const pendingProducts = new Set(
+      items
+        .filter((i) => i.status === "PENDING" || (i.status as string) === "PENDING_APPROVAL")
+        .map((i) => i.productId || i.id)
+    );
+    const approvedProducts = new Set(
+      items.filter((i) => i.status === "APPROVED").map((i) => i.productId || i.id)
+    );
+    const rejectedProducts = new Set(
+      items.filter((i) => i.status === "REJECTED").map((i) => i.productId || i.id)
+    );
+    return {
+      pending: pendingProducts.size,
+      approved: approvedProducts.size,
+      rejected: rejectedProducts.size,
+    };
+  }, [rawCounts, items]);
 
   const refreshData = useCallback(() => {
+    setLocalItems(null);
     void refetchItems();
     void refetchCounts();
     void queryClient.invalidateQueries({ queryKey: ["admin", "flash-sale"] });
   }, [refetchItems, refetchCounts, queryClient]);
+
+  // Lắng nghe sự kiện realtime khi có sản phẩm được đăng ký / duyệt / từ chối
+  useEffect(() => {
+    const handleApprovalsUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ slotId?: number; eventType?: string }>;
+      const data = customEvent.detail;
+      // Cập nhật ngay khi event thuộc phiên đang xem hoặc toàn sàn
+      if (!data?.slotId || !effectiveSlotId || data.slotId === effectiveSlotId) {
+        setLocalItems(null);
+        void refetchItems();
+        void refetchCounts();
+      }
+    };
+
+    window.addEventListener("admin:sku-approvals-updated", handleApprovalsUpdated);
+    return () => {
+      window.removeEventListener("admin:sku-approvals-updated", handleApprovalsUpdated);
+    };
+  }, [effectiveSlotId, refetchItems, refetchCounts]);
 
 
   // Realtime WebSocket: tự động cập nhật tồn kho biến thể và trạng thái slot
@@ -300,12 +337,82 @@ export default function AdminSkuApprovalsPage() {
     discountFilter,
   ]);
 
-  // Paginated items
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
-  const paginatedItems = useMemo(() => {
+  interface ProductApprovalGroup {
+    productId: number;
+    productName: string;
+    imageUrl: string;
+    storeId: number;
+    storeName: string;
+    storeBadge: StoreBadgeType;
+    category: string;
+    submittedAt: string;
+    minOriginalPrice: number;
+    maxOriginalPrice: number;
+    minFlashSalePrice: number;
+    maxFlashSalePrice: number;
+    totalAllocatedStock: number;
+    totalOriginalStock: number;
+    skus: SkuApprovalItem[];
+  }
+
+  // Nhóm các SKU theo từng Sản phẩm (Product/SPU)
+  const groupedProducts = useMemo(() => {
+    const map = new Map<number, ProductApprovalGroup>();
+    for (const item of filteredItems) {
+      const key = item.productId || item.id;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          productId: item.productId || item.id,
+          productName: item.productName,
+          imageUrl: item.imageUrl,
+          storeId: item.storeId,
+          storeName: item.storeName,
+          storeBadge: item.storeBadge,
+          category: item.category,
+          submittedAt: item.submittedAt,
+          minOriginalPrice: item.originalPrice,
+          maxOriginalPrice: item.originalPrice,
+          minFlashSalePrice: item.flashSalePrice,
+          maxFlashSalePrice: item.flashSalePrice,
+          totalAllocatedStock: item.allocatedStock,
+          totalOriginalStock: item.originalStock,
+          skus: [item],
+        });
+      } else {
+        existing.skus.push(item);
+        existing.minOriginalPrice = Math.min(existing.minOriginalPrice, item.originalPrice);
+        existing.maxOriginalPrice = Math.max(existing.maxOriginalPrice, item.originalPrice);
+        existing.minFlashSalePrice = Math.min(existing.minFlashSalePrice, item.flashSalePrice);
+        existing.maxFlashSalePrice = Math.max(existing.maxFlashSalePrice, item.flashSalePrice);
+        existing.totalAllocatedStock += item.allocatedStock;
+        existing.totalOriginalStock += item.originalStock;
+      }
+    }
+    return Array.from(map.values());
+  }, [filteredItems]);
+
+  // Phân trang theo Sản phẩm (Product)
+  const totalPages = Math.max(1, Math.ceil(groupedProducts.length / pageSize));
+  const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredItems.slice(start, start + pageSize);
-  }, [filteredItems, currentPage, pageSize]);
+    return groupedProducts.slice(start, start + pageSize);
+  }, [groupedProducts, currentPage, pageSize]);
+
+  // State mở rộng/thu gọn xem SKU của từng sản phẩm
+  const [expandedProductIds, setExpandedProductIds] = useState<Set<number>>(new Set());
+
+  const toggleExpandProduct = (productId: number) => {
+    setExpandedProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
 
   // 7. Modals State
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -374,17 +481,17 @@ export default function AdminSkuApprovalsPage() {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature match với modal callback
-  const handleConfirmReject = async (reason: string, _note?: string) => {
+  const handleConfirmReject = async (reason: string, note?: string) => {
     try {
+      const rejectReason = (note && note.trim()) ? note.trim() : (reason && reason.trim()) ? reason.trim() : "Từ chối theo quy chế sàn";
       if (isBatchReject) {
-        await batchRejectFlashSaleSkus(selectedIds, reason);
+        await batchRejectFlashSaleSkus(selectedIds, rejectReason);
         toast.error(
           `Đã từ chối ${selectedIds.length} SKU và gửi phản hồi cho Seller!`
         );
         setSelectedIds([]);
       } else if (targetRejectItem) {
-        await rejectFlashSaleSku(targetRejectItem.id, reason);
+        await rejectFlashSaleSku(targetRejectItem.id, rejectReason);
         toast.error(
           `Đã từ chối "${targetRejectItem.productName}" và gửi thông báo!`
         );
@@ -443,14 +550,17 @@ export default function AdminSkuApprovalsPage() {
     setRejectModalOpen(true);
   };
 
+  const allPageSkuIds = useMemo(() => {
+    return paginatedProducts.flatMap((p) => p.skus.map((s) => s.id));
+  }, [paginatedProducts]);
+
   const handleSelectAllOnPage = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      const pageIds = paginatedItems.map((i) => i.id);
-      const combined = Array.from(new Set([...selectedIds, ...pageIds]));
+      const combined = Array.from(new Set([...selectedIds, ...allPageSkuIds]));
       setSelectedIds(combined);
     } else {
-      const pageIds = new Set(paginatedItems.map((i) => i.id));
-      setSelectedIds(selectedIds.filter((id) => !pageIds.has(id)));
+      const pageIdsSet = new Set(allPageSkuIds);
+      setSelectedIds(selectedIds.filter((id) => !pageIdsSet.has(id)));
     }
   };
 
@@ -462,11 +572,50 @@ export default function AdminSkuApprovalsPage() {
     }
   };
 
+  const handleToggleProduct = (product: ProductApprovalGroup) => {
+    const skuIds = product.skus.map((s) => s.id);
+    const isAllSelected = skuIds.length > 0 && skuIds.every((id) => selectedIds.includes(id));
+    if (isAllSelected) {
+      const skuSet = new Set(skuIds);
+      setSelectedIds(selectedIds.filter((id) => !skuSet.has(id)));
+    } else {
+      setSelectedIds(Array.from(new Set([...selectedIds, ...skuIds])));
+    }
+  };
+
+  const handleApproveProduct = (product: ProductApprovalGroup) => {
+    const skuIds = product.skus.map((s) => s.id);
+    setSelectedIds(skuIds);
+    setIsBatchApprove(true);
+    setTargetApproveItem(null);
+    setApproveModalOpen(true);
+  };
+
+  const handleRejectProduct = (product: ProductApprovalGroup) => {
+    const skuIds = product.skus.map((s) => s.id);
+    setSelectedIds(skuIds);
+    setIsBatchReject(true);
+    setTargetRejectItem(null);
+    setRejectModalOpen(true);
+  };
+
+  const handleUndoProduct = async (product: ProductApprovalGroup) => {
+    try {
+      for (const sku of product.skus) {
+        await undoFlashSaleSku(sku.id);
+      }
+      toast.info(`Đã hoàn tác toàn bộ SKU của "${product.productName}" về trạng thái Chờ duyệt!`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Hoàn tác thất bại");
+    }
+    refreshData();
+  };
+
   const isAllPageSelected =
-    paginatedItems.length > 0 &&
-    paginatedItems.every((item) => selectedIds.includes(item.id));
+    allPageSkuIds.length > 0 &&
+    allPageSkuIds.every((id) => selectedIds.includes(id));
   const isSomePageSelected =
-    paginatedItems.some((item) => selectedIds.includes(item.id)) &&
+    allPageSkuIds.some((id) => selectedIds.includes(id)) &&
     !isAllPageSelected;
 
   const registrationDeadlineInfo = useMemo(() => {
@@ -987,13 +1136,13 @@ export default function AdminSkuApprovalsPage() {
                     className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer accent-primary"
                   />
                 </th>
-                <th className="px-4 min-w-[260px] whitespace-nowrap">Sản phẩm &amp; Phân loại SKU</th>
+                <th className="px-4 min-w-[280px] whitespace-nowrap">Sản phẩm &amp; SPU</th>
+                <th className="px-4 min-w-[130px] text-center whitespace-nowrap">Biến thể</th>
                 <th className="px-4 min-w-[160px] whitespace-nowrap">Gian hàng</th>
-                <th className="px-4 min-w-[100px] text-right whitespace-nowrap">Giá gốc</th>
-                <th className="px-4 min-w-[170px] text-right whitespace-nowrap">Giá Flash Sale</th>
-                <th className="px-4 min-w-[120px] text-center whitespace-nowrap">Mở bán / Kho</th>
-                <th className="px-4 min-w-[100px] text-center whitespace-nowrap">Giới hạn</th>
-                <th className="px-4 min-w-[110px] whitespace-nowrap">Thời gian gửi</th>
+                <th className="px-4 min-w-[130px] text-right whitespace-nowrap">Giá gốc</th>
+                <th className="px-4 min-w-[150px] text-right whitespace-nowrap">Giá Flash Sale</th>
+                <th className="px-4 min-w-[130px] text-center whitespace-nowrap">Mở bán / Tồn kho</th>
+                <th className="px-4 min-w-[120px] whitespace-nowrap">Thời gian gửi</th>
                 <th className="px-4 w-[160px] min-w-[160px] text-right whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
@@ -1013,6 +1162,9 @@ export default function AdminSkuApprovalsPage() {
                         </div>
                       </div>
                     </td>
+                    <td className="px-4 py-4 text-center">
+                      <div className="w-20 h-7 bg-surface-container rounded mx-auto" />
+                    </td>
                     <td className="px-4 py-4">
                       <div className="w-24 h-3.5 bg-surface-container rounded mb-1" />
                       <div className="w-16 h-3 bg-surface-container-low rounded" />
@@ -1026,9 +1178,6 @@ export default function AdminSkuApprovalsPage() {
                     <td className="px-4 py-4 text-center">
                       <div className="w-16 h-3.5 bg-surface-container rounded mx-auto" />
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <div className="w-14 h-3.5 bg-surface-container rounded mx-auto" />
-                    </td>
                     <td className="px-4 py-4">
                       <div className="w-20 h-3 bg-surface-container rounded" />
                     </td>
@@ -1037,7 +1186,7 @@ export default function AdminSkuApprovalsPage() {
                     </td>
                   </tr>
                 ))
-              ) : paginatedItems.length === 0 ? (
+              ) : paginatedProducts.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-14 text-center text-secondary">
                     {items.length === 0 ? (
@@ -1065,219 +1214,369 @@ export default function AdminSkuApprovalsPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((item) => {
-                  const isSelected = selectedIds.includes(item.id);
-                  const progressPercent = Math.min(
-                    100,
-                    Math.round((item.allocatedStock / item.originalStock) * 100)
-                  );
+                paginatedProducts.map((prod) => {
+                  const productSkuIds = prod.skus.map((s) => s.id);
+                  const isAllSkusSelected = productSkuIds.length > 0 && productSkuIds.every((id) => selectedIds.includes(id));
+                  const isSomeSkusSelected = productSkuIds.some((id) => selectedIds.includes(id)) && !isAllSkusSelected;
+                  const isExpanded = expandedProductIds.has(prod.productId);
+
+                  const progressPercent = prod.totalOriginalStock > 0
+                    ? Math.min(100, Math.round((prod.totalAllocatedStock / prod.totalOriginalStock) * 100))
+                    : 0;
 
                   return (
-                    <tr
-                      key={item.id}
-                      className={cn(
-                        "hover:bg-surface-container-low/70 transition-colors",
-                        isSelected && "bg-sky-50/50"
-                      )}
-                    >
-                      {/* Checkbox */}
-                      <td className="w-12 px-4 py-3 text-center align-middle shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleRow(item.id)}
-                          className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer accent-primary"
-                        />
-                      </td>
+                    <React.Fragment key={prod.productId}>
+                      {/* Parent Product Row */}
+                      <tr
+                        className={cn(
+                          "hover:bg-surface-container-low/70 transition-colors border-b border-surface-container",
+                          isAllSkusSelected && "bg-sky-50/50"
+                        )}
+                      >
+                        {/* Checkbox */}
+                        <td className="w-12 px-4 py-3 text-center align-middle shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={isAllSkusSelected}
+                            ref={(input) => {
+                              if (input) input.indeterminate = isSomeSkusSelected;
+                            }}
+                            onChange={() => handleToggleProduct(prod)}
+                            className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer accent-primary"
+                          />
+                        </td>
 
-                      {/* Product & Variant */}
-                      <td className="px-4 py-3 align-middle min-w-[260px] max-w-[320px]">
-                        <div className="flex items-center gap-3">
-                          <div className="relative w-12 h-12 rounded-lg bg-surface-container overflow-hidden shrink-0 shadow-sm border border-outline-variant/20">
-                            <Image
-                              src={item.imageUrl}
-                              alt={item.productName}
-                              fill
-                              unoptimized
-                              className="object-cover"
-                            />
+                        {/* Sản phẩm & SPU */}
+                        <td className="px-4 py-3 align-middle min-w-[280px] max-w-[340px]">
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-12 h-12 rounded-lg bg-surface-container overflow-hidden shrink-0 shadow-sm border border-outline-variant/20">
+                              <Image
+                                src={prod.imageUrl}
+                                alt={prod.productName}
+                                fill
+                                sizes="48px"
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span
+                                className="font-headline-md text-body-md font-semibold text-on-surface truncate cursor-pointer hover:text-primary transition-colors"
+                                title={prod.productName}
+                                onClick={() => toggleExpandProduct(prod.productId)}
+                              >
+                                {prod.productName}
+                              </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded font-label-sm text-[10px] font-bold bg-primary/10 text-primary uppercase">
+                                  SPU
+                                </span>
+                                <span className="font-label-sm text-label-sm text-secondary truncate">
+                                  Mã: #{prod.productId}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex flex-col min-w-0">
+                        </td>
+
+                        {/* Biến thể: Nút "Xem SKU" giống bên Seller */}
+                        <td className="px-4 py-3 align-middle text-center whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpandProduct(prod.productId)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-low text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-container transition-colors border border-outline-variant/20 cursor-pointer"
+                          >
+                            <span>Xem SKU</span>
+                            <span className="px-1.5 py-0.2 rounded-full text-[11px] bg-emerald-50 text-emerald-700 font-bold">
+                              {prod.skus.length}
+                            </span>
                             <span
-                              className="font-headline-md text-headline-md font-semibold text-on-surface truncate hover:text-primary cursor-pointer transition-colors"
-                              title={item.productName}
+                              className={`material-symbols-outlined text-[16px] text-emerald-600 transition-transform ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
                             >
-                              {item.productName}
+                              expand_circle_down
                             </span>
-                            <span className="font-data-tabular text-body-sm text-secondary truncate">
-                              {item.variantName} ·{" "}
-                              <span className="text-on-surface-variant font-mono font-medium">
-                                {item.skuCode}
-                              </span>
+                          </button>
+                        </td>
+
+                        {/* Gian hàng */}
+                        <td className="px-4 py-3 align-middle min-w-[160px] whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="font-headline-md text-body-md text-on-surface font-medium truncate max-w-[180px]">
+                              {prod.storeName}
+                            </span>
+                            <span className="font-label-sm text-label-sm mt-0.5 text-secondary">
+                              {prod.storeBadge === "MALL" ? (
+                                <span className="text-rose-600 font-bold uppercase text-[10px]">
+                                  MALL OFFICIAL
+                                </span>
+                              ) : prod.storeBadge === "FAVORITE" ? (
+                                <span className="text-amber-600 font-semibold text-[11px]">
+                                  Shop Yêu thích
+                                </span>
+                              ) : (
+                                "Shop Thường"
+                              )}
                             </span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Store */}
-                      <td className="px-4 py-3 align-middle min-w-[160px]">
-                        <div className="flex flex-col">
-                          <span className="font-body-md text-body-md font-medium text-on-surface truncate">
-                            {item.storeName}
-                          </span>
-                          {item.storeBadge === "MALL" && (
-                            <span className="inline-flex items-center gap-1 w-fit mt-0.5 px-1.5 py-0.2 rounded font-label-sm text-[10px] font-bold bg-primary text-on-primary uppercase leading-tight">
-                              Vibe Mall
-                            </span>
-                          )}
-                          {item.storeBadge === "FAVORITE" && (
-                            <span className="inline-flex items-center gap-1 w-fit mt-0.5 px-1.5 py-0.2 rounded font-label-sm text-[10px] font-semibold bg-secondary-container text-on-secondary-container uppercase leading-tight">
-                              Shop Yêu Thích+
-                            </span>
-                          )}
-                          {item.storeBadge === "NORMAL" && (
-                            <span className="font-label-sm text-[11px] text-secondary mt-0.5">
-                              Shop Thường
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                        {/* Giá niêm yết / gốc */}
+                        <td className="px-4 py-3 text-right align-middle font-data-tabular text-body-md text-secondary whitespace-nowrap font-medium">
+                          {prod.minOriginalPrice === prod.maxOriginalPrice
+                            ? formatVnd(prod.minOriginalPrice)
+                            : `${formatVnd(prod.minOriginalPrice)} - ${formatVnd(prod.maxOriginalPrice)}`}
+                        </td>
 
-                      {/* Original Price */}
-                      <td className="px-4 py-3 text-right align-middle font-data-tabular text-body-md text-secondary line-through tabular-nums whitespace-nowrap">
-                        {formatVnd(item.originalPrice)}
-                      </td>
-
-                      {/* Flash Sale Price */}
-                      <td className="px-4 py-3 text-right align-middle min-w-[170px]">
-                        <div className="flex flex-col items-end gap-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-data-tabular text-headline-md font-bold text-tertiary-container tabular-nums">
-                              {formatVnd(item.flashSalePrice)}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded font-label-sm text-label-sm font-bold bg-rose-100 text-rose-700">
-                              -{item.discountPercent}%
+                        {/* Giá Flash Sale */}
+                        <td className="px-4 py-3 text-right align-middle whitespace-nowrap">
+                          <div className="flex flex-col items-end">
+                            <span className="font-data-tabular text-headline-sm font-bold text-tertiary">
+                              {prod.minFlashSalePrice === prod.maxFlashSalePrice
+                                ? formatVnd(prod.minFlashSalePrice)
+                                : `${formatVnd(prod.minFlashSalePrice)} - ${formatVnd(prod.maxFlashSalePrice)}`}
                             </span>
                           </div>
+                        </td>
 
-                          {/* Warning / Advantage Pill */}
-                          {item.priceAdvantage?.type === "WARNING_30_DAYS" && (
-                            <div
-                              className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-label-sm text-[11px] font-medium cursor-help"
-                              title={item.priceAdvantage.tooltip}
-                            >
-                              <span className="material-symbols-outlined text-[13px] text-amber-600">
-                                warning
-                              </span>
-                              <span>{item.priceAdvantage.message}</span>
+                        {/* Mở bán / Tồn kho */}
+                        <td className="px-4 py-3 text-center align-middle whitespace-nowrap">
+                          <div className="flex flex-col items-center">
+                            <span className="font-data-tabular text-body-sm text-on-surface">
+                              <span className="text-primary font-extrabold">
+                                {prod.totalAllocatedStock}
+                              </span>{" "}
+                              / {prod.totalOriginalStock}
+                            </span>
+                            <div className="w-16 bg-surface-container rounded-full h-1.5 mt-1 overflow-hidden">
+                              <div
+                                className="bg-primary h-1.5 rounded-full"
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Thời gian gửi */}
+                        <td className="px-4 py-3 align-middle font-data-tabular text-body-sm text-secondary whitespace-nowrap">
+                          {prod.submittedAt}
+                        </td>
+
+                        {/* Thao tác nhóm */}
+                        <td className="px-4 py-3 text-right align-middle whitespace-nowrap w-[160px] min-w-[160px]">
+                          {activeTab === "PENDING" && (
+                            <div className="flex items-center justify-end gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleRejectProduct(prod)}
+                                className="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-rose-50 text-rose-700 font-headline-md text-body-sm font-semibold transition-colors shrink-0 whitespace-nowrap cursor-pointer"
+                                title="Từ chối toàn bộ biến thể của sản phẩm này"
+                              >
+                                Từ chối
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveProduct(prod)}
+                                className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-white font-headline-md text-body-sm font-semibold transition-colors shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+                                title="Duyệt toàn bộ biến thể của sản phẩm này"
+                              >
+                                Duyệt tất cả
+                              </button>
                             </div>
                           )}
 
-                          {item.priceAdvantage?.type === "BEST_60_DAYS" && (
-                            <span
-                              className="text-emerald-700 font-label-sm text-[11px] font-medium flex items-center gap-0.5 cursor-help"
-                              title={item.priceAdvantage.tooltip}
-                            >
-                              <span className="material-symbols-outlined text-[13px]">
-                                verified
-                              </span>
-                              <span>{item.priceAdvantage.message}</span>
-                            </span>
+                          {activeTab === "APPROVED" && (
+                            <div className="flex items-center justify-end gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleUndoProduct(prod)}
+                                className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors shrink-0 whitespace-nowrap cursor-pointer"
+                                title="Hoàn tác toàn bộ SKU về chờ duyệt"
+                              >
+                                Hoàn tác
+                              </button>
+                            </div>
                           )}
 
-                          {item.priceAdvantage?.type === "DEEP_DISCOUNT" && (
-                            <span className="text-secondary font-label-sm text-[11px]">
-                              {item.priceAdvantage.message}
-                            </span>
+                          {activeTab === "REJECTED" && (
+                            <div className="flex items-center justify-end gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleUndoProduct(prod)}
+                                className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors shrink-0 whitespace-nowrap cursor-pointer"
+                                title="Hoàn tác về chờ duyệt"
+                              >
+                                Hoàn tác
+                              </button>
+                            </div>
                           )}
-                        </div>
-                      </td>
+                        </td>
+                      </tr>
 
-                      {/* Stock Allocated / Original */}
-                      <td className="px-4 py-3 text-center align-middle whitespace-nowrap min-w-[120px]">
-                        <div className="flex flex-col items-center">
-                          <span className="font-data-tabular text-body-md font-bold text-on-surface tabular-nums">
-                            <span className="text-primary font-extrabold">
-                              {item.allocatedStock}
-                            </span>{" "}
-                            / {item.originalStock}
-                          </span>
-                          <div className="w-16 bg-surface-container rounded-full h-1.5 mt-1 overflow-hidden">
-                            <div
-                              className="bg-primary h-1.5 rounded-full"
-                              style={{ width: `${progressPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
+                      {/* Sub-table: SKU Matrix khi click "Xem SKU" */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={9} className="p-0 border-b border-outline-variant/30 bg-surface-container-low/20">
+                            <div className="p-4 pl-12">
+                              <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 space-y-3 border border-outline-variant/30">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-emerald-600 text-[18px]">
+                                      subdirectory_arrow_right
+                                    </span>
+                                    <span className="font-semibold text-sm text-on-surface">
+                                      Danh sách biến thể phân loại (SKU Matrix)
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-secondary font-medium">
+                                    {prod.skus.length} biến thể được nộp duyệt Flash Sale
+                                  </span>
+                                </div>
 
-                      {/* Limit Per Customer */}
-                      <td className="px-4 py-3 text-center align-middle font-data-tabular text-body-md text-secondary whitespace-nowrap">
-                        {item.customerLimit} sản phẩm
-                      </td>
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="h-9 bg-surface-container-low font-label-sm text-label-sm text-secondary uppercase border-b border-outline-variant/20">
+                                      <th className="w-10 px-3 text-center"></th>
+                                      <th className="px-3 py-1">Mã SKU</th>
+                                      <th className="px-3 py-1">Thuộc tính</th>
+                                      <th className="px-3 py-1 text-right">Giá gốc</th>
+                                      <th className="px-3 py-1 text-right">Giá Flash Sale</th>
+                                      <th className="px-3 py-1 text-center">Mở bán / Kho</th>
+                                      <th className="px-3 py-1 text-center">Giới hạn</th>
+                                      <th className="px-3 py-1 text-center">Trạng thái</th>
+                                      <th className="px-3 py-1 text-right">Thao tác SKU</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-surface-container font-body-sm text-body-sm">
+                                    {prod.skus.map((sku) => {
+                                      const isSkuSelected = selectedIds.includes(sku.id);
+                                      return (
+                                        <tr
+                                          key={sku.id}
+                                          className={cn(
+                                            "h-11 hover:bg-surface-container-low/40 transition-colors",
+                                            isSkuSelected && "bg-sky-50/60"
+                                          )}
+                                        >
+                                          {/* SKU Checkbox */}
+                                          <td className="px-3 text-center align-middle">
+                                            <input
+                                              type="checkbox"
+                                              checked={isSkuSelected}
+                                              onChange={() => handleToggleRow(sku.id)}
+                                              className="w-3.5 h-3.5 rounded text-primary focus:ring-0 cursor-pointer accent-primary"
+                                            />
+                                          </td>
 
-                      {/* Submitted Time */}
-                      <td className="px-4 py-3 align-middle font-data-tabular text-body-sm text-secondary whitespace-nowrap">
-                        {item.submittedAt}
-                      </td>
+                                          {/* Mã SKU */}
+                                          <td className="px-3 font-mono font-semibold text-on-surface">
+                                            {sku.skuCode}
+                                          </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-3 text-right align-middle whitespace-nowrap w-[160px] min-w-[160px]">
-                        {item.status === "PENDING" && (
-                          <div className="flex items-center justify-end gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenRejectSingle(item)}
-                              className="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-rose-50 text-rose-700 font-headline-md text-body-sm font-semibold transition-colors shrink-0 whitespace-nowrap cursor-pointer"
-                            >
-                              Từ chối
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenApproveSingle(item)}
-                              className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-container text-white font-headline-md text-body-sm font-semibold transition-colors shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
-                            >
-                              Duyệt
-                            </button>
-                          </div>
-                        )}
+                                          {/* Thuộc tính */}
+                                          <td className="px-3 text-secondary">
+                                            {sku.variantName || "Mặc định"}
+                                          </td>
 
-                        {item.status === "APPROVED" && (
-                          <div className="flex items-center justify-end gap-2 shrink-0">
-                            {item.commissionOverride !== undefined && (
-                              <span className="font-label-sm text-[11px] text-primary font-semibold whitespace-nowrap">
-                                {item.commissionOverride}%
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleUndo(item)}
-                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors shrink-0 whitespace-nowrap cursor-pointer"
-                            >
-                              Hoàn tác
-                            </button>
-                          </div>
-                        )}
+                                          {/* Giá gốc */}
+                                          <td className="px-3 text-right font-data-tabular text-secondary font-medium">
+                                            {formatVnd(sku.originalPrice)}
+                                          </td>
 
-                        {item.status === "REJECTED" && (
-                          <div className="flex items-center justify-end gap-2 shrink-0">
-                            <span
-                              className="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 truncate max-w-[100px] cursor-help whitespace-nowrap"
-                              title={item.rejectionNote || item.rejectionReason}
-                            >
-                              {item.rejectionReason}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleUndo(item)}
-                              className="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface font-headline-md text-body-sm font-medium transition-colors shrink-0 whitespace-nowrap cursor-pointer"
-                            >
-                              Hoàn tác
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
+                                          {/* Giá Flash Sale */}
+                                          <td className="px-3 text-right font-data-tabular font-bold text-tertiary">
+                                            <div className="flex items-center justify-end gap-1.5">
+                                              <span>{formatVnd(sku.flashSalePrice)}</span>
+                                              {sku.discountPercent > 0 && (
+                                                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                                                  -{sku.discountPercent}%
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
+
+                                          {/* Mở bán / Kho */}
+                                          <td className="px-3 text-center font-data-tabular text-on-surface">
+                                            <span className="font-bold text-primary">{sku.allocatedStock}</span> / {sku.originalStock}
+                                          </td>
+
+                                          {/* Giới hạn */}
+                                          <td className="px-3 text-center text-secondary">
+                                            {sku.customerLimit} sp/khách
+                                          </td>
+
+                                          {/* Trạng thái */}
+                                          <td className="px-3 text-center">
+                                            <span
+                                              className={cn(
+                                                "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                                                sku.status === "PENDING" && "bg-amber-50 text-amber-700 border border-amber-200",
+                                                sku.status === "APPROVED" && "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                                                sku.status === "REJECTED" && "bg-rose-50 text-rose-700 border border-rose-200"
+                                              )}
+                                            >
+                                              {sku.status === "PENDING" ? "• Chờ duyệt" : sku.status === "APPROVED" ? "• Đã duyệt" : "• Từ chối"}
+                                            </span>
+                                          </td>
+
+                                          {/* Thao tác từng SKU */}
+                                          <td className="px-3 text-right">
+                                            <div className="flex items-center justify-end gap-1.5">
+                                              {sku.status === "PENDING" && (
+                                                <>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenRejectSingle(sku)}
+                                                    className="px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                                                    title="Từ chối SKU này"
+                                                  >
+                                                    Từ chối
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenApproveSingle(sku)}
+                                                    className="px-2.5 py-1 rounded-md text-xs font-semibold bg-primary text-white hover:bg-primary-container transition-colors shadow-sm cursor-pointer"
+                                                    title="Duyệt SKU này"
+                                                  >
+                                                    Duyệt
+                                                  </button>
+                                                </>
+                                              )}
+
+                                              {sku.status === "APPROVED" && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleUndo(sku)}
+                                                  className="px-2 py-1 rounded-md text-xs font-medium text-secondary hover:bg-surface-container transition-colors cursor-pointer"
+                                                  title="Hoàn tác SKU về chờ duyệt"
+                                                >
+                                                  Hoàn tác
+                                                </button>
+                                              )}
+
+                                              {sku.status === "REJECTED" && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleUndo(sku)}
+                                                  className="px-2 py-1 rounded-md text-xs font-medium text-secondary hover:bg-surface-container transition-colors cursor-pointer"
+                                                  title="Hoàn tác SKU về chờ duyệt"
+                                                >
+                                                  Hoàn tác
+                                                </button>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}
@@ -1290,13 +1589,13 @@ export default function AdminSkuApprovalsPage() {
           <div className="font-body-sm text-body-sm text-secondary">
             Hiển thị{" "}
             <span className="font-bold text-on-surface">
-              {paginatedItems.length}
+              {paginatedProducts.length}
             </span>{" "}
             trên{" "}
             <span className="font-bold text-on-surface">
-              {filteredItems.length}
+              {groupedProducts.length}
             </span>{" "}
-            sản phẩm {activeTab === "PENDING" ? "chờ kiểm duyệt" : ""}
+            sản phẩm ({filteredItems.length} SKU) {activeTab === "PENDING" ? "chờ kiểm duyệt" : ""}
           </div>
 
           <div className="flex items-center gap-1">
