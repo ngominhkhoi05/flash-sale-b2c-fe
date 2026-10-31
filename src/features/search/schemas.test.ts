@@ -30,6 +30,12 @@ describe("normalizeRawSearchParams", () => {
     expect(normalizeRawSearchParams({ q: ["a", "b"] })).toEqual({ q: "a" });
   });
 
+  it("preserves array for multi-select keys like category", () => {
+    expect(normalizeRawSearchParams({ category: ["thoi-trang", "dien-tu"] })).toEqual({
+      category: ["thoi-trang", "dien-tu"],
+    });
+  });
+
   it("preserves plain string values", () => {
     expect(normalizeRawSearchParams({ q: "tai nghe", page: "2" })).toEqual({
       q: "tai nghe",
@@ -113,8 +119,6 @@ describe("toSearchFilters", () => {
     const filters = toSearchFilters(parsed);
     expect(filters).toEqual({
       categories: ["true-wireless"],
-      cities: ["HCM"],
-      services: ["freeship"],
       priceMin: 100,
       priceMax: 1000,
       minRating: 4,
@@ -123,9 +127,9 @@ describe("toSearchFilters", () => {
 });
 
 describe("searchParamsSchema – rejects invalid", () => {
-  it("rejects unknown category", () => {
-    const r = searchParamsSchema.safeParse({ category: "not-a-key" });
-    expect(r.success).toBe(false);
+  it("accepts dynamic category slugs", () => {
+    const r = searchParamsSchema.safeParse({ category: "thoi-trang-nam" });
+    expect(r.success).toBe(true);
   });
 
   it("rejects unknown city", () => {

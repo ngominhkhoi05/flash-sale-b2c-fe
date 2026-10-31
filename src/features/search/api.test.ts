@@ -66,26 +66,16 @@ describe("buildSearchQueryString", () => {
     expect(params.getAll("subcategory")).toEqual(["true-wireless", "over-ear"]);
   });
 
-  it("appends city[] as repeated city param", () => {
+  it("omits city and service params from search query", () => {
     const qs = buildSearchQueryString({
       q: "",
-      filters: { cities: ["HCM", "HN"] },
+      filters: { cities: ["HCM"], services: ["flash-sale"] },
       sort: "relevance",
       page: 1,
     });
     const params = new URLSearchParams(qs);
-    expect(params.getAll("city")).toEqual(["HCM", "HN"]);
-  });
-
-  it("appends service[] as repeated service param", () => {
-    const qs = buildSearchQueryString({
-      q: "",
-      filters: { services: ["flash-sale", "voucher"] },
-      sort: "relevance",
-      page: 1,
-    });
-    const params = new URLSearchParams(qs);
-    expect(params.getAll("service")).toEqual(["flash-sale", "voucher"]);
+    expect(params.get("city")).toBeNull();
+    expect(params.get("service")).toBeNull();
   });
 
   it("passes priceMin/priceMax/rating through", () => {
