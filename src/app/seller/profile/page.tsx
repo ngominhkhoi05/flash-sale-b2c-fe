@@ -21,6 +21,11 @@ import type {
   CreateStoreAddressPayload,
 } from "@/types/seller";
 import { VIETNAM_LOCATIONS } from "@/lib/constants/vietnam-locations";
+import {
+  getCachedProfile,
+  setCachedProfile,
+  setCachedAddresses,
+} from "@/lib/sellerCache";
 
 /**
  * Nén ảnh tự động bằng HTML5 Canvas để giảm kích thước từ vài MB xuống còn ~10KB - 30KB.
@@ -111,18 +116,31 @@ function cleanupBloatedStorage() {
 
 export default function SellerProfilePage() {
   const queryClient = useQueryClient();
-  const [profile, setProfile] = useState<SellerStoreProfileResponse | null>(null);
-  const [addresses, setAddresses] = useState<SellerWarehouseAddressItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const cached = getCachedProfile();
+  const [profile, setProfile] = useState<SellerStoreProfileResponse | null>(() => cached?.profile || null);
+  const [addresses, setAddresses] = useState<SellerWarehouseAddressItem[]>(() => cached?.addresses || []);
+  const [loading, setLoading] = useState<boolean>(() => !cached?.profile);
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
   const [logoUploading, setLogoUploading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form states for Store Profile
-  const [storeName, setStoreName] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [logoUrl, setLogoUrl] = useState<string>("");
-  const [bannerUrl, setBannerUrl] = useState<string>("");
+  const [storeName, setStoreName] = useState<string>(() => cached?.profile?.storeName || "");
+  const [description, setDescription] = useState<string>(() => cached?.profile?.description || "");
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    if (typeof window !== "undefined" && cached?.profile?.id) {
+      const savedLogo = localStorage.getItem(`seller_logo_${cached.profile.id}`) || localStorage.getItem("seller_logo_default");
+      if (savedLogo) return savedLogo;
+    }
+    return cached?.profile?.logoUrl || "";
+  });
+  const [bannerUrl, setBannerUrl] = useState<string>(() => {
+    if (typeof window !== "undefined" && cached?.profile?.id) {
+      const savedBanner = localStorage.getItem(`seller_banner_${cached.profile.id}`) || localStorage.getItem("seller_banner_default");
+      if (savedBanner) return savedBanner;
+    }
+    return cached?.profile?.bannerUrl || "";
+  });
 
   // Hidden File Inputs
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -165,12 +183,14 @@ export default function SellerProfilePage() {
   });
 
   const loadData = useCallback(async (showFullLoading = false) => {
-    if (showFullLoading) setLoading(true);
+    if (showFullLoading && !getCachedProfile()?.profile) setLoading(true);
     try {
       const [prof, addrList] = await Promise.all([
         getMyStoreProfile(),
         getStoreAddresses(),
       ]);
+
+      setCachedProfile(prof, addrList || []);
 
       const savedBanner =
         typeof window !== "undefined"
@@ -198,7 +218,7 @@ export default function SellerProfilePage() {
         err instanceof Error ? err.message : "Không thể tải thông tin hồ sơ gian hàng";
       setError(msg);
     } finally {
-      if (showFullLoading) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
@@ -208,10 +228,8 @@ export default function SellerProfilePage() {
 
   useEffect(() => {
     cleanupBloatedStorage();
-    const timer = setTimeout(() => {
-      void loadData(true);
-    }, 0);
-    return () => clearTimeout(timer);
+    const hasCached = !!getCachedProfile()?.profile;
+    void loadData(!hasCached);
   }, [loadData]);
 
   // Upload Logo file
