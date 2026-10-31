@@ -26,6 +26,7 @@ import type {
   PublicFlashSaleSlotResponse,
 } from "@/features/homepage/api";
 import { formatVariantLabel } from "@/components/storefront/flash-sale/FlashSaleDealCard";
+import { imageUrlWithFallback } from "@/lib/images/with-fallback";
 
 function defaultEndsAt(): string {
   return new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
@@ -191,7 +192,7 @@ export function FlashSaleStripSection() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     alt={deal.variantName}
-                    src={deal.imageUrl}
+                    src={imageUrlWithFallback(deal.imageUrl, "product")}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   {/* Badge FLASH SALE */}

@@ -25,6 +25,7 @@
 
 import type { ProductCardBaseProps } from "@/components/storefront/ProductCard/ProductCard.types";
 import type { RecommendedProductResponse } from "@/features/homepage/api";
+import { imageUrlWithFallback } from "@/lib/images/with-fallback";
 
 export function mapToProductCardProps(
   product: RecommendedProductResponse,
@@ -38,7 +39,7 @@ export function mapToProductCardProps(
     : undefined;
 
   return {
-    imageUrl: product.imageUrl ?? "",
+    imageUrl: imageUrlWithFallback(product.imageUrl, "product"),
     imageAlt: product.name,
     title: product.name,
     price: product.minPrice,
