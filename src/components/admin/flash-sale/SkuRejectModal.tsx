@@ -55,15 +55,14 @@ export function SkuRejectModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!note.trim()) {
-      setError("Vui lòng cung cấp lý do chi tiết để gửi cho Người Bán.");
+      setError("Vui lòng nhập lý do từ chối để gửi cho Người Bán.");
       return;
     }
-    const finalReason = selectedChip || "Từ chối theo quy chế sàn";
-    const finalNote = note.trim();
+    const finalReason = note.trim();
     setSelectedChip("");
     setNote("");
     setError("");
-    onConfirm(finalReason, finalNote);
+    onConfirm(finalReason, finalReason);
   };
 
   return (
